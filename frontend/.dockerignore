@@ -1,0 +1,22 @@
+# VCS
+.git
+
+# Node dependencies/build
+node_modules
+.next
+out
+dist
+.turbo
+coverage
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env
+.env
+.env.local
+.env.*.local
+

@@ -1,0 +1,65 @@
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+.history/
+
+# Environment/config local-only files
+.env
+.env.local
+.env.*.local
+!.env.example
+!**/.env.example
+
+# Logs and coverage
+*.log
+*.pid
+*.seed
+*.pid.lock
+*.out
+*.err
+*.stackdump
+logs/
+*.log.*
+coverage/
+coverage.xml
+htmlcov/
+
+# Python / backend local artifacts
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/*.pyc.*
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.python-version
+**/.venv/
+**/.venv-uv/
+**/.uv_cache/
+
+# Node / frontend local artifacts
+**/node_modules/
+**/.next/
+**/.turbo/
+**/dist/
+**/build/
+**/out/
+**/.npm/
+**/.pnpm-store/
+**/.yarn/
+**/.yarn/cache/
+*.tsbuildinfo
+*.log.*
+
+# Tooling artifacts
+**/.DS_Store
+

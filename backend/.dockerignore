@@ -1,0 +1,34 @@
+# Base VCS / local files
+.git
+.gitignore
+
+# Python
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+.venv-uv/
+.uv_cache/
+
+# Env/config
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Build / test artifacts
+.coverage
+coverage.xml
+coverage/
+htmlcov/
+agent_flight_recorder_backend.egg-info/
+
+# Packaging metadata not needed for build context
+*.egg-info/
+
+# Logs
+*.log
+*.log.*
+

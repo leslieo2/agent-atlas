@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+.venv/
+.venv-uv/
+.uv_cache/
+agent_flight_recorder_backend.egg-info/
+coverage/
+htmlcov/
