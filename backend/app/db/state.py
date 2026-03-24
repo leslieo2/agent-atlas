@@ -41,9 +41,7 @@ class _StatePersistence:
     def _connect(self, database_url: str | None) -> sqlite3.Connection | None:
         if not database_url:
             default_path = (
-                Path(__file__).resolve().parents[2]
-                / "data"
-                / "flight_recorder_state.db"
+                Path(__file__).resolve().parents[2] / "data" / "flight_recorder_state.db"
             ).resolve()
             database_url = f"sqlite:///{default_path}"
         database_url = database_url.strip()

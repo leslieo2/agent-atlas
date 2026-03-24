@@ -7,7 +7,7 @@ import {
   getCoreRowModel,
   useReactTable
 } from "@tanstack/react-table";
-import { createRun, exportArtifact, listRuns, RunRecord } from "@/lib/api";
+import { createRun, exportArtifact, listRuns, RunListFilters, RunRecord } from "@/lib/api";
 
 const columnHelper = createColumnHelper<RunRecord>();
 
@@ -18,22 +18,31 @@ export default function RunDashboard() {
   const [datasetFilter, setDatasetFilter] = useState("all");
   const [modelFilter, setModelFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    listRuns()
+    const filters: RunListFilters = {};
+    if (projectFilter !== "all") filters.project = projectFilter;
+    if (datasetFilter !== "all") filters.dataset = datasetFilter;
+    if (modelFilter !== "all") filters.model = modelFilter;
+    if (statusFilter !== "all") filters.status = statusFilter as RunListFilters["status"];
+    if (tagFilter !== "all") filters.tag = tagFilter;
+    if (createdFrom) filters.createdFrom = new Date(createdFrom).toISOString();
+    if (createdTo) filters.createdTo = new Date(createdTo).toISOString();
+
+    setMessage("Loading runs...");
+    listRuns(filters)
       .then((data) => {
         setRunRecords(data);
         setMessage(data.length ? `Loaded ${data.length} runs.` : "No runs found.");
       })
       .catch((error) => setMessage(`Failed to load runs: ${error.message}`));
-  }, []);
+  }, [projectFilter, datasetFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo]);
 
   const filtered = runRecords.filter((run) => {
-    if (projectFilter !== "all" && run.project !== projectFilter) return false;
-    if (datasetFilter !== "all" && run.dataset !== datasetFilter) return false;
-    if (modelFilter !== "all" && run.model !== modelFilter) return false;
-    if (statusFilter !== "all" && run.status !== statusFilter) return false;
     if (query && !run.inputSummary.toLowerCase().includes(query.toLowerCase())) return false;
     return true;
   });
@@ -41,6 +50,7 @@ export default function RunDashboard() {
   const projects = Array.from(new Set(runRecords.map((r) => r.project)));
   const datasets = Array.from(new Set(runRecords.map((r) => r.dataset)));
   const models = Array.from(new Set(runRecords.map((r) => r.model)));
+  const tags = Array.from(new Set(runRecords.flatMap((r) => r.tags)));
 
   const columns = useMemo(
     () => [
@@ -75,6 +85,12 @@ export default function RunDashboard() {
     getCoreRowModel: getCoreRowModel()
   });
 
+  const exportLatestRun = async (format: "jsonl" | "parquet") => {
+    if (!runRecords.length) return;
+    const artifact = await exportArtifact({ runIds: [runRecords[0].runId], format });
+    setMessage(`Exported ${artifact.artifactId} as ${format.toUpperCase()} (${artifact.sizeBytes} bytes)`);
+  };
+
   return (
     <section>
       <div className="topbar">
@@ -106,13 +122,12 @@ export default function RunDashboard() {
           </button>
           <button
             className="btn"
-            onClick={async () => {
-              if (!runRecords.length) return;
-              const artifact = await exportArtifact({ runIds: [runRecords[0].runId], format: "jsonl" });
-              setMessage(`Exported ${artifact.artifactId} (${artifact.sizeBytes} bytes)`);
-            }}
+            onClick={() => exportLatestRun("jsonl")}
           >
             Export JSONL
+          </button>
+          <button className="btn" onClick={() => exportLatestRun("parquet")}>
+            Export Parquet
           </button>
         </div>
       </div>
@@ -160,6 +175,25 @@ export default function RunDashboard() {
             <option value="succeeded">succeeded</option>
             <option value="failed">failed</option>
           </select>
+        </div>
+        <div className="field">
+          <label>Tag</label>
+          <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+            <option value="all">all</option>
+            {tags.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>Created from</label>
+          <input type="datetime-local" value={createdFrom} onChange={(e) => setCreatedFrom(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Created to</label>
+          <input type="datetime-local" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} />
         </div>
         <div className="field">
           <label>Search</label>

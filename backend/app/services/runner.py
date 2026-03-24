@@ -11,6 +11,9 @@ from app.services.model_runtime import model_runtime_service
 class Runner:
     name = "base"
 
+    def is_available(self) -> bool:
+        return True
+
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> dict[str, Any]:
         raise NotImplementedError
 

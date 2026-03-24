@@ -2,7 +2,16 @@
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpDown, CheckCircle2, TriangleAlert, XCircle } from "lucide-react";
-import { createDataset, createEvalJob, exportArtifact, EvalResult, listDatasets, listRuns } from "@/lib/api";
+import {
+  createDataset,
+  createEvalJob,
+  exportArtifact,
+  EvalResult,
+  getTrajectory,
+  listDatasets,
+  listRuns,
+  TrajectoryStep
+} from "@/lib/api";
 
 export default function EvalBench() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -11,7 +20,27 @@ export default function EvalBench() {
   const [rows, setRows] = useState<EvalResult[]>([]);
   const [dataset, setDataset] = useState("crm-v2");
   const [query, setQuery] = useState("");
+  const [selectedSample, setSelectedSample] = useState<EvalResult | null>(null);
+  const [trajectorySteps, setTrajectorySteps] = useState<TrajectoryStep[]>([]);
+  const [isDrilling, setIsDrilling] = useState(false);
   const [message, setMessage] = useState("Load datasets and run an eval.");
+  const [trajectoryError, setTrajectoryError] = useState("");
+
+  const loadTrajectory = async (row: EvalResult) => {
+    setSelectedSample(row);
+    setIsDrilling(true);
+    setTrajectoryError("");
+    try {
+      const steps = await getTrajectory(row.runId);
+      setTrajectorySteps(steps);
+      setMessage(`Loaded ${steps.length} trajectory steps for run ${row.runId.slice(0, 8)}.`);
+    } catch (error) {
+      setTrajectoryError(error instanceof Error ? error.message : "Failed to load trajectory");
+      setTrajectorySteps([]);
+    } finally {
+      setIsDrilling(false);
+    }
+  };
 
   const runEval = async () => {
     if (!dataset || !runIds[0]) return;
@@ -162,7 +191,7 @@ export default function EvalBench() {
       <div className="run-grid">
         <div className="table-shell">
           <h3 className="panel-title">Run comparison table</h3>
-          <table>
+        <table>
             <thead>
               <tr>
                 <th>Run ID</th>
@@ -177,7 +206,7 @@ export default function EvalBench() {
               {rows
                 .filter((row) => row.runId.includes(query) || row.sampleId.includes(query))
                 .map((row) => (
-                  <tr key={row.sampleId}>
+                  <tr key={row.sampleId} onClick={() => loadTrajectory(row)} style={{ cursor: "pointer" }}>
                     <td>{row.runId.slice(0, 8)}</td>
                     <td>{row.sampleId}</td>
                     <td>{row.status === "pass" ? "pass" : "fail"}</td>
@@ -206,9 +235,50 @@ export default function EvalBench() {
                 <p className="muted-note">
                   {sample.status === "fail" ? <TriangleAlert size={12} /> : null} {sample.reason ?? "no issues"}
                 </p>
+                <button className="btn" onClick={() => loadTrajectory(sample)}>
+                  View trajectory
+                </button>
               </div>
             ))}
+          {rows.length === 0 ? <p className="muted-note">Run an eval job to populate results.</p> : null}
           <p className="muted-note" style={{ marginTop: 8 }}>{message}</p>
+        </div>
+      </div>
+      <div className="layout-two" style={{ marginTop: 16 }}>
+        <div className="table-shell">
+          <h3 className="panel-title">
+            Trajectory drill-down
+            {selectedSample ? ` · sample ${selectedSample.sampleId}` : ""}
+          </h3>
+          {isDrilling ? <p className="muted-note">Loading trajectory...</p> : null}
+          {trajectoryError ? <p className="muted-note">Error: {trajectoryError}</p> : null}
+          {selectedSample && !isDrilling && !trajectoryError ? (
+            <>
+              <p className="muted-note" style={{ marginBottom: 8 }}>
+                Run {selectedSample.runId} · input: {selectedSample.input}
+              </p>
+              <div className="step-list">
+                {trajectorySteps.length === 0 ? (
+                  <p className="muted-note">No trajectory found for this run.</p>
+                ) : (
+                  trajectorySteps.map((step) => (
+                    <div key={step.id} className="step-item">
+                      <p>
+                        {step.id} · {step.stepType.toUpperCase()} · {step.success ? "success" : "error"}
+                      </p>
+                      <p className="muted-note">
+                        model: {step.model} · latency: {step.latencyMs}ms · tokens: {step.tokenUsage}
+                      </p>
+                      <p className="output-log mono" style={{ whiteSpace: "pre-wrap" }}>
+                        {step.output}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          ) : null}
+          {!selectedSample ? <p className="muted-note">Select a sample row above to inspect trajectory details.</p> : null}
         </div>
       </div>
     </section>

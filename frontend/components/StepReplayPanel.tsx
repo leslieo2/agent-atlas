@@ -40,7 +40,7 @@ export default function StepReplayPanel() {
     if (!candidate) return;
     setPrompt(candidate.prompt);
     setModel(candidate.model);
-  }, [selectedStepId]);
+  }, [selectedStepId, candidate]);
 
   const modifiedOutput = useMemo(() => {
     if (!candidate) return "Select a step to replay.";
@@ -88,34 +88,48 @@ ${candidate.output} -> with model ${model} and payload ${toolPayload.slice(0, 32
           <h3 className="panel-title">Replay controls</h3>
           <div className="two-col">
             <div className="field">
-              <label>Run</label>
-              <select value={selectedRun} onChange={(e) => setSelectedRun(e.target.value)}>
+              <label htmlFor="step-replay-run">Run</label>
+              <select id="step-replay-run" value={selectedRun} onChange={(e) => setSelectedRun(e.target.value)}>
                 {runs.map((run) => (
                   <option key={run.runId} value={run.runId}>
                     {run.runId.slice(0, 8)} · {run.project}
                   </option>
                 ))}
               </select>
-              <label>Step</label>
-              <select value={selectedStepId} onChange={(e) => setSelectedStepId(e.target.value)}>
+              <label htmlFor="step-replay-step">Step</label>
+              <select
+                id="step-replay-step"
+                value={selectedStepId}
+                onChange={(e) => setSelectedStepId(e.target.value)}
+              >
                 {steps.map((step) => (
                   <option key={step.id} value={step.id}>
                     {step.id} · {step.stepType}
                   </option>
                 ))}
               </select>
-              <label>Editable prompt</label>
-              <textarea rows={6} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+              <label htmlFor="step-replay-prompt">Editable prompt</label>
+              <textarea
+                id="step-replay-prompt"
+                rows={6}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
             </div>
             <div className="field">
-              <label>Model switcher</label>
-              <select value={model} onChange={(e) => setModel(e.target.value)}>
+              <label htmlFor="step-replay-model">Model switcher</label>
+              <select id="step-replay-model" value={model} onChange={(e) => setModel(e.target.value)}>
                 <option>gpt-4.1</option>
                 <option>gpt-4.1-mini</option>
                 <option>gpt-5-mini</option>
               </select>
-              <label>Tool parameter editor</label>
-              <textarea rows={5} value={toolPayload} onChange={(e) => setToolPayload(e.target.value)} />
+              <label htmlFor="step-replay-tool-params">Tool parameter editor</label>
+              <textarea
+                id="step-replay-tool-params"
+                rows={5}
+                value={toolPayload}
+                onChange={(e) => setToolPayload(e.target.value)}
+              />
             </div>
           </div>
           <p className="muted-note" style={{ marginTop: 10 }}>

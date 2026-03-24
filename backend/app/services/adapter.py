@@ -4,14 +4,14 @@ from typing import Any
 from uuid import UUID
 
 from app.db.state import state
-from app.models.schemas import AdapterDescriptor, TraceIngestEvent
+from app.models.schemas import AdapterDescriptor, TraceSpan
 
 
 class AdapterManager:
     def list_adapters(self) -> list[AdapterDescriptor]:
         return list(state.adapters)
 
-    def normalize_span(self, run_id: str | UUID, payload: TraceIngestEvent) -> dict[str, Any]:
+    def normalize_span(self, run_id: str | UUID, payload: TraceSpan) -> dict[str, Any]:
         # Basic normalization layer for adapter payloads coming from different runtimes.
         base = {
             "run_id": str(run_id),

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import random as _random
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.db.state import state
@@ -13,8 +13,8 @@ from app.models.schemas import (
     TraceSpan,
     TrajectoryStep,
 )
-from app.services.runner import execute_with_fallback
 from app.services.model_runtime import model_runtime_service
+from app.services.runner import execute_with_fallback
 from app.services.scheduler import run_scheduler
 
 
@@ -55,7 +55,7 @@ class RunOrchestrator:
         def _to_utc_naive(value: datetime | None) -> datetime | None:
             if not value or value.tzinfo is None:
                 return value
-            return value.astimezone(timezone.utc).replace(tzinfo=None)
+            return value.astimezone(UTC).replace(tzinfo=None)
 
         created_from = _to_utc_naive(created_from)
         created_to = _to_utc_naive(created_to)

@@ -92,16 +92,14 @@ class ArtifactExporter:
         except Exception:  # pragma: no cover
             warnings.warn(
                 "parquet output unavailable in this runtime. "
-                "Install pandas and pyarrow for true parquet export."
-                ,
+                "Install pandas and pyarrow for true parquet export.",
                 stacklevel=2,
             )
             fallback = {
                 "artifact_id": str(uuid4()),
                 "format": ArtifactFormat.PARQUET.value,
                 "message": (
-                    "parquet output unavailable in this runtime. "
-                    "Install pyarrow and pandas."
+                    "parquet output unavailable in this runtime. " "Install pyarrow and pandas."
                 ),
                 "run_ids": [str(rid) for rid in payload.run_ids],
             }

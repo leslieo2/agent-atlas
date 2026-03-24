@@ -11,8 +11,7 @@ class Settings(BaseSettings):
     runtime_mode: str = Field(
         default="auto",
         description=(
-            "Execution mode: auto|live|mock. "
-            "auto falls back to mock when OPENAI key missing."
+            "Execution mode: auto|live|mock. " "auto falls back to mock when OPENAI key missing."
         ),
     )
     runner_mode: str = Field(
@@ -22,8 +21,7 @@ class Settings(BaseSettings):
     database_url: str | None = Field(
         default=None,
         description=(
-            "State backend URL. sqlite:///path works; "
-            "otherwise startup falls back to memory."
+            "State backend URL. sqlite:///path works; " "otherwise startup falls back to memory."
         ),
     )
 

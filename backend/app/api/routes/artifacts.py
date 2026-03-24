@@ -20,6 +20,7 @@ def create_artifact(payload: ArtifactExportRequest) -> ArtifactMetadata:
 @router.get("/{artifact_id}")
 def get_artifact(artifact_id: str) -> FileResponse:
     from uuid import UUID
+
     try:
         artifact_uuid = UUID(artifact_id)
     except ValueError as exc:

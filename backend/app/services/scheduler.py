@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from queue import Queue
 from uuid import UUID
 
-
 TaskFn = Callable[[], None]
 
 

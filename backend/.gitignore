@@ -10,3 +10,4 @@ coverage.xml
 agent_flight_recorder_backend.egg-info/
 coverage/
 htmlcov/
+data/

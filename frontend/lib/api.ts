@@ -88,6 +88,16 @@ export interface RunRecord {
   createdAt: string;
 }
 
+export interface RunListFilters {
+  status?: RunStatus;
+  project?: string;
+  dataset?: string;
+  model?: string;
+  tag?: string;
+  createdFrom?: string;
+  createdTo?: string;
+}
+
 export interface TrajectoryStep {
   id: string;
   runId: string;
@@ -249,8 +259,18 @@ function mapArtifact(artifact: ApiArtifact): ArtifactExport {
   };
 }
 
-export async function listRuns() {
-  return (await request<ApiRunRecord[]>("/api/v1/runs")).map(mapRun);
+export async function listRuns(filters: RunListFilters = {}) {
+  const query = new URLSearchParams();
+  if (filters.status) query.set("status", filters.status);
+  if (filters.project) query.set("project", filters.project);
+  if (filters.dataset) query.set("dataset", filters.dataset);
+  if (filters.model) query.set("model", filters.model);
+  if (filters.tag) query.set("tag", filters.tag);
+  if (filters.createdFrom) query.set("created_from", filters.createdFrom);
+  if (filters.createdTo) query.set("created_to", filters.createdTo);
+  const suffix = query.toString();
+  const path = suffix ? `/api/v1/runs?${suffix}` : "/api/v1/runs";
+  return (await request<ApiRunRecord[]>(path)).map(mapRun);
 }
 
 export async function getTrajectory(runId: string) {

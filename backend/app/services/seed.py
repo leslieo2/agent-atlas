@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.db.state import state
 from app.models.schemas import (
+    AdapterKind,
     Dataset,
     DatasetSample,
     RunRecord,
@@ -30,7 +31,7 @@ def bootstrap() -> None:
             project="sales-assistant",
             dataset="crm-v2",
             model="gpt-4.1-mini",
-            agent_type="openai-agents-sdk",
+            agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["agent-sdk", "mcp"],
         ),
         RunRecord(
@@ -43,7 +44,7 @@ def bootstrap() -> None:
             project="support-router",
             dataset="support-incidents",
             model="gpt-5-mini",
-            agent_type="langchain",
+            agent_type=AdapterKind.LANGCHAIN,
             tags=["langchain", "tooling"],
         ),
         RunRecord(
@@ -56,7 +57,7 @@ def bootstrap() -> None:
             project="policy-lab",
             dataset="policy-review",
             model="gpt-4.1",
-            agent_type="langchain",
+            agent_type=AdapterKind.LANGCHAIN,
             tags=["langchain"],
         ),
         RunRecord(
@@ -69,7 +70,7 @@ def bootstrap() -> None:
             project="benchmarking",
             dataset="shopping-bench",
             model="gpt-4.1-mini",
-            agent_type="openai-agents-sdk",
+            agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["agent-sdk"],
         ),
     ]

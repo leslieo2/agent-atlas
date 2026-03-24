@@ -4,13 +4,16 @@ import os
 import time
 from typing import Any
 
+from pydantic import SecretStr
+
 from app.core.config import settings
 from app.models.schemas import AdapterKind
 
 
 class ModelRuntimeService:
     def __init__(self) -> None:
-        self.api_key = os.getenv("OPENAI_API_KEY") or os.getenv("AFLIGHT_OPENAI_API_KEY")
+        raw_api_key = os.getenv("OPENAI_API_KEY") or os.getenv("AFLIGHT_OPENAI_API_KEY")
+        self.api_key = SecretStr(raw_api_key) if raw_api_key else None
         self.runtime_mode = (settings.runtime_mode or "auto").lower()
         if self.runtime_mode not in {"auto", "live", "mock"}:
             self.runtime_mode = "auto"
@@ -41,7 +44,7 @@ class ModelRuntimeService:
     def _invoke_openai(self, model: str, prompt: str) -> dict[str, Any]:
         from openai import OpenAI
 
-        client = OpenAI(api_key=self.api_key)
+        client = OpenAI(api_key=self.api_key.get_secret_value() if self.api_key else None)
         started = time.perf_counter()
         response = client.chat.completions.create(
             model=model,

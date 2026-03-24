@@ -102,6 +102,11 @@ addopts = [
   "--cov-fail-under=70",
 ]
 testpaths = ["tests"]
+markers = [
+  "unit: fast isolated tests for pure services, mappers, and adapters",
+  "integration: API and service collaboration tests inside the FastAPI app boundary",
+  "e2e: end-to-end workflow tests covering the full backend workbench flow",
+]
 
 [tool.coverage.run]
 source = ["app", "tests"]

@@ -24,7 +24,7 @@ class EvalService:
 
     def _run_job(self, job_id: UUID, payload: EvalJobCreate) -> None:
         random_seed = sum(int(x.int & 0xFFFFFFFF) for x in payload.run_ids) % 10000
-        rng = random.Random(random_seed)
+        rng = random.Random(random_seed)  # nosec B311
         with state.lock:
             state.eval_jobs[job_id].status = EvalStatus.RUNNING
             state.save_eval_job(state.eval_jobs[job_id])

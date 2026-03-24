@@ -1,4 +1,4 @@
-.PHONY: install install-export sync lint fmt typecheck test test-check security ci
+.PHONY: install install-export sync lint fmt typecheck test test-unit test-integration test-e2e test-tdd-unit test-tdd-integration test-check security ci
 
 install:
 	uv venv --clear .venv
@@ -24,6 +24,21 @@ typecheck:
 
 test:
 	uv run pytest
+
+test-unit:
+	uv run pytest -m unit --no-cov
+
+test-integration:
+	uv run pytest -m integration
+
+test-e2e:
+	uv run pytest -m e2e
+
+test-tdd-unit:
+	uv run pytest -m unit --no-cov -x --ff
+
+test-tdd-integration:
+	uv run pytest -m integration -x --ff
 
 test-check:
 	uv run pytest --cov=app --cov-report=term-missing
