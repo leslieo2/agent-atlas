@@ -11,6 +11,7 @@ from app.modules.shared.domain.enums import ArtifactFormat
 class ArtifactExportRequest(BaseModel):
     run_ids: list[UUID]
     format: ArtifactFormat = ArtifactFormat.JSONL
+    split: str = "train"
 
 
 def utc_now() -> datetime:

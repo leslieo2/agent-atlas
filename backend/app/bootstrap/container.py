@@ -64,6 +64,7 @@ class AppContainer:
         self.artifact_exporter = ArtifactExporterAdapter(
             trajectory_repository=self.trajectory_repository,
             artifact_repository=self.artifact_repository,
+            run_repository=self.run_repository,
         )
 
         run_execution_service = RunExecutionService(
