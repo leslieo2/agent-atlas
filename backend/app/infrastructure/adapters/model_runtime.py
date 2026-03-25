@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import os
+import threading
 import time
 from collections.abc import Mapping
 from typing import Protocol
@@ -36,6 +38,40 @@ class OpenAIAgentsSdkAdapter:
         "Return the best direct answer."
     )
 
+    async def _run_async(self, agent: object, prompt: str) -> object:
+        from agents import Runner
+
+        return await Runner.run(agent, prompt)
+
+    def _run_with_explicit_event_loop(self, agent: object, prompt: str) -> object:
+        from agents import Runner
+
+        if not hasattr(Runner, "run"):
+            return Runner.run_sync(agent, prompt)
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self._run_async(agent, prompt))
+
+        result: object | None = None
+        error: BaseException | None = None
+
+        def runner_target() -> None:
+            nonlocal result, error
+            try:
+                result = asyncio.run(self._run_async(agent, prompt))
+            except BaseException as exc:  # pragma: no cover - defensive handoff
+                error = exc
+
+        runner_thread = threading.Thread(target=runner_target, name="aflight-openai-replay")
+        runner_thread.start()
+        runner_thread.join()
+
+        if error is not None:
+            raise error
+        return result
+
     def execute(
         self,
         *,
@@ -44,7 +80,7 @@ class OpenAIAgentsSdkAdapter:
         prompt: str,
     ) -> RuntimeExecutionResult:
         try:
-            from agents import Agent, Runner
+            from agents import Agent
         except ImportError as exc:
             raise RuntimeError("OpenAI Agents SDK package 'agents' is not installed") from exc
 
@@ -60,7 +96,7 @@ class OpenAIAgentsSdkAdapter:
         )
         try:
             started = time.perf_counter()
-            result = Runner.run_sync(agent, prompt)
+            result = self._run_with_explicit_event_loop(agent, prompt)
         finally:
             if resolved_api_key:
                 if previous_api_key is None:
