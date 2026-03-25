@@ -27,6 +27,7 @@ from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQ
 from app.modules.evals.application.execution import EvalJobRecorder, EvalJobRunner
 from app.modules.evals.application.use_cases import EvalJobCommands, EvalJobQueries
 from app.modules.health.application.use_cases import HealthQueries
+from app.modules.replays.application.execution import ReplayExecutor
 from app.modules.replays.application.use_cases import ReplayCommands, ReplayQueries
 from app.modules.runs.application.execution import RunExecutionService
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
@@ -83,7 +84,9 @@ class AppContainer:
         self.replay_queries = ReplayQueries(replay_repository=self.replay_repository)
         self.replay_commands = ReplayCommands(
             trajectory_repository=self.trajectory_repository,
+            run_repository=self.run_repository,
             replay_repository=self.replay_repository,
+            replay_executor=ReplayExecutor(runner_registry=self.runner_registry),
         )
         self.eval_job_queries = EvalJobQueries(eval_job_repository=self.eval_job_repository)
         eval_job_runner = EvalJobRunner(

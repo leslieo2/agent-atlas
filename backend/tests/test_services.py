@@ -9,9 +9,21 @@ from app.modules.artifacts.domain.models import ArtifactExportRequest
 from app.modules.datasets.domain.models import DatasetCreate
 from app.modules.evals.domain.models import EvalJobCreate
 from app.modules.replays.domain.models import ReplayRequest
-from app.modules.runs.domain.models import RunSpec as RunCreateRequest
-from app.modules.runs.domain.models import TrajectoryStep
-from app.modules.shared.domain.enums import ArtifactFormat, EvalStatus, RunStatus, StepType
+from app.modules.runs.domain.models import (
+    RunRecord,
+    RuntimeExecutionResult,
+    TrajectoryStep,
+)
+from app.modules.runs.domain.models import (
+    RunSpec as RunCreateRequest,
+)
+from app.modules.shared.domain.enums import (
+    AdapterKind,
+    ArtifactFormat,
+    EvalStatus,
+    RunStatus,
+    StepType,
+)
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
 
@@ -98,9 +110,21 @@ def test_run_commands_can_force_success(monkeypatch, worker_drain):
     assert container.run_queries.get_run(run.run_id).status == RunStatus.SUCCEEDED
 
 
-def test_replay_commands_create_diffed_output():
+def test_replay_commands_create_diffed_output(monkeypatch):
     container = get_container()
     run_id = uuid4()
+    container.run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="replay seed",
+            status=RunStatus.SUCCEEDED,
+            project="workbench",
+            dataset="crm-v2",
+            model="gpt-4.1-mini",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            tags=["replay"],
+        )
+    )
     container.trajectory_repository.append(
         TrajectoryStep(
             id="seed-step",
@@ -116,19 +140,50 @@ def test_replay_commands_create_diffed_output():
             tool_name="search",
         )
     )
+    captured: dict[str, object] = {}
+
+    def fake_execute(agent_type, model, prompt):
+        captured["agent_type"] = agent_type
+        captured["model"] = model
+        captured["prompt"] = prompt
+        return RuntimeExecutionResult(
+            output="tool replay output",
+            latency_ms=9,
+            token_usage=13,
+            provider="stub",
+        )
+
+    monkeypatch.setattr(container.runner_registry.default_runner, "execute", fake_execute)
 
     request = ReplayRequest(
         run_id=run_id,
         step_id="seed-step",
         edited_prompt="updated prompt",
         model="gpt-4.1-mini",
+        tool_overrides={"carrier": "UPS"},
+        rationale="verify alternate carrier",
     )
 
     result = container.replay_commands.replay_step(request)
     assert result.run_id == run_id
-    assert "Replay output for step seed-step" in result.replay_output
+    assert result.replay_output == "tool replay output"
     assert "updated prompt" in result.updated_prompt
     assert "baseline" in result.diff
+    assert captured == {
+        "agent_type": AdapterKind.OPENAI_AGENTS,
+        "model": "gpt-4.1-mini",
+        "prompt": (
+            "Replay tool step 'search' in isolation.\n\n"
+            "Edited tool input:\n"
+            "updated prompt\n\n"
+            "Original tool output:\n"
+            "baseline-output\n\n"
+            "Replay rationale:\n"
+            "verify alternate carrier\n\n"
+            "Tool overrides:\n"
+            '{"carrier": "UPS"}'
+        ),
+    }
 
 
 def test_artifact_commands_jsonl_output(tmp_path):

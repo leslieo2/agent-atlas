@@ -96,6 +96,7 @@ describe("StepReplayPanel integration", () => {
       return normalized.startsWith("Replay diff:");
     });
     expect(diffLine).toBeInTheDocument();
+    expect(await screen.findByText("new output")).toBeInTheDocument();
   });
 
   it("promotes replay result to new run", async () => {

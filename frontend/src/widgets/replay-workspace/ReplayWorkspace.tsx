@@ -1,8 +1,9 @@
 "use client";
 
 import { ArrowLeft, RefreshCcw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useCreateReplayMutation } from "@/src/entities/replay/query";
+import type { ReplayResult } from "@/src/entities/replay/model";
 import { useRunsQuery } from "@/src/entities/run/query";
 import { useTrajectoryQuery } from "@/src/entities/trajectory/query";
 import { ReplayDiff } from "@/src/features/replay-diff/ReplayDiff";
@@ -27,6 +28,7 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
   const [toolPayload, setToolPayload] = useState('{\n  "carrier": "FedEx"\n}');
   const [model, setModel] = useState("gpt-4.1-mini");
   const [lastDiff, setLastDiff] = useState("Waiting for replay...");
+  const [latestReplay, setLatestReplay] = useState<ReplayResult | null>(null);
   const runs = runsQuery.data ?? [];
   const trajectoryQuery = useTrajectoryQuery(selectedRun);
   const steps = trajectoryQuery.data ?? [];
@@ -64,10 +66,14 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
     setModel(candidate.model);
   }, [candidate, selectedStepId]);
 
-  const modifiedOutput = useMemo(() => {
-    if (!candidate) return "Select a step to replay.";
-    return `Patched output:\n${candidate.output} -> with model ${model} and payload ${toolPayload.slice(0, 32)}...`;
-  }, [candidate, model, toolPayload]);
+  useEffect(() => {
+    setLatestReplay(null);
+    setLastDiff("Waiting for replay...");
+  }, [selectedRun, selectedStepId]);
+
+  const activeReplay = latestReplay?.stepId === candidate?.id && latestReplay?.runId === candidate?.runId ? latestReplay : null;
+  const replayedPrompt = activeReplay?.updatedPrompt ?? prompt;
+  const replayedOutput = activeReplay?.replayOutput ?? "Run replay to generate output.";
 
   return (
     <section className="page-stack">
@@ -96,8 +102,10 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
                   toolOverrides: JSON.parse(toolPayload),
                   rationale: "Replay from UI"
                 });
+                setLatestReplay(result);
                 setLastDiff(result.diff || `Replay completed: ${result.replayId}`);
               } catch (error) {
+                setLatestReplay(null);
                 setLastDiff(error instanceof Error ? error.message : "Replay failed");
               }
             }}
@@ -162,9 +170,13 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
           </div>
           <ReplayDiff
             original={`Original:\n${candidate?.prompt ?? ""}\n\nOutput:\n${candidate?.output ?? ""}`}
-            modified={`Replayed prompt:\n${prompt}\n\n${modifiedOutput}`}
+            modified={`Replayed prompt:\n${replayedPrompt}\n\nOutput:\n${replayedOutput}`}
             lastDiff={lastDiff}
           />
+          <p className="muted-note" style={{ marginTop: 8 }}>
+            Latest replay output
+          </p>
+          <div className="output-log mono">{replayedOutput}</div>
           <div className="toolbar" style={{ marginTop: 8 }}>
             <PromoteReplayAction
               candidate={candidate}

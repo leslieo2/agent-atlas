@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import difflib
+import json
 from uuid import uuid4
 
+from app.modules.replays.application.ports import ReplayRuntimeRegistryPort
 from app.modules.replays.domain.models import ReplayRequest, ReplayResult
-from app.modules.runs.domain.models import TrajectoryStep
+from app.modules.runs.domain.models import RunRecord, RuntimeExecutionResult, TrajectoryStep
 from app.modules.shared.domain.enums import StepType
 
 
@@ -19,13 +21,61 @@ class ReplayBaselineResolver:
 
 
 class ReplayExecutor:
-    def execute(self, request: ReplayRequest, baseline_step: TrajectoryStep) -> str:
+    def __init__(self, runner_registry: ReplayRuntimeRegistryPort) -> None:
+        self.runner_registry = runner_registry
+
+    def execute(
+        self,
+        request: ReplayRequest,
+        baseline_step: TrajectoryStep,
+        run: RunRecord,
+    ) -> RuntimeExecutionResult:
+        resolved_model = self._resolve_model(request, baseline_step, run)
+        replay_prompt = self._build_prompt(request, baseline_step)
+        runner = self.runner_registry.get_runner(run.agent_type)
+        return runner.execute(run.agent_type, resolved_model, replay_prompt)
+
+    def _resolve_model(
+        self,
+        request: ReplayRequest,
+        baseline_step: TrajectoryStep,
+        run: RunRecord,
+    ) -> str:
+        if request.model:
+            return request.model
+
+        baseline_model = (baseline_step.model or "").strip()
+        if baseline_model and baseline_model.lower() not in {"n/a", "na"}:
+            return baseline_model
+
+        return run.model
+
+    def _build_prompt(self, request: ReplayRequest, baseline_step: TrajectoryStep) -> str:
         replay_prompt = request.edited_prompt or baseline_step.prompt
-        model = request.model or baseline_step.model
-        return (
-            f"Replay output for step {request.step_id} with model={model}: "
-            f"{replay_prompt[:60]} -> simulated policy-consistent response"
-        )
+        sections: list[str] = []
+
+        if baseline_step.step_type == StepType.TOOL:
+            tool_name = baseline_step.tool_name or "tool"
+            sections.extend(
+                [
+                    f"Replay tool step '{tool_name}' in isolation.",
+                    f"Edited tool input:\n{replay_prompt}",
+                    f"Original tool output:\n{baseline_step.output}",
+                ]
+            )
+        else:
+            sections.append(replay_prompt)
+
+        if request.rationale:
+            sections.append(f"Replay rationale:\n{request.rationale}")
+
+        if request.tool_overrides:
+            sections.append(
+                "Tool overrides:\n"
+                f"{json.dumps(request.tool_overrides, ensure_ascii=False, sort_keys=True)}"
+            )
+
+        return "\n\n".join(sections)
 
 
 class ReplayResultFactory:
@@ -33,14 +83,14 @@ class ReplayResultFactory:
         self,
         request: ReplayRequest,
         baseline_step: TrajectoryStep,
-        replay_output: str,
+        replay_result: RuntimeExecutionResult,
     ) -> ReplayResult:
         replay_prompt = request.edited_prompt or baseline_step.prompt
         model = request.model or baseline_step.model
         diff = "\n".join(
             difflib.unified_diff(
                 baseline_step.output.splitlines(),
-                replay_output.splitlines(),
+                replay_result.output.splitlines(),
                 fromfile="baseline",
                 tofile="replay",
                 lineterm="",
@@ -51,7 +101,7 @@ class ReplayResultFactory:
             run_id=request.run_id,
             step_id=request.step_id,
             baseline_output=baseline_step.output,
-            replay_output=replay_output,
+            replay_output=replay_result.output,
             diff=diff,
             updated_prompt=replay_prompt,
             model=model,

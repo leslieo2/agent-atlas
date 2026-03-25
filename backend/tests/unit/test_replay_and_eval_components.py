@@ -17,8 +17,8 @@ from app.modules.replays.application.execution import (
     ReplayResultFactory,
 )
 from app.modules.replays.domain.models import ReplayRequest
-from app.modules.runs.domain.models import TrajectoryStep
-from app.modules.shared.domain.enums import EvalStatus, StepType
+from app.modules.runs.domain.models import RunRecord, RuntimeExecutionResult, TrajectoryStep
+from app.modules.shared.domain.enums import AdapterKind, EvalStatus, RunStatus, StepType
 
 
 def test_replay_baseline_resolver_rejects_memory_steps():
@@ -58,7 +58,12 @@ def test_replay_result_factory_builds_diffed_result():
         edited_prompt="Explain the plan with more detail.",
         model="gpt-4.1",
     )
-    replay_output = ReplayExecutor().execute(request, baseline)
+    replay_output = RuntimeExecutionResult(
+        output="live replay output",
+        latency_ms=12,
+        token_usage=8,
+        provider="stub",
+    )
 
     result = ReplayResultFactory().build(request, baseline, replay_output)
 
@@ -66,6 +71,82 @@ def test_replay_result_factory_builds_diffed_result():
     assert result.model == "gpt-4.1"
     assert result.baseline_output == "baseline-output"
     assert result.diff
+
+
+def test_replay_executor_runs_isolated_step_via_runner():
+    run_id = uuid4()
+    baseline = TrajectoryStep(
+        id="step-1",
+        run_id=run_id,
+        step_type=StepType.LLM,
+        prompt="Explain the plan.",
+        output="baseline-output",
+        model="gpt-4.1-mini",
+        temperature=0.2,
+    )
+    run = RunRecord(
+        run_id=run_id,
+        input_summary="seed run",
+        status=RunStatus.SUCCEEDED,
+        project="workbench",
+        dataset="crm-v2",
+        model="gpt-4.1-mini",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        tags=["replay"],
+    )
+    request = ReplayRequest(
+        run_id=run_id,
+        step_id="step-1",
+        edited_prompt="Explain the plan with more detail.",
+        model="gpt-4.1",
+        tool_overrides={"carrier": "UPS"},
+        rationale="debug failed branch",
+    )
+
+    class StubRunner:
+        def __init__(self) -> None:
+            self.calls: list[tuple[AdapterKind, str, str]] = []
+
+        def execute(
+            self,
+            agent_type: AdapterKind,
+            model: str,
+            prompt: str,
+        ) -> RuntimeExecutionResult:
+            self.calls.append((agent_type, model, prompt))
+            return RuntimeExecutionResult(
+                output="live replay output",
+                latency_ms=17,
+                token_usage=42,
+                provider="stub",
+            )
+
+    class StubRegistry:
+        def __init__(self, runner: StubRunner) -> None:
+            self.runner = runner
+
+        def get_runner(self, agent_type: AdapterKind) -> StubRunner:
+            return self.runner
+
+    runner = StubRunner()
+    executor = ReplayExecutor(runner_registry=StubRegistry(runner))
+
+    result = executor.execute(request, baseline, run)
+
+    assert result.output == "live replay output"
+    assert runner.calls == [
+        (
+            AdapterKind.OPENAI_AGENTS,
+            "gpt-4.1",
+            (
+                "Explain the plan with more detail.\n\n"
+                "Replay rationale:\n"
+                "debug failed branch\n\n"
+                "Tool overrides:\n"
+                '{"carrier": "UPS"}'
+            ),
+        )
+    ]
 
 
 def test_eval_job_runner_marks_failure_when_evaluator_raises():

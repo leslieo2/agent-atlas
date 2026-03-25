@@ -3,7 +3,13 @@ from app.modules.replays.application.execution import (
     ReplayExecutor,
     ReplayResultFactory,
 )
-from app.modules.replays.application.ports import ReplayBaselineReader, ReplayRepository
+from app.modules.replays.application.ports import (
+    ReplayBaselineReader,
+    ReplayRepository,
+    ReplayRunReader,
+    ReplayRuntimePort,
+    ReplayRuntimeRegistryPort,
+)
 from app.modules.replays.application.use_cases import ReplayCommands, ReplayQueries
 
 __all__ = [
@@ -14,4 +20,7 @@ __all__ = [
     "ReplayQueries",
     "ReplayRepository",
     "ReplayResultFactory",
+    "ReplayRunReader",
+    "ReplayRuntimePort",
+    "ReplayRuntimeRegistryPort",
 ]

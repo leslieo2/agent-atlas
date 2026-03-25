@@ -14,7 +14,7 @@ export function ReplayDiff({ original, modified, lastDiff }: Props) {
       <DiffEditor
         original={original}
         modified={modified}
-        language="json"
+        language="plaintext"
         height="320px"
         options={{
           renderSideBySide: true,
@@ -29,4 +29,3 @@ export function ReplayDiff({ original, modified, lastDiff }: Props) {
     </>
   );
 }
-

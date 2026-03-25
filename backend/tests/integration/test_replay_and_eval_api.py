@@ -3,13 +3,25 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.bootstrap.container import get_container
-from app.modules.runs.domain.models import TrajectoryStep
-from app.modules.shared.domain.enums import StepType
+from app.modules.runs.domain.models import RunRecord, RuntimeExecutionResult, TrajectoryStep
+from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 
 
-def test_replay_api_creates_and_fetches_replay(client):
+def test_replay_api_creates_and_fetches_replay(client, monkeypatch):
     container = get_container()
     run_id = uuid4()
+    container.run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="replay api seed",
+            status=RunStatus.SUCCEEDED,
+            project="workbench",
+            dataset="crm-v2",
+            model="gpt-4.1-mini",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            tags=["replay"],
+        )
+    )
     container.trajectory_repository.append(
         TrajectoryStep(
             id="step-1",
@@ -23,6 +35,16 @@ def test_replay_api_creates_and_fetches_replay(client):
             token_usage=4,
             success=True,
         )
+    )
+    monkeypatch.setattr(
+        container.runner_registry.default_runner,
+        "execute",
+        lambda *_args, **_kwargs: RuntimeExecutionResult(
+            output="live api replay output",
+            latency_ms=12,
+            token_usage=8,
+            provider="stub",
+        ),
     )
 
     response = client.post(
@@ -40,7 +62,7 @@ def test_replay_api_creates_and_fetches_replay(client):
     assert payload["step_id"] == "step-1"
     assert payload["updated_prompt"] == "Explain the plan with more detail."
     assert payload["baseline_output"] == "baseline-output"
-    assert "Replay output for step step-1" in payload["replay_output"]
+    assert payload["replay_output"] == "live api replay output"
 
     replay_id = payload["replay_id"]
     fetched = client.get(f"/api/v1/replays/{replay_id}")
