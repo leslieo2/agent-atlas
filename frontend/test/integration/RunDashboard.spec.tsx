@@ -1,7 +1,8 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import RunDashboardWidget from "@/src/widgets/run-dashboard/RunDashboardWidget";
+import { renderWithQueryClient } from "@/test/setup";
 import * as artifactApi from "@/src/entities/artifact/api";
 import * as runApi from "@/src/entities/run/api";
 
@@ -126,7 +127,7 @@ describe("RunDashboard integration", () => {
   });
 
   it("loads runs and can create a new run", async () => {
-    render(<RunDashboardWidget />);
+    renderWithQueryClient(<RunDashboardWidget />);
 
     expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
     expect(screen.getByText("Generate a booking itinerary from CRM contact data")).toBeVisible();
@@ -136,21 +137,25 @@ describe("RunDashboard integration", () => {
   });
 
   it("exports jsonl and parquet artifacts for the latest run", async () => {
-    render(<RunDashboardWidget />);
+    renderWithQueryClient(<RunDashboardWidget />);
 
     expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Export JSONL" }));
-    expect(artifactApi.exportArtifact).toHaveBeenNthCalledWith(1, {
-      runIds: ["run-001"],
-      format: "jsonl"
+    await waitFor(() => {
+      expect(artifactApi.exportArtifact).toHaveBeenNthCalledWith(1, {
+        runIds: ["run-001"],
+        format: "jsonl"
+      });
     });
     expect(await screen.findByText("Exported artifact-001 as JSONL (11 bytes)")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Export Parquet" }));
-    expect(artifactApi.exportArtifact).toHaveBeenNthCalledWith(2, {
-      runIds: ["run-001"],
-      format: "parquet"
+    await waitFor(() => {
+      expect(artifactApi.exportArtifact).toHaveBeenNthCalledWith(2, {
+        runIds: ["run-001"],
+        format: "parquet"
+      });
     });
     expect(await screen.findByText("Exported artifact-002 as PARQUET (21 bytes)")).toBeInTheDocument();
   });

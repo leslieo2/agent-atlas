@@ -1,11 +1,12 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as artifactApi from "@/src/entities/artifact/api";
 import * as datasetApi from "@/src/entities/dataset/api";
 import * as evalApi from "@/src/entities/eval/api";
 import * as runApi from "@/src/entities/run/api";
 import * as trajectoryApi from "@/src/entities/trajectory/api";
+import { renderWithQueryClient } from "@/test/setup";
 import EvalWorkspace from "@/src/widgets/eval-workspace/EvalWorkspace";
 
 vi.mock("@/src/entities/dataset/api", () => ({
@@ -104,7 +105,7 @@ describe("EvalBench integration", () => {
   });
 
   it("runs eval job and exports the active run as jsonl artifacts", async () => {
-    render(<EvalWorkspace />);
+    renderWithQueryClient(<EvalWorkspace />);
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
@@ -112,15 +113,17 @@ describe("EvalBench integration", () => {
     expect(await screen.findByText(/Eval job job-001 finished with status done/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Export JSONL" }));
-    expect(artifactApi.exportArtifact).toHaveBeenCalledWith({
-      runIds: ["run-eval"],
-      format: "jsonl"
+    await waitFor(() => {
+      expect(artifactApi.exportArtifact).toHaveBeenCalledWith({
+        runIds: ["run-eval"],
+        format: "jsonl"
+      });
     });
     expect(await screen.findByText("Exported JSONL artifacts to /tmp/eval-artifact.jsonl")).toBeInTheDocument();
   });
 
   it("compares eval rows and drills into a filtered failure sample", async () => {
-    render(<EvalWorkspace />);
+    renderWithQueryClient(<EvalWorkspace />);
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 

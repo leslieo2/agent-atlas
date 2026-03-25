@@ -2,15 +2,11 @@
 
 import { ArrowLeft, RefreshCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { createReplay } from "@/src/entities/replay/api";
-import { listRuns } from "@/src/entities/run/api";
-import type { RunRecord } from "@/src/entities/run/model";
-import { getTrajectory } from "@/src/entities/trajectory/api";
-import type { TrajectoryStep } from "@/src/entities/trajectory/model";
 import { ReplayDiff } from "@/src/features/replay-diff/ReplayDiff";
 import { ReplayEditor } from "@/src/features/replay-editor/ReplayEditor";
 import { ReplaySourceSelector } from "@/src/features/replay-source-selector/ReplaySourceSelector";
 import { PromoteReplayAction } from "@/src/features/promote-run/PromoteReplayAction";
+import { useCreateReplayMutation, useRunsQuery, useTrajectoryQuery } from "@/src/shared/query/hooks";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Panel } from "@/src/shared/ui/Panel";
@@ -21,15 +17,17 @@ type Props = {
 };
 
 export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
-  const [runs, setRuns] = useState<RunRecord[]>([]);
+  const runsQuery = useRunsQuery();
+  const createReplayMutation = useCreateReplayMutation();
   const [selectedRun, setSelectedRun] = useState(runId ?? "");
-  const [steps, setSteps] = useState<TrajectoryStep[]>([]);
   const [selectedStepId, setSelectedStepId] = useState(initialStepId ?? "");
   const [prompt, setPrompt] = useState("");
   const [toolPayload, setToolPayload] = useState('{\n  "carrier": "FedEx"\n}');
   const [model, setModel] = useState("gpt-4.1-mini");
-  const [isReplaying, setIsReplaying] = useState(false);
   const [lastDiff, setLastDiff] = useState("Waiting for replay...");
+  const runs = runsQuery.data ?? [];
+  const trajectoryQuery = useTrajectoryQuery(selectedRun);
+  const steps = trajectoryQuery.data ?? [];
 
   const candidate = steps.find((step) => step.id === selectedStepId) ?? null;
 
@@ -40,36 +38,29 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
   }, [runId]);
 
   useEffect(() => {
-    listRuns().then((data) => {
-      setRuns(data);
-      if (!runId && data[0]) {
-        setSelectedRun(data[0].runId);
-      }
-    });
-  }, [runId]);
+    if (!runId && !selectedRun && runs[0]) {
+      setSelectedRun(runs[0].runId);
+    }
+  }, [runId, runs, selectedRun]);
 
   useEffect(() => {
-    if (!selectedRun) return;
-    getTrajectory(selectedRun).then((data) => {
-      setSteps(data);
-      const preferredStep =
-        (initialStepId && data.find((step) => step.id === initialStepId)?.id) ?? data[0]?.id ?? "";
+    const preferredStep =
+      (initialStepId && steps.find((step) => step.id === initialStepId)?.id) ?? steps[0]?.id ?? "";
 
-      setSelectedStepId(preferredStep);
+    setSelectedStepId(preferredStep);
 
-      if (data[0]) {
-        const active = data.find((step) => step.id === preferredStep) ?? data[0];
-        setPrompt(active.prompt);
-        setModel(active.model);
-      }
-    });
-  }, [initialStepId, selectedRun]);
+    if (steps[0]) {
+      const active = steps.find((step) => step.id === preferredStep) ?? steps[0];
+      setPrompt(active.prompt);
+      setModel(active.model);
+    }
+  }, [initialStepId, steps]);
 
   useEffect(() => {
     if (!candidate) return;
     setPrompt(candidate.prompt);
     setModel(candidate.model);
-  }, [selectedStepId, candidate]);
+  }, [candidate, selectedStepId]);
 
   const modifiedOutput = useMemo(() => {
     if (!candidate) return "Select a step to replay.";
@@ -91,12 +82,11 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
             <ArrowLeft size={14} /> Open source run
           </Button>
           <Button
-            disabled={isReplaying || !candidate}
+            disabled={createReplayMutation.isPending || !candidate}
             onClick={async () => {
               if (!candidate) return;
-              setIsReplaying(true);
               try {
-                const result = await createReplay({
+                const result = await createReplayMutation.mutateAsync({
                   runId: candidate.runId,
                   stepId: candidate.id,
                   editedPrompt: prompt,
@@ -107,8 +97,6 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
                 setLastDiff(result.diff || `Replay completed: ${result.replayId}`);
               } catch (error) {
                 setLastDiff(error instanceof Error ? error.message : "Replay failed");
-              } finally {
-                setIsReplaying(false);
               }
             }}
           >
@@ -121,7 +109,7 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
         <MetricCard label="Source run" value={candidate?.runId ?? (selectedRun || "-")} />
         <MetricCard label="Active step" value={candidate?.id ?? "-"} />
         <MetricCard label="Model" value={model} />
-        <MetricCard label="Replay state" value={isReplaying ? "Running" : "Idle"} />
+        <MetricCard label="Replay state" value={createReplayMutation.isPending ? "Running" : "Idle"} />
       </div>
 
       <div className="workspace-grid workspace-grid-wide">
@@ -159,7 +147,7 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
           </p>
           <p className="output-log mono">{candidate?.output ?? "No baseline output."}</p>
           <p className="muted-note">
-            {isReplaying ? "Replay running..." : "Replay idle. The output diff updates after replay."}
+            {createReplayMutation.isPending ? "Replay running..." : "Replay idle. The output diff updates after replay."}
           </p>
         </Panel>
 
@@ -189,4 +177,3 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
     </section>
   );
 }
-

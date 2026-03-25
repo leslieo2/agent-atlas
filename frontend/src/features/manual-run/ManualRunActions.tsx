@@ -1,8 +1,8 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { Play } from "lucide-react";
-import { createRun } from "@/src/entities/run/api";
-import { getTrajectory } from "@/src/entities/trajectory/api";
+import { trajectoryQueryOptions, useCreateRunMutation } from "@/src/shared/query/hooks";
 import { Button } from "@/src/shared/ui/Button";
 
 type Props = {
@@ -24,8 +24,11 @@ export function ManualRunActions({
   onLatestRunChange,
   onLogChange
 }: Props) {
+  const queryClient = useQueryClient();
+  const createRunMutation = useCreateRunMutation();
+
   const runManual = async () => {
-    const run = await createRun({
+    const run = await createRunMutation.mutateAsync({
       project: "playground",
       dataset: "crm-v2",
       model,
@@ -65,7 +68,7 @@ export function ManualRunActions({
         variant="ghost"
         onClick={async () => {
           if (!latestRunId) return;
-          const steps = await getTrajectory(latestRunId);
+          const steps = await queryClient.fetchQuery(trajectoryQueryOptions(latestRunId));
           onLogChange(
             steps.length
               ? steps.map((step) => `${step.id} | ${step.stepType} | ${step.output}`).join("\n")
@@ -78,4 +81,3 @@ export function ManualRunActions({
     </div>
   );
 }
-

@@ -1,9 +1,10 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as replayApi from "@/src/entities/replay/api";
 import * as runApi from "@/src/entities/run/api";
 import * as trajectoryApi from "@/src/entities/trajectory/api";
+import { renderWithQueryClient } from "@/test/setup";
 import ReplayWorkspace from "@/src/widgets/replay-workspace/ReplayWorkspace";
 
 vi.mock("@/src/entities/run/api", () => ({
@@ -80,15 +81,16 @@ describe("StepReplayPanel integration", () => {
   });
 
   it("replays a step and writes diff", async () => {
-    render(<ReplayWorkspace />);
+    renderWithQueryClient(<ReplayWorkspace />);
 
     expect(await screen.findByText(/Step replay/)).toBeInTheDocument();
-    expect(screen.getByText("run-step · project-a")).toBeInTheDocument();
+    expect(await screen.findByText("base output")).toBeInTheDocument();
 
     const editedPrompt = screen.getByLabelText("Editable prompt");
     fireEvent.change(editedPrompt, { target: { value: "patched prompt" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Replay step" }));
+    await waitFor(() => expect(replayApi.createReplay).toHaveBeenCalledTimes(1));
     const diffLine = await screen.findByText((content) => {
       const normalized = content.replace(/\s+/g, " ").trim();
       return normalized.startsWith("Replay diff:");
@@ -97,11 +99,13 @@ describe("StepReplayPanel integration", () => {
   });
 
   it("promotes replay result to new run", async () => {
-    render(<ReplayWorkspace />);
-    expect(await screen.findByText(/Step replay/)).toBeInTheDocument();
+    renderWithQueryClient(<ReplayWorkspace />);
+    expect(await screen.findByText("base output")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Replay step" }));
+    await waitFor(() => expect(replayApi.createReplay).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Promote to new run" }));
+    await waitFor(() => expect(runApi.createRun).toHaveBeenCalledTimes(1));
     expect(
       await screen.findByText(/Promoted replay to new run run-replay-candidate/)
     ).toBeInTheDocument();

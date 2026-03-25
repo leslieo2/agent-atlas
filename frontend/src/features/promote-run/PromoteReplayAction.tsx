@@ -1,7 +1,7 @@
 "use client";
 
-import { createRun } from "@/src/entities/run/api";
 import type { TrajectoryStep } from "@/src/entities/trajectory/model";
+import { useCreateRunMutation } from "@/src/shared/query/hooks";
 import { Button } from "@/src/shared/ui/Button";
 
 type Props = {
@@ -13,6 +13,8 @@ type Props = {
 };
 
 export function PromoteReplayAction({ candidate, model, prompt, lastDiff, onUpdated }: Props) {
+  const createRunMutation = useCreateRunMutation();
+
   return (
     <>
       <Button variant="ghost" onClick={() => navigator.clipboard?.writeText(lastDiff)}>
@@ -22,7 +24,7 @@ export function PromoteReplayAction({ candidate, model, prompt, lastDiff, onUpda
         variant="ghost"
         onClick={async () => {
           if (!candidate) return;
-          const run = await createRun({
+          const run = await createRunMutation.mutateAsync({
             project: "replay-candidate",
             dataset: "crm-v2",
             model,
@@ -39,4 +41,3 @@ export function PromoteReplayAction({ candidate, model, prompt, lastDiff, onUpda
     </>
   );
 }
-

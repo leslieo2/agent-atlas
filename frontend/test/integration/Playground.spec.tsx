@@ -1,8 +1,9 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as runApi from "@/src/entities/run/api";
 import * as trajectoryApi from "@/src/entities/trajectory/api";
+import { renderWithQueryClient } from "@/test/setup";
 import PlaygroundWorkspace from "@/src/widgets/playground-workspace/PlaygroundWorkspace";
 
 vi.mock("@/src/entities/run/api", () => ({
@@ -60,11 +61,11 @@ describe("Playground integration", () => {
   });
 
   it("creates a run and opens latest trace", async () => {
-    render(<PlaygroundWorkspace />);
+    renderWithQueryClient(<PlaygroundWorkspace />);
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("button", { name: "Run now" }));
-    expect(runApi.createRun).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(runApi.createRun).toHaveBeenCalledTimes(1));
     expect(await screen.findByText(/run_id:\s*run-play-new/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open latest trace" }));
@@ -72,7 +73,7 @@ describe("Playground integration", () => {
   });
 
   it("loads sample prompt preset", async () => {
-    render(<PlaygroundWorkspace />);
+    renderWithQueryClient(<PlaygroundWorkspace />);
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("button", { name: "Attach dataset sample" }));

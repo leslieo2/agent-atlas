@@ -1,15 +1,17 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { exportArtifact } from "@/src/entities/artifact/api";
-import { listRuns } from "@/src/entities/run/api";
-import type { RunRecord } from "@/src/entities/run/model";
-import { getTrajectory } from "@/src/entities/trajectory/api";
-import type { TrajectoryStep } from "@/src/entities/trajectory/model";
 import { ComparePreviousRunAction } from "@/src/features/trajectory-compare/ComparePreviousRunAction";
 import { TrajectoryGraph } from "@/src/features/trajectory-graph/TrajectoryGraph";
 import { StepInspector } from "@/src/features/step-inspector/StepInspector";
+import {
+  trajectoryQueryOptions,
+  useExportArtifactMutation,
+  useRunsQuery,
+  useTrajectoryQuery
+} from "@/src/shared/query/hooks";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Panel } from "@/src/shared/ui/Panel";
@@ -24,14 +26,32 @@ type Props = {
   runId?: string;
 };
 
+function hasSameExpandedState(
+  current: Record<string, boolean>,
+  next: Record<string, boolean>
+) {
+  const currentKeys = Object.keys(current);
+  const nextKeys = Object.keys(next);
+
+  if (currentKeys.length !== nextKeys.length) {
+    return false;
+  }
+
+  return nextKeys.every((key) => current[key] === next[key]);
+}
+
 export default function TrajectoryWorkspace({ runId }: Props = {}) {
-  const [runs, setRuns] = useState<RunRecord[]>([]);
+  const queryClient = useQueryClient();
+  const runsQuery = useRunsQuery();
+  const exportArtifactMutation = useExportArtifactMutation();
   const [selectedRun, setSelectedRun] = useState(runId ?? "");
-  const [steps, setSteps] = useState<TrajectoryStep[]>([]);
-  const [message, setMessage] = useState("Loading trajectory...");
+  const [actionMessage, setActionMessage] = useState("");
   const [diffSummary, setDiffSummary] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [focusedStepId, setFocusedStepId] = useState("");
+  const runs = runsQuery.data ?? [];
+  const trajectoryQuery = useTrajectoryQuery(selectedRun);
+  const steps = trajectoryQuery.data ?? [];
 
   useEffect(() => {
     if (runId) {
@@ -40,33 +60,45 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   }, [runId]);
 
   useEffect(() => {
-    listRuns()
-      .then((data) => {
-        setRuns(data);
-        if (!runId && data[0]) {
-          setSelectedRun(data[0].runId);
-        }
-      })
-      .catch((error) => setMessage(`Failed to load runs: ${error.message}`));
-  }, [runId]);
+    if (!runId && !selectedRun && runs[0]) {
+      setSelectedRun(runs[0].runId);
+    }
+  }, [runId, runs, selectedRun]);
 
   useEffect(() => {
-    if (!selectedRun) return;
-    getTrajectory(selectedRun)
-      .then((data) => {
-        setSteps(data);
-        setExpanded(Object.fromEntries(data.map((step, index) => [step.id, index === 0])));
-        setFocusedStepId(data[0]?.id ?? "");
-        setMessage(data.length ? `Loaded ${data.length} steps.` : "No trajectory found.");
-      })
-      .catch((error) => setMessage(`Failed to load trajectory: ${error.message}`));
-  }, [selectedRun]);
+    setActionMessage("");
+  }, [selectedRun, trajectoryQuery.dataUpdatedAt, trajectoryQuery.errorUpdatedAt]);
+
+  useEffect(() => {
+    if (!steps.length) {
+      setExpanded((current) => (Object.keys(current).length ? {} : current));
+      setFocusedStepId((current) => (current ? "" : current));
+      return;
+    }
+
+    const nextExpanded = Object.fromEntries(steps.map((step, index) => [step.id, index === 0]));
+    setExpanded((current) => (hasSameExpandedState(current, nextExpanded) ? current : nextExpanded));
+    setFocusedStepId((current) => (current && steps.some((step) => step.id === current) ? current : steps[0].id));
+  }, [steps]);
 
   const selectedRunRecord = runs.find((run) => run.runId === selectedRun);
   const focusedStep = steps.find((step) => step.id === focusedStepId) ?? steps[0] ?? null;
   const nodes = useMemo(() => buildTrajectoryNodes(steps, focusedStepId), [focusedStepId, steps]);
   const edges = useMemo(() => buildTrajectoryEdges(steps), [steps]);
   const metrics = useMemo(() => getTrajectoryMetrics(steps), [steps]);
+  const message = actionMessage || (
+    runsQuery.isError
+      ? "Failed to load runs."
+      : trajectoryQuery.isPending
+        ? "Loading trajectory..."
+        : trajectoryQuery.isError
+          ? `Failed to load trajectory: ${trajectoryQuery.error instanceof Error ? trajectoryQuery.error.message : "unknown error"}`
+          : steps.length
+            ? `Loaded ${steps.length} steps.`
+            : selectedRun
+              ? "No trajectory found."
+              : "Select a run to inspect."
+  );
 
   const compareWithPreviousRun = async () => {
     const currentIndex = runs.findIndex((run) => run.runId === selectedRun);
@@ -77,7 +109,7 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
       return;
     }
 
-    const previousSteps = await getTrajectory(previousRun.runId);
+    const previousSteps = await queryClient.fetchQuery(trajectoryQueryOptions(previousRun.runId));
     setDiffSummary(compareTrajectories(steps, previousSteps, previousRun.runId));
   };
 
@@ -137,8 +169,8 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
                 variant="ghost"
                 onClick={async () => {
                   if (!selectedRun) return;
-                  const artifact = await exportArtifact({ runIds: [selectedRun], format: "jsonl" });
-                  setMessage(`Trace snapshot exported to ${artifact.path}`);
+                  const artifact = await exportArtifactMutation.mutateAsync({ runIds: [selectedRun], format: "jsonl" });
+                  setActionMessage(`Trace snapshot exported to ${artifact.path}`);
                 }}
               >
                 Export trace snapshot
@@ -168,4 +200,3 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
     </section>
   );
 }
-

@@ -1,9 +1,10 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as artifactApi from "@/src/entities/artifact/api";
 import * as runApi from "@/src/entities/run/api";
 import * as trajectoryApi from "@/src/entities/trajectory/api";
+import { renderWithQueryClient } from "@/test/setup";
 import TrajectoryWorkspace from "@/src/widgets/trajectory-workspace/TrajectoryWorkspace";
 
 vi.mock("reactflow", () => {
@@ -20,6 +21,10 @@ vi.mock("reactflow", () => {
     MiniMap: () => <div />
   };
 });
+
+vi.mock("@/src/features/trajectory-graph/TrajectoryGraph", () => ({
+  TrajectoryGraph: () => <div>trajectory-graph-mock</div>
+}));
 
 vi.mock("@/src/entities/run/api", () => ({
   listRuns: vi.fn(),
@@ -126,7 +131,7 @@ describe("TrajectoryViewer integration", () => {
   });
 
   it("renders trajectory and shows diffs against previous run", async () => {
-    render(<TrajectoryWorkspace />);
+    renderWithQueryClient(<TrajectoryWorkspace />);
 
     expect(await screen.findByText("Loaded 2 steps.")).toBeInTheDocument();
     expect(screen.getByText("current planner output")).toBeInTheDocument();
@@ -139,7 +144,7 @@ describe("TrajectoryViewer integration", () => {
   });
 
   it("exports trace snapshot for selected run", async () => {
-    render(<TrajectoryWorkspace />);
+    renderWithQueryClient(<TrajectoryWorkspace />);
     expect(await screen.findByText("Loaded 2 steps.")).toBeInTheDocument();
     await screen.findByText("Export trace snapshot");
     fireEvent.click(screen.getByRole("button", { name: "Export trace snapshot" }));

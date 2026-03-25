@@ -1,7 +1,7 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { exportArtifact } from "@/src/entities/artifact/api";
+import { useExportArtifactMutation } from "@/src/shared/query/hooks";
 import { Button } from "@/src/shared/ui/Button";
 
 export function ArtifactExportActions({
@@ -11,10 +11,12 @@ export function ArtifactExportActions({
   runId?: string;
   onExported: (message: string) => void;
 }) {
+  const exportArtifactMutation = useExportArtifactMutation();
+
   const exportLatestRun = async (format: "jsonl" | "parquet") => {
     if (!runId) return;
 
-    const artifact = await exportArtifact({ runIds: [runId], format });
+    const artifact = await exportArtifactMutation.mutateAsync({ runIds: [runId], format });
     onExported(`Exported ${artifact.artifactId} as ${format.toUpperCase()} (${artifact.sizeBytes} bytes)`);
   };
 
@@ -29,4 +31,3 @@ export function ArtifactExportActions({
     </>
   );
 }
-

@@ -1,28 +1,36 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { exportArtifact } from "@/src/entities/artifact/api";
-import { createDataset, listDatasets } from "@/src/entities/dataset/api";
-import { createEvalJob } from "@/src/entities/eval/api";
 import type { EvalResult } from "@/src/entities/eval/model";
-import { listRuns } from "@/src/entities/run/api";
-import { getTrajectory } from "@/src/entities/trajectory/api";
 import type { TrajectoryStep } from "@/src/entities/trajectory/model";
 import { DatasetSelector } from "@/src/features/dataset-selector/DatasetSelector";
 import { DatasetUpload } from "@/src/features/dataset-upload/DatasetUpload";
 import { EvalResultsTable } from "@/src/features/eval-results-table/EvalResultsTable";
 import { EvalRunActions } from "@/src/features/eval-run/EvalRunActions";
 import { SampleDrilldown } from "@/src/features/sample-drilldown/SampleDrilldown";
+import {
+  trajectoryQueryOptions,
+  useCreateDatasetMutation,
+  useCreateEvalJobMutation,
+  useDatasetsQuery,
+  useExportArtifactMutation,
+  useRunsQuery
+} from "@/src/shared/query/hooks";
 import { Field } from "@/src/shared/ui/Field";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Panel } from "@/src/shared/ui/Panel";
 import { getEvalTotals, getVisibleEvalRows } from "./selectors";
 
 export default function EvalWorkspace() {
+  const queryClient = useQueryClient();
+  const datasetsQuery = useDatasetsQuery();
+  const runsQuery = useRunsQuery();
+  const createDatasetMutation = useCreateDatasetMutation();
+  const createEvalJobMutation = useCreateEvalJobMutation();
+  const exportArtifactMutation = useExportArtifactMutation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [datasets, setDatasets] = useState<string[]>([]);
-  const [runIds, setRunIds] = useState<string[]>([]);
   const [rows, setRows] = useState<EvalResult[]>([]);
   const [dataset, setDataset] = useState("crm-v2");
   const [query, setQuery] = useState("");
@@ -32,6 +40,8 @@ export default function EvalWorkspace() {
   const [failuresOnly, setFailuresOnly] = useState(false);
   const [message, setMessage] = useState("Load datasets and run an eval.");
   const [trajectoryError, setTrajectoryError] = useState("");
+  const datasets = datasetsQuery.data?.map((item) => item.name) ?? [];
+  const runIds = runsQuery.data?.map((item) => item.runId) ?? [];
 
   const loadTrajectory = async (row: EvalResult) => {
     setSelectedSample(row);
@@ -39,7 +49,7 @@ export default function EvalWorkspace() {
     setTrajectoryError("");
 
     try {
-      const steps = await getTrajectory(row.runId);
+      const steps = await queryClient.fetchQuery(trajectoryQueryOptions(row.runId));
       setTrajectorySteps(steps);
       setMessage(`Loaded ${steps.length} trajectory steps for run ${row.runId.slice(0, 8)}.`);
     } catch (error) {
@@ -52,7 +62,7 @@ export default function EvalWorkspace() {
 
   const runEval = async () => {
     if (!dataset || !runIds[0]) return;
-    const job = await createEvalJob({
+    const job = await createEvalJobMutation.mutateAsync({
       runIds: [runIds[0]],
       dataset,
       evaluators: ["rule", "judge", "tool-correctness"]
@@ -63,7 +73,7 @@ export default function EvalWorkspace() {
 
   const exportEvalArtifacts = async (format: "jsonl" | "parquet") => {
     if (!runIds[0]) return;
-    const artifact = await exportArtifact({ runIds: [runIds[0]], format });
+    const artifact = await exportArtifactMutation.mutateAsync({ runIds: [runIds[0]], format });
     setMessage(`Exported ${format.toUpperCase()} artifacts to ${artifact.path}`);
   };
 
@@ -87,21 +97,21 @@ export default function EvalWorkspace() {
       });
 
     const datasetName = file.name.replace(/\.jsonl$/i, "") || `dataset-${Date.now()}`;
-    const createdDataset = await createDataset({ name: datasetName, rows: datasetRows });
-    setDatasets((previous) => Array.from(new Set([...previous, createdDataset.name])));
+    const createdDataset = await createDatasetMutation.mutateAsync({ name: datasetName, rows: datasetRows });
     setDataset(createdDataset.name);
     setMessage(`Uploaded dataset ${createdDataset.name} with ${createdDataset.rows.length} rows.`);
     event.target.value = "";
   };
 
   useEffect(() => {
-    listDatasets().then((data) => {
-      const names = data.map((item) => item.name);
-      setDatasets(names);
-      if (names[0]) setDataset(names[0]);
-    });
-    listRuns().then((data) => setRunIds(data.map((item) => item.runId)));
-  }, []);
+    if (!datasets.length) {
+      return;
+    }
+
+    if (!datasets.includes(dataset)) {
+      setDataset(datasets[0]);
+    }
+  }, [dataset, datasets]);
 
   const totals = useMemo(() => getEvalTotals(rows), [rows]);
   const failedCount = rows.filter((row) => row.status === "fail").length;
@@ -159,4 +169,3 @@ export default function EvalWorkspace() {
     </section>
   );
 }
-

@@ -2,15 +2,16 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useState } from "react";
-import { listRuns } from "@/src/entities/run/api";
 import { ManualRunActions } from "@/src/features/manual-run/ManualRunActions";
 import { PlaygroundForm } from "@/src/features/playground-form/PlaygroundForm";
+import { useRunsQuery } from "@/src/shared/query/hooks";
 import { TraceLogPanel } from "@/src/features/trace-log/TraceLogPanel";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Panel } from "@/src/shared/ui/Panel";
 
 export default function PlaygroundWorkspace() {
+  const runsQuery = useRunsQuery();
   const [prompt, setPrompt] = useState("Draft a concise customer response for delayed shipping.");
   const [agentType, setAgentType] = useState("OpenAI Agents SDK");
   const [model, setModel] = useState("gpt-4.1-mini");
@@ -19,10 +20,10 @@ export default function PlaygroundWorkspace() {
   const [log, setLog] = useState("trace: waiting for manual run...\n");
 
   useEffect(() => {
-    listRuns().then((runs) => {
-      if (runs[0]) setLatestRunId(runs[0].runId);
-    });
-  }, []);
+    if (!latestRunId && runsQuery.data?.[0]) {
+      setLatestRunId(runsQuery.data[0].runId);
+    }
+  }, [latestRunId, runsQuery.data]);
 
   return (
     <section className="page-stack">

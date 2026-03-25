@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
+import { FrontendQueryProvider } from "@/src/shared/query/provider";
 import WorkbenchShell from "@/src/widgets/workbench-shell/WorkbenchShell";
 import "./globals.css";
 
@@ -12,7 +13,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <WorkbenchShell>{children}</WorkbenchShell>
+        <FrontendQueryProvider>
+          <WorkbenchShell>{children}</WorkbenchShell>
+        </FrontendQueryProvider>
       </body>
     </html>
   );

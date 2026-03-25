@@ -2,11 +2,10 @@
 
 import { ArrowUpRight, Boxes, ClipboardList } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { listRuns } from "@/src/entities/run/api";
-import type { RunRecord } from "@/src/entities/run/model";
 import { ArtifactExportActions } from "@/src/features/artifact-export/ArtifactExportActions";
 import { RunCreateButton } from "@/src/features/run-create/RunCreateButton";
 import { RunFilters, type RunFilterState, buildRunFilters } from "@/src/features/run-filters/RunFilters";
+import { useRunsQuery } from "@/src/shared/query/hooks";
 import { RunTable } from "@/src/features/run-table/RunTable";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
@@ -26,8 +25,7 @@ const defaultFilterState: RunFilterState = {
 };
 
 export default function RunDashboardWidget() {
-  const [runRecords, setRunRecords] = useState<RunRecord[]>([]);
-  const [message, setMessage] = useState("Loading runs...");
+  const [actionMessage, setActionMessage] = useState("");
   const [filters, setFilters] = useState<RunFilterState>(defaultFilterState);
   const { projectFilter, datasetFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo } = filters;
   const requestFilters = useMemo(
@@ -44,16 +42,22 @@ export default function RunDashboardWidget() {
       }),
     [projectFilter, datasetFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo]
   );
+  const runsQuery = useRunsQuery(requestFilters);
+  const runRecords = runsQuery.data ?? [];
 
   useEffect(() => {
-    setMessage("Loading runs...");
-    listRuns(requestFilters)
-      .then((data) => {
-        setRunRecords(data);
-        setMessage(data.length ? `Loaded ${data.length} runs.` : "No runs found.");
-      })
-      .catch(() => setMessage("Runs unavailable. Check the API connection and try again."));
-  }, [requestFilters]);
+    setActionMessage("");
+  }, [requestFilters, runsQuery.dataUpdatedAt, runsQuery.errorUpdatedAt]);
+
+  const message = actionMessage || (
+    runsQuery.isPending
+      ? "Loading runs..."
+      : runsQuery.isError
+        ? "Runs unavailable. Check the API connection and try again."
+        : runRecords.length
+          ? `Loaded ${runRecords.length} runs.`
+          : "No runs found."
+  );
 
   const deferredQuery = useDeferredValue(filters.query);
   const filteredRuns = useMemo(() => filterRuns(runRecords, deferredQuery), [deferredQuery, runRecords]);
@@ -79,8 +83,7 @@ export default function RunDashboardWidget() {
           </Button>
           <RunCreateButton
             onCreated={(run) => {
-              setRunRecords((previous) => [run, ...previous]);
-              setMessage(`Created run ${run.runId}`);
+              setActionMessage(`Created run ${run.runId}`);
             }}
           />
         </div>
@@ -105,7 +108,7 @@ export default function RunDashboardWidget() {
                 Open latest run <ArrowUpRight size={14} />
               </Button>
             ) : null}
-            <ArtifactExportActions runId={runRecords[0]?.runId} onExported={setMessage} />
+            <ArtifactExportActions runId={runRecords[0]?.runId} onExported={setActionMessage} />
           </div>
         </div>
 
