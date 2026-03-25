@@ -6,8 +6,8 @@ from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
 from app.infrastructure.adapters.runner import (
     FallbackRunnerAdapter,
     StaticRunnerRegistry,
-    ThreadedSchedulerAdapter,
 )
+from app.infrastructure.adapters.tasks import StateTaskQueue
 from app.infrastructure.adapters.traces import DefaultTraceProjector
 from app.infrastructure.repositories import (
     StateAdapterCatalog,
@@ -20,6 +20,7 @@ from app.infrastructure.repositories import (
     StateTraceRepository,
     StateTrajectoryRepository,
 )
+from app.bootstrap.worker import AppWorker
 from app.modules.adapters.application.use_cases import AdapterQueries
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
@@ -47,7 +48,7 @@ class AppContainer:
         self.artifact_repository = StateArtifactRepository()
         self.adapter_catalog = StateAdapterCatalog()
         self.system_status = StateSystemStatus()
-        self.scheduler = ThreadedSchedulerAdapter()
+        self.task_queue = StateTaskQueue()
         self.runner = FallbackRunnerAdapter()
         self.runner_registry = StaticRunnerRegistry(default_runner=self.runner)
         self.trace_projector = DefaultTraceProjector()
@@ -70,8 +71,7 @@ class AppContainer:
         )
         self.run_commands = RunCommands(
             run_repository=self.run_repository,
-            scheduler=self.scheduler,
-            execution_service=run_execution_service,
+            task_queue=self.task_queue,
         )
         self.replay_queries = ReplayQueries(replay_repository=self.replay_repository)
         self.replay_commands = ReplayCommands(
@@ -79,12 +79,12 @@ class AppContainer:
             replay_repository=self.replay_repository,
         )
         self.eval_job_queries = EvalJobQueries(eval_job_repository=self.eval_job_repository)
+        eval_job_runner = EvalJobRunner(
+            recorder=EvalJobRecorder(eval_job_repository=self.eval_job_repository),
+        )
         self.eval_job_commands = EvalJobCommands(
             eval_job_repository=self.eval_job_repository,
-            scheduler=self.scheduler,
-            runner=EvalJobRunner(
-                recorder=EvalJobRecorder(eval_job_repository=self.eval_job_repository),
-            ),
+            task_queue=self.task_queue,
         )
         self.dataset_queries = DatasetQueries(dataset_repository=self.dataset_repository)
         self.dataset_commands = DatasetCommands(dataset_repository=self.dataset_repository)
@@ -98,6 +98,11 @@ class AppContainer:
         )
         self.adapter_queries = AdapterQueries(adapter_catalog=self.adapter_catalog)
         self.health_queries = HealthQueries(system_status=self.system_status)
+        self.app_worker = AppWorker(
+            task_queue=self.task_queue,
+            run_execution_service=run_execution_service,
+            eval_job_runner=eval_job_runner,
+        )
 
 
 @lru_cache

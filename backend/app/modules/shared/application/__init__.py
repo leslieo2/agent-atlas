@@ -1,3 +1,3 @@
-from app.modules.shared.application.ports import SchedulerPort, TaskFn
+from app.modules.shared.application.ports import TaskQueuePort
 
-__all__ = ["SchedulerPort", "TaskFn"]
+__all__ = ["TaskQueuePort"]
