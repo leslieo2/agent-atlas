@@ -26,6 +26,7 @@ export function mapEvalJob(job: ApiEvalJob): EvalJob {
     dataset: job.dataset,
     status: job.status,
     results: job.results.map(mapEvalResult),
-    createdAt: job.created_at
+    createdAt: job.created_at,
+    failureReason: job.failure_reason
   };
 }

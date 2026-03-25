@@ -14,6 +14,7 @@ export function mapRun(run: ApiRunRecord): RunRecord {
     model: run.model,
     agentType: run.agent_type,
     tags: run.tags,
-    createdAt: run.created_at
+    createdAt: run.created_at,
+    terminationReason: run.termination_reason
   };
 }

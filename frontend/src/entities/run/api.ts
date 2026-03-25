@@ -38,3 +38,7 @@ export async function createRun(payload: CreateRunInput) {
     })
   );
 }
+
+export async function getRun(runId: string) {
+  return mapRun(await request<RunResponse>(`/api/v1/runs/${runId}`));
+}

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createRun, listRuns } from "./api";
+import { createRun, getRun, listRuns } from "./api";
 import type { CreateRunInput, RunListFilters } from "./model";
 
 const runsQueryRoot = ["runs"] as const;
@@ -30,6 +30,14 @@ export function runsQueryOptions(filters: RunListFilters = {}) {
   return {
     queryKey: [...runsQueryRoot, normalizeRunFilters(filters)] as const,
     queryFn: () => listRuns(filters)
+  };
+}
+
+export function runQueryOptions(runId: string) {
+  return {
+    queryKey: [...runsQueryRoot, "detail", runId] as const,
+    queryFn: () => getRun(runId),
+    staleTime: 0
   };
 }
 

@@ -17,3 +17,7 @@ export async function createEvalJob(payload: CreateEvalJobInput) {
     })
   );
 }
+
+export async function getEvalJob(jobId: string) {
+  return mapEvalJob(await request<EvalJobResponse>(`/api/v1/eval-jobs/${jobId}`));
+}

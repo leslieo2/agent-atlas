@@ -19,7 +19,8 @@ vi.mock("@/src/entities/run/api", () => ({
 }));
 
 vi.mock("@/src/entities/eval/api", () => ({
-  createEvalJob: vi.fn()
+  createEvalJob: vi.fn(),
+  getEvalJob: vi.fn()
 }));
 
 vi.mock("@/src/entities/trajectory/api", () => ({
@@ -38,6 +39,7 @@ describe("EvalBench integration", () => {
     (datasetApi.createDataset as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
     (evalApi.createEvalJob as unknown as MockedApiFn).mockReset();
+    (evalApi.getEvalJob as unknown as MockedApiFn).mockReset();
     (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockReset();
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
 
@@ -63,26 +65,43 @@ describe("EvalBench integration", () => {
       jobId: "job-001",
       runIds: ["run-eval"],
       dataset: "crm-v2",
-      status: "done",
-      results: [
-        {
-          sampleId: "s-1",
-          runId: "run-eval",
-          input: "sample input",
-          status: "pass",
-          score: 0.91
-        },
-        {
-          sampleId: "s-2",
-          runId: "run-eval",
-          input: "failing sample",
-          status: "fail",
-          score: 0.43,
-          reason: "tool mismatch"
-        }
-      ],
+      status: "queued",
+      results: [],
       createdAt: "2026-03-24T00:00:00Z"
     });
+    (evalApi.getEvalJob as unknown as MockedApiFn)
+      .mockResolvedValueOnce({
+        jobId: "job-001",
+        runIds: ["run-eval"],
+        dataset: "crm-v2",
+        status: "running",
+        results: [],
+        createdAt: "2026-03-24T00:00:00Z"
+      })
+      .mockResolvedValueOnce({
+        jobId: "job-001",
+        runIds: ["run-eval"],
+        dataset: "crm-v2",
+        status: "done",
+        results: [
+          {
+            sampleId: "s-1",
+            runId: "run-eval",
+            input: "sample input",
+            status: "pass",
+            score: 0.91
+          },
+          {
+            sampleId: "s-2",
+            runId: "run-eval",
+            input: "failing sample",
+            status: "fail",
+            score: 0.43,
+            reason: "tool mismatch"
+          }
+        ],
+        createdAt: "2026-03-24T00:00:00Z"
+      });
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockResolvedValue({
       artifactId: "artifact-001",
       path: "/tmp/eval-artifact.jsonl",
@@ -110,7 +129,9 @@ describe("EvalBench integration", () => {
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("button", { name: "Run batch eval" }));
+    expect(await screen.findByText(/Eval job job-001 is queued. Waiting for completion/)).toBeInTheDocument();
     expect(await screen.findByText(/Eval job job-001 finished with status done/)).toBeInTheDocument();
+    await waitFor(() => expect(evalApi.getEvalJob).toHaveBeenCalledWith("job-001"));
 
     fireEvent.click(screen.getByRole("button", { name: "Export JSONL" }));
     await waitFor(() => {
@@ -129,6 +150,7 @@ describe("EvalBench integration", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Run batch eval" }));
     expect(await screen.findByText(/Eval job job-001 finished with status done/)).toBeInTheDocument();
+    await waitFor(() => expect(evalApi.getEvalJob).toHaveBeenCalledWith("job-001"));
     expect(screen.getByText("Failing samples (1)")).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("sample id / run id"), {

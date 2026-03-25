@@ -15,6 +15,7 @@ export interface RunRecord {
   agentType: AdapterKind;
   tags: string[];
   createdAt: string;
+  terminationReason?: string | null;
 }
 
 export interface RunListFilters {

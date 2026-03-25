@@ -5,8 +5,8 @@ import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useExportArtifactMutation } from "@/src/entities/artifact/query";
 import { useCreateDatasetMutation, useDatasetsQuery } from "@/src/entities/dataset/query";
-import { useCreateEvalJobMutation } from "@/src/entities/eval/query";
-import type { EvalResult } from "@/src/entities/eval/model";
+import { evalJobQueryOptions, useCreateEvalJobMutation } from "@/src/entities/eval/query";
+import type { EvalJob, EvalResult } from "@/src/entities/eval/model";
 import { useRunsQuery } from "@/src/entities/run/query";
 import { trajectoryQueryOptions } from "@/src/entities/trajectory/query";
 import type { TrajectoryStep } from "@/src/entities/trajectory/model";
@@ -19,6 +19,24 @@ import { Field } from "@/src/shared/ui/Field";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Panel } from "@/src/shared/ui/Panel";
 import { getEvalTotals, getVisibleEvalRows } from "./selectors";
+
+const EVAL_JOB_POLL_INTERVAL_MS = 500;
+
+function sleep(milliseconds: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, milliseconds);
+  });
+}
+
+function getEvalJobStatusMessage(job: EvalJob) {
+  if (job.status === "failed") {
+    return job.failureReason
+      ? `Eval job ${job.jobId} finished with status failed: ${job.failureReason}`
+      : `Eval job ${job.jobId} finished with status failed`;
+  }
+
+  return `Eval job ${job.jobId} finished with status ${job.status}`;
+}
 
 export default function EvalWorkspace() {
   const queryClient = useQueryClient();
@@ -37,8 +55,30 @@ export default function EvalWorkspace() {
   const [failuresOnly, setFailuresOnly] = useState(false);
   const [message, setMessage] = useState("Load datasets and run an eval.");
   const [trajectoryError, setTrajectoryError] = useState("");
-  const datasets = datasetsQuery.data?.map((item) => item.name) ?? [];
-  const runIds = runsQuery.data?.map((item) => item.runId) ?? [];
+  const activeEvalPollRef = useRef(0);
+  const datasets = useMemo(() => datasetsQuery.data?.map((item) => item.name) ?? [], [datasetsQuery.data]);
+  const runIds = useMemo(() => runsQuery.data?.map((item) => item.runId) ?? [], [runsQuery.data]);
+
+  const pollEvalJobUntilSettled = async (jobId: string, requestId: number) => {
+    while (requestId === activeEvalPollRef.current) {
+      const job = await queryClient.fetchQuery(evalJobQueryOptions(jobId));
+
+      if (requestId !== activeEvalPollRef.current) {
+        return null;
+      }
+
+      setRows(job.results);
+
+      if (job.status === "done" || job.status === "failed") {
+        return job;
+      }
+
+      setMessage(`Eval job ${job.jobId} is ${job.status}. Waiting for completion...`);
+      await sleep(EVAL_JOB_POLL_INTERVAL_MS);
+    }
+
+    return null;
+  };
 
   const loadTrajectory = async (row: EvalResult) => {
     setSelectedSample(row);
@@ -59,13 +99,48 @@ export default function EvalWorkspace() {
 
   const runEval = async () => {
     if (!dataset || !runIds[0]) return;
-    const job = await createEvalJobMutation.mutateAsync({
-      runIds: [runIds[0]],
-      dataset,
-      evaluators: ["rule", "judge", "tool-correctness"]
-    });
-    setRows(job.results);
-    setMessage(`Eval job ${job.jobId} finished with status ${job.status}`);
+    const requestId = activeEvalPollRef.current + 1;
+    activeEvalPollRef.current = requestId;
+    setSelectedSample(null);
+    setTrajectorySteps([]);
+    setTrajectoryError("");
+    setRows([]);
+
+    try {
+      const job = await createEvalJobMutation.mutateAsync({
+        runIds: [runIds[0]],
+        dataset,
+        evaluators: ["rule", "judge", "tool-correctness"]
+      });
+
+      if (requestId !== activeEvalPollRef.current) {
+        return;
+      }
+
+      setRows(job.results);
+
+      if (job.status === "done" || job.status === "failed") {
+        setMessage(getEvalJobStatusMessage(job));
+        return;
+      }
+
+      setMessage(`Eval job ${job.jobId} is ${job.status}. Waiting for completion...`);
+      const completedJob = await pollEvalJobUntilSettled(job.jobId, requestId);
+
+      if (!completedJob || requestId !== activeEvalPollRef.current) {
+        return;
+      }
+
+      setRows(completedJob.results);
+      setMessage(getEvalJobStatusMessage(completedJob));
+    } catch (error) {
+      if (requestId !== activeEvalPollRef.current) {
+        return;
+      }
+
+      setRows([]);
+      setMessage(error instanceof Error ? error.message : "Failed to run eval job.");
+    }
   };
 
   const exportEvalArtifacts = async (format: "jsonl" | "parquet") => {
@@ -99,6 +174,12 @@ export default function EvalWorkspace() {
     setMessage(`Uploaded dataset ${createdDataset.name} with ${createdDataset.rows.length} rows.`);
     event.target.value = "";
   };
+
+  useEffect(() => {
+    return () => {
+      activeEvalPollRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (!datasets.length) {

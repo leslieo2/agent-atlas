@@ -16,6 +16,7 @@ export interface EvalJob {
   status: EvalStatus;
   results: EvalResult[];
   createdAt: string;
+  failureReason?: string | null;
 }
 
 export interface CreateEvalJobInput {
