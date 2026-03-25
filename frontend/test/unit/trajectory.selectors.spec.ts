@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildTrajectoryEdges, buildTrajectoryNodes } from "@/src/widgets/trajectory-workspace/selectors";
+import {
+  buildTrajectoryEdges,
+  buildTrajectoryNodes,
+  findPreviousComparableRun
+} from "@/src/widgets/trajectory-workspace/selectors";
 
 const steps = [
   {
@@ -73,5 +77,89 @@ describe("trajectory workspace selectors", () => {
     expect(positions.s2.x).toBe(positions.s3.x);
     expect(positions.s4.x).toBeGreaterThan(positions.s2.x);
     expect(positions.s2.y).not.toBe(positions.s3.y);
+  });
+
+  it("selects the latest earlier run that matches the same comparison scope", () => {
+    const currentRun = {
+      runId: "run-current",
+      inputSummary: "Summarize latest support tickets",
+      status: "succeeded" as const,
+      latencyMs: 100,
+      tokenCost: 20,
+      toolCalls: 4,
+      project: "support",
+      dataset: "tickets-v1",
+      model: "gpt-4.1-mini",
+      agentType: "openai-agents-sdk" as const,
+      tags: [],
+      createdAt: "2026-03-25T10:00:00Z"
+    };
+    const runs = [
+      currentRun,
+      {
+        ...currentRun,
+        runId: "run-unrelated-input",
+        inputSummary: "Draft an onboarding email",
+        createdAt: "2026-03-25T09:59:00Z"
+      },
+      {
+        ...currentRun,
+        runId: "run-unrelated-dataset",
+        dataset: "tickets-v2",
+        createdAt: "2026-03-25T09:58:00Z"
+      },
+      {
+        ...currentRun,
+        runId: "run-match-latest",
+        inputSummary: "  summarize latest   support tickets ",
+        createdAt: "2026-03-25T09:57:00Z"
+      },
+      {
+        ...currentRun,
+        runId: "run-match-older",
+        createdAt: "2026-03-25T09:30:00Z"
+      },
+      {
+        ...currentRun,
+        runId: "run-newer-match",
+        createdAt: "2026-03-25T10:01:00Z"
+      }
+    ];
+
+    expect(findPreviousComparableRun(runs, currentRun)?.runId).toBe("run-match-latest");
+  });
+
+  it("returns undefined when no semantically comparable previous run exists", () => {
+    const currentRun = {
+      runId: "run-current",
+      inputSummary: "Summarize latest support tickets",
+      status: "succeeded" as const,
+      latencyMs: 100,
+      tokenCost: 20,
+      toolCalls: 4,
+      project: "support",
+      dataset: "tickets-v1",
+      model: "gpt-4.1-mini",
+      agentType: "openai-agents-sdk" as const,
+      tags: [],
+      createdAt: "2026-03-25T10:00:00Z"
+    };
+    const runs = [
+      currentRun,
+      {
+        ...currentRun,
+        runId: "run-other-agent",
+        agentType: "langchain" as const,
+        createdAt: "2026-03-25T09:57:00Z"
+      },
+      {
+        ...currentRun,
+        runId: "run-other-project",
+        project: "sales",
+        createdAt: "2026-03-25T09:56:00Z"
+      }
+    ];
+
+    expect(findPreviousComparableRun(runs, currentRun)).toBeUndefined();
   });
 });

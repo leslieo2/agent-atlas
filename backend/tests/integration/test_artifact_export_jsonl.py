@@ -71,10 +71,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
 
     artifact_path = Path(payload["path"])
     assert artifact_path.exists()
-    rows = [
-        json.loads(line)
-        for line in artifact_path.read_text(encoding="utf-8").splitlines()
-    ]
+    rows = [json.loads(line) for line in artifact_path.read_text(encoding="utf-8").splitlines()]
     assert len(rows) == 2
     assert rows[0]["schema_version"] == "flight-recorder-jsonl-v1"
     assert rows[0]["split"] == "train"

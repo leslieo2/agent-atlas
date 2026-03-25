@@ -5,7 +5,7 @@ import os
 import threading
 import time
 from collections.abc import Mapping
-from typing import Protocol
+from typing import Any, Protocol
 
 from pydantic import SecretStr
 
@@ -38,12 +38,12 @@ class OpenAIAgentsSdkAdapter:
         "Return the best direct answer."
     )
 
-    async def _run_async(self, agent: object, prompt: str) -> object:
+    async def _run_async(self, agent: Any, prompt: str) -> object:
         from agents import Runner
 
         return await Runner.run(agent, prompt)
 
-    def _run_with_explicit_event_loop(self, agent: object, prompt: str) -> object:
+    def _run_with_explicit_event_loop(self, agent: Any, prompt: str) -> object:
         from agents import Runner
 
         if not hasattr(Runner, "run"):

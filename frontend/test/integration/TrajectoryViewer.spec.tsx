@@ -60,8 +60,22 @@ const mockedRuns = [
     createdAt: "2026-03-24T01:00:00Z"
   },
   {
+    runId: "run-unrelated-seed",
+    inputSummary: "seed run",
+    status: "succeeded" as const,
+    latencyMs: 80,
+    tokenCost: 9,
+    toolCalls: 0,
+    project: "project-seed",
+    dataset: "dataset-seed",
+    model: "gpt-4.1-mini",
+    agentType: "openai-agents-sdk",
+    tags: [],
+    createdAt: "2026-03-24T00:30:00Z"
+  },
+  {
     runId: "run-previous",
-    inputSummary: "previous run",
+    inputSummary: "current run",
     status: "failed" as const,
     latencyMs: 90,
     tokenCost: 10,
@@ -156,7 +170,7 @@ describe("TrajectoryViewer integration", () => {
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
     (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockImplementation(async (runId: string) =>
-      runId === "run-current" ? currentSteps : previousSteps
+      runId === "run-current" ? currentSteps : runId === "run-previous" ? previousSteps : []
     );
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockResolvedValue({
       artifactId: "artifact-001",
@@ -178,6 +192,18 @@ describe("TrajectoryViewer integration", () => {
     await waitFor(() => {
       expect(screen.getByText(/Compared with run-pre/)).toBeInTheDocument();
     });
+  });
+
+  it("does not compare against an unrelated earlier run", async () => {
+    renderWithQueryClient(<TrajectoryWorkspace />);
+
+    expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Diff with previous run" }));
+
+    await waitFor(() => {
+      expect(trajectoryApi.getTrajectory).toHaveBeenCalledWith("run-previous");
+    });
+    expect(trajectoryApi.getTrajectory).not.toHaveBeenCalledWith("run-unrelated-seed");
   });
 
   it("exports trace snapshot for selected run", async () => {

@@ -134,11 +134,7 @@ class ArtifactExporterAdapter:
             "input": step.prompt,
             "output": step.output,
             "messages": [
-                *(
-                    [{"role": "system", "content": system_message}]
-                    if system_message
-                    else []
-                ),
+                *([{"role": "system", "content": system_message}] if system_message else []),
                 {"role": "user", "content": step.prompt},
                 {"role": "assistant", "content": step.output},
             ],

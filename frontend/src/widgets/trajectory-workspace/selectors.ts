@@ -1,5 +1,6 @@
 import type { Edge, Node } from "reactflow";
 import { MarkerType } from "reactflow";
+import type { RunRecord } from "@/src/entities/run/model";
 import type { TrajectoryStep } from "@/src/entities/trajectory/model";
 
 const ROOT_X = 120;
@@ -145,6 +146,56 @@ export function getTrajectoryMetrics(steps: TrajectoryStep[]) {
     averageLatency: steps.reduce((acc, step) => acc + step.latencyMs, 0) / Math.max(steps.length, 1),
     tokens: steps.reduce((acc, step) => acc + step.tokenUsage, 0)
   };
+}
+
+function normalizeInputSummary(summary: string) {
+  return summary.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function getCreatedAtTimestamp(run: RunRecord) {
+  const timestamp = Date.parse(run.createdAt);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function isComparableRun(candidate: RunRecord, currentRun: RunRecord) {
+  return (
+    candidate.runId !== currentRun.runId &&
+    candidate.project === currentRun.project &&
+    candidate.dataset === currentRun.dataset &&
+    candidate.agentType === currentRun.agentType &&
+    normalizeInputSummary(candidate.inputSummary) === normalizeInputSummary(currentRun.inputSummary)
+  );
+}
+
+export function findPreviousComparableRun(runs: RunRecord[], currentRun?: RunRecord) {
+  if (!currentRun) {
+    return undefined;
+  }
+
+  const currentTimestamp = getCreatedAtTimestamp(currentRun);
+  const comparableRuns = runs
+    .filter((candidate) => isComparableRun(candidate, currentRun))
+    .filter((candidate) => {
+      const candidateTimestamp = getCreatedAtTimestamp(candidate);
+
+      if (currentTimestamp === null || candidateTimestamp === null) {
+        return true;
+      }
+
+      return candidateTimestamp < currentTimestamp;
+    })
+    .sort((left, right) => {
+      const leftTimestamp = getCreatedAtTimestamp(left);
+      const rightTimestamp = getCreatedAtTimestamp(right);
+
+      if (leftTimestamp === null || rightTimestamp === null) {
+        return runs.findIndex((run) => run.runId === left.runId) - runs.findIndex((run) => run.runId === right.runId);
+      }
+
+      return rightTimestamp - leftTimestamp;
+    });
+
+  return comparableRuns[0];
 }
 
 export function compareTrajectories(currentSteps: TrajectoryStep[], previousSteps: TrajectoryStep[], previousRunId: string) {

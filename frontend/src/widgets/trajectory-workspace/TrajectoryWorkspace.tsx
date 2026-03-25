@@ -16,6 +16,7 @@ import {
   buildTrajectoryEdges,
   buildTrajectoryNodes,
   compareTrajectories,
+  findPreviousComparableRun,
   getTrajectoryMetrics
 } from "./selectors";
 
@@ -98,11 +99,10 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   );
 
   const compareWithPreviousRun = async () => {
-    const currentIndex = runs.findIndex((run) => run.runId === selectedRun);
-    const previousRun = currentIndex >= 0 ? runs[currentIndex + 1] : undefined;
+    const previousRun = findPreviousComparableRun(runs, selectedRunRecord);
 
     if (!previousRun) {
-      setDiffSummary("No previous run available for comparison.");
+      setDiffSummary("No comparable previous run available for comparison.");
       return;
     }
 

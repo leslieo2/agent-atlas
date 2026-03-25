@@ -1,4 +1,4 @@
-.PHONY: install install-export sync lint fmt typecheck test test-unit test-integration test-e2e test-tdd-unit test-tdd-integration test-check security contract-sync contract-check run-api run-worker ci
+.PHONY: install install-export sync lint fmt typecheck test test-unit test-integration test-e2e test-e2e-live test-tdd-unit test-tdd-integration test-check security contract-sync contract-check run-api run-worker ci
 
 install:
 	uv venv --clear .venv
@@ -33,6 +33,9 @@ test-integration:
 
 test-e2e:
 	uv run pytest -m e2e
+
+test-e2e-live:
+	AFLIGHT_LIVE_TESTS=1 AFLIGHT_RUNTIME_MODE=live AFLIGHT_RUNNER_MODE=local AFLIGHT_DATABASE_URL=sqlite:///$(CURDIR)/.aflight-pytest-live.db uv run pytest tests/e2e/test_live_smoke.py --no-cov
 
 test-tdd-unit:
 	uv run pytest -m unit --no-cov -x --ff
