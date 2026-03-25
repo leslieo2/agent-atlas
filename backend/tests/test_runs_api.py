@@ -40,11 +40,26 @@ def test_create_run_and_get_by_id(client):
     got = client.get(f"/api/v1/runs/{run_id}")
     assert got.status_code == 200
     assert got.json()["run_id"] == run_id
-    assert got.json()["status"] in {
-        RunStatus.QUEUED.value,
-        RunStatus.RUNNING.value,
-        RunStatus.SUCCEEDED.value,
+    assert got.json()["status"] == RunStatus.QUEUED.value
+
+
+def test_run_stays_queued_until_worker_runs(client):
+    payload = {
+        "project": "queued-test",
+        "dataset": "smoke-ds",
+        "model": "gpt-4.1-mini",
+        "agent_type": "openai-agents-sdk",
+        "input_summary": "queue only",
+        "prompt": "Do not run yet.",
     }
+
+    created = client.post("/api/v1/runs", json=payload)
+    assert created.status_code == 201
+    run_id = created.json()["run_id"]
+
+    got = client.get(f"/api/v1/runs/{run_id}")
+    assert got.status_code == 200
+    assert got.json()["status"] == RunStatus.QUEUED.value
 
 
 def test_terminate_running_run_in_memory(client):

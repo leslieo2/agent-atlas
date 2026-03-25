@@ -21,7 +21,15 @@ cd /Users/leslie/PycharmProjects/agent-flight-recorder/backend
 uv venv .venv
 source .venv/bin/activate
 uv pip install ".[dev]"
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+make run-api
+```
+
+In a second terminal, start the worker process:
+
+```bash
+cd /Users/leslie/PycharmProjects/agent-flight-recorder/backend
+source .venv/bin/activate
+make run-worker
 ```
 
 ### Dependency strategy (recommended)
@@ -55,8 +63,16 @@ make typecheck # mypy
 make test      # pytest
 make test-check # pytest with coverage
 make security  # bandit
+make run-api   # start FastAPI server
+make run-worker # start background worker for queued runs/evals
 make ci        # lint + typecheck + test + security
 ```
+
+## Runtime model
+
+- API requests create `run` and `eval job` records immediately and enqueue background tasks in SQLite.
+- `app.worker` is a separate process that claims queued tasks and executes them.
+- Run both the API server and the worker during local development if you want runs and evals to progress past `queued`.
 
 ## API
 

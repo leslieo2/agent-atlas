@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import time
 from uuid import uuid4
 
 from app.modules.shared.domain.enums import RunStatus
 
 
-def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client):
+def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client, worker_drain):
     monkeypatch.setattr(
         "app.infrastructure.adapters.runner.execute_with_fallback",
         lambda *_args, **_kwargs: {
@@ -34,18 +33,14 @@ def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client):
     run = response.json()
     run_id = run["run_id"]
     assert run["project"] == "integration"
-    assert run["status"] in {RunStatus.QUEUED.value, RunStatus.RUNNING.value}
+    assert run["status"] == RunStatus.QUEUED.value
 
-    deadline = time.time() + 3.0
-    while time.time() < deadline:
-        current = client.get(f"/api/v1/runs/{run_id}")
-        assert current.status_code == 200
-        data = current.json()
-        if data["status"] == RunStatus.SUCCEEDED.value:
-            break
-        time.sleep(0.05)
-    else:
-        raise AssertionError("run did not complete in integration test timeout")
+    assert worker_drain() >= 1
+
+    current = client.get(f"/api/v1/runs/{run_id}")
+    assert current.status_code == 200
+    data = current.json()
+    assert data["status"] == RunStatus.SUCCEEDED.value
 
     trajectory = client.get(f"/api/v1/runs/{run_id}/trajectory").json()
     assert isinstance(trajectory, list)

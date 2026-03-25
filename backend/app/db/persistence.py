@@ -562,7 +562,10 @@ class StatePersistence:
         datasets = {dataset.name: dataset for dataset in self.list_datasets()}
 
         eval_jobs: dict[UUID, EvalJob] = {}
-        for payload in self._fetch_payloads("SELECT payload FROM eval_jobs ORDER BY updated_at DESC"):
+        eval_job_payloads = self._fetch_payloads(
+            "SELECT payload FROM eval_jobs ORDER BY updated_at DESC"
+        )
+        for payload in eval_job_payloads:
             job = EvalJob.model_validate(json.loads(payload))
             eval_jobs[to_uuid(job.job_id)] = job
 
@@ -572,7 +575,10 @@ class StatePersistence:
             replays[to_uuid(replay.replay_id)] = replay
 
         artifacts: dict[UUID, ArtifactMetadata] = {}
-        for payload in self._fetch_payloads("SELECT payload FROM artifacts ORDER BY updated_at DESC"):
+        artifact_payloads = self._fetch_payloads(
+            "SELECT payload FROM artifacts ORDER BY updated_at DESC"
+        )
+        for payload in artifact_payloads:
             artifact = ArtifactMetadata.model_validate(json.loads(payload))
             artifacts[to_uuid(artifact.artifact_id)] = artifact
 

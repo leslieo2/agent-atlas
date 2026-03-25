@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from uuid import uuid4
 
 from app.bootstrap.container import get_container
@@ -52,7 +51,7 @@ def test_replay_api_creates_and_fetches_replay(client):
     assert fetched_payload["diff"]
 
 
-def test_eval_job_api_completes_and_returns_results(client):
+def test_eval_job_api_completes_and_returns_results(client, worker_drain):
     run_id = str(uuid4())
 
     response = client.post(
@@ -63,18 +62,14 @@ def test_eval_job_api_completes_and_returns_results(client):
     payload = response.json()
     assert payload["run_ids"] == [run_id]
     assert payload["dataset"] == "crm-v2"
-    assert payload["status"] in {"queued", "running", "done"}
+    assert payload["status"] == "queued"
 
-    deadline = time.time() + 3.0
-    while time.time() < deadline:
-        current = client.get(f"/api/v1/eval-jobs/{payload['job_id']}")
-        assert current.status_code == 200
-        current_payload = current.json()
-        if current_payload["status"] == "done":
-            break
-        time.sleep(0.05)
-    else:
-        raise AssertionError("eval job did not complete in time")
+    assert worker_drain() >= 1
+
+    current = client.get(f"/api/v1/eval-jobs/{payload['job_id']}")
+    assert current.status_code == 200
+    current_payload = current.json()
+    assert current_payload["status"] == "done"
 
     assert current_payload["job_id"] == payload["job_id"]
     assert current_payload["run_ids"] == [run_id]
@@ -85,3 +80,19 @@ def test_eval_job_api_completes_and_returns_results(client):
     assert result["sample_id"].startswith("sample-1-")
     assert result["status"] in {"pass", "fail"}
     assert 0.45 <= result["score"] <= 0.98
+
+
+def test_eval_job_stays_queued_until_worker_runs(client):
+    run_id = str(uuid4())
+
+    response = client.post(
+        "/api/v1/eval-jobs",
+        json={"run_ids": [run_id], "dataset": "crm-v2"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "queued"
+
+    current = client.get(f"/api/v1/eval-jobs/{payload['job_id']}")
+    assert current.status_code == 200
+    assert current.json()["status"] == "queued"

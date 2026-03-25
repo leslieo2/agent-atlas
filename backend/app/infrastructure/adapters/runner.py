@@ -88,6 +88,7 @@ def execute_with_fallback(
             continue
     raise RuntimeError(f"all runners failed; last_error={last_error}")
 
+
 class FallbackRunnerAdapter:
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
         result = execute_with_fallback(agent_type, model, prompt)

@@ -1,4 +1,4 @@
-.PHONY: install install-export sync lint fmt typecheck test test-unit test-integration test-e2e test-tdd-unit test-tdd-integration test-check security ci
+.PHONY: install install-export sync lint fmt typecheck test test-unit test-integration test-e2e test-tdd-unit test-tdd-integration test-check security run-api run-worker ci
 
 install:
 	uv venv --clear .venv
@@ -45,6 +45,12 @@ test-check:
 
 security:
 	uv run bandit -r app -x tests
+
+run-api:
+	uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+run-worker:
+	uv run python -m app.worker
 
 ci:
 	$(MAKE) lint

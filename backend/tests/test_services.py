@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -64,7 +63,7 @@ def test_adapter_normalize_span_payload():
     assert normalized["latency_ms"] == 11
 
 
-def test_run_commands_can_force_success(monkeypatch):
+def test_run_commands_can_force_success(monkeypatch, worker_drain):
     container = get_container()
     monkeypatch.setattr(
         "app.infrastructure.adapters.runner.execute_with_fallback",
@@ -88,14 +87,7 @@ def test_run_commands_can_force_success(monkeypatch):
     )
     run = container.run_commands.create_run(payload)
 
-    deadline = time.time() + 2.0
-    while time.time() < deadline:
-        current_run = container.run_queries.get_run(run.run_id)
-        if current_run and current_run.status == RunStatus.SUCCEEDED:
-            break
-        time.sleep(0.05)
-    else:
-        raise AssertionError("run did not succeed in time")
+    assert worker_drain() >= 1
 
     assert len(container.run_queries.get_trajectory(run.run_id)) == 4
     assert len(container.run_queries.get_traces(run.run_id)) == 4
@@ -165,20 +157,13 @@ def test_artifact_commands_jsonl_output(tmp_path):
     assert "step-1" in lines[0]
 
 
-def test_eval_job_commands_run_to_completion():
+def test_eval_job_commands_run_to_completion(worker_drain):
     container = get_container()
     run_id = uuid4()
     payload = EvalJobCreate(run_ids=[run_id], dataset="test-ds")
     job = container.eval_job_commands.create_job(payload)
 
-    deadline = time.time() + 2.0
-    while time.time() < deadline:
-        current_job = container.eval_job_queries.get_job(job.job_id)
-        if current_job and current_job.status == EvalStatus.DONE:
-            break
-        time.sleep(0.05)
-    else:
-        raise AssertionError("eval job did not complete in time")
+    assert worker_drain() >= 1
 
     current_job = container.eval_job_queries.get_job(job.job_id)
     assert current_job.status == EvalStatus.DONE

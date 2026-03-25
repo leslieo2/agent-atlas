@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from app.bootstrap.worker import AppWorker
 from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
 from app.infrastructure.adapters.runner import (
     FallbackRunnerAdapter,
@@ -20,7 +21,6 @@ from app.infrastructure.repositories import (
     StateTraceRepository,
     StateTrajectoryRepository,
 )
-from app.bootstrap.worker import AppWorker
 from app.modules.adapters.application.use_cases import AdapterQueries
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries

@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from app.modules.runs.application.execution import RunExecutionService
 from app.modules.runs.application.ports import (
     RunRepository,
     TrajectoryRepository,
@@ -11,8 +10,8 @@ from app.modules.runs.application.ports import (
 from app.modules.runs.domain.models import RunRecord, RunSpec, TrajectoryStep
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.application.ports import TaskQueuePort
-from app.modules.shared.domain.tasks import QueuedTask, TaskType
 from app.modules.shared.domain.enums import RunStatus
+from app.modules.shared.domain.tasks import QueuedTask, TaskType
 from app.modules.traces.application.ports import TraceRepository
 from app.modules.traces.domain.models import TraceSpan
 

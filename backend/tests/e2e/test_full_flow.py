@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import time
 
-
-def test_end_to_end_workbench_flow(monkeypatch, client):
+def test_end_to_end_workbench_flow(monkeypatch, client, worker_drain):
     monkeypatch.setattr(
         "app.infrastructure.adapters.runner.execute_with_fallback",
         lambda *_args, **_kwargs: {
@@ -36,15 +34,10 @@ def test_end_to_end_workbench_flow(monkeypatch, client):
     assert run.status_code == 201
     run_id = run.json()["run_id"]
 
-    deadline = time.time() + 3.0
-    while time.time() < deadline:
-        run_state = client.get(f"/api/v1/runs/{run_id}")
-        status = run_state.json()["status"]
-        if status == "succeeded":
-            break
-        time.sleep(0.05)
-    else:
-        raise AssertionError("run did not finish in e2e timeout")
+    assert worker_drain() >= 1
+
+    run_state = client.get(f"/api/v1/runs/{run_id}")
+    assert run_state.json()["status"] == "succeeded"
 
     trajectory = client.get(f"/api/v1/runs/{run_id}/trajectory")
     assert trajectory.status_code == 200
@@ -73,14 +66,10 @@ def test_end_to_end_workbench_flow(monkeypatch, client):
     assert eval_job.status_code == 200
     job_id = eval_job.json()["job_id"]
 
-    deadline = time.time() + 2.5
-    while time.time() < deadline:
-        job = client.get(f"/api/v1/eval-jobs/{job_id}")
-        if job.json()["status"] == "done":
-            break
-        time.sleep(0.05)
-    else:
-        raise AssertionError("eval job did not complete in e2e timeout")
+    assert worker_drain() >= 1
+
+    job = client.get(f"/api/v1/eval-jobs/{job_id}")
+    assert job.json()["status"] == "done"
 
     artifact = client.post(
         "/api/v1/artifacts/export",

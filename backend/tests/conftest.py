@@ -47,6 +47,20 @@ def wait_until() -> Callable[[Callable[[], bool], float, float], None]:
     return _wait_until
 
 
+@pytest.fixture
+def worker_drain() -> Callable[[int], int]:
+    def _worker_drain(limit: int = 10) -> int:
+        worker = get_container().app_worker
+        processed = 0
+        for _ in range(limit):
+            if not worker.run_once("test-worker", lease_seconds=30):
+                break
+            processed += 1
+        return processed
+
+    return _worker_drain
+
+
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     root = Path(__file__).parent
     for item in items:
