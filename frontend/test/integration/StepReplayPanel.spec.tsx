@@ -54,6 +54,33 @@ const steps = [
   }
 ];
 
+const mixedSteps = [
+  {
+    id: "step-planner",
+    runId: "run-step",
+    stepType: "planner" as const,
+    prompt: "plan the task",
+    output: "planning output",
+    model: "planner-v1",
+    temperature: 0,
+    latencyMs: 50,
+    tokenUsage: 10,
+    success: true
+  },
+  {
+    id: "step-llm",
+    runId: "run-step",
+    stepType: "llm" as const,
+    prompt: "base prompt",
+    output: "base output",
+    model: "gpt-4.1",
+    temperature: 0,
+    latencyMs: 100,
+    tokenUsage: 40,
+    success: true
+  }
+];
+
 describe("StepReplayPanel integration", () => {
   beforeEach(() => {
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
@@ -110,5 +137,23 @@ describe("StepReplayPanel integration", () => {
     expect(
       await screen.findByText(/Promoted replay to new run run-replay-candidate/)
     ).toBeInTheDocument();
+  });
+
+  it("falls back to the source run model for non-llm steps", async () => {
+    (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockResolvedValue(mixedSteps);
+
+    renderWithQueryClient(<ReplayWorkspace />);
+
+    const modelSelect = (await screen.findByLabelText("Model switcher")) as HTMLSelectElement;
+    expect(modelSelect.value).toBe("gpt-4.1-mini");
+  });
+
+  it("uses the step model for llm steps", async () => {
+    (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockResolvedValue(mixedSteps);
+
+    renderWithQueryClient(<ReplayWorkspace initialStepId="step-llm" />);
+
+    const modelSelect = (await screen.findByLabelText("Model switcher")) as HTMLSelectElement;
+    await waitFor(() => expect(modelSelect.value).toBe("gpt-4.1"));
   });
 });

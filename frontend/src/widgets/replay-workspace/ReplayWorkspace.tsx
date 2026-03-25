@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useCreateReplayMutation } from "@/src/entities/replay/query";
 import type { ReplayResult } from "@/src/entities/replay/model";
 import { useRunsQuery } from "@/src/entities/run/query";
+import type { TrajectoryStep } from "@/src/entities/trajectory/model";
 import { useTrajectoryQuery } from "@/src/entities/trajectory/query";
 import { ReplayDiff } from "@/src/features/replay-diff/ReplayDiff";
 import { ReplayEditor } from "@/src/features/replay-editor/ReplayEditor";
@@ -18,6 +19,14 @@ type Props = {
   runId?: string;
   initialStepId?: string;
 };
+
+function resolveReplayModel(step: TrajectoryStep | null, runModel?: string) {
+  if (!step) {
+    return runModel ?? "gpt-4.1-mini";
+  }
+
+  return step.stepType === "llm" ? step.model : (runModel ?? step.model);
+}
 
 export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
   const runsQuery = useRunsQuery();
@@ -33,6 +42,7 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
   const trajectoryQuery = useTrajectoryQuery(selectedRun);
   const steps = trajectoryQuery.data ?? [];
 
+  const selectedRunRecord = runs.find((run) => run.runId === selectedRun) ?? null;
   const candidate = steps.find((step) => step.id === selectedStepId) ?? null;
 
   useEffect(() => {
@@ -56,15 +66,15 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
     if (steps[0]) {
       const active = steps.find((step) => step.id === preferredStep) ?? steps[0];
       setPrompt(active.prompt);
-      setModel(active.model);
+      setModel(resolveReplayModel(active, selectedRunRecord?.model));
     }
-  }, [initialStepId, steps]);
+  }, [initialStepId, selectedRunRecord?.model, steps]);
 
   useEffect(() => {
     if (!candidate) return;
     setPrompt(candidate.prompt);
-    setModel(candidate.model);
-  }, [candidate, selectedStepId]);
+    setModel(resolveReplayModel(candidate, selectedRunRecord?.model));
+  }, [candidate, selectedRunRecord?.model, selectedStepId]);
 
   useEffect(() => {
     setLatestReplay(null);
