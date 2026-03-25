@@ -5,6 +5,7 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
+from app.core.errors import ModelNotFoundError
 from app.infrastructure.adapters.model_runtime import ModelRuntimeService
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
@@ -122,3 +123,48 @@ def test_model_runtime_service_dispatches_through_registered_adapters():
     assert adapter.calls == [("gpt-4.1-mini", "Check the account state.")]
     assert result.provider == "stub"
     assert result.output == "stub:Check the account state."
+
+
+def test_model_runtime_service_normalizes_invalid_model_errors():
+    class FakeOpenAIModelError(Exception):
+        def __init__(self) -> None:
+            super().__init__(
+                "The model `planner-v1` does not exist or you do not have access to " "it."
+            )
+            self.code = "model_not_found"
+            self.body = {
+                "error": {
+                    "message": (
+                        "The model `planner-v1` does not exist or you do not have " "access to it."
+                    ),
+                    "code": "model_not_found",
+                }
+            }
+
+    class ExplodingAdapter:
+        def execute(
+            self,
+            *,
+            api_key: SecretStr | None,
+            model: str,
+            prompt: str,
+        ) -> RuntimeExecutionResult:
+            raise FakeOpenAIModelError()
+
+    service = ModelRuntimeService(adapters={AdapterKind.OPENAI_AGENTS: ExplodingAdapter()})
+    service.api_key = SecretStr("sk-test")
+    service.runtime_mode = "live"
+
+    with pytest.raises(ModelNotFoundError) as exc_info:
+        service.execute(
+            AdapterKind.OPENAI_AGENTS,
+            model="planner-v1",
+            prompt="Summarize the ticket.",
+        )
+
+    assert exc_info.value.model == "planner-v1"
+    assert exc_info.value.to_detail() == {
+        "code": "model_not_found",
+        "message": "model 'planner-v1' not found",
+        "model": "planner-v1",
+    }

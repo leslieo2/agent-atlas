@@ -10,6 +10,7 @@ from typing import Any, Protocol
 from pydantic import SecretStr
 
 from app.core.config import settings
+from app.core.errors import ModelNotFoundError
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 
@@ -30,6 +31,63 @@ def _usage_total_tokens(usage: object) -> int:
     if isinstance(usage, dict):
         return int(usage.get("total_tokens", 0) or 0)
     return int(getattr(usage, "total_tokens", 0) or 0)
+
+
+def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
+    chain: list[BaseException] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        chain.append(current)
+        seen.add(id(current))
+        next_exc = current.__cause__ or current.__context__
+        current = next_exc if isinstance(next_exc, BaseException) else None
+    return chain
+
+
+def _extract_error_code(candidate: BaseException) -> str | None:
+    code = getattr(candidate, "code", None)
+    if isinstance(code, str) and code.strip():
+        return code.strip()
+
+    body = getattr(candidate, "body", None)
+    if isinstance(body, dict):
+        direct_code = body.get("code")
+        if isinstance(direct_code, str) and direct_code.strip():
+            return direct_code.strip()
+        nested_error = body.get("error")
+        if isinstance(nested_error, dict):
+            nested_code = nested_error.get("code")
+            if isinstance(nested_code, str) and nested_code.strip():
+                return nested_code.strip()
+    return None
+
+
+def _looks_like_model_not_found(candidate: BaseException) -> bool:
+    if isinstance(candidate, ModelNotFoundError):
+        return True
+
+    code = _extract_error_code(candidate)
+    if code == ModelNotFoundError.code:
+        return True
+
+    message = str(candidate).lower()
+    return bool(
+        "model_not_found" in message
+        or ("model" in message and ("not found" in message or "does not exist" in message))
+    )
+
+
+def _normalize_runtime_exception(exc: Exception, model: str) -> Exception:
+    for candidate in _iter_exception_chain(exc):
+        if not _looks_like_model_not_found(candidate):
+            continue
+
+        if isinstance(candidate, ModelNotFoundError):
+            return candidate
+
+        return ModelNotFoundError(model=model, message=f"model '{model}' not found")
+    return exc
 
 
 class OpenAIAgentsSdkAdapter:
@@ -164,10 +222,13 @@ class ModelRuntimeService:
                 )
             return adapter.execute(api_key=self.api_key, model=model, prompt=prompt)
         except Exception as exc:
+            normalized_exc = _normalize_runtime_exception(exc, model)
             if self.runtime_mode == "live":
-                raise
+                if normalized_exc is exc:
+                    raise
+                raise normalized_exc from exc
             fallback = self._simulate_output(agent_type, model, prompt)
-            fallback.output = f"{fallback.output} [fallback from live runtime: {exc}]"
+            fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
             return fallback
 
     @staticmethod
