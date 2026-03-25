@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -16,6 +16,10 @@ class ReplayRequest(BaseModel):
     rationale: str | None = None
 
 
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
 class ReplayResult(BaseModel):
     replay_id: UUID = Field(default_factory=uuid4)
     run_id: UUID
@@ -26,4 +30,4 @@ class ReplayResult(BaseModel):
     updated_prompt: str | None
     model: str
     temperature: float = 0.0
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=utc_now)

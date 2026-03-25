@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -36,6 +36,10 @@ class RuntimeExecutionResult(BaseModel):
     container_image: str | None = None
 
 
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
 class RunRecord(BaseModel):
     run_id: UUID = Field(default_factory=uuid4)
     input_summary: str
@@ -48,7 +52,7 @@ class RunRecord(BaseModel):
     model: str
     agent_type: AdapterKind
     tags: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     artifact_ref: str | None = None
     termination_reason: str | None = None
@@ -66,4 +70,4 @@ class TrajectoryStep(BaseModel):
     token_usage: int = 0
     success: bool = True
     tool_name: str | None = None
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=utc_now)

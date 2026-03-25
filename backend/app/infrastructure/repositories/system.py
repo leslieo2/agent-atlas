@@ -1,27 +1,18 @@
 from __future__ import annotations
 
-from collections import defaultdict
-
-from app.infrastructure.repositories.common import state
+from app.infrastructure.repositories.common import persistence
 
 
 class StateSystemStatus:
     def state_initialized(self) -> bool:
-        return bool(state.runs is not None)
+        return True
 
     def persistence_enabled(self) -> bool:
-        return bool(state.persist.enabled)
+        return bool(persistence.enabled)
 
 
 def reset_state() -> None:
-    with state.lock:
-        state.runs = {}
-        state.trajectory = defaultdict(list)
-        state.trace_spans = defaultdict(list)
-        state.datasets = {}
-        state.eval_jobs = {}
-        state.replays = {}
-        state.artifacts = {}
+    persistence.reset_all()
 
 
 __all__ = ["StateSystemStatus", "reset_state"]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -24,6 +24,10 @@ class TraceIngestEvent(BaseModel):
     prompt_version: str | None = None
 
 
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
 class TraceSpan(BaseModel):
     run_id: UUID
     span_id: str
@@ -36,4 +40,4 @@ class TraceSpan(BaseModel):
     token_usage: int
     image_digest: str | None = None
     prompt_version: str | None = None
-    received_at: datetime = Field(default_factory=datetime.utcnow)
+    received_at: datetime = Field(default_factory=utc_now)
