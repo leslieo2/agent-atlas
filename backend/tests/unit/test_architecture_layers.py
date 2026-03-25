@@ -56,7 +56,9 @@ def _collect_layer_violations(
 
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for name, lineno in _iter_imports(tree):
-            if any(name == prefix or name.startswith(f"{prefix}.") for prefix in forbidden_prefixes):
+            if any(
+                name == prefix or name.startswith(f"{prefix}.") for prefix in forbidden_prefixes
+            ):
                 violations.append(f"{path}:{lineno}:{name}")
                 continue
 

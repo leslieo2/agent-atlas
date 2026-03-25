@@ -5,11 +5,10 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
-from pydantic import SecretStr
-
 from app.infrastructure.adapters.model_runtime import ModelRuntimeService
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
+from pydantic import SecretStr
 
 
 def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest.MonkeyPatch):
@@ -50,7 +49,10 @@ def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest
 
     assert calls["agent"] == {
         "name": "Agent Flight Recorder Assistant",
-        "instructions": "You are a concise assistant inside Agent Flight Recorder. Return the best direct answer.",
+        "instructions": (
+            "You are a concise assistant inside Agent Flight Recorder. "
+            "Return the best direct answer."
+        ),
         "model": "gpt-4.1-mini",
     }
     assert calls["api_key"] == "sk-test"
@@ -72,7 +74,10 @@ def test_model_runtime_service_raises_clear_error_when_agents_sdk_missing():
     service.runtime_mode = "live"
 
     try:
-        with pytest.raises(RuntimeError, match="OpenAI Agents SDK package 'agents' is not installed"):
+        with pytest.raises(
+            RuntimeError,
+            match="OpenAI Agents SDK package 'agents' is not installed",
+        ):
             service.execute(
                 AdapterKind.OPENAI_AGENTS,
                 model="gpt-4.1-mini",
@@ -87,7 +92,13 @@ def test_model_runtime_service_dispatches_through_registered_adapters():
         def __init__(self) -> None:
             self.calls: list[tuple[str, str]] = []
 
-        def execute(self, *, api_key: SecretStr | None, model: str, prompt: str) -> RuntimeExecutionResult:
+        def execute(
+            self,
+            *,
+            api_key: SecretStr | None,
+            model: str,
+            prompt: str,
+        ) -> RuntimeExecutionResult:
             self.calls.append((model, prompt))
             assert api_key is not None
             return RuntimeExecutionResult(

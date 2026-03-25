@@ -123,7 +123,9 @@ class ModelRuntimeService:
         try:
             adapter = self.adapters.get(agent_type)
             if adapter is None:
-                raise RuntimeError(f"agent_type '{agent_type.value}' is not supported for live execution")
+                raise RuntimeError(
+                    f"agent_type '{agent_type.value}' is not supported for live execution"
+                )
             return adapter.execute(api_key=self.api_key, model=model, prompt=prompt)
         except Exception as exc:
             if self.runtime_mode == "live":

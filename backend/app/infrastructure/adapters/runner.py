@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import json
+import os
 import shutil
+import subprocess
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from app.core.config import settings
 from app.infrastructure.adapters.model_runtime import model_runtime_service
@@ -28,7 +33,10 @@ class LocalRunner(Runner):
 
 class DockerRunner(Runner):
     name = "docker"
-    _default_image = "python:3.12-slim"
+    _default_image = "agent-flight-recorder-backend:latest"
+
+    def __init__(self, image: str | None = None) -> None:
+        self.image = image or settings.runner_image or self._default_image
 
     def is_available(self) -> bool:
         return shutil.which("docker") is not None
@@ -36,10 +44,79 @@ class DockerRunner(Runner):
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
         if not self.is_available():
             raise RuntimeError("docker binary not found")
-        result = model_runtime_service.execute(agent_type, model, prompt)
+        with TemporaryDirectory(prefix="aflight-docker-run-") as temp_dir:
+            io_dir = Path(temp_dir)
+            request_path = io_dir / "request.json"
+            result_path = io_dir / "result.json"
+            request_path.write_text(
+                json.dumps(
+                    {
+                        "agent_type": agent_type.value,
+                        "model": model,
+                        "prompt": prompt,
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                self._build_command(io_dir),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if completed.returncode != 0:
+                error_output = (
+                    completed.stderr.strip() or completed.stdout.strip() or "unknown error"
+                )
+                raise RuntimeError(
+                    "docker run failed with exit code " f"{completed.returncode}: {error_output}"
+                )
+            if not result_path.exists():
+                raise RuntimeError("docker run completed without producing a result payload")
+            payload = json.loads(result_path.read_text(encoding="utf-8"))
+
+        result = RuntimeExecutionResult.model_validate(payload)
         return result.model_copy(
-            update={"execution_backend": "docker", "container_image": self._default_image}
+            update={"execution_backend": "docker", "container_image": self.image}
         )
+
+    def _build_command(self, io_dir: Path) -> list[str]:
+        command = [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{io_dir}:/workspace/io",
+            "-w",
+            "/app",
+            "-e",
+            "AFLIGHT_RUN_REQUEST_PATH=/workspace/io/request.json",
+            "-e",
+            "AFLIGHT_RUN_RESULT_PATH=/workspace/io/result.json",
+            "-e",
+            "AFLIGHT_RUNTIME_MODE=live",
+        ]
+        command.extend(self._forwarded_env_args())
+        command.extend(
+            [
+                self.image,
+                "python",
+                "-m",
+                "app.infrastructure.adapters.docker_runtime",
+            ]
+        )
+        return command
+
+    @staticmethod
+    def _forwarded_env_args() -> list[str]:
+        args: list[str] = []
+        for env_name in ("OPENAI_API_KEY", "AFLIGHT_OPENAI_API_KEY"):
+            value = os.getenv(env_name)
+            if value:
+                args.extend(["-e", f"{env_name}={value}"])
+        return args
 
 
 class MockRunner(Runner):
@@ -64,9 +141,7 @@ def _ordered_runners() -> list[Runner]:
     if mode == "local":
         return [_runners["local"]]
     if mode == "docker":
-        if _runners["docker"].is_available():
-            return [_runners["docker"], _runners["local"], _runners["mock"]]
-        return [_runners["local"], _runners["mock"]]
+        return [_runners["docker"]]
 
     ordered: list[Runner] = [_runners["local"], _runners["mock"]]
     if _runners["docker"].is_available():

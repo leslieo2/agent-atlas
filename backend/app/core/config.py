@@ -18,6 +18,10 @@ class Settings(BaseSettings):
         default="auto",
         description="Execution runner mode: auto|local|docker|mock.",
     )
+    runner_image: str = Field(
+        default="agent-flight-recorder-backend:latest",
+        description="Docker image used for isolated run execution.",
+    )
     database_url: str | None = Field(
         default=None,
         description=(
