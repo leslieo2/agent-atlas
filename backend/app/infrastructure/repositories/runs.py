@@ -9,10 +9,12 @@ from app.modules.traces.domain.models import TraceSpan
 
 class StateRunRepository:
     def get(self, run_id: str | UUID) -> RunRecord | None:
+        state.refresh()
         with state.lock:
             return state.runs.get(to_uuid(run_id))
 
     def list(self) -> list[RunRecord]:
+        state.refresh()
         with state.lock:
             return list(state.runs.values())
 
@@ -22,6 +24,7 @@ class StateRunRepository:
 
 class StateTrajectoryRepository:
     def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStep]:
+        state.refresh()
         return state.copy_trajectory(to_uuid(run_id))
 
     def append(self, step: TrajectoryStep) -> None:
@@ -30,6 +33,7 @@ class StateTrajectoryRepository:
 
 class StateTraceRepository:
     def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]:
+        state.refresh()
         return state.copy_trace_spans(to_uuid(run_id))
 
     def append(self, span: TraceSpan) -> None:

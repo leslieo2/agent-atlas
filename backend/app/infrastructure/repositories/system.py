@@ -14,6 +14,7 @@ class StateSystemStatus:
 
 
 def reset_state() -> None:
+    state.persist.reset()
     with state.lock:
         state.runs = {}
         state.trajectory = defaultdict(list)

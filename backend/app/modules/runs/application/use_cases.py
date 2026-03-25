@@ -10,7 +10,8 @@ from app.modules.runs.application.ports import (
 )
 from app.modules.runs.domain.models import RunRecord, RunSpec, TrajectoryStep
 from app.modules.runs.domain.policies import RunAggregate
-from app.modules.shared.application.ports import SchedulerPort
+from app.modules.shared.application.ports import TaskQueuePort
+from app.modules.shared.domain.tasks import QueuedTask, TaskType
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.traces.application.ports import TraceRepository
 from app.modules.traces.domain.models import TraceSpan
@@ -75,19 +76,20 @@ class RunCommands:
     def __init__(
         self,
         run_repository: RunRepository,
-        scheduler: SchedulerPort,
-        execution_service: RunExecutionService,
+        task_queue: TaskQueuePort,
     ) -> None:
         self.run_repository = run_repository
-        self.scheduler = scheduler
-        self.execution_service = execution_service
+        self.task_queue = task_queue
 
     def create_run(self, payload: RunSpec) -> RunRecord:
         run = RunAggregate.create(payload)
         self.run_repository.save(run)
-        self.scheduler.submit(
-            run.run_id,
-            lambda: self.execution_service.execute_run(run.run_id, payload),
+        self.task_queue.enqueue(
+            QueuedTask(
+                task_type=TaskType.RUN_EXECUTION,
+                target_id=run.run_id,
+                payload=payload.model_dump(mode="json"),
+            )
         )
         return run
 

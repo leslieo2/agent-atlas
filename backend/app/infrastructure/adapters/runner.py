@@ -1,16 +1,10 @@
 from __future__ import annotations
 
 import shutil
-import threading
-import traceback
-from collections.abc import Callable
-from dataclasses import dataclass
-from queue import Queue
 
 from app.core.config import settings
 from app.infrastructure.adapters.model_runtime import model_runtime_service
 from app.modules.runs.domain.models import RuntimeExecutionResult
-from app.modules.shared.application.ports import TaskFn
 from app.modules.shared.domain.enums import AdapterKind
 
 
@@ -94,53 +88,6 @@ def execute_with_fallback(
             continue
     raise RuntimeError(f"all runners failed; last_error={last_error}")
 
-
-@dataclass
-class _ScheduledTask:
-    run_id: object
-    fn: Callable[[], None]
-
-
-class RunScheduler:
-    def __init__(self, workers: int = 2) -> None:
-        self._queue: Queue[_ScheduledTask] = Queue()
-        self._workers = max(1, workers)
-        self._started = False
-
-    def start(self) -> None:
-        if self._started:
-            return
-        for worker_id in range(self._workers):
-            thread = threading.Thread(
-                target=self._worker_loop,
-                name=f"afr-run-scheduler-{worker_id+1}",
-                daemon=True,
-            )
-            thread.start()
-        self._started = True
-
-    def submit(self, run_id: object, fn: TaskFn) -> None:
-        if not self._started:
-            self.start()
-        self._queue.put(_ScheduledTask(run_id=run_id, fn=fn))
-
-    def _worker_loop(self) -> None:
-        while True:
-            task = self._queue.get()
-            try:
-                task.fn()
-            except Exception:
-                traceback.print_exc()
-            finally:
-                self._queue.task_done()
-
-    def pending_count(self) -> int:
-        return self._queue.qsize()
-
-
-run_scheduler = RunScheduler()
-
-
 class FallbackRunnerAdapter:
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
         result = execute_with_fallback(agent_type, model, prompt)
@@ -153,8 +100,3 @@ class StaticRunnerRegistry:
 
     def get_runner(self, agent_type: AdapterKind) -> FallbackRunnerAdapter:
         return self.default_runner
-
-
-class ThreadedSchedulerAdapter:
-    def submit(self, run_id, fn: TaskFn) -> None:
-        run_scheduler.submit(run_id, fn)

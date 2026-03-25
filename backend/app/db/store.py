@@ -54,6 +54,20 @@ class StateStore:
         ]
         self.seeded = bool(self.datasets)
 
+    def refresh(self) -> None:
+        if not self.persist.enabled:
+            return
+        loaded = self.persist.load_state()
+        with self.lock:
+            self.runs = loaded["runs"]
+            self.trajectory = loaded["trajectory"]
+            self.trace_spans = loaded["trace_spans"]
+            self.datasets = loaded["datasets"]
+            self.eval_jobs = loaded["eval_jobs"]
+            self.replays = loaded["replays"]
+            self.artifacts = loaded["artifacts"]
+            self.seeded = bool(self.datasets)
+
     def copy_trajectory(self, run_id: UUID) -> list[TrajectoryStep]:
         return list(self.trajectory.get(run_id, []))
 

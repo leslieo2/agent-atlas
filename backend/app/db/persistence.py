@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections import defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -13,6 +14,7 @@ from app.modules.datasets.domain.models import Dataset
 from app.modules.evals.domain.models import EvalJob
 from app.modules.replays.domain.models import ReplayResult
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
+from app.modules.shared.domain.tasks import QueuedTask, TaskStatus
 from app.modules.traces.domain.models import TraceSpan
 
 
@@ -107,6 +109,20 @@ class StatePersistence:
             CREATE TABLE IF NOT EXISTS artifacts (
                 artifact_id TEXT PRIMARY KEY,
                 payload TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS tasks (
+                task_id TEXT PRIMARY KEY,
+                task_type TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                status TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                error TEXT,
+                claimed_by TEXT,
+                claimed_at TEXT,
+                created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
             """
@@ -239,6 +255,159 @@ class StatePersistence:
             ),
         )
         self.conn.commit()
+
+    def enqueue_task(self, task: QueuedTask) -> None:
+        if not self.conn:
+            raise RuntimeError("task queue requires sqlite persistence")
+        self.conn.execute(
+            """
+            INSERT INTO tasks (
+                task_id, task_type, target_id, payload, status, attempts, error,
+                claimed_by, claimed_at, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(task.task_id),
+                task.task_type.value,
+                str(task.target_id),
+                json.dumps(task.payload, ensure_ascii=False),
+                task.status.value,
+                task.attempts,
+                task.error,
+                task.claimed_by,
+                task.claimed_at.isoformat() if task.claimed_at else None,
+                task.created_at.isoformat(),
+                task.updated_at.isoformat(),
+            ),
+        )
+        self.conn.commit()
+
+    def claim_next_task(self, worker_name: str, lease_seconds: int) -> QueuedTask | None:
+        if not self.conn:
+            raise RuntimeError("task queue requires sqlite persistence")
+
+        now = datetime.utcnow()
+        now_iso = now.isoformat()
+        stale_before = (now - timedelta(seconds=max(1, lease_seconds))).isoformat()
+        self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = self.conn.execute(
+                """
+                SELECT *
+                FROM tasks
+                WHERE status = ?
+                   OR (status = ? AND claimed_at IS NOT NULL AND claimed_at <= ?)
+                ORDER BY created_at ASC
+                LIMIT 1
+                """,
+                (
+                    TaskStatus.PENDING.value,
+                    TaskStatus.RUNNING.value,
+                    stale_before,
+                ),
+            ).fetchone()
+            if row is None:
+                self.conn.commit()
+                return None
+
+            self.conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, attempts = attempts + 1, error = NULL,
+                    claimed_by = ?, claimed_at = ?, updated_at = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.RUNNING.value,
+                    worker_name,
+                    now_iso,
+                    now_iso,
+                    row["task_id"],
+                ),
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
+        return self._task_from_row(
+            {
+                **dict(row),
+                "status": TaskStatus.RUNNING.value,
+                "attempts": int(row["attempts"]) + 1,
+                "error": None,
+                "claimed_by": worker_name,
+                "claimed_at": now_iso,
+                "updated_at": now_iso,
+            }
+        )
+
+    def mark_task_done(self, task_id: UUID | str) -> None:
+        self._update_task_status(task_id, TaskStatus.SUCCEEDED)
+
+    def mark_task_failed(self, task_id: UUID | str, error: str) -> None:
+        self._update_task_status(task_id, TaskStatus.FAILED, error=error)
+
+    def reset(self) -> None:
+        if not self.conn:
+            return
+        self.conn.executescript(
+            """
+            DELETE FROM trajectory;
+            DELETE FROM trace_spans;
+            DELETE FROM runs;
+            DELETE FROM datasets;
+            DELETE FROM eval_jobs;
+            DELETE FROM replays;
+            DELETE FROM artifacts;
+            DELETE FROM tasks;
+            """
+        )
+        self.conn.commit()
+
+    def _update_task_status(
+        self,
+        task_id: UUID | str,
+        status: TaskStatus,
+        *,
+        error: str | None = None,
+    ) -> None:
+        if not self.conn:
+            raise RuntimeError("task queue requires sqlite persistence")
+        self.conn.execute(
+            """
+            UPDATE tasks
+            SET status = ?, error = ?, updated_at = ?
+            WHERE task_id = ?
+            """,
+            (
+                status.value,
+                error,
+                datetime.utcnow().isoformat(),
+                str(to_uuid(task_id)),
+            ),
+        )
+        self.conn.commit()
+
+    @staticmethod
+    def _task_from_row(row: sqlite3.Row | dict[str, Any]) -> QueuedTask:
+        task_row = dict(row)
+        return QueuedTask.model_validate(
+            {
+                "task_id": task_row["task_id"],
+                "task_type": task_row["task_type"],
+                "target_id": task_row["target_id"],
+                "payload": json.loads(task_row["payload"]),
+                "status": task_row["status"],
+                "attempts": task_row["attempts"],
+                "error": task_row["error"],
+                "claimed_by": task_row["claimed_by"],
+                "claimed_at": task_row["claimed_at"],
+                "created_at": task_row["created_at"],
+                "updated_at": task_row["updated_at"],
+            }
+        )
 
     def load_state(self) -> dict[str, Any]:
         if not self.conn:

@@ -10,10 +10,12 @@ from app.modules.replays.domain.models import ReplayResult
 
 class StateDatasetRepository:
     def list(self) -> list[Dataset]:
+        state.refresh()
         with state.lock:
             return list(state.datasets.values())
 
     def get(self, name: str) -> Dataset | None:
+        state.refresh()
         with state.lock:
             return state.datasets.get(name)
 
@@ -23,6 +25,7 @@ class StateDatasetRepository:
 
 class StateEvalJobRepository:
     def get(self, job_id: str | UUID) -> EvalJob | None:
+        state.refresh()
         with state.lock:
             return state.eval_jobs.get(to_uuid(job_id))
 
@@ -32,6 +35,7 @@ class StateEvalJobRepository:
 
 class StateReplayRepository:
     def get(self, replay_id: str | UUID) -> ReplayResult | None:
+        state.refresh()
         with state.lock:
             return state.replays.get(to_uuid(replay_id))
 

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Protocol
 from uuid import UUID
 
-TaskFn = Callable[[], None]
+from app.modules.shared.domain.tasks import QueuedTask
 
 
-class SchedulerPort(Protocol):
-    def submit(self, run_id: UUID, fn: TaskFn) -> None: ...
+class TaskQueuePort(Protocol):
+    def enqueue(self, task: QueuedTask) -> None: ...
+
+    def claim_next(self, worker_name: str, lease_seconds: int) -> QueuedTask | None: ...
+
+    def mark_done(self, task_id: UUID) -> None: ...
+
+    def mark_failed(self, task_id: UUID, error: str) -> None: ...
 
 
-__all__ = ["SchedulerPort", "TaskFn"]
+__all__ = ["TaskQueuePort"]
