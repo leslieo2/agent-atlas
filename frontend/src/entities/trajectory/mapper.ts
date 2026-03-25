@@ -2,10 +2,13 @@ import type { TrajectoryStepResponse as ApiTrajectoryStep } from "@/src/shared/a
 import type { TrajectoryStep } from "./model";
 
 export function mapStep(step: ApiTrajectoryStep): TrajectoryStep {
+  const parentStepId = (step as ApiTrajectoryStep & { parent_step_id?: string | null }).parent_step_id;
+
   return {
     id: step.id,
     runId: step.run_id,
     stepType: step.step_type,
+    parentStepId: parentStepId ?? null,
     prompt: step.prompt,
     output: step.output,
     model: step.model,

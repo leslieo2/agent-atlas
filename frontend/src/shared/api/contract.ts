@@ -151,6 +151,7 @@ export interface TrajectoryStepResponse {
   "id": string;
   "run_id": string;
   "step_type": StepType;
+  "parent_step_id"?: string | null;
   "prompt": string;
   "output": string;
   "model": string;

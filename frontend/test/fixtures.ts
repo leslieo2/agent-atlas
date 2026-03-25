@@ -18,6 +18,7 @@ export interface TrajectoryStep {
   id: string;
   runId: string;
   stepType: "llm" | "tool" | "planner" | "memory";
+  parentStepId?: string | null;
   prompt: string;
   output: string;
   model: string;
@@ -109,6 +110,7 @@ export const steps: TrajectoryStep[] = [
     id: "s1",
     runId: "run-001",
     stepType: "planner",
+    parentStepId: null,
     prompt: "Plan retrieval sequence for user request and required tools.",
     output: "Detected required tools: crm_lookup, itinerary_builder, pricing_service",
     model: "planner-v1",
@@ -121,6 +123,7 @@ export const steps: TrajectoryStep[] = [
     id: "s2",
     runId: "run-001",
     stepType: "tool",
+    parentStepId: "s1",
     toolName: "crm_lookup",
     prompt: `input: {"contact_id":"ac-119","scope":"shipping"}`
     ,
@@ -139,6 +142,7 @@ export const steps: TrajectoryStep[] = [
     id: "s3",
     runId: "run-001",
     stepType: "llm",
+    parentStepId: "s2",
     prompt: "Generate a safe itinerary draft from user context and tool responses.",
     output: "Itinerary prepared with best-price shipping lane and ETA.",
     model: "gpt-4.1",
@@ -151,6 +155,7 @@ export const steps: TrajectoryStep[] = [
     id: "s4",
     runId: "run-001",
     stepType: "tool",
+    parentStepId: "s1",
     toolName: "pricing_service",
     prompt: `input: {"from":"PVG","to":"SFO","weight_kg":2.1}`,
     output: "quote_error: fallback route disabled for destination",

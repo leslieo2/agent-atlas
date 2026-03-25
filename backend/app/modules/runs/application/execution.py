@@ -42,6 +42,22 @@ class ProjectedExecutionRecord:
 
 
 class RunExecutionProjector:
+    @staticmethod
+    def planner_span_id(run_id: UUID) -> str:
+        return f"span-{run_id}-1"
+
+    @staticmethod
+    def runtime_preamble_span_id(run_id: UUID) -> str:
+        return f"span-{run_id}-2"
+
+    @staticmethod
+    def runtime_result_span_id(run_id: UUID) -> str:
+        return f"span-{run_id}-3"
+
+    @staticmethod
+    def persistence_span_id(run_id: UUID) -> str:
+        return f"span-{run_id}-4"
+
     def project_planner(self, context: RunExecutionContext) -> ProjectedExecutionRecord:
         prompt = (
             f"Plan execution flow for dataset {context.payload.dataset} "
@@ -51,7 +67,7 @@ class RunExecutionProjector:
         return ProjectedExecutionRecord(
             event=self._build_event(
                 context=context,
-                span_id=f"span-{context.run_id}-1",
+                span_id=self.planner_span_id(context.run_id),
                 parent_span_id=None,
                 step_type=StepType.PLANNER,
                 name="planner-v1",
@@ -72,8 +88,8 @@ class RunExecutionProjector:
         return ProjectedExecutionRecord(
             event=self._build_event(
                 context=context,
-                span_id=f"span-{context.run_id}-2",
-                parent_span_id=self.root_span_id(context.run_id),
+                span_id=self.runtime_preamble_span_id(context.run_id),
+                parent_span_id=self.planner_span_id(context.run_id),
                 step_type=StepType.TOOL,
                 name="runtime-context",
                 input_payload={
@@ -102,8 +118,8 @@ class RunExecutionProjector:
         return ProjectedExecutionRecord(
             event=self._build_event(
                 context=context,
-                span_id=f"span-{context.run_id}-3",
-                parent_span_id=self.root_span_id(context.run_id),
+                span_id=self.runtime_result_span_id(context.run_id),
+                parent_span_id=self.runtime_preamble_span_id(context.run_id),
                 step_type=StepType.LLM,
                 name=context.payload.model,
                 input_payload={
@@ -135,8 +151,8 @@ class RunExecutionProjector:
         return ProjectedExecutionRecord(
             event=self._build_event(
                 context=context,
-                span_id=f"span-{context.run_id}-3",
-                parent_span_id=self.root_span_id(context.run_id),
+                span_id=self.runtime_result_span_id(context.run_id),
+                parent_span_id=self.runtime_preamble_span_id(context.run_id),
                 step_type=StepType.LLM,
                 name=context.payload.model,
                 input_payload={
@@ -155,8 +171,8 @@ class RunExecutionProjector:
         return ProjectedExecutionRecord(
             event=self._build_event(
                 context=context,
-                span_id=f"span-{context.run_id}-4",
-                parent_span_id=self.root_span_id(context.run_id),
+                span_id=self.persistence_span_id(context.run_id),
+                parent_span_id=self.runtime_result_span_id(context.run_id),
                 step_type=StepType.MEMORY,
                 name="recorder",
                 input_payload={
@@ -171,10 +187,6 @@ class RunExecutionProjector:
             ),
             metrics=ExecutionMetrics(latency_ms=1, token_cost=0),
         )
-
-    @staticmethod
-    def root_span_id(run_id: UUID) -> str:
-        return f"span-{run_id}-1"
 
     def _build_event(
         self,

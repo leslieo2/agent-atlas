@@ -28,6 +28,7 @@ class DefaultTraceProjector:
             id=span.span_id,
             run_id=span.run_id,
             step_type=span.step_type,
+            parent_step_id=span.parent_span_id,
             prompt=self._render_prompt(span.input),
             output=self._render_output(span.output),
             model=self._extract_model(event, span.input),

@@ -43,6 +43,7 @@ export function StepInspector({ steps, focusedStepId, expanded, diffSummary, mes
                 <p className="muted-note">
                   model: {step.model} · temp: {step.temperature} · latency: {step.latencyMs}ms
                 </p>
+                <p className="muted-note">parent: {step.parentStepId ?? "root"}</p>
                 {step.toolName ? <p className="muted-note">tool: {step.toolName}</p> : null}
                 <div className="output-log mono">{step.output}</div>
                 <Button variant="ghost" onClick={() => navigator.clipboard?.writeText(step.id)}>
@@ -58,4 +59,3 @@ export function StepInspector({ steps, focusedStepId, expanded, diffSummary, mes
     </Panel>
   );
 }
-

@@ -23,7 +23,13 @@ vi.mock("reactflow", () => {
 });
 
 vi.mock("@/src/features/trajectory-graph/TrajectoryGraph", () => ({
-  TrajectoryGraph: () => <div>trajectory-graph-mock</div>
+  TrajectoryGraph: ({ nodes, edges }: { nodes: Array<{ id: string }>; edges: Array<{ source: string; target: string }> }) => (
+    <div>
+      <div>trajectory-graph-mock</div>
+      <div data-testid="graph-node-ids">{nodes.map((node) => node.id).join("|")}</div>
+      <div data-testid="graph-edge-pairs">{edges.map((edge) => `${edge.source}->${edge.target}`).join("|")}</div>
+    </div>
+  )
 }));
 
 vi.mock("@/src/entities/run/api", () => ({
@@ -80,7 +86,8 @@ const currentSteps = [
     temperature: 0,
     latencyMs: 10,
     tokenUsage: 0,
-    success: true
+    success: true,
+    parentStepId: null
   },
   {
     id: "s2",
@@ -93,7 +100,35 @@ const currentSteps = [
     latencyMs: 8,
     tokenUsage: 0,
     success: false,
-    toolName: "search"
+    toolName: "search",
+    parentStepId: "s1"
+  },
+  {
+    id: "s3",
+    runId: "run-current",
+    stepType: "tool" as const,
+    prompt: "tool input b",
+    output: "branch tool output",
+    model: "planner-v1",
+    temperature: 0,
+    latencyMs: 6,
+    tokenUsage: 0,
+    success: true,
+    toolName: "crm_lookup",
+    parentStepId: "s1"
+  },
+  {
+    id: "s4",
+    runId: "run-current",
+    stepType: "llm" as const,
+    prompt: "summarize",
+    output: "llm output",
+    model: "gpt-4.1-mini",
+    temperature: 0,
+    latencyMs: 12,
+    tokenUsage: 14,
+    success: true,
+    parentStepId: "s2"
   }
 ];
 
@@ -133,9 +168,11 @@ describe("TrajectoryViewer integration", () => {
   it("renders trajectory and shows diffs against previous run", async () => {
     renderWithQueryClient(<TrajectoryWorkspace />);
 
-    expect(await screen.findByText("Loaded 2 steps.")).toBeInTheDocument();
+    expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
     expect(screen.getByText("current planner output")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /s1/i })).toBeInTheDocument();
+    expect(screen.getByTestId("graph-node-ids")).toHaveTextContent("s1|s2|s3|s4");
+    expect(screen.getByTestId("graph-edge-pairs")).toHaveTextContent("s1->s2|s1->s3|s2->s4");
 
     fireEvent.click(screen.getByRole("button", { name: "Diff with previous run" }));
     await waitFor(() => {
@@ -145,7 +182,7 @@ describe("TrajectoryViewer integration", () => {
 
   it("exports trace snapshot for selected run", async () => {
     renderWithQueryClient(<TrajectoryWorkspace />);
-    expect(await screen.findByText("Loaded 2 steps.")).toBeInTheDocument();
+    expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
     await screen.findByText("Export trace snapshot");
     fireEvent.click(screen.getByRole("button", { name: "Export trace snapshot" }));
 

@@ -62,6 +62,7 @@ class TrajectoryStep(BaseModel):
     id: str
     run_id: UUID
     step_type: StepType
+    parent_step_id: str | None = None
     prompt: str
     output: str
     model: str

@@ -51,7 +51,7 @@ def test_run_execution_projector_builds_success_trace_event():
     )
 
     assert record.event.span_id == f"span-{run_id}-3"
-    assert record.event.parent_span_id == f"span-{run_id}-1"
+    assert record.event.parent_span_id == f"span-{run_id}-2"
     assert record.event.output["output"] == "Projected success output"
     assert record.event.output["provider"] == "mock"
     assert record.event.image_digest == "python:3.12-slim"
@@ -104,6 +104,7 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     )
 
     recorder.record(run_id, projector.project_planner(context))
+    recorder.record(run_id, projector.project_runtime_preamble(context))
     recorder.record(
         run_id,
         projector.project_runtime_success(
@@ -122,8 +123,14 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     spans = trace_repository.list_for_run(run_id)
 
     assert run is not None
-    assert run.latency_ms == 10
+    assert run.latency_ms == 12
     assert run.token_cost == 13
-    assert run.tool_calls == 0
-    assert [step.id for step in steps] == [f"span-{run_id}-1", f"span-{run_id}-3"]
-    assert [span.span_id for span in spans] == [f"span-{run_id}-1", f"span-{run_id}-3"]
+    assert run.tool_calls == 1
+    expected_span_ids = [
+        f"span-{run_id}-1",
+        f"span-{run_id}-2",
+        f"span-{run_id}-3",
+    ]
+    assert [step.id for step in steps] == expected_span_ids
+    assert [step.parent_step_id for step in steps] == [None, f"span-{run_id}-1", f"span-{run_id}-2"]
+    assert [span.span_id for span in spans] == expected_span_ids
