@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Mapping
+from typing import Protocol
 
 from pydantic import SecretStr
 
@@ -10,13 +12,104 @@ from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 
 
+class RuntimeAdapter(Protocol):
+    def execute(
+        self,
+        *,
+        api_key: SecretStr | None,
+        model: str,
+        prompt: str,
+    ) -> RuntimeExecutionResult: ...
+
+
+def _usage_total_tokens(usage: object) -> int:
+    if usage is None:
+        return 0
+    if isinstance(usage, dict):
+        return int(usage.get("total_tokens", 0) or 0)
+    return int(getattr(usage, "total_tokens", 0) or 0)
+
+
+class OpenAIAgentsSdkAdapter:
+    _instructions = (
+        "You are a concise assistant inside Agent Flight Recorder. "
+        "Return the best direct answer."
+    )
+
+    def execute(
+        self,
+        *,
+        api_key: SecretStr | None,
+        model: str,
+        prompt: str,
+    ) -> RuntimeExecutionResult:
+        try:
+            from agents import Agent, Runner
+        except ImportError as exc:
+            raise RuntimeError("OpenAI Agents SDK package 'agents' is not installed") from exc
+
+        resolved_api_key = api_key.get_secret_value() if api_key is not None else None
+        previous_api_key = os.environ.get("OPENAI_API_KEY")
+        if resolved_api_key:
+            os.environ["OPENAI_API_KEY"] = resolved_api_key
+
+        agent = Agent(
+            name="Agent Flight Recorder Assistant",
+            instructions=self._instructions,
+            model=model,
+        )
+        try:
+            started = time.perf_counter()
+            result = Runner.run_sync(agent, prompt)
+        finally:
+            if resolved_api_key:
+                if previous_api_key is None:
+                    os.environ.pop("OPENAI_API_KEY", None)
+                else:
+                    os.environ["OPENAI_API_KEY"] = previous_api_key
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        final_output = getattr(result, "final_output", "")
+        context_wrapper = getattr(result, "context_wrapper", None)
+        usage = getattr(context_wrapper, "usage", None)
+        return RuntimeExecutionResult(
+            output=final_output if isinstance(final_output, str) else str(final_output),
+            latency_ms=latency_ms,
+            token_usage=_usage_total_tokens(usage),
+            provider="openai-agents-sdk",
+        )
+
+
+class LangChainRuntimeAdapter:
+    def execute(
+        self,
+        *,
+        api_key: SecretStr | None,
+        model: str,
+        prompt: str,
+    ) -> RuntimeExecutionResult:
+        from langchain_openai import ChatOpenAI
+
+        llm = ChatOpenAI(model=model, api_key=api_key)
+        started = time.perf_counter()
+        response = llm.invoke(prompt)
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        usage = getattr(response, "usage_metadata", None) or {}
+        return RuntimeExecutionResult(
+            output=response.content if isinstance(response.content, str) else str(response.content),
+            latency_ms=latency_ms,
+            token_usage=_usage_total_tokens(usage),
+            provider="langchain",
+        )
+
+
 class ModelRuntimeService:
-    def __init__(self) -> None:
+    def __init__(self, adapters: Mapping[AdapterKind, RuntimeAdapter] | None = None) -> None:
         raw_api_key = os.getenv("OPENAI_API_KEY") or os.getenv("AFLIGHT_OPENAI_API_KEY")
         self.api_key = SecretStr(raw_api_key) if raw_api_key else None
         self.runtime_mode = (settings.runtime_mode or "auto").lower()
         if self.runtime_mode not in {"auto", "live", "mock"}:
             self.runtime_mode = "auto"
+        self.adapters = dict(adapters or self._default_adapters())
 
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
         if not self.api_key:
@@ -28,10 +121,10 @@ class ModelRuntimeService:
             return self._simulate_output(agent_type, model, prompt)
 
         try:
-            if agent_type == AdapterKind.OPENAI_AGENTS:
-                return self._invoke_openai(model, prompt)
-            if agent_type == AdapterKind.LANGCHAIN:
-                return self._invoke_langchain(model, prompt)
+            adapter = self.adapters.get(agent_type)
+            if adapter is None:
+                raise RuntimeError(f"agent_type '{agent_type.value}' is not supported for live execution")
+            return adapter.execute(api_key=self.api_key, model=model, prompt=prompt)
         except Exception as exc:
             if self.runtime_mode == "live":
                 raise
@@ -39,52 +132,12 @@ class ModelRuntimeService:
             fallback.output = f"{fallback.output} [fallback from live runtime: {exc}]"
             return fallback
 
-        raise RuntimeError(f"agent_type '{agent_type.value}' is not supported for live execution")
-
-    def _invoke_openai(self, model: str, prompt: str) -> RuntimeExecutionResult:
-        from openai import OpenAI
-
-        client = OpenAI(api_key=self.api_key.get_secret_value() if self.api_key else None)
-        started = time.perf_counter()
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a concise assistant inside Agent Flight Recorder."
-                        " Return the best direct answer."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-        )
-        latency_ms = int((time.perf_counter() - started) * 1000)
-        message = response.choices[0].message
-        usage = response.usage
-        return RuntimeExecutionResult(
-            output=message.content or "",
-            latency_ms=latency_ms,
-            token_usage=int(getattr(usage, "total_tokens", 0) or 0),
-            provider="openai",
-        )
-
-    def _invoke_langchain(self, model: str, prompt: str) -> RuntimeExecutionResult:
-        from langchain_openai import ChatOpenAI
-
-        llm = ChatOpenAI(model=model, api_key=self.api_key)
-        started = time.perf_counter()
-        response = llm.invoke(prompt)
-        latency_ms = int((time.perf_counter() - started) * 1000)
-        usage = getattr(response, "usage_metadata", None) or {}
-        if not isinstance(usage, dict):
-            usage = {}
-        return RuntimeExecutionResult(
-            output=response.content if isinstance(response.content, str) else str(response.content),
-            latency_ms=latency_ms,
-            token_usage=int(usage.get("total_tokens", 0) or 0),
-            provider="langchain",
-        )
+    @staticmethod
+    def _default_adapters() -> dict[AdapterKind, RuntimeAdapter]:
+        return {
+            AdapterKind.OPENAI_AGENTS: OpenAIAgentsSdkAdapter(),
+            AdapterKind.LANGCHAIN: LangChainRuntimeAdapter(),
+        }
 
     def _simulate_output(
         self,

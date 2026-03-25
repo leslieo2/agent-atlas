@@ -1,0 +1,113 @@
+from __future__ import annotations
+
+import os
+import sys
+from types import ModuleType, SimpleNamespace
+
+import pytest
+from pydantic import SecretStr
+
+from app.infrastructure.adapters.model_runtime import ModelRuntimeService
+from app.modules.runs.domain.models import RuntimeExecutionResult
+from app.modules.shared.domain.enums import AdapterKind
+
+
+def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest.MonkeyPatch):
+    calls: dict[str, object] = {}
+    fake_agents = ModuleType("agents")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    class Agent:
+        def __init__(self, *, name: str, instructions: str, model: str) -> None:
+            calls["agent"] = {
+                "name": name,
+                "instructions": instructions,
+                "model": model,
+            }
+
+    class Runner:
+        @staticmethod
+        def run_sync(agent: Agent, prompt: str) -> SimpleNamespace:
+            calls["run_sync"] = {"agent": agent, "prompt": prompt}
+            calls["api_key"] = os.environ.get("OPENAI_API_KEY")
+            usage = SimpleNamespace(total_tokens=123)
+            context_wrapper = SimpleNamespace(usage=usage)
+            return SimpleNamespace(final_output="sdk output", context_wrapper=context_wrapper)
+
+    fake_agents.Agent = Agent
+    fake_agents.Runner = Runner
+    monkeypatch.setitem(sys.modules, "agents", fake_agents)
+
+    service = ModelRuntimeService()
+    service.api_key = SecretStr("sk-test")
+    service.runtime_mode = "live"
+
+    result = service.execute(
+        AdapterKind.OPENAI_AGENTS,
+        model="gpt-4.1-mini",
+        prompt="Summarize the ticket.",
+    )
+
+    assert calls["agent"] == {
+        "name": "Agent Flight Recorder Assistant",
+        "instructions": "You are a concise assistant inside Agent Flight Recorder. Return the best direct answer.",
+        "model": "gpt-4.1-mini",
+    }
+    assert calls["api_key"] == "sk-test"
+    assert calls["run_sync"]["prompt"] == "Summarize the ticket."
+    assert result == RuntimeExecutionResult(
+        output="sdk output",
+        latency_ms=result.latency_ms,
+        token_usage=123,
+        provider="openai-agents-sdk",
+    )
+    assert result.latency_ms >= 0
+
+
+def test_model_runtime_service_raises_clear_error_when_agents_sdk_missing():
+    sys.modules.pop("agents", None)
+    sys.modules["agents"] = None
+    service = ModelRuntimeService()
+    service.api_key = SecretStr("sk-test")
+    service.runtime_mode = "live"
+
+    try:
+        with pytest.raises(RuntimeError, match="OpenAI Agents SDK package 'agents' is not installed"):
+            service.execute(
+                AdapterKind.OPENAI_AGENTS,
+                model="gpt-4.1-mini",
+                prompt="Summarize the ticket.",
+            )
+    finally:
+        sys.modules.pop("agents", None)
+
+
+def test_model_runtime_service_dispatches_through_registered_adapters():
+    class StubAdapter:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str]] = []
+
+        def execute(self, *, api_key: SecretStr | None, model: str, prompt: str) -> RuntimeExecutionResult:
+            self.calls.append((model, prompt))
+            assert api_key is not None
+            return RuntimeExecutionResult(
+                output=f"stub:{prompt}",
+                latency_ms=7,
+                token_usage=9,
+                provider="stub",
+            )
+
+    adapter = StubAdapter()
+    service = ModelRuntimeService(adapters={AdapterKind.LANGCHAIN: adapter})
+    service.api_key = SecretStr("sk-test")
+    service.runtime_mode = "live"
+
+    result = service.execute(
+        AdapterKind.LANGCHAIN,
+        model="gpt-4.1-mini",
+        prompt="Check the account state.",
+    )
+
+    assert adapter.calls == [("gpt-4.1-mini", "Check the account state.")]
+    assert result.provider == "stub"
+    assert result.output == "stub:Check the account state."
