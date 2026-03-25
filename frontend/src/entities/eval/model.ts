@@ -1,3 +1,5 @@
+import type { EvalStatus } from "@/src/shared/api/contract";
+
 export interface EvalResult {
   sampleId: string;
   runId: string;
@@ -11,7 +13,7 @@ export interface EvalJob {
   jobId: string;
   runIds: string[];
   dataset: string;
-  status: string;
+  status: EvalStatus;
   results: EvalResult[];
   createdAt: string;
 }
@@ -21,4 +23,3 @@ export interface CreateEvalJobInput {
   dataset: string;
   evaluators?: string[];
 }
-

@@ -1,10 +1,5 @@
+import type { ArtifactMetadataResponse as ApiArtifact } from "@/src/shared/api/contract";
 import type { ArtifactExport } from "./model";
-
-type ApiArtifact = {
-  artifact_id: string;
-  path: string;
-  size_bytes: number;
-};
 
 export function mapArtifact(artifact: ApiArtifact): ArtifactExport {
   return {
@@ -13,6 +8,3 @@ export function mapArtifact(artifact: ApiArtifact): ArtifactExport {
     sizeBytes: artifact.size_bytes
   };
 }
-
-export type { ApiArtifact };
-

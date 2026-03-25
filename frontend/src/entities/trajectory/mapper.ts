@@ -1,18 +1,5 @@
+import type { TrajectoryStepResponse as ApiTrajectoryStep } from "@/src/shared/api/contract";
 import type { TrajectoryStep } from "./model";
-
-type ApiTrajectoryStep = {
-  id: string;
-  run_id: string;
-  step_type: "llm" | "tool" | "planner" | "memory";
-  prompt: string;
-  output: string;
-  model: string;
-  temperature: number;
-  latency_ms: number;
-  token_usage: number;
-  success: boolean;
-  tool_name?: string | null;
-};
 
 export function mapStep(step: ApiTrajectoryStep): TrajectoryStep {
   return {
@@ -29,6 +16,3 @@ export function mapStep(step: ApiTrajectoryStep): TrajectoryStep {
     toolName: step.tool_name
   };
 }
-
-export type { ApiTrajectoryStep };
-

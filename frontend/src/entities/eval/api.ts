@@ -1,17 +1,19 @@
 import { request } from "@/src/shared/api/http";
-import { mapEvalJob, type ApiEvalJob } from "./mapper";
+import type { EvalJobCreate, EvalJobResponse } from "@/src/shared/api/contract";
+import { mapEvalJob } from "./mapper";
 import type { CreateEvalJobInput } from "./model";
 
 export async function createEvalJob(payload: CreateEvalJobInput) {
+  const body: EvalJobCreate = {
+    run_ids: payload.runIds,
+    dataset: payload.dataset,
+    evaluators: payload.evaluators ?? []
+  };
+
   return mapEvalJob(
-    await request<ApiEvalJob>("/api/v1/eval-jobs", {
+    await request<EvalJobResponse>("/api/v1/eval-jobs", {
       method: "POST",
-      body: JSON.stringify({
-        run_ids: payload.runIds,
-        dataset: payload.dataset,
-        evaluators: payload.evaluators ?? []
-      })
+      body: JSON.stringify(body)
     })
   );
 }
-

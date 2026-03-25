@@ -1,17 +1,5 @@
+import type { ReplayResponse as ApiReplayResult } from "@/src/shared/api/contract";
 import type { ReplayResult } from "./model";
-
-type ApiReplayResult = {
-  replay_id: string;
-  run_id: string;
-  step_id: string;
-  baseline_output: string;
-  replay_output: string;
-  diff: string;
-  updated_prompt?: string | null;
-  model: string;
-  temperature: number;
-  started_at: string;
-};
 
 export function mapReplay(result: ApiReplayResult): ReplayResult {
   return {
@@ -27,6 +15,3 @@ export function mapReplay(result: ApiReplayResult): ReplayResult {
     startedAt: result.started_at
   };
 }
-
-export type { ApiReplayResult };
-

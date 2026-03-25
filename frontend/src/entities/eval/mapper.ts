@@ -1,29 +1,19 @@
+import type { EvalJobResponse as ApiEvalJob, EvalResultResponse as ApiEvalResult } from "@/src/shared/api/contract";
 import type { EvalJob, EvalResult } from "./model";
 
-type ApiEvalResult = {
-  sample_id: string;
-  run_id: string;
-  input: string;
-  status: "pass" | "fail" | "running";
-  score: number;
-  reason?: string | null;
-};
-
-type ApiEvalJob = {
-  job_id: string;
-  run_ids: string[];
-  dataset: string;
-  status: string;
-  results: ApiEvalResult[];
-  created_at: string;
-};
+function normalizeEvalResultStatus(status: ApiEvalResult["status"]): EvalResult["status"] {
+  if (status === "pass" || status === "fail" || status === "running") {
+    return status;
+  }
+  return "running";
+}
 
 export function mapEvalResult(result: ApiEvalResult): EvalResult {
   return {
     sampleId: result.sample_id,
     runId: result.run_id,
     input: result.input,
-    status: result.status,
+    status: normalizeEvalResultStatus(result.status),
     score: result.score,
     reason: result.reason
   };
@@ -39,6 +29,3 @@ export function mapEvalJob(job: ApiEvalJob): EvalJob {
     createdAt: job.created_at
   };
 }
-
-export type { ApiEvalJob };
-

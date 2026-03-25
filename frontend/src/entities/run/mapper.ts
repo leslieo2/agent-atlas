@@ -1,19 +1,5 @@
-import type { RunRecord, RunStatus } from "./model";
-
-type ApiRunRecord = {
-  run_id: string;
-  input_summary: string;
-  status: RunStatus;
-  latency_ms: number;
-  token_cost: number;
-  tool_calls: number;
-  project: string;
-  dataset: string;
-  model: string;
-  agent_type: string;
-  tags: string[];
-  created_at: string;
-};
+import type { RunResponse as ApiRunRecord } from "@/src/shared/api/contract";
+import type { RunRecord } from "./model";
 
 export function mapRun(run: ApiRunRecord): RunRecord {
   return {
@@ -31,6 +17,3 @@ export function mapRun(run: ApiRunRecord): RunRecord {
     createdAt: run.created_at
   };
 }
-
-export type { ApiRunRecord };
-

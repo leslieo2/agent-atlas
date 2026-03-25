@@ -1,20 +1,22 @@
 import { request } from "@/src/shared/api/http";
-import { mapReplay, type ApiReplayResult } from "./mapper";
+import type { ReplayRequest, ReplayResponse } from "@/src/shared/api/contract";
+import { mapReplay } from "./mapper";
 import type { CreateReplayInput } from "./model";
 
 export async function createReplay(payload: CreateReplayInput) {
+  const body: ReplayRequest = {
+    run_id: payload.runId,
+    step_id: payload.stepId,
+    edited_prompt: payload.editedPrompt ?? null,
+    model: payload.model ?? null,
+    tool_overrides: payload.toolOverrides ?? {},
+    rationale: payload.rationale ?? null
+  };
+
   return mapReplay(
-    await request<ApiReplayResult>("/api/v1/replays", {
+    await request<ReplayResponse>("/api/v1/replays", {
       method: "POST",
-      body: JSON.stringify({
-        run_id: payload.runId,
-        step_id: payload.stepId,
-        edited_prompt: payload.editedPrompt,
-        model: payload.model,
-        tool_overrides: payload.toolOverrides ?? {},
-        rationale: payload.rationale
-      })
+      body: JSON.stringify(body)
     })
   );
 }
-

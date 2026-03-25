@@ -1,7 +1,9 @@
+import type { StepType } from "@/src/shared/api/contract";
+
 export interface TrajectoryStep {
   id: string;
   runId: string;
-  stepType: "llm" | "tool" | "planner" | "memory";
+  stepType: StepType;
   prompt: string;
   output: string;
   model: string;
@@ -11,4 +13,3 @@ export interface TrajectoryStep {
   success: boolean;
   toolName?: string | null;
 }
-

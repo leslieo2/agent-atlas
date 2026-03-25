@@ -1,3 +1,5 @@
+import type { ArtifactFormat } from "@/src/shared/api/contract";
+
 export interface ArtifactExport {
   artifactId: string;
   path: string;
@@ -6,6 +8,5 @@ export interface ArtifactExport {
 
 export interface ExportArtifactInput {
   runIds: string[];
-  format?: "jsonl" | "parquet";
+  format?: ArtifactFormat;
 }
-

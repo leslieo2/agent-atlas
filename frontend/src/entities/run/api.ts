@@ -1,5 +1,6 @@
 import { request } from "@/src/shared/api/http";
-import { mapRun, type ApiRunRecord } from "./mapper";
+import type { RunCreateRequest, RunResponse } from "@/src/shared/api/contract";
+import { mapRun } from "./mapper";
 import type { CreateRunInput, RunListFilters } from "./model";
 
 export async function listRuns(filters: RunListFilters = {}) {
@@ -16,23 +17,24 @@ export async function listRuns(filters: RunListFilters = {}) {
   const suffix = query.toString();
   const path = suffix ? `/api/v1/runs?${suffix}` : "/api/v1/runs";
 
-  return (await request<ApiRunRecord[]>(path)).map(mapRun);
+  return (await request<RunResponse[]>(path)).map(mapRun);
 }
 
 export async function createRun(payload: CreateRunInput) {
+  const body: RunCreateRequest = {
+    project: payload.project,
+    dataset: payload.dataset,
+    model: payload.model,
+    agent_type: payload.agentType,
+    input_summary: payload.inputSummary,
+    prompt: payload.prompt,
+    tags: payload.tags ?? []
+  };
+
   return mapRun(
-    await request<ApiRunRecord>("/api/v1/runs", {
+    await request<RunResponse>("/api/v1/runs", {
       method: "POST",
-      body: JSON.stringify({
-        project: payload.project,
-        dataset: payload.dataset,
-        model: payload.model,
-        agent_type: payload.agentType,
-        input_summary: payload.inputSummary,
-        prompt: payload.prompt,
-        tags: payload.tags ?? []
-      })
+      body: JSON.stringify(body)
     })
   );
 }
-

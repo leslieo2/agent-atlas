@@ -1,4 +1,6 @@
-export type RunStatus = "queued" | "running" | "succeeded" | "failed";
+import type { AdapterKind, RunStatus as ApiRunStatus } from "@/src/shared/api/contract";
+
+export type RunStatus = ApiRunStatus;
 
 export interface RunRecord {
   runId: string;
@@ -10,7 +12,7 @@ export interface RunRecord {
   project: string;
   dataset: string;
   model: string;
-  agentType: string;
+  agentType: AdapterKind;
   tags: string[];
   createdAt: string;
 }
@@ -29,9 +31,8 @@ export interface CreateRunInput {
   project: string;
   dataset: string;
   model: string;
-  agentType: string;
+  agentType: AdapterKind;
   inputSummary: string;
   prompt: string;
   tags?: string[];
 }
-
