@@ -7,8 +7,10 @@ This is a Next.js App Router frontend in TypeScript.
   - `app/page.tsx`: main entry route.
   - `app/layout.tsx`: shared layout/metadata.
   - `app/globals.css`: global styles.
-- `components/`: reusable React components (`RunDashboard.tsx`, `TrajectoryViewer.tsx`, etc.).
-- `lib/`: API client, data mapping, and runtime-facing utilities.
+- `src/widgets/`: page or workspace composition. Widgets orchestrate features and entity queries for a screen.
+- `src/features/`: focused user capabilities such as filters, run actions, replay editors, and result tables.
+- `src/entities/`: domain models, API clients, and explicit payload mappers.
+- `src/shared/`: shared UI primitives, HTTP utilities, and server-state helpers such as the React Query provider and hooks.
 - `test/`: test setup and feature tests.
 - `.next/`, `node_modules/`: generated/artifact folders; do not edit.
 - `public/`: create if new static assets are needed.
@@ -33,6 +35,7 @@ This is a Next.js App Router frontend in TypeScript.
 - `PascalCase` for React component files/names.
 - `camelCase` for variables/functions/hooks.
 - API payload mapping should keep conversion explicit (snake_case API -> camelCase app models).
+- Keep route files thin and delegate screen orchestration to `src/widgets/`.
 - Use path alias imports via `@/` where convenient.
 
 ## Testing Guidelines
@@ -40,7 +43,7 @@ This is a Next.js App Router frontend in TypeScript.
 - Test files: `*.spec.ts`, `*.spec.tsx`, `*.test.ts`, `*.test.tsx`.
 - Setup file: `test/setup.ts`.
 - Current tests include examples in `test/fixtures.spec.ts`.
-- Coverage scope in config: `lib/**/*`, `components/**/*`, `app/**/*`.
+- Coverage scope in config: `app/**/*`, `src/**/*`.
 - Run coverage manually with `npx vitest run --coverage` when needed.
 
 ## Commit & Pull Request Guidelines

@@ -20,6 +20,7 @@ Allowed responsibilities:
 
 - Route files should stay thin and delegate immediately to a widget.
 - API payload normalization belongs in `src/entities/*/mapper.ts`.
+- Entity API clients belong in `src/entities/*/api.ts`, while server-state orchestration and cache invalidation live in `src/shared/query/` and widget-level hooks.
 - Fetching and multi-step screen orchestration belongs in widgets or widget-local model hooks.
 - Reusable entity display helpers should live with the entity, not inside a widget.
 - Test fixtures belong under `test/`, not in app-facing code directories.
@@ -35,5 +36,5 @@ Allowed responsibilities:
 
 - Keep App Router as the routing layer.
 - Keep page-level orchestration local to widgets.
-- Do not introduce a global store unless state starts crossing multiple workspaces.
-- Do not introduce TanStack Query until cache invalidation or refetch coordination becomes repetitive enough to justify it.
+- Use TanStack Query for server state, cache keys, mutations, and invalidation across workspaces.
+- Do not introduce a separate global client store unless state starts crossing multiple workspaces in ways React Query cannot model cleanly.

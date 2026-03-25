@@ -5,7 +5,8 @@ This repository is a two-part application:
 
 - `backend/`: FastAPI service (`backend/app`) and backend tests (`backend/tests`).
   Backend architecture is feature-module based under `backend/app/modules`; see `backend/AGENTS.md` for backend-specific layering and dependency rules.
-- `frontend/`: Next.js App Router app (`frontend/app`), reusable UI (`frontend/components`), and client utilities (`frontend/lib`).
+- `frontend/`: Next.js App Router app with thin route entrypoints in `frontend/app` and layered product code in `frontend/src`.
+  Frontend architecture follows `app -> widgets -> features -> entities -> shared`; see `frontend/ARCHITECTURE.md` and `frontend/AGENTS.md` for the current layering and ownership rules.
 - `frontend/test`: Vitest + React Testing Library test files for UI and logic.
 - `backend/.venv`, `backend/.uv_cache`, `frontend/node_modules`, and `frontend/.next` are generated and should not be committed.
 
@@ -37,7 +38,7 @@ This repository is a two-part application:
 ## Testing Guidelines
 - Backend tests use `pytest`; put backend tests under `backend/tests` with `test_*.py`.
 - Frontend tests use Vitest + React Testing Library; test files are `*.spec.ts`, `*.spec.tsx`, `*.test.ts`, `*.test.tsx` (covered by `frontend/vitest.config.ts`).
-- Frontend coverage defaults to `lib/**/*`, `components/**/*`, and `app/**/*`.
+- Frontend coverage defaults to `app/**/*` and `src/**/*`.
 - Run at least `make test` and `npm run test` before opening a PR.
 
 ## Commit & Pull Request Guidelines

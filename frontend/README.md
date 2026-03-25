@@ -14,7 +14,7 @@ Open `http://localhost:3000`.
 
 ## Architecture
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the frontend layering rules, dependency direction, and module ownership.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the frontend layering rules, dependency direction, and module ownership. The current frontend is organized as thin route entrypoints in `app/` plus layered product code in `src/widgets`, `src/features`, `src/entities`, and `src/shared`, with TanStack Query handling server-state coordination.
 
 ## 质量检查命令
 
