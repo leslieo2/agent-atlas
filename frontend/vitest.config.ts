@@ -24,7 +24,7 @@ export default defineConfig({
     setupFiles: ["./test/setup.ts"],
     coverage: {
       reporter: ["text", "json", "html"],
-      include: ["lib/**/*", "components/**/*", "app/**/*"],
+      include: ["lib/**/*", "components/**/*", "app/**/*", "src/**/*"],
       thresholds: {
         lines: 70,
         functions: 70,

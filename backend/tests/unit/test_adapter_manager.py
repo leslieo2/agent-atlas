@@ -3,13 +3,29 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from app.models.schemas import AdapterKind, StepType, TraceSpan
-from app.services.adapter import adapter_manager
+from app.bootstrap.container import get_container
+from app.infrastructure.adapters.traces import DefaultTraceProjector
+from app.modules.shared.domain.enums import AdapterKind, StepType
+from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
 
 def test_adapter_manager_normalizes_trace_event():
     run_id = uuid4()
-    event = TraceSpan(
+    ingest_event = TraceIngestEvent(
+        run_id=run_id,
+        span_id="span-test",
+        parent_span_id="parent-1",
+        step_type=StepType.LLM,
+        name="trace",
+        input={"prompt": "Hello"},
+        output={"output": "World"},
+        tool_name="mock-tool",
+        latency_ms=11,
+        token_usage=22,
+        image_digest="sha256:test",
+        prompt_version="v1",
+    )
+    span = TraceSpan(
         run_id=run_id,
         span_id="span-test",
         parent_span_id="parent-1",
@@ -24,7 +40,7 @@ def test_adapter_manager_normalizes_trace_event():
         received_at=datetime(2026, 3, 23, 12, 0, 0),
     )
 
-    normalized = adapter_manager.normalize_span(run_id=run_id, payload=event)
+    normalized = DefaultTraceProjector().normalize(event=ingest_event, span=span)
 
     assert normalized["run_id"] == str(run_id)
     assert normalized["span_id"] == "span-test"
@@ -41,7 +57,7 @@ def test_adapter_manager_normalizes_trace_event():
 
 
 def test_adapter_manager_list_adapters():
-    adapters = adapter_manager.list_adapters()
+    adapters = get_container().adapter_queries.list_adapters()
 
     kinds = [adapter.kind for adapter in adapters]
     assert len(adapters) == 3

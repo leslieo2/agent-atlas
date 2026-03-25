@@ -4,6 +4,7 @@
 This repository is a two-part application:
 
 - `backend/`: FastAPI service (`backend/app`) and backend tests (`backend/tests`).
+  Backend architecture is feature-module based under `backend/app/modules`; see `backend/AGENTS.md` for backend-specific layering and dependency rules.
 - `frontend/`: Next.js App Router app (`frontend/app`), reusable UI (`frontend/components`), and client utilities (`frontend/lib`).
 - `frontend/test`: Vitest + React Testing Library test files for UI and logic.
 - `backend/.venv`, `backend/.uv_cache`, `frontend/node_modules`, and `frontend/.next` are generated and should not be committed.

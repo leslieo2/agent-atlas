@@ -3,12 +3,12 @@ from __future__ import annotations
 import time
 from uuid import uuid4
 
-from app.models.schemas import RunStatus
+from app.modules.shared.domain.enums import RunStatus
 
 
 def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client):
     monkeypatch.setattr(
-        "app.services.orchestrator.execute_with_fallback",
+        "app.infrastructure.adapters.runner.execute_with_fallback",
         lambda *_args, **_kwargs: {
             "output": "mocked integration output",
             "latency_ms": 1,

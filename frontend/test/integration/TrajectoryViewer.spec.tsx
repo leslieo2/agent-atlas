@@ -1,8 +1,10 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import TrajectoryViewer from "@/components/TrajectoryViewer";
-import * as api from "@/lib/api";
+import * as artifactApi from "@/src/entities/artifact/api";
+import * as runApi from "@/src/entities/run/api";
+import * as trajectoryApi from "@/src/entities/trajectory/api";
+import TrajectoryWorkspace from "@/src/widgets/trajectory-workspace/TrajectoryWorkspace";
 
 vi.mock("reactflow", () => {
   return {
@@ -19,9 +21,15 @@ vi.mock("reactflow", () => {
   };
 });
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/src/entities/run/api", () => ({
   listRuns: vi.fn(),
-  getTrajectory: vi.fn(),
+}));
+
+vi.mock("@/src/entities/trajectory/api", () => ({
+  getTrajectory: vi.fn()
+}));
+
+vi.mock("@/src/entities/artifact/api", () => ({
   exportArtifact: vi.fn()
 }));
 
@@ -103,14 +111,14 @@ type MockedApiFn = ReturnType<typeof vi.fn>;
 
 describe("TrajectoryViewer integration", () => {
   beforeEach(() => {
-    (api.listRuns as unknown as MockedApiFn).mockReset();
-    (api.getTrajectory as unknown as MockedApiFn).mockReset();
-    (api.exportArtifact as unknown as MockedApiFn).mockReset();
-    (api.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
-    (api.getTrajectory as unknown as MockedApiFn).mockImplementation(async (runId: string) =>
+    (runApi.listRuns as unknown as MockedApiFn).mockReset();
+    (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockReset();
+    (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
+    (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
+    (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockImplementation(async (runId: string) =>
       runId === "run-current" ? currentSteps : previousSteps
     );
-    (api.exportArtifact as unknown as MockedApiFn).mockResolvedValue({
+    (artifactApi.exportArtifact as unknown as MockedApiFn).mockResolvedValue({
       artifactId: "artifact-001",
       path: "/tmp/trajectory.jsonl",
       sizeBytes: 12
@@ -118,7 +126,7 @@ describe("TrajectoryViewer integration", () => {
   });
 
   it("renders trajectory and shows diffs against previous run", async () => {
-    render(<TrajectoryViewer />);
+    render(<TrajectoryWorkspace />);
 
     expect(await screen.findByText("Loaded 2 steps.")).toBeInTheDocument();
     expect(screen.getByText("current planner output")).toBeInTheDocument();
@@ -131,7 +139,7 @@ describe("TrajectoryViewer integration", () => {
   });
 
   it("exports trace snapshot for selected run", async () => {
-    render(<TrajectoryViewer />);
+    render(<TrajectoryWorkspace />);
     expect(await screen.findByText("Loaded 2 steps.")).toBeInTheDocument();
     await screen.findByText("Export trace snapshot");
     fireEvent.click(screen.getByRole("button", { name: "Export trace snapshot" }));

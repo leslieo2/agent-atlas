@@ -2,6 +2,8 @@
 
 Backend service for the PRD v1 workbench, implemented with FastAPI.
 
+Architecture overview: see `ARCHITECTURE.md`.
+
 ## What this project includes
 
 - Run orchestration and lifecycle tracking

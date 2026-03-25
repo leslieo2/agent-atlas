@@ -5,7 +5,7 @@ import time
 
 def test_end_to_end_workbench_flow(monkeypatch, client):
     monkeypatch.setattr(
-        "app.services.orchestrator.execute_with_fallback",
+        "app.infrastructure.adapters.runner.execute_with_fallback",
         lambda *_args, **_kwargs: {
             "output": "mocked e2e output",
             "latency_ms": 1,

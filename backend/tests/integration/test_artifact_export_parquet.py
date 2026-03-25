@@ -5,30 +5,31 @@ import json
 from pathlib import Path
 from uuid import UUID
 
+from app.bootstrap.container import get_container
+from app.modules.runs.domain.models import TrajectoryStep
+from app.modules.shared.domain.enums import StepType
+
 
 def test_export_artifact_parquet_falls_back_when_optional_deps_missing(
     monkeypatch,
     client,
     tmp_path,
 ):
-    from app.db.state import state
-    from app.models.schemas import StepType, TrajectoryStep
-
+    container = get_container()
     run_id = UUID("11111111-1111-1111-1111-111111111111")
-    with state.lock:
-        state.trajectory[run_id] = [
-            TrajectoryStep(
-                id="step-1",
-                run_id=run_id,
-                step_type=StepType.LLM,
-                prompt="plan a trip",
-                output="trip planned",
-                model="gpt-4.1-mini",
-                latency_ms=9,
-                token_usage=4,
-                success=True,
-            )
-        ]
+    container.trajectory_repository.append(
+        TrajectoryStep(
+            id="step-1",
+            run_id=run_id,
+            step_type=StepType.LLM,
+            prompt="plan a trip",
+            output="trip planned",
+            model="gpt-4.1-mini",
+            latency_ms=9,
+            token_usage=4,
+            success=True,
+        )
+    )
 
     real_import = builtins.__import__
 
@@ -39,9 +40,7 @@ def test_export_artifact_parquet_falls_back_when_optional_deps_missing(
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    from app.services.exporter import exporter
-
-    exporter.output_dir = Path(tmp_path)
+    container.artifact_exporter.output_dir = Path(tmp_path)
 
     response = client.post(
         "/api/v1/artifacts/export",

@@ -6,6 +6,7 @@ dist/
 out/
 coverage/
 .vitest/
+playwright-report/
 .vercel/
 
 # Logs
@@ -16,4 +17,3 @@ yarn-error.log*
 
 # TypeScript / tooling artifacts
 *.tsbuildinfo
-

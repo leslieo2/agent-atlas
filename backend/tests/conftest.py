@@ -1,23 +1,18 @@
 from __future__ import annotations
 
 import time
-from collections import defaultdict
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from app.db.state import state
+from app.bootstrap.container import get_container
+from app.infrastructure.repositories import reset_state
 from fastapi.testclient import TestClient
 
 
 def _reset_state() -> None:
-    state.runs = {}
-    state.trajectory = defaultdict(list)
-    state.trace_spans = defaultdict(list)
-    state.datasets = {}
-    state.eval_jobs = {}
-    state.replays = {}
-    state.artifacts = {}
+    get_container.cache_clear()
+    reset_state()
 
 
 @pytest.fixture(autouse=True)

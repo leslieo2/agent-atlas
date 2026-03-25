@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createRun, createReplay, listRuns, RunStatus } from "@/lib/api";
+import { createReplay } from "@/src/entities/replay/api";
+import { createRun, listRuns } from "@/src/entities/run/api";
+import type { RunStatus } from "@/src/entities/run/model";
 
 const jsonBody = (value: unknown, status = 200): Response =>
   new Response(JSON.stringify(value), {

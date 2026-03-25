@@ -1,23 +1,33 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from typing import Annotated
 
-from app.models.schemas import EvalJob, EvalJobCreate
-from app.services.eval_service import eval_service
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.bootstrap.container import get_eval_job_commands, get_eval_job_queries
+from app.modules.evals.api.schemas import EvalJobCreate, EvalJobResponse
+from app.modules.evals.application.use_cases import EvalJobCommands, EvalJobQueries
 
 router = APIRouter(prefix="/eval-jobs", tags=["eval"])
 
 
-@router.post("", response_model=EvalJob)
-def create_eval_job(payload: EvalJobCreate) -> EvalJob:
+@router.post("", response_model=EvalJobResponse)
+def create_eval_job(
+    payload: EvalJobCreate,
+    commands: Annotated[EvalJobCommands, Depends(get_eval_job_commands)],
+) -> EvalJobResponse:
     if not payload.run_ids:
         raise HTTPException(status_code=400, detail="run_ids cannot be empty")
-    return eval_service.create_job(payload)
+    job = commands.create_job(payload.to_domain())
+    return EvalJobResponse.from_domain(job)
 
 
-@router.get("/{job_id}", response_model=EvalJob)
-def get_eval_job(job_id: str) -> EvalJob:
-    job = eval_service.get_job(job_id)
+@router.get("/{job_id}", response_model=EvalJobResponse)
+def get_eval_job(
+    job_id: str,
+    queries: Annotated[EvalJobQueries, Depends(get_eval_job_queries)],
+) -> EvalJobResponse:
+    job = queries.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
-    return job
+    return EvalJobResponse.from_domain(job)

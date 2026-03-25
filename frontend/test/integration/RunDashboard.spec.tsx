@@ -1,8 +1,62 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import RunDashboard from "@/components/RunDashboard";
-import * as api from "@/lib/api";
+import RunDashboardWidget from "@/src/widgets/run-dashboard/RunDashboardWidget";
+import * as artifactApi from "@/src/entities/artifact/api";
+import * as runApi from "@/src/entities/run/api";
+
+vi.mock("@tanstack/react-table", () => {
+  const createColumnHelper = () => ({
+    accessor: (key: string, options: { header: string; cell: (context: { getValue: () => unknown }) => unknown }) => ({
+      id: key,
+      accessorKey: key,
+      columnDef: {
+        header: options.header,
+        cell: options.cell
+      }
+    })
+  });
+
+  return {
+    createColumnHelper,
+    flexRender: (renderer: unknown, context: unknown) =>
+      typeof renderer === "function" ? renderer(context) : renderer,
+    getCoreRowModel: () => () => ({ rows: [] }),
+    useReactTable: ({ data, columns }: { data: Array<Record<string, unknown>>; columns: Array<{ id?: string; accessorKey?: string; columnDef: { header: string; cell: (context: { getValue: () => unknown }) => unknown } }> }) => ({
+      getHeaderGroups: () => [
+        {
+          id: "header-group",
+          headers: columns.map((column, index) => ({
+            id: column.id ?? column.accessorKey ?? `header-${index}`,
+            column: {
+              columnDef: {
+                header: column.columnDef.header
+              }
+            },
+            getContext: () => ({})
+          }))
+        }
+      ],
+      getRowModel: () => ({
+        rows: data.map((row, rowIndex) => ({
+          id: `row-${rowIndex}`,
+          getVisibleCells: () =>
+            columns.map((column, columnIndex) => ({
+              id: `${rowIndex}-${column.id ?? column.accessorKey ?? columnIndex}`,
+              column: {
+                columnDef: {
+                  cell: column.columnDef.cell
+                }
+              },
+              getContext: () => ({
+                getValue: () => row[column.accessorKey ?? ""]
+              })
+            }))
+        }))
+      })
+    })
+  };
+});
 
 const mockedRuns = [
   {
@@ -35,9 +89,12 @@ const mockedRuns = [
   }
 ];
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/src/entities/run/api", () => ({
   listRuns: vi.fn(),
-  createRun: vi.fn(),
+  createRun: vi.fn()
+}));
+
+vi.mock("@/src/entities/artifact/api", () => ({
   exportArtifact: vi.fn()
 }));
 
@@ -45,17 +102,17 @@ type MockedApiFn = ReturnType<typeof vi.fn>;
 
 describe("RunDashboard integration", () => {
   beforeEach(() => {
-    (api.listRuns as unknown as MockedApiFn).mockReset();
-    (api.createRun as unknown as MockedApiFn).mockReset();
-    (api.exportArtifact as unknown as MockedApiFn).mockReset();
-    (api.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
-    (api.createRun as unknown as MockedApiFn).mockResolvedValue({
+    (runApi.listRuns as unknown as MockedApiFn).mockReset();
+    (runApi.createRun as unknown as MockedApiFn).mockReset();
+    (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
+    (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
+    (runApi.createRun as unknown as MockedApiFn).mockResolvedValue({
       ...mockedRuns[0],
       runId: "run-003",
       inputSummary: "Manual run from dashboard",
       status: "queued"
     });
-    (api.exportArtifact as unknown as MockedApiFn)
+    (artifactApi.exportArtifact as unknown as MockedApiFn)
       .mockResolvedValueOnce({
         artifactId: "artifact-001",
         path: "/tmp/artifact.jsonl",
@@ -68,27 +125,33 @@ describe("RunDashboard integration", () => {
       });
   });
 
-  it("loads runs and can create + export jsonl/parquet artifacts", async () => {
-    render(<RunDashboard />);
+  it("loads runs and can create a new run", async () => {
+    render(<RunDashboardWidget />);
 
     expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
     expect(screen.getByText("Generate a booking itinerary from CRM contact data")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "New Run" }));
     expect(await screen.findByText("Created run run-003")).toBeInTheDocument();
+  });
+
+  it("exports jsonl and parquet artifacts for the latest run", async () => {
+    render(<RunDashboardWidget />);
+
+    expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Export JSONL" }));
-    expect(api.exportArtifact).toHaveBeenNthCalledWith(1, {
-      runIds: ["run-003"],
+    expect(artifactApi.exportArtifact).toHaveBeenNthCalledWith(1, {
+      runIds: ["run-001"],
       format: "jsonl"
     });
-    expect(screen.getByText("Exported artifact-001 as JSONL (11 bytes)")).toBeInTheDocument();
+    expect(await screen.findByText("Exported artifact-001 as JSONL (11 bytes)")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Export Parquet" }));
-    expect(api.exportArtifact).toHaveBeenNthCalledWith(2, {
-      runIds: ["run-003"],
+    expect(artifactApi.exportArtifact).toHaveBeenNthCalledWith(2, {
+      runIds: ["run-001"],
       format: "parquet"
     });
-    expect(screen.getByText("Exported artifact-002 as PARQUET (21 bytes)")).toBeInTheDocument();
+    expect(await screen.findByText("Exported artifact-002 as PARQUET (21 bytes)")).toBeInTheDocument();
   });
 });

@@ -12,6 +12,10 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Architecture
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the frontend layering rules, dependency direction, and module ownership.
+
 ## 质量检查命令
 
 ```bash

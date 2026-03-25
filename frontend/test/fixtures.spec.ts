@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { runRecords, steps } from "../lib/fixtures";
+import { runRecords, steps } from "./fixtures";
 
 describe("fixture data sanity checks", () => {
   it("has baseline runs", () => {

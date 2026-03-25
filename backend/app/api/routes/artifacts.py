@@ -1,31 +1,40 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
-from app.db.state import state
-from app.models.schemas import ArtifactExportRequest, ArtifactMetadata
-from app.services.exporter import exporter
+from app.bootstrap.container import get_artifact_commands, get_artifact_queries
+from app.modules.artifacts.api.schemas import ArtifactExportRequest, ArtifactMetadataResponse
+from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
 
-@router.post("/export", response_model=ArtifactMetadata)
-def create_artifact(payload: ArtifactExportRequest) -> ArtifactMetadata:
+@router.post("/export", response_model=ArtifactMetadataResponse)
+def create_artifact(
+    payload: ArtifactExportRequest,
+    commands: Annotated[ArtifactCommands, Depends(get_artifact_commands)],
+) -> ArtifactMetadataResponse:
     if not payload.run_ids:
         raise HTTPException(status_code=400, detail="run_ids cannot be empty")
-    return exporter.export(payload)
+    artifact = commands.export(payload.to_domain())
+    return ArtifactMetadataResponse.from_domain(artifact)
 
 
 @router.get("/{artifact_id}")
-def get_artifact(artifact_id: str) -> FileResponse:
+def get_artifact(
+    artifact_id: str,
+    queries: Annotated[ArtifactQueries, Depends(get_artifact_queries)],
+) -> FileResponse:
     from uuid import UUID
 
     try:
         artifact_uuid = UUID(artifact_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="invalid artifact_id") from exc
-    artifact = state.artifacts.get(artifact_uuid)
+    artifact = queries.get_artifact(artifact_uuid)
     if not artifact:
         raise HTTPException(status_code=404, detail="artifact not found")
     return FileResponse(

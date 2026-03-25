@@ -1,0 +1,25 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(11, 18, 33, 0.92);
+  padding: 5px 9px;
+  font-size: 0.78rem;
+}
+
+.success {
+  border-color: rgba(110, 231, 183, 0.28);
+  color: var(--success);
+}
+
+.warn {
+  border-color: rgba(245, 196, 100, 0.32);
+  color: var(--warning);
+}
+
+.error {
+  border-color: rgba(255, 122, 135, 0.32);
+  color: var(--danger);
+}
+

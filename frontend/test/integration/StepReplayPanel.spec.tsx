@@ -1,14 +1,22 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import StepReplayPanel from "@/components/StepReplayPanel";
-import * as api from "@/lib/api";
+import * as replayApi from "@/src/entities/replay/api";
+import * as runApi from "@/src/entities/run/api";
+import * as trajectoryApi from "@/src/entities/trajectory/api";
+import ReplayWorkspace from "@/src/widgets/replay-workspace/ReplayWorkspace";
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/src/entities/run/api", () => ({
   listRuns: vi.fn(),
-  getTrajectory: vi.fn(),
-  createReplay: vi.fn(),
   createRun: vi.fn()
+}));
+
+vi.mock("@/src/entities/trajectory/api", () => ({
+  getTrajectory: vi.fn()
+}));
+
+vi.mock("@/src/entities/replay/api", () => ({
+  createReplay: vi.fn()
 }));
 
 type MockedApiFn = ReturnType<typeof vi.fn>;
@@ -47,13 +55,13 @@ const steps = [
 
 describe("StepReplayPanel integration", () => {
   beforeEach(() => {
-    (api.listRuns as unknown as MockedApiFn).mockReset();
-    (api.getTrajectory as unknown as MockedApiFn).mockReset();
-    (api.createReplay as unknown as MockedApiFn).mockReset();
-    (api.createRun as unknown as MockedApiFn).mockReset();
-    (api.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
-    (api.getTrajectory as unknown as MockedApiFn).mockResolvedValue(steps);
-    (api.createReplay as unknown as MockedApiFn).mockResolvedValue({
+    (runApi.listRuns as unknown as MockedApiFn).mockReset();
+    (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockReset();
+    (replayApi.createReplay as unknown as MockedApiFn).mockReset();
+    (runApi.createRun as unknown as MockedApiFn).mockReset();
+    (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
+    (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockResolvedValue(steps);
+    (replayApi.createReplay as unknown as MockedApiFn).mockResolvedValue({
       replayId: "replay-001",
       runId: "run-step",
       stepId: "step-replay",
@@ -65,14 +73,14 @@ describe("StepReplayPanel integration", () => {
       startedAt: "2026-03-24T00:00:00Z",
       updatedPrompt: "patched prompt"
     });
-    (api.createRun as unknown as MockedApiFn).mockResolvedValue({
+    (runApi.createRun as unknown as MockedApiFn).mockResolvedValue({
       ...mockedRuns[0],
       runId: "run-replay-candidate"
     });
   });
 
   it("replays a step and writes diff", async () => {
-    render(<StepReplayPanel />);
+    render(<ReplayWorkspace />);
 
     expect(await screen.findByText(/Step replay/)).toBeInTheDocument();
     expect(screen.getByText("run-step · project-a")).toBeInTheDocument();
@@ -89,7 +97,7 @@ describe("StepReplayPanel integration", () => {
   });
 
   it("promotes replay result to new run", async () => {
-    render(<StepReplayPanel />);
+    render(<ReplayWorkspace />);
     expect(await screen.findByText(/Step replay/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Replay step" }));

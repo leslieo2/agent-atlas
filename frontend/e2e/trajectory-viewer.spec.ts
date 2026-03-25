@@ -43,8 +43,7 @@ test("trajectory page renders steps and can diff with previous run", async ({ pa
     ]
   );
 
-  await page.goto("http://127.0.0.1:3000/");
-  await page.getByRole("button", { name: "Trajectory viewer" }).click();
+  await page.goto("http://127.0.0.1:3000/runs/run-001");
   await expect(page.getByRole("heading", { name: "Trajectory viewer" })).toBeVisible();
   await expect(page.getByRole("button", { name: "s1 · PLANNER" })).toBeVisible();
   await page.getByRole("button", { name: "Diff with previous run" }).click();

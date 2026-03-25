@@ -1,0 +1,16 @@
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.wide {
+  grid-column: span 2;
+}
+
+.label {
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+

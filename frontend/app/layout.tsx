@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
+import WorkbenchShell from "@/src/widgets/workbench-shell/WorkbenchShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,7 +11,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <WorkbenchShell>{children}</WorkbenchShell>
+      </body>
     </html>
   );
 }

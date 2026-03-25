@@ -1,76 +1,80 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
-from app.db.state import state
-from app.models.schemas import (
-    ArtifactExportRequest,
-    ArtifactFormat,
-    DatasetCreate,
-    EvalJobCreate,
-    EvalStatus,
-    ReplayRequest,
-    RunCreateRequest,
-    RunStatus,
-    StepType,
-    TrajectoryStep,
-)
-from app.services.adapter import adapter_manager
-from app.services.datasets import dataset_service
-from app.services.eval_service import eval_service
-from app.services.exporter import exporter
-from app.services.orchestrator import orchestrator
-from app.services.replay import replay_service
-
-
-@dataclass
-class _TestStepType:
-    value: str
+from app.bootstrap.container import get_container
+from app.infrastructure.adapters.traces import DefaultTraceProjector
+from app.modules.artifacts.domain.models import ArtifactExportRequest
+from app.modules.datasets.domain.models import DatasetCreate
+from app.modules.evals.domain.models import EvalJobCreate
+from app.modules.replays.domain.models import ReplayRequest
+from app.modules.runs.domain.models import RunSpec as RunCreateRequest
+from app.modules.runs.domain.models import TrajectoryStep
+from app.modules.shared.domain.enums import ArtifactFormat, EvalStatus, RunStatus, StepType
+from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
 
 def test_dataset_service_create_and_get():
+    container = get_container()
     payload = DatasetCreate(
         name="test-ds",
         rows=[],
     )
-    created = dataset_service.create(payload)
+    created = container.dataset_commands.create(payload)
     assert created.name == "test-ds"
-    assert dataset_service.get("test-ds") == created
+    assert container.dataset_queries.get("test-ds") == created
 
 
 def test_adapter_normalize_span_payload():
+    normalizer = DefaultTraceProjector()
     run_id = uuid4()
-    normalized = adapter_manager.normalize_span(
+    event = TraceIngestEvent(
         run_id=run_id,
-        payload=type(
-            "Payload",
-            (),
-            {
-                "span_id": "span-1",
-                "parent_span_id": None,
-                "step_type": _TestStepType("llm"),
-                "input": {"prompt": "hi"},
-                "output": {"output": "ok"},
-                "tool_name": None,
-                "latency_ms": 11,
-                "token_usage": 22,
-                "image_digest": "sha256:abc",
-                "prompt_version": "v1",
-                "received_at": type("TS", (), {"isoformat": lambda _: "2026-01-01T00:00:00Z"})(),
-            },
-        )(),
+        span_id="span-1",
+        parent_span_id=None,
+        step_type=StepType.LLM,
+        name="normalize",
+        input={"prompt": "hi"},
+        output={"output": "ok"},
+        tool_name=None,
+        latency_ms=11,
+        token_usage=22,
+        image_digest="sha256:abc",
+        prompt_version="v1",
     )
+    span = TraceSpan(
+        run_id=run_id,
+        span_id="span-1",
+        parent_span_id=None,
+        step_type=StepType.LLM,
+        input={"prompt": "hi"},
+        output={"output": "ok"},
+        tool_name=None,
+        latency_ms=11,
+        token_usage=22,
+        image_digest="sha256:abc",
+        prompt_version="v1",
+    )
+    normalized = normalizer.normalize(event=event, span=span)
 
     assert normalized["run_id"] == str(run_id)
     assert normalized["step_type"] == "llm"
     assert normalized["latency_ms"] == 11
 
 
-def test_orchestrator_can_force_success(monkeypatch):
-    monkeypatch.setattr(orchestrator.random, "random", lambda: 1.0)
+def test_run_commands_can_force_success(monkeypatch):
+    container = get_container()
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.runner.execute_with_fallback",
+        lambda *_args, **_kwargs: {
+            "output": "mocked unit output",
+            "latency_ms": 1,
+            "token_usage": 2,
+            "provider": "mock",
+        },
+    )
     payload = RunCreateRequest(
         project="orchestrator",
         dataset="test-ds",
@@ -82,39 +86,40 @@ def test_orchestrator_can_force_success(monkeypatch):
         tool_config={"primary_tool": "mock"},
         project_metadata={},
     )
-    run = orchestrator.create_run(payload)
+    run = container.run_commands.create_run(payload)
 
     deadline = time.time() + 2.0
     while time.time() < deadline:
-        status = state.runs[run.run_id].status
-        if status == RunStatus.SUCCEEDED:
+        current_run = container.run_queries.get_run(run.run_id)
+        if current_run and current_run.status == RunStatus.SUCCEEDED:
             break
         time.sleep(0.05)
     else:
         raise AssertionError("run did not succeed in time")
 
-    assert len(state.trajectory[run.run_id]) == 4
-    assert len(state.trace_spans[run.run_id]) == 4
-    assert state.runs[run.run_id].status == RunStatus.SUCCEEDED
+    assert len(container.run_queries.get_trajectory(run.run_id)) == 4
+    assert len(container.run_queries.get_traces(run.run_id)) == 4
+    assert container.run_queries.get_run(run.run_id).status == RunStatus.SUCCEEDED
 
 
-def test_replay_service_creates_diffed_output():
+def test_replay_commands_create_diffed_output():
+    container = get_container()
     run_id = uuid4()
-    step = TrajectoryStep(
-        id="seed-step",
-        run_id=run_id,
-        step_type=StepType.TOOL,
-        prompt="baseline prompt",
-        output="baseline-output",
-        model="planner-v1",
-        temperature=0.1,
-        latency_ms=123,
-        token_usage=10,
-        success=True,
-        tool_name="search",
+    container.trajectory_repository.append(
+        TrajectoryStep(
+            id="seed-step",
+            run_id=run_id,
+            step_type=StepType.TOOL,
+            prompt="baseline prompt",
+            output="baseline-output",
+            model="planner-v1",
+            temperature=0.1,
+            latency_ms=123,
+            token_usage=10,
+            success=True,
+            tool_name="search",
+        )
     )
-    with state.lock:
-        state.trajectory[run_id] = [step]
 
     request = ReplayRequest(
         run_id=run_id,
@@ -123,34 +128,34 @@ def test_replay_service_creates_diffed_output():
         model="gpt-4.1-mini",
     )
 
-    result = replay_service.replay_step(request)
+    result = container.replay_commands.replay_step(request)
     assert result.run_id == run_id
     assert "Replay output for step seed-step" in result.replay_output
     assert "updated prompt" in result.updated_prompt
     assert "baseline" in result.diff
 
 
-def test_exporter_jsonl_output(tmp_path):
+def test_artifact_commands_jsonl_output(tmp_path):
+    container = get_container()
     run_id = uuid4()
-    with state.lock:
-        state.trajectory[run_id] = [
-            TrajectoryStep(
-                id="step-1",
-                run_id=run_id,
-                step_type=StepType.LLM,
-                prompt="hello",
-                output="world",
-                model="gpt-4.1-mini",
-                temperature=0.0,
-                latency_ms=10,
-                token_usage=20,
-                success=True,
-            )
-        ]
+    container.trajectory_repository.append(
+        TrajectoryStep(
+            id="step-1",
+            run_id=run_id,
+            step_type=StepType.LLM,
+            prompt="hello",
+            output="world",
+            model="gpt-4.1-mini",
+            temperature=0.0,
+            latency_ms=10,
+            token_usage=20,
+            success=True,
+        )
+    )
 
-    exporter.output_dir = Path(tmp_path)
+    container.artifact_exporter.output_dir = Path(tmp_path)
     request = ArtifactExportRequest(run_ids=[run_id], format=ArtifactFormat.JSONL)
-    artifact = exporter.export(request)
+    artifact = container.artifact_commands.export(request)
 
     path = Path(artifact.path)
     assert path.exists()
@@ -160,21 +165,21 @@ def test_exporter_jsonl_output(tmp_path):
     assert "step-1" in lines[0]
 
 
-def test_eval_job_runs_to_completion():
+def test_eval_job_commands_run_to_completion():
+    container = get_container()
     run_id = uuid4()
     payload = EvalJobCreate(run_ids=[run_id], dataset="test-ds")
-    job = eval_service.create_job(payload)
+    job = container.eval_job_commands.create_job(payload)
 
     deadline = time.time() + 2.0
     while time.time() < deadline:
-        with state.lock:
-            current_job = state.eval_jobs.get(job.job_id)
-            if current_job and current_job.status == EvalStatus.DONE:
-                break
+        current_job = container.eval_job_queries.get_job(job.job_id)
+        if current_job and current_job.status == EvalStatus.DONE:
+            break
         time.sleep(0.05)
     else:
         raise AssertionError("eval job did not complete in time")
 
-    current_job = state.eval_jobs[job.job_id]
+    current_job = container.eval_job_queries.get_job(job.job_id)
     assert current_job.status == EvalStatus.DONE
     assert len(current_job.results) == 1

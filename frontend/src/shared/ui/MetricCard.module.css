@@ -1,0 +1,22 @@
+.card {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(15, 22, 38, 0.94), rgba(12, 17, 31, 0.86));
+  box-shadow: var(--shadow-soft);
+}
+
+.label {
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.value {
+  font-size: 1.2rem;
+  letter-spacing: -0.03em;
+}
+

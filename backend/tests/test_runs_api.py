@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from app.db.state import state
-from app.models.schemas import RunRecord, RunStatus
+from app.bootstrap.container import get_container
+from app.modules.runs.domain.models import RunRecord
+from app.modules.shared.domain.enums import RunStatus
 
 
 def test_run_list_and_filters_include_seeded_data(client):
@@ -47,6 +48,7 @@ def test_create_run_and_get_by_id(client):
 
 
 def test_terminate_running_run_in_memory(client):
+    container = get_container()
     run = RunRecord(
         run_id=uuid4(),
         input_summary="temporary run",
@@ -56,8 +58,7 @@ def test_terminate_running_run_in_memory(client):
         agent_type="openai-agents-sdk",
         status=RunStatus.RUNNING,
     )
-    with state.lock:
-        state.runs[run.run_id] = run
+    container.run_repository.save(run)
 
     terminated = client.post(f"/api/v1/runs/{run.run_id}/terminate")
     assert terminated.status_code == 200

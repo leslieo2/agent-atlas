@@ -3,27 +3,28 @@ from __future__ import annotations
 import time
 from uuid import uuid4
 
-from app.db.state import state
-from app.models.schemas import StepType, TrajectoryStep
+from app.bootstrap.container import get_container
+from app.modules.runs.domain.models import TrajectoryStep
+from app.modules.shared.domain.enums import StepType
 
 
 def test_replay_api_creates_and_fetches_replay(client):
+    container = get_container()
     run_id = uuid4()
-    with state.lock:
-        state.trajectory[run_id] = [
-            TrajectoryStep(
-                id="step-1",
-                run_id=run_id,
-                step_type=StepType.LLM,
-                prompt="Explain the plan.",
-                output="baseline-output",
-                model="gpt-4.1-mini",
-                temperature=0.0,
-                latency_ms=11,
-                token_usage=4,
-                success=True,
-            )
-        ]
+    container.trajectory_repository.append(
+        TrajectoryStep(
+            id="step-1",
+            run_id=run_id,
+            step_type=StepType.LLM,
+            prompt="Explain the plan.",
+            output="baseline-output",
+            model="gpt-4.1-mini",
+            temperature=0.0,
+            latency_ms=11,
+            token_usage=4,
+            success=True,
+        )
+    )
 
     response = client.post(
         "/api/v1/replays",
@@ -62,7 +63,7 @@ def test_eval_job_api_completes_and_returns_results(client):
     payload = response.json()
     assert payload["run_ids"] == [run_id]
     assert payload["dataset"] == "crm-v2"
-    assert payload["status"] in {"running", "done"}
+    assert payload["status"] in {"queued", "running", "done"}
 
     deadline = time.time() + 3.0
     while time.time() < deadline:

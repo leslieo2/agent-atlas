@@ -1,12 +1,16 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import Playground from "@/components/Playground";
-import * as api from "@/lib/api";
+import * as runApi from "@/src/entities/run/api";
+import * as trajectoryApi from "@/src/entities/trajectory/api";
+import PlaygroundWorkspace from "@/src/widgets/playground-workspace/PlaygroundWorkspace";
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/src/entities/run/api", () => ({
   listRuns: vi.fn(),
-  createRun: vi.fn(),
+  createRun: vi.fn()
+}));
+
+vi.mock("@/src/entities/trajectory/api", () => ({
   getTrajectory: vi.fn()
 }));
 
@@ -31,15 +35,15 @@ const runs = [
 
 describe("Playground integration", () => {
   beforeEach(() => {
-    (api.listRuns as unknown as MockedApiFn).mockReset();
-    (api.createRun as unknown as MockedApiFn).mockReset();
-    (api.getTrajectory as unknown as MockedApiFn).mockReset();
-    (api.listRuns as unknown as MockedApiFn).mockResolvedValue(runs);
-    (api.createRun as unknown as MockedApiFn).mockResolvedValue({
+    (runApi.listRuns as unknown as MockedApiFn).mockReset();
+    (runApi.createRun as unknown as MockedApiFn).mockReset();
+    (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockReset();
+    (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(runs);
+    (runApi.createRun as unknown as MockedApiFn).mockResolvedValue({
       ...runs[0],
       runId: "run-play-new"
     });
-    (api.getTrajectory as unknown as MockedApiFn).mockResolvedValue([
+    (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockResolvedValue([
       {
         id: "s1",
         runId: "run-play",
@@ -56,11 +60,11 @@ describe("Playground integration", () => {
   });
 
   it("creates a run and opens latest trace", async () => {
-    render(<Playground />);
-    await waitFor(() => expect(api.listRuns).toHaveBeenCalledTimes(1));
+    render(<PlaygroundWorkspace />);
+    await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("button", { name: "Run now" }));
-    expect(api.createRun).toHaveBeenCalledTimes(1);
+    expect(runApi.createRun).toHaveBeenCalledTimes(1);
     expect(await screen.findByText(/run_id:\s*run-play-new/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open latest trace" }));
@@ -68,8 +72,8 @@ describe("Playground integration", () => {
   });
 
   it("loads sample prompt preset", async () => {
-    render(<Playground />);
-    await waitFor(() => expect(api.listRuns).toHaveBeenCalledTimes(1));
+    render(<PlaygroundWorkspace />);
+    await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("button", { name: "Attach dataset sample" }));
     expect(screen.getByDisplayValue("Can you create a shipping itinerary?")).toBeInTheDocument();

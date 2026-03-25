@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
@@ -14,14 +15,15 @@ from app.api.routes import (
     run_router,
     trace_router,
 )
+from app.bootstrap.container import get_health_queries
+from app.bootstrap.seed import seed_demo_state
 from app.core.config import settings
-from app.db.state import state
-from app.services.seed import bootstrap
+from app.modules.health.application.use_cases import HealthQueries
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    bootstrap()
+    seed_demo_state()
     yield
 
 
@@ -41,14 +43,8 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health():
-    return {
-        "status": "ok",
-        "components": {
-            "state_initialized": bool(state.runs is not None),
-            "state_persistence_enabled": bool(state.persist.enabled),
-        },
-    }
+def health(queries: Annotated[HealthQueries, Depends(get_health_queries)]):
+    return queries.get_health()
 
 
 app.include_router(run_router, prefix=settings.api_prefix)

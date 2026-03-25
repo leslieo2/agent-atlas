@@ -1,18 +1,27 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Annotated
 
-from app.models.schemas import Dataset, DatasetCreate
-from app.services.datasets import dataset_service
+from fastapi import APIRouter, Depends
+
+from app.bootstrap.container import get_dataset_commands, get_dataset_queries
+from app.modules.datasets.api.schemas import DatasetCreate, DatasetResponse
+from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
 
-@router.get("", response_model=list[Dataset])
-def list_datasets() -> list[Dataset]:
-    return dataset_service.list()
+@router.get("", response_model=list[DatasetResponse])
+def list_datasets(
+    queries: Annotated[DatasetQueries, Depends(get_dataset_queries)],
+) -> list[DatasetResponse]:
+    return [DatasetResponse.from_domain(dataset) for dataset in queries.list()]
 
 
-@router.post("", response_model=Dataset)
-def create_dataset(payload: DatasetCreate) -> Dataset:
-    return dataset_service.create(payload)
+@router.post("", response_model=DatasetResponse)
+def create_dataset(
+    payload: DatasetCreate,
+    commands: Annotated[DatasetCommands, Depends(get_dataset_commands)],
+) -> DatasetResponse:
+    dataset = commands.create(payload.to_domain())
+    return DatasetResponse.from_domain(dataset)

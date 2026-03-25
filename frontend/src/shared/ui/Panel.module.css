@@ -1,0 +1,21 @@
+.panel {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, rgba(12, 18, 32, 0.95), rgba(9, 14, 26, 0.88));
+  padding: 18px;
+  box-shadow: var(--shadow-soft);
+}
+
+.strong {
+  background:
+    radial-gradient(circle at top right, rgba(91, 192, 255, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(13, 20, 36, 0.98), rgba(9, 14, 25, 0.92));
+}
+
+.plain {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
