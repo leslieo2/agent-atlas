@@ -3,21 +3,18 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useExportArtifactMutation } from "@/src/entities/artifact/query";
+import { useCreateDatasetMutation, useDatasetsQuery } from "@/src/entities/dataset/query";
+import { useCreateEvalJobMutation } from "@/src/entities/eval/query";
 import type { EvalResult } from "@/src/entities/eval/model";
+import { useRunsQuery } from "@/src/entities/run/query";
+import { trajectoryQueryOptions } from "@/src/entities/trajectory/query";
 import type { TrajectoryStep } from "@/src/entities/trajectory/model";
 import { DatasetSelector } from "@/src/features/dataset-selector/DatasetSelector";
 import { DatasetUpload } from "@/src/features/dataset-upload/DatasetUpload";
 import { EvalResultsTable } from "@/src/features/eval-results-table/EvalResultsTable";
 import { EvalRunActions } from "@/src/features/eval-run/EvalRunActions";
 import { SampleDrilldown } from "@/src/features/sample-drilldown/SampleDrilldown";
-import {
-  trajectoryQueryOptions,
-  useCreateDatasetMutation,
-  useCreateEvalJobMutation,
-  useDatasetsQuery,
-  useExportArtifactMutation,
-  useRunsQuery
-} from "@/src/shared/query/hooks";
 import { Field } from "@/src/shared/ui/Field";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Panel } from "@/src/shared/ui/Panel";

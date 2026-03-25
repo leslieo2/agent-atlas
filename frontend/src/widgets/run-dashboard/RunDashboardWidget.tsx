@@ -2,10 +2,10 @@
 
 import { ArrowUpRight, Boxes, ClipboardList } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useRunsQuery } from "@/src/entities/run/query";
 import { ArtifactExportActions } from "@/src/features/artifact-export/ArtifactExportActions";
 import { RunCreateButton } from "@/src/features/run-create/RunCreateButton";
 import { RunFilters, type RunFilterState, buildRunFilters } from "@/src/features/run-filters/RunFilters";
-import { useRunsQuery } from "@/src/shared/query/hooks";
 import { RunTable } from "@/src/features/run-table/RunTable";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";

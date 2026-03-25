@@ -2,7 +2,8 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { Play } from "lucide-react";
-import { trajectoryQueryOptions, useCreateRunMutation } from "@/src/shared/query/hooks";
+import { useCreateRunMutation } from "@/src/entities/run/query";
+import { trajectoryQueryOptions } from "@/src/entities/trajectory/query";
 import { Button } from "@/src/shared/ui/Button";
 
 type Props = {

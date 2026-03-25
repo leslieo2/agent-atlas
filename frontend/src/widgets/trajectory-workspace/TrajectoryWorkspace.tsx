@@ -3,15 +3,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useExportArtifactMutation } from "@/src/entities/artifact/query";
+import { useRunsQuery } from "@/src/entities/run/query";
+import { trajectoryQueryOptions, useTrajectoryQuery } from "@/src/entities/trajectory/query";
 import { ComparePreviousRunAction } from "@/src/features/trajectory-compare/ComparePreviousRunAction";
 import { TrajectoryGraph } from "@/src/features/trajectory-graph/TrajectoryGraph";
 import { StepInspector } from "@/src/features/step-inspector/StepInspector";
-import {
-  trajectoryQueryOptions,
-  useExportArtifactMutation,
-  useRunsQuery,
-  useTrajectoryQuery
-} from "@/src/shared/query/hooks";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Panel } from "@/src/shared/ui/Panel";

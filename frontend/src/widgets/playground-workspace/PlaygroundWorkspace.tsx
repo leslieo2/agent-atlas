@@ -2,9 +2,9 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRunsQuery } from "@/src/entities/run/query";
 import { ManualRunActions } from "@/src/features/manual-run/ManualRunActions";
 import { PlaygroundForm } from "@/src/features/playground-form/PlaygroundForm";
-import { useRunsQuery } from "@/src/shared/query/hooks";
 import { TraceLogPanel } from "@/src/features/trace-log/TraceLogPanel";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";

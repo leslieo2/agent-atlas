@@ -33,6 +33,7 @@ app/infrastructure/* -> app/modules/* application ports and domain models
 ```
 
 Business logic belongs in feature modules. Infrastructure implements ports owned by those modules. Routes handle HTTP concerns only.
+The core module boundaries are also enforced by architecture tests under `backend/tests/unit/`.
 
 ## Design Goals
 

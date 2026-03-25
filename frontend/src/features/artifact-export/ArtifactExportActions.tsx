@@ -1,7 +1,7 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { useExportArtifactMutation } from "@/src/shared/query/hooks";
+import { useExportArtifactMutation } from "@/src/entities/artifact/query";
 import { Button } from "@/src/shared/ui/Button";
 
 export function ArtifactExportActions({

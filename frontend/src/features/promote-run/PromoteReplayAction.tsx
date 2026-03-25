@@ -1,7 +1,7 @@
 "use client";
 
 import type { TrajectoryStep } from "@/src/entities/trajectory/model";
-import { useCreateRunMutation } from "@/src/shared/query/hooks";
+import { useCreateRunMutation } from "@/src/entities/run/query";
 import { Button } from "@/src/shared/ui/Button";
 
 type Props = {

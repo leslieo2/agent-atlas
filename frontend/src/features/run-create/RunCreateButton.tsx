@@ -2,7 +2,7 @@
 
 import { Plus } from "lucide-react";
 import type { RunRecord } from "@/src/entities/run/model";
-import { useCreateRunMutation } from "@/src/shared/query/hooks";
+import { useCreateRunMutation } from "@/src/entities/run/query";
 import { Button } from "@/src/shared/ui/Button";
 
 export function RunCreateButton({

@@ -2,11 +2,13 @@
 
 import { ArrowLeft, RefreshCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useCreateReplayMutation } from "@/src/entities/replay/query";
+import { useRunsQuery } from "@/src/entities/run/query";
+import { useTrajectoryQuery } from "@/src/entities/trajectory/query";
 import { ReplayDiff } from "@/src/features/replay-diff/ReplayDiff";
 import { ReplayEditor } from "@/src/features/replay-editor/ReplayEditor";
 import { ReplaySourceSelector } from "@/src/features/replay-source-selector/ReplaySourceSelector";
 import { PromoteReplayAction } from "@/src/features/promote-run/PromoteReplayAction";
-import { useCreateReplayMutation, useRunsQuery, useTrajectoryQuery } from "@/src/shared/query/hooks";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Panel } from "@/src/shared/ui/Panel";
