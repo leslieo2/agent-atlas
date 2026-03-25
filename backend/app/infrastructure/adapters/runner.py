@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -60,7 +60,7 @@ class DockerRunner(Runner):
                 encoding="utf-8",
             )
 
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603
                 self._build_command(io_dir),
                 capture_output=True,
                 text=True,

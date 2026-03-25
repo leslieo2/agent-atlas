@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
+from app.modules.runs.domain.models import TrajectoryStep
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
 
@@ -19,6 +21,22 @@ class DefaultTraceProjector:
             token_usage=event.token_usage,
             image_digest=event.image_digest,
             prompt_version=event.prompt_version,
+        )
+
+    def project_step(self, event: TraceIngestEvent, span: TraceSpan) -> TrajectoryStep:
+        return TrajectoryStep(
+            id=span.span_id,
+            run_id=span.run_id,
+            step_type=span.step_type,
+            prompt=self._render_prompt(span.input),
+            output=self._render_output(span.output),
+            model=self._extract_model(event, span.input),
+            temperature=self._extract_temperature(span.input),
+            latency_ms=span.latency_ms,
+            token_usage=span.token_usage,
+            success=self._extract_success(span.output),
+            tool_name=span.tool_name,
+            started_at=span.received_at,
         )
 
     def normalize(
@@ -40,3 +58,36 @@ class DefaultTraceProjector:
             "prompt_version": span.prompt_version,
             "received_at": span.received_at.isoformat(),
         }
+
+    def _render_prompt(self, payload: dict[str, Any]) -> str:
+        prompt = payload.get("prompt")
+        if isinstance(prompt, str) and prompt:
+            return prompt
+        return self._serialize_payload(payload)
+
+    def _render_output(self, payload: dict[str, Any]) -> str:
+        output = payload.get("output")
+        if isinstance(output, str) and output:
+            return output
+        return self._serialize_payload(payload)
+
+    def _extract_model(self, event: TraceIngestEvent, payload: dict[str, Any]) -> str:
+        model = payload.get("model")
+        if isinstance(model, str) and model:
+            return model
+        return event.name
+
+    def _extract_temperature(self, payload: dict[str, Any]) -> float:
+        temperature = payload.get("temperature", 0.0)
+        if isinstance(temperature, int | float):
+            return float(temperature)
+        return 0.0
+
+    def _extract_success(self, payload: dict[str, Any]) -> bool:
+        success = payload.get("success")
+        if isinstance(success, bool):
+            return success
+        return "error" not in payload
+
+    def _serialize_payload(self, payload: dict[str, Any]) -> str:
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True)

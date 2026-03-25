@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.modules.runs.domain.models import RunRecord, RuntimeExecutionResult, TrajectoryStep
 from app.modules.shared.domain.enums import AdapterKind
+from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
 
 class RunRepository(Protocol):
@@ -32,3 +33,7 @@ class RunnerPort(Protocol):
 
 class RunnerRegistryPort(Protocol):
     def get_runner(self, agent_type: AdapterKind) -> RunnerPort: ...
+
+
+class TraceIngestionPort(Protocol):
+    def ingest(self, event: TraceIngestEvent) -> TraceSpan: ...

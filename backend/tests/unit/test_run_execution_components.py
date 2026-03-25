@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from app.infrastructure.adapters.traces import DefaultTraceProjector
 from app.infrastructure.repositories import (
     StateRunRepository,
     StateTraceRepository,
@@ -14,9 +15,14 @@ from app.modules.runs.application.execution import (
 )
 from app.modules.runs.domain.models import RunRecord, RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
+from app.modules.traces.application.use_cases import (
+    TraceCommands,
+    TraceIngestionWorkflow,
+    TraceRecorder,
+)
 
 
-def test_run_execution_projector_builds_success_step_and_trace():
+def test_run_execution_projector_builds_success_trace_event():
     run_id = uuid4()
     context = RunExecutionContext.from_spec(
         run_id,
@@ -44,15 +50,15 @@ def test_run_execution_projector_builds_success_step_and_trace():
         ),
     )
 
-    assert record.step.id == f"{run_id}-step-3"
-    assert record.step.output == "Projected success output"
-    assert record.span.parent_span_id == f"span-{run_id}-1"
-    assert record.span.output["provider"] == "mock"
-    assert record.span.image_digest == "python:3.12-slim"
+    assert record.event.span_id == f"span-{run_id}-3"
+    assert record.event.parent_span_id == f"span-{run_id}-1"
+    assert record.event.output["output"] == "Projected success output"
+    assert record.event.output["provider"] == "mock"
+    assert record.event.image_digest == "python:3.12-slim"
     assert record.metrics.token_cost == 31
 
 
-def test_execution_recorder_persists_step_span_and_metrics():
+def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     run_id = uuid4()
     run_repository = StateRunRepository()
     trajectory_repository = StateTrajectoryRepository()
@@ -70,6 +76,16 @@ def test_execution_recorder_persists_step_span_and_metrics():
         )
     )
 
+    trace_ingestor = TraceCommands(
+        workflow=TraceIngestionWorkflow(
+            trace_projector=DefaultTraceProjector(),
+            trace_recorder=TraceRecorder(
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
+        )
+    )
+
     context = RunExecutionContext.from_spec(
         run_id,
         RunSpec(
@@ -84,8 +100,7 @@ def test_execution_recorder_persists_step_span_and_metrics():
     projector = RunExecutionProjector()
     recorder = ExecutionRecorder(
         run_repository=run_repository,
-        trajectory_repository=trajectory_repository,
-        trace_repository=trace_repository,
+        trace_ingestor=trace_ingestor,
     )
 
     recorder.record(run_id, projector.project_planner(context))
@@ -110,5 +125,5 @@ def test_execution_recorder_persists_step_span_and_metrics():
     assert run.latency_ms == 10
     assert run.token_cost == 13
     assert run.tool_calls == 0
-    assert [step.id for step in steps] == [f"{run_id}-step-1", f"{run_id}-step-3"]
+    assert [step.id for step in steps] == [f"span-{run_id}-1", f"span-{run_id}-3"]
     assert [span.span_id for span in spans] == [f"span-{run_id}-1", f"span-{run_id}-3"]

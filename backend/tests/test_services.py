@@ -89,8 +89,12 @@ def test_run_commands_can_force_success(monkeypatch, worker_drain):
 
     assert worker_drain() >= 1
 
-    assert len(container.run_queries.get_trajectory(run.run_id)) == 4
-    assert len(container.run_queries.get_traces(run.run_id)) == 4
+    trajectory = container.run_queries.get_trajectory(run.run_id)
+    traces = container.run_queries.get_traces(run.run_id)
+
+    assert len(trajectory) == 4
+    assert len(traces) == 4
+    assert [step.id for step in trajectory] == [span.span_id for span in traces]
     assert container.run_queries.get_run(run.run_id).status == RunStatus.SUCCEEDED
 
 

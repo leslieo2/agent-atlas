@@ -6,18 +6,16 @@ from uuid import UUID
 from app.modules.runs.application.ports import (
     RunnerRegistryPort,
     RunRepository,
-    TrajectoryRepository,
+    TraceIngestionPort,
 )
 from app.modules.runs.domain.models import (
     ExecutionMetrics,
     RunSpec,
     RuntimeExecutionResult,
-    TrajectoryStep,
 )
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus, StepType
-from app.modules.traces.application.ports import TraceRepository
-from app.modules.traces.domain.models import TraceSpan
+from app.modules.traces.domain.models import TraceIngestEvent
 
 
 @dataclass(frozen=True)
@@ -39,8 +37,7 @@ class RunExecutionContext:
 
 @dataclass(frozen=True)
 class ProjectedExecutionRecord:
-    step: TrajectoryStep
-    span: TraceSpan
+    event: TraceIngestEvent
     metrics: ExecutionMetrics
 
 
@@ -51,65 +48,48 @@ class RunExecutionProjector:
             f"using adapter {context.payload.agent_type.value}."
         )
         output = f"Single-step live model execution planned for project {context.payload.project}."
-        step = TrajectoryStep(
-            id=f"{context.run_id}-step-1",
-            run_id=context.run_id,
-            step_type=StepType.PLANNER,
-            prompt=prompt,
-            output=output,
-            model="planner-v1",
-            temperature=0.0,
-            latency_ms=1,
-            token_usage=0,
-            success=True,
-        )
-        span = self._build_span(
-            context=context,
-            span_id=f"span-{context.run_id}-1",
-            parent_span_id=None,
-            step_type=StepType.PLANNER,
-            input_payload={"prompt": prompt, "agent_type": context.payload.agent_type.value},
-            output_payload={"output": output, "success": True},
-            latency_ms=step.latency_ms,
-            token_usage=step.token_usage,
-        )
         return ProjectedExecutionRecord(
-            step=step,
-            span=span,
-            metrics=ExecutionMetrics(latency_ms=step.latency_ms, token_cost=step.token_usage),
+            event=self._build_event(
+                context=context,
+                span_id=f"span-{context.run_id}-1",
+                parent_span_id=None,
+                step_type=StepType.PLANNER,
+                name="planner-v1",
+                input_payload={
+                    "prompt": prompt,
+                    "agent_type": context.payload.agent_type.value,
+                    "model": "planner-v1",
+                    "temperature": 0.0,
+                },
+                output_payload={"output": output, "success": True},
+                latency_ms=1,
+                token_usage=0,
+            ),
+            metrics=ExecutionMetrics(latency_ms=1, token_cost=0),
         )
 
     def project_runtime_preamble(self, context: RunExecutionContext) -> ProjectedExecutionRecord:
-        step = TrajectoryStep(
-            id=f"{context.run_id}-step-2",
-            run_id=context.run_id,
-            step_type=StepType.TOOL,
-            prompt="Prepare runtime context for execution",
-            output="runtime context prepared",
-            model="planner-v1",
-            temperature=0.0,
-            latency_ms=2,
-            token_usage=0,
-            success=True,
-            tool_name="runtime-context",
-        )
-        span = self._build_span(
-            context=context,
-            span_id=f"span-{context.run_id}-2",
-            parent_span_id=self.root_span_id(context.run_id),
-            step_type=StepType.TOOL,
-            input_payload={"type": "preamble"},
-            output_payload={"output": step.output, "success": True},
-            latency_ms=step.latency_ms,
-            token_usage=step.token_usage,
-            tool_name=step.tool_name,
-        )
         return ProjectedExecutionRecord(
-            step=step,
-            span=span,
+            event=self._build_event(
+                context=context,
+                span_id=f"span-{context.run_id}-2",
+                parent_span_id=self.root_span_id(context.run_id),
+                step_type=StepType.TOOL,
+                name="runtime-context",
+                input_payload={
+                    "prompt": "Prepare runtime context for execution",
+                    "type": "preamble",
+                    "model": "planner-v1",
+                    "temperature": 0.0,
+                },
+                output_payload={"output": "runtime context prepared", "success": True},
+                latency_ms=2,
+                token_usage=0,
+                tool_name="runtime-context",
+            ),
             metrics=ExecutionMetrics(
-                latency_ms=step.latency_ms,
-                token_cost=step.token_usage,
+                latency_ms=2,
+                token_cost=0,
                 tool_calls=1,
             ),
         )
@@ -119,32 +99,27 @@ class RunExecutionProjector:
         context: RunExecutionContext,
         result: RuntimeExecutionResult,
     ) -> ProjectedExecutionRecord:
-        step = TrajectoryStep(
-            id=f"{context.run_id}-step-3",
-            run_id=context.run_id,
-            step_type=StepType.LLM,
-            prompt=context.payload.prompt,
-            output=result.output,
-            model=context.payload.model,
-            temperature=0.0,
-            latency_ms=result.latency_ms,
-            token_usage=result.token_usage,
-            success=True,
-        )
-        span = self._build_span(
-            context=context,
-            span_id=f"span-{context.run_id}-3",
-            parent_span_id=self.root_span_id(context.run_id),
-            step_type=StepType.LLM,
-            input_payload={"prompt": context.payload.prompt, "model": context.payload.model},
-            output_payload={"output": result.output, "success": True, "provider": result.provider},
-            latency_ms=result.latency_ms,
-            token_usage=result.token_usage,
-            image_digest=result.container_image or context.image_digest,
-        )
         return ProjectedExecutionRecord(
-            step=step,
-            span=span,
+            event=self._build_event(
+                context=context,
+                span_id=f"span-{context.run_id}-3",
+                parent_span_id=self.root_span_id(context.run_id),
+                step_type=StepType.LLM,
+                name=context.payload.model,
+                input_payload={
+                    "prompt": context.payload.prompt,
+                    "model": context.payload.model,
+                    "temperature": 0.0,
+                },
+                output_payload={
+                    "output": result.output,
+                    "success": True,
+                    "provider": result.provider,
+                },
+                latency_ms=result.latency_ms,
+                token_usage=result.token_usage,
+                image_digest=result.container_image or context.image_digest,
+            ),
             metrics=ExecutionMetrics(
                 latency_ms=result.latency_ms,
                 token_cost=result.token_usage,
@@ -157,81 +132,70 @@ class RunExecutionProjector:
         error: str,
     ) -> ProjectedExecutionRecord:
         output = f"live execution failed: {error}"
-        step = TrajectoryStep(
-            id=f"{context.run_id}-step-3",
-            run_id=context.run_id,
-            step_type=StepType.LLM,
-            prompt=context.payload.prompt,
-            output=output,
-            model=context.payload.model,
-            temperature=0.0,
-            latency_ms=0,
-            token_usage=0,
-            success=False,
+        return ProjectedExecutionRecord(
+            event=self._build_event(
+                context=context,
+                span_id=f"span-{context.run_id}-3",
+                parent_span_id=self.root_span_id(context.run_id),
+                step_type=StepType.LLM,
+                name=context.payload.model,
+                input_payload={
+                    "prompt": context.payload.prompt,
+                    "model": context.payload.model,
+                    "temperature": 0.0,
+                },
+                output_payload={"output": output, "success": False, "error": error},
+                latency_ms=0,
+                token_usage=0,
+            ),
+            metrics=ExecutionMetrics(),
         )
-        span = self._build_span(
-            context=context,
-            span_id=f"span-{context.run_id}-3",
-            parent_span_id=self.root_span_id(context.run_id),
-            step_type=StepType.LLM,
-            input_payload={"prompt": context.payload.prompt, "model": context.payload.model},
-            output_payload={"output": output, "success": False},
-            latency_ms=0,
-            token_usage=0,
-        )
-        return ProjectedExecutionRecord(step=step, span=span, metrics=ExecutionMetrics())
 
     def project_persistence(self, context: RunExecutionContext) -> ProjectedExecutionRecord:
-        step = TrajectoryStep(
-            id=f"{context.run_id}-step-4",
-            run_id=context.run_id,
-            step_type=StepType.MEMORY,
-            prompt="Persist normalized artifacts",
-            output="trajectory and spans persisted",
-            model="recorder",
-            temperature=0.0,
-            latency_ms=1,
-            token_usage=0,
-            success=True,
-        )
-        span = self._build_span(
-            context=context,
-            span_id=f"span-{context.run_id}-4",
-            parent_span_id=self.root_span_id(context.run_id),
-            step_type=StepType.MEMORY,
-            input_payload={"result": "persist"},
-            output_payload={"output": step.output, "success": True},
-            latency_ms=step.latency_ms,
-            token_usage=step.token_usage,
-        )
         return ProjectedExecutionRecord(
-            step=step,
-            span=span,
-            metrics=ExecutionMetrics(latency_ms=step.latency_ms, token_cost=step.token_usage),
+            event=self._build_event(
+                context=context,
+                span_id=f"span-{context.run_id}-4",
+                parent_span_id=self.root_span_id(context.run_id),
+                step_type=StepType.MEMORY,
+                name="recorder",
+                input_payload={
+                    "prompt": "Persist normalized artifacts",
+                    "result": "persist",
+                    "model": "recorder",
+                    "temperature": 0.0,
+                },
+                output_payload={"output": "trajectory and spans persisted", "success": True},
+                latency_ms=1,
+                token_usage=0,
+            ),
+            metrics=ExecutionMetrics(latency_ms=1, token_cost=0),
         )
 
     @staticmethod
     def root_span_id(run_id: UUID) -> str:
         return f"span-{run_id}-1"
 
-    def _build_span(
+    def _build_event(
         self,
         context: RunExecutionContext,
         span_id: str,
         parent_span_id: str | None,
         step_type: StepType,
+        name: str,
         input_payload: dict[str, object],
         output_payload: dict[str, object],
         latency_ms: int,
         token_usage: int,
         image_digest: str | None = None,
         tool_name: str | None = None,
-    ) -> TraceSpan:
-        return TraceSpan(
+    ) -> TraceIngestEvent:
+        return TraceIngestEvent(
             run_id=context.run_id,
             span_id=span_id,
             parent_span_id=parent_span_id,
             step_type=step_type,
+            name=name,
             input=input_payload,
             output=output_payload,
             tool_name=tool_name,
@@ -246,16 +210,13 @@ class ExecutionRecorder:
     def __init__(
         self,
         run_repository: RunRepository,
-        trajectory_repository: TrajectoryRepository,
-        trace_repository: TraceRepository,
+        trace_ingestor: TraceIngestionPort,
     ) -> None:
         self.run_repository = run_repository
-        self.trajectory_repository = trajectory_repository
-        self.trace_repository = trace_repository
+        self.trace_ingestor = trace_ingestor
 
     def record(self, run_id: UUID, record: ProjectedExecutionRecord) -> None:
-        self.trajectory_repository.append(record.step)
-        self.trace_repository.append(record.span)
+        self.trace_ingestor.ingest(record.event)
 
         run = self.run_repository.get(run_id)
         if not run:
@@ -268,9 +229,8 @@ class RunExecutionService:
     def __init__(
         self,
         run_repository: RunRepository,
-        trajectory_repository: TrajectoryRepository,
-        trace_repository: TraceRepository,
         runner_registry: RunnerRegistryPort,
+        trace_ingestor: TraceIngestionPort,
         projector: RunExecutionProjector | None = None,
         recorder: ExecutionRecorder | None = None,
     ) -> None:
@@ -279,8 +239,7 @@ class RunExecutionService:
         self.projector = projector or RunExecutionProjector()
         self.recorder = recorder or ExecutionRecorder(
             run_repository=run_repository,
-            trajectory_repository=trajectory_repository,
-            trace_repository=trace_repository,
+            trace_ingestor=trace_ingestor,
         )
 
     def execute_run(self, run_id: UUID, payload: RunSpec) -> None:

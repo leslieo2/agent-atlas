@@ -1,15 +1,26 @@
 from __future__ import annotations
 
-from app.modules.traces.application.ports import TraceProjectorPort, TraceRepository
+from app.modules.runs.domain.models import TrajectoryStep
+from app.modules.traces.application.ports import (
+    TraceProjectorPort,
+    TraceRepository,
+    TrajectoryRepository,
+)
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
 
 class TraceRecorder:
-    def __init__(self, trace_repository: TraceRepository) -> None:
+    def __init__(
+        self,
+        trace_repository: TraceRepository,
+        trajectory_repository: TrajectoryRepository,
+    ) -> None:
         self.trace_repository = trace_repository
+        self.trajectory_repository = trajectory_repository
 
-    def record(self, span: TraceSpan) -> TraceSpan:
+    def record(self, span: TraceSpan, step: TrajectoryStep) -> TraceSpan:
         self.trace_repository.append(span)
+        self.trajectory_repository.append(step)
         return span
 
 
@@ -24,11 +35,12 @@ class TraceIngestionWorkflow:
 
     def ingest(self, event: TraceIngestEvent) -> TraceSpan:
         span = self.trace_projector.project(event)
-        return self.trace_recorder.record(span)
+        step = self.trace_projector.project_step(event, span)
+        return self.trace_recorder.record(span, step)
 
     def normalize(self, event: TraceIngestEvent) -> dict[str, object]:
         span = self.ingest(event)
-        return self.trace_projector.normalize(span)
+        return self.trace_projector.normalize(span, event)
 
 
 class TraceCommands:

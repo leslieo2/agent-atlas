@@ -5,7 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from app.infrastructure.adapters.traces import DefaultTraceProjector
-from app.infrastructure.repositories import StateTraceRepository
+from app.infrastructure.repositories import StateTraceRepository, StateTrajectoryRepository
 from app.modules.shared.domain.enums import StepType
 from app.modules.traces.application.use_cases import TraceIngestionWorkflow, TraceRecorder
 from app.modules.traces.domain.models import TraceIngestEvent
@@ -13,9 +13,13 @@ from app.modules.traces.domain.models import TraceIngestEvent
 
 def test_trace_ingestion_workflow_projects_and_persists_span():
     repository = StateTraceRepository()
+    trajectory_repository = StateTrajectoryRepository()
     workflow = TraceIngestionWorkflow(
         trace_projector=DefaultTraceProjector(),
-        trace_recorder=TraceRecorder(trace_repository=repository),
+        trace_recorder=TraceRecorder(
+            trace_repository=repository,
+            trajectory_repository=trajectory_repository,
+        ),
     )
     run_id = uuid4()
     event = TraceIngestEvent(
@@ -35,9 +39,18 @@ def test_trace_ingestion_workflow_projects_and_persists_span():
 
     normalized = workflow.normalize(event)
     traces = repository.list_for_run(run_id)
+    steps = trajectory_repository.list_for_run(run_id)
 
     assert len(traces) == 1
+    assert len(steps) == 1
     assert traces[0].span_id == "span-123"
+    assert steps[0].id == "span-123"
+    assert steps[0].step_type == StepType.TOOL
+    assert steps[0].tool_name == "mcp"
+    assert steps[0].latency_ms == 7
+    assert steps[0].token_usage == 3
+    assert steps[0].prompt == '{"foo": "bar"}'
+    assert steps[0].output == '{"ok": true}'
     assert normalized["run_id"] == str(run_id)
     assert normalized["step_type"] == "tool"
 

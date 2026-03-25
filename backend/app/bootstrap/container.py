@@ -52,6 +52,14 @@ class AppContainer:
         self.runner = FallbackRunnerAdapter()
         self.runner_registry = StaticRunnerRegistry(default_runner=self.runner)
         self.trace_projector = DefaultTraceProjector()
+        self.trace_workflow = TraceIngestionWorkflow(
+            trace_projector=self.trace_projector,
+            trace_recorder=TraceRecorder(
+                trace_repository=self.trace_repository,
+                trajectory_repository=self.trajectory_repository,
+            ),
+        )
+        self.trace_commands = TraceCommands(workflow=self.trace_workflow)
         self.artifact_exporter = ArtifactExporterAdapter(
             trajectory_repository=self.trajectory_repository,
             artifact_repository=self.artifact_repository,
@@ -59,9 +67,8 @@ class AppContainer:
 
         run_execution_service = RunExecutionService(
             run_repository=self.run_repository,
-            trajectory_repository=self.trajectory_repository,
-            trace_repository=self.trace_repository,
             runner_registry=self.runner_registry,
+            trace_ingestor=self.trace_commands,
         )
 
         self.run_queries = RunQueries(
@@ -90,12 +97,6 @@ class AppContainer:
         self.dataset_commands = DatasetCommands(dataset_repository=self.dataset_repository)
         self.artifact_queries = ArtifactQueries(artifact_repository=self.artifact_repository)
         self.artifact_commands = ArtifactCommands(artifact_exporter=self.artifact_exporter)
-        self.trace_commands = TraceCommands(
-            workflow=TraceIngestionWorkflow(
-                trace_projector=self.trace_projector,
-                trace_recorder=TraceRecorder(trace_repository=self.trace_repository),
-            ),
-        )
         self.adapter_queries = AdapterQueries(adapter_catalog=self.adapter_catalog)
         self.health_queries = HealthQueries(system_status=self.system_status)
         self.app_worker = AppWorker(

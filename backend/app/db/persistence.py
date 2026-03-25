@@ -18,6 +18,44 @@ from app.modules.runs.domain.models import RunRecord, TrajectoryStep
 from app.modules.shared.domain.tasks import QueuedTask, TaskStatus
 from app.modules.traces.domain.models import TraceSpan
 
+_PAYLOAD_STATEMENTS: dict[tuple[str, str], tuple[str, str]] = {
+    (
+        "runs",
+        "run_id",
+    ): (
+        "INSERT OR REPLACE INTO runs (run_id, payload, updated_at) VALUES (?, ?, ?)",
+        "SELECT payload FROM runs WHERE run_id = ?",
+    ),
+    (
+        "datasets",
+        "name",
+    ): (
+        "INSERT OR REPLACE INTO datasets (name, payload, updated_at) VALUES (?, ?, ?)",
+        "SELECT payload FROM datasets WHERE name = ?",
+    ),
+    (
+        "eval_jobs",
+        "job_id",
+    ): (
+        "INSERT OR REPLACE INTO eval_jobs (job_id, payload, updated_at) VALUES (?, ?, ?)",
+        "SELECT payload FROM eval_jobs WHERE job_id = ?",
+    ),
+    (
+        "replays",
+        "replay_id",
+    ): (
+        "INSERT OR REPLACE INTO replays (replay_id, payload, updated_at) VALUES (?, ?, ?)",
+        "SELECT payload FROM replays WHERE replay_id = ?",
+    ),
+    (
+        "artifacts",
+        "artifact_id",
+    ): (
+        "INSERT OR REPLACE INTO artifacts (artifact_id, payload, updated_at) VALUES (?, ?, ?)",
+        "SELECT payload FROM artifacts WHERE artifact_id = ?",
+    ),
+}
+
 
 def to_uuid(value: UUID | str) -> UUID:
     if isinstance(value, UUID):
@@ -135,21 +173,17 @@ class StatePersistence:
     def _upsert(self, table: str, key_col: str, key_value: str, payload: str, ts: str) -> None:
         if not self.conn:
             return
+        statement = self._payload_statement(table, key_col, kind="upsert")
         with self._lock:
-            self.conn.execute(
-                f"INSERT OR REPLACE INTO {table} ({key_col}, payload, updated_at) VALUES (?, ?, ?)",
-                (key_value, payload, ts),
-            )
+            self.conn.execute(statement, (key_value, payload, ts))
             self.conn.commit()
 
     def _fetch_payload(self, table: str, key_col: str, key_value: str) -> str | None:
         if not self.conn:
             return None
+        statement = self._payload_statement(table, key_col, kind="fetch")
         with self._lock:
-            row = self.conn.execute(
-                f"SELECT payload FROM {table} WHERE {key_col} = ?",
-                (key_value,),
-            ).fetchone()
+            row = self.conn.execute(statement, (key_value,)).fetchone()
         if not row:
             return None
         return str(row["payload"])
@@ -160,6 +194,12 @@ class StatePersistence:
         with self._lock:
             rows = self.conn.execute(query, params).fetchall()
         return [str(row["payload"]) for row in rows]
+
+    def _payload_statement(self, table: str, key_col: str, *, kind: str) -> str:
+        statements = _PAYLOAD_STATEMENTS.get((table, key_col))
+        if statements is None:
+            raise ValueError(f"unsupported payload table lookup table={table} key_col={key_col}")
+        return statements[0] if kind == "upsert" else statements[1]
 
     def save_run(self, run: RunRecord) -> None:
         self._upsert(

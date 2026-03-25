@@ -83,6 +83,12 @@ def test_trace_ingest_and_normalize_endpoints(client):
     assert len(traces) == 1
     assert traces[0]["span_id"] == "span-normalize"
 
+    trajectory = client.get(f"/api/v1/runs/{run_id}/trajectory").json()
+    assert len(trajectory) == 1
+    assert trajectory[0]["id"] == "span-normalize"
+    assert trajectory[0]["step_type"] == "tool"
+    assert trajectory[0]["tool_name"] == "mcp"
+
 
 def test_adapters_list_available_adapters(client):
     adapters = client.get("/api/v1/adapters").json()
