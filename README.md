@@ -20,6 +20,7 @@ Run these from the repository root:
 ```bash
 make help
 make install
+make dev
 make lint
 make typecheck
 make test
@@ -32,6 +33,7 @@ make ci
 What they do:
 
 - `make install`: install backend and frontend dependencies
+- `make dev`: start the backend API, backend worker, and frontend dev server together
 - `make lint`: run backend lint checks and frontend lint checks
 - `make typecheck`: run backend mypy and frontend TypeScript checks
 - `make test`: run backend pytest and frontend Vitest
@@ -43,6 +45,14 @@ What they do:
 ## Working By Subproject
 
 Use subproject-local commands when you need more targeted workflows.
+
+For the standard local stack, use `make dev` from the repository root. It starts:
+
+- backend API on `http://127.0.0.1:8000`
+- backend worker
+- frontend dev server on `http://127.0.0.1:3000`
+
+Press `Ctrl-C` to stop all three processes together.
 
 ### Backend
 
