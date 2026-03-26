@@ -183,6 +183,8 @@ describe("Playground integration", () => {
   });
 
   it("terminates the latest run", async () => {
+    (runApi.getRun as unknown as MockedApiFn).mockReset();
+    (runApi.terminateRun as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue([runningRun]);
     (runApi.getRun as unknown as MockedApiFn).mockResolvedValue(runningRun);
     (runApi.terminateRun as unknown as MockedApiFn).mockResolvedValue({
@@ -204,6 +206,7 @@ describe("Playground integration", () => {
   });
 
   it("does not terminate a completed latest run", async () => {
+    (runApi.getRun as unknown as MockedApiFn).mockReset();
     (runApi.getRun as unknown as MockedApiFn).mockResolvedValue(runs[0]);
 
     renderWithQueryClient(<PlaygroundWorkspace />);
@@ -216,6 +219,42 @@ describe("Playground integration", () => {
 
     fireEvent.click(terminateButton);
     expect(runApi.terminateRun).not.toHaveBeenCalled();
+  });
+
+  it("does not call terminate when the latest run finishes before the click resolves", async () => {
+    (runApi.getRun as unknown as MockedApiFn).mockReset();
+    (runApi.terminateRun as unknown as MockedApiFn).mockReset();
+    (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue([runningRun]);
+    (runApi.getRun as unknown as MockedApiFn).mockResolvedValue(runs[0]);
+
+    renderWithQueryClient(<PlaygroundWorkspace />);
+    await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Terminate run" }));
+
+    await waitFor(() => expect(runApi.getRun).toHaveBeenCalledWith("run-play"));
+    expect(runApi.terminateRun).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Run run-play is already succeeded and can no longer be terminated./)).toBeInTheDocument();
+  });
+
+  it("shows the API error when terminate fails", async () => {
+    (runApi.getRun as unknown as MockedApiFn).mockReset();
+    (runApi.terminateRun as unknown as MockedApiFn).mockReset();
+    (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue([runningRun]);
+    (runApi.getRun as unknown as MockedApiFn).mockResolvedValue(runningRun);
+    (runApi.terminateRun as unknown as MockedApiFn).mockRejectedValue(new Error("run not running or not found"));
+
+    renderWithQueryClient(<PlaygroundWorkspace />);
+    await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Terminate run" }));
+
+    await waitFor(() => expect(runApi.terminateRun).toHaveBeenCalledWith("run-play"));
+    expect(await screen.findByText("run not running or not found")).toBeInTheDocument();
   });
 
   it("allows prompt-only execution when no dataset exists", async () => {
