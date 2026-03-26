@@ -47,6 +47,6 @@ test("trajectory page renders steps and can diff with previous run", async ({ pa
   await expect(page.getByRole("heading", { name: "Trajectory viewer" })).toBeVisible();
   await expect(page.getByText("Loaded 1 steps.")).toBeVisible();
   await expect(page.getByRole("button", { name: "s1 · PLANNER" })).toBeVisible();
-  await page.getByRole("button", { name: "Diff with previous run" }).click();
+  await page.getByRole("button", { name: "Compare selected run" }).click();
   await expect(page.getByText(/Compared with run-000/)).toBeVisible();
 });

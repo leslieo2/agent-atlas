@@ -86,7 +86,8 @@ test.describe("live smoke", () => {
 
     await page.goto(`/runs/${currentRun.run_id}`);
     await expect(page.getByRole("heading", { name: "Trajectory viewer" })).toBeVisible();
-    await page.getByRole("button", { name: "Diff with previous run" }).click();
+    await expect(page.getByLabel("Compare run")).toHaveValue(previousRun.run_id);
+    await page.getByRole("button", { name: "Compare selected run" }).click();
 
     await expect(page.getByText(new RegExp(`Compared with ${previousRun.run_id.slice(0, 8)}`))).toBeVisible();
     await expect(page.getByText(new RegExp(`Compared with ${unrelatedRun.run_id.slice(0, 8)}`))).toHaveCount(0);

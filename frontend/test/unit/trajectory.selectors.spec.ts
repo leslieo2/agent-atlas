@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTrajectoryEdges,
   buildTrajectoryNodes,
-  findPreviousComparableRun
+  getComparableRuns
 } from "@/src/widgets/trajectory-workspace/selectors";
 
 const steps = [
@@ -79,7 +79,7 @@ describe("trajectory workspace selectors", () => {
     expect(positions.s2.y).not.toBe(positions.s3.y);
   });
 
-  it("selects the latest earlier run that matches the same comparison scope", () => {
+  it("lists comparable runs inside the same project dataset and agent scope", () => {
     const currentRun = {
       runId: "run-current",
       inputSummary: "Summarize latest support tickets",
@@ -112,7 +112,7 @@ describe("trajectory workspace selectors", () => {
       {
         ...currentRun,
         runId: "run-match-latest",
-        inputSummary: "  summarize latest   support tickets ",
+        inputSummary: "A different prompt should still be comparable",
         createdAt: "2026-03-25T09:57:00Z"
       },
       {
@@ -127,10 +127,15 @@ describe("trajectory workspace selectors", () => {
       }
     ];
 
-    expect(findPreviousComparableRun(runs, currentRun)?.runId).toBe("run-match-latest");
+    expect(getComparableRuns(runs, currentRun).map((run) => run.runId)).toEqual([
+      "run-newer-match",
+      "run-unrelated-input",
+      "run-match-latest",
+      "run-match-older"
+    ]);
   });
 
-  it("returns undefined when no semantically comparable previous run exists", () => {
+  it("returns no comparable runs when dataset project or agent id drift", () => {
     const currentRun = {
       runId: "run-current",
       inputSummary: "Summarize latest support tickets",
@@ -151,7 +156,7 @@ describe("trajectory workspace selectors", () => {
       {
         ...currentRun,
         runId: "run-other-agent",
-        agentType: "langchain" as const,
+        agentId: "different-agent",
         createdAt: "2026-03-25T09:57:00Z"
       },
       {
@@ -162,6 +167,6 @@ describe("trajectory workspace selectors", () => {
       }
     ];
 
-    expect(findPreviousComparableRun(runs, currentRun)).toBeUndefined();
+    expect(getComparableRuns(runs, currentRun)).toEqual([]);
   });
 });

@@ -40,13 +40,20 @@ class RunQueries:
         created_from: datetime | None,
         created_to: datetime | None,
     ) -> list[RunRecord]:
-        def _to_utc_naive(value: datetime | None) -> datetime | None:
-            if not value or value.tzinfo is None:
-                return value
-            return value.astimezone(UTC).replace(tzinfo=None)
+        def _to_utc_aware_optional(value: datetime | None) -> datetime | None:
+            if value is None:
+                return None
+            if value.tzinfo is None:
+                return value.replace(tzinfo=UTC)
+            return value.astimezone(UTC)
 
-        created_from = _to_utc_naive(created_from)
-        created_to = _to_utc_naive(created_to)
+        def _to_utc_aware(value: datetime) -> datetime:
+            if value.tzinfo is None:
+                return value.replace(tzinfo=UTC)
+            return value.astimezone(UTC)
+
+        created_from = _to_utc_aware_optional(created_from)
+        created_to = _to_utc_aware_optional(created_to)
         runs = self.run_repository.list()
         if status:
             runs = [run for run in runs if run.status == status]
@@ -61,10 +68,10 @@ class RunQueries:
         if tag:
             runs = [run for run in runs if tag in run.tags]
         if created_from:
-            runs = [run for run in runs if run.created_at >= created_from]
+            runs = [run for run in runs if _to_utc_aware(run.created_at) >= created_from]
         if created_to:
-            runs = [run for run in runs if run.created_at <= created_to]
-        return sorted(runs, key=lambda run: run.created_at, reverse=True)
+            runs = [run for run in runs if _to_utc_aware(run.created_at) <= created_to]
+        return sorted(runs, key=lambda run: _to_utc_aware(run.created_at), reverse=True)
 
     def get_run(self, run_id: str | UUID) -> RunRecord | None:
         return self.run_repository.get(run_id)

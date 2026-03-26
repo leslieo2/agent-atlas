@@ -20,7 +20,7 @@ import {
   buildTrajectoryEdges,
   buildTrajectoryNodes,
   compareTrajectories,
-  findPreviousComparableRun,
+  getComparableRuns,
   getTrajectoryMetrics
 } from "./selectors";
 
@@ -55,6 +55,7 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   const [diffSummary, setDiffSummary] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [focusedStepId, setFocusedStepId] = useState("");
+  const [comparisonRunId, setComparisonRunId] = useState("");
   const [exportFeedback, setExportFeedback] = useState<ExportFeedbackState>(null);
   const runs = useMemo(() => runsQuery.data ?? [], [runsQuery.data]);
   const trajectoryQuery = useTrajectoryQuery(selectedRun);
@@ -77,6 +78,10 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   }, [selectedRun]);
 
   useEffect(() => {
+    setDiffSummary("");
+  }, [selectedRun]);
+
+  useEffect(() => {
     if (!steps.length) {
       setExpanded((current) => (Object.keys(current).length ? {} : current));
       setFocusedStepId((current) => (current ? "" : current));
@@ -89,6 +94,19 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   }, [steps]);
 
   const selectedRunRecord = runs.find((run) => run.runId === selectedRun);
+  const comparableRuns = useMemo(() => getComparableRuns(runs, selectedRunRecord), [runs, selectedRunRecord]);
+
+  useEffect(() => {
+    if (!comparableRuns.length) {
+      setComparisonRunId("");
+      return;
+    }
+
+    setComparisonRunId((current) =>
+      comparableRuns.some((run) => run.runId === current) ? current : comparableRuns[0]?.runId ?? ""
+    );
+  }, [comparableRuns]);
+
   const rerunHref = selectedRunRecord ? buildPlaygroundRerunHref(selectedRunRecord) : "/playground";
   const nodes = useMemo(() => buildTrajectoryNodes(steps, focusedStepId), [focusedStepId, steps]);
   const edges = useMemo(() => buildTrajectoryEdges(steps), [steps]);
@@ -99,22 +117,22 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
       ? "Loading trajectory..."
       : trajectoryQuery.isError
         ? `Failed to load trajectory: ${trajectoryQuery.error instanceof Error ? trajectoryQuery.error.message : "unknown error"}`
-        : steps.length
-          ? `Loaded ${steps.length} steps.`
-          : selectedRun
-            ? "No trajectory found."
-            : "Select a run to inspect.";
+          : steps.length
+            ? `Loaded ${steps.length} steps.`
+            : selectedRun
+              ? "No trajectory found."
+              : runs.length
+                ? "Select a run to inspect."
+                : "No runs available yet. Start from Playground to generate a trajectory.";
 
-  const compareWithPreviousRun = async () => {
-    const previousRun = findPreviousComparableRun(runs, selectedRunRecord);
-
-    if (!previousRun) {
-      setDiffSummary("No comparable previous run available for comparison.");
+  const compareWithSelectedRun = async () => {
+    if (!comparisonRunId) {
+      setDiffSummary("No comparable runs found in this project / dataset / agent scope.");
       return;
     }
 
-    const previousSteps = await queryClient.fetchQuery(trajectoryQueryOptions(previousRun.runId));
-    setDiffSummary(compareTrajectories(steps, previousSteps, previousRun.runId));
+    const comparisonSteps = await queryClient.fetchQuery(trajectoryQueryOptions(comparisonRunId));
+    setDiffSummary(compareTrajectories(steps, comparisonSteps, comparisonRunId));
   };
 
   const toggleExpanded = (stepId: string) => {
@@ -200,9 +218,9 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">Run context</p>
-              <h3 className="panel-title">Select a run and compare it against the previous execution</h3>
+              <h3 className="panel-title">Select a run and compare it against any scoped execution</h3>
               <p className="muted-note">
-                Use the graph as the main workspace, then move into the inspector only for step-level detail.
+                Stay inside the same project, dataset, and agent scope to inspect regressions without leaving detail view.
               </p>
             </div>
             <div className="toolbar">
@@ -220,7 +238,12 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
                   Rerun in Playground
                 </Button>
               ) : null}
-              <ComparePreviousRunAction onCompare={compareWithPreviousRun} />
+              <ComparePreviousRunAction
+                comparableRuns={comparableRuns}
+                selectedRunId={comparisonRunId}
+                onSelectedRunIdChange={setComparisonRunId}
+                onCompare={compareWithSelectedRun}
+              />
               <div className="action-stack action-stack-right">
                 <Button
                   variant="ghost"
@@ -233,6 +256,12 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
               </div>
             </div>
           </div>
+          {selectedRunRecord && comparableRuns.length === 0 ? (
+            <Notice>No comparable runs found in this project / dataset / agent scope.</Notice>
+          ) : null}
+          {!selectedRunRecord && !runsQuery.isPending && !runs.length ? (
+            <Notice>No runs available yet. Start from Playground to generate a trajectory.</Notice>
+          ) : null}
 
           <div className="metrics">
             <MetricCard label="Nodes" value={metrics.toolCalls} />

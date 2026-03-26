@@ -148,10 +148,6 @@ export function getTrajectoryMetrics(steps: TrajectoryStep[]) {
   };
 }
 
-function normalizeInputSummary(summary: string) {
-  return summary.trim().replace(/\s+/g, " ").toLowerCase();
-}
-
 function getCreatedAtTimestamp(run: RunRecord) {
   const timestamp = Date.parse(run.createdAt);
   return Number.isNaN(timestamp) ? null : timestamp;
@@ -162,28 +158,17 @@ function isComparableRun(candidate: RunRecord, currentRun: RunRecord) {
     candidate.runId !== currentRun.runId &&
     candidate.project === currentRun.project &&
     candidate.dataset === currentRun.dataset &&
-    candidate.agentType === currentRun.agentType &&
-    normalizeInputSummary(candidate.inputSummary) === normalizeInputSummary(currentRun.inputSummary)
+    candidate.agentId === currentRun.agentId
   );
 }
 
-export function findPreviousComparableRun(runs: RunRecord[], currentRun?: RunRecord) {
+export function getComparableRuns(runs: RunRecord[], currentRun?: RunRecord) {
   if (!currentRun) {
-    return undefined;
+    return [];
   }
 
-  const currentTimestamp = getCreatedAtTimestamp(currentRun);
-  const comparableRuns = runs
+  return runs
     .filter((candidate) => isComparableRun(candidate, currentRun))
-    .filter((candidate) => {
-      const candidateTimestamp = getCreatedAtTimestamp(candidate);
-
-      if (currentTimestamp === null || candidateTimestamp === null) {
-        return true;
-      }
-
-      return candidateTimestamp < currentTimestamp;
-    })
     .sort((left, right) => {
       const leftTimestamp = getCreatedAtTimestamp(left);
       const rightTimestamp = getCreatedAtTimestamp(right);
@@ -194,8 +179,6 @@ export function findPreviousComparableRun(runs: RunRecord[], currentRun?: RunRec
 
       return rightTimestamp - leftTimestamp;
     });
-
-  return comparableRuns[0];
 }
 
 export function compareTrajectories(currentSteps: TrajectoryStep[], previousSteps: TrajectoryStep[], previousRunId: string) {

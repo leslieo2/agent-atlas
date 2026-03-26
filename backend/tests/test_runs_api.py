@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.bootstrap.container import get_container
@@ -154,3 +155,43 @@ def test_create_run_with_unknown_agent_returns_structured_400(client):
             "agent_id": "unknown-agent",
         }
     }
+
+
+def test_list_runs_accepts_naive_and_offset_datetime_filters(client):
+    container = get_container()
+    earlier_run = RunRecord(
+        run_id=uuid4(),
+        input_summary="older run",
+        project="timezone-project",
+        dataset="timezone-ds",
+        agent_id="basic",
+        model="gpt-4.1-mini",
+        agent_type="openai-agents-sdk",
+        created_at=datetime(2026, 3, 25, 9, 0, tzinfo=UTC),
+    )
+    later_run = RunRecord(
+        run_id=uuid4(),
+        input_summary="later run",
+        project="timezone-project",
+        dataset="timezone-ds",
+        agent_id="basic",
+        model="gpt-4.1-mini",
+        agent_type="openai-agents-sdk",
+        created_at=datetime(2026, 3, 25, 11, 0, tzinfo=UTC),
+    )
+    container.run_repository.save(earlier_run)
+    container.run_repository.save(later_run)
+
+    naive_response = client.get(
+        "/api/v1/runs",
+        params={"project": "timezone-project", "created_from": "2026-03-25T10:00:00"},
+    )
+    assert naive_response.status_code == 200
+    assert [run["run_id"] for run in naive_response.json()] == [str(later_run.run_id)]
+
+    offset_response = client.get(
+        "/api/v1/runs",
+        params={"project": "timezone-project", "created_to": "2026-03-25T18:30:00+08:00"},
+    )
+    assert offset_response.status_code == 200
+    assert [run["run_id"] for run in offset_response.json()] == [str(earlier_run.run_id)]

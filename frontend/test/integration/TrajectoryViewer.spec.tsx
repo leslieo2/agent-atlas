@@ -93,7 +93,7 @@ const mockedRuns = [
   },
   {
     runId: "run-previous",
-    inputSummary: "current run",
+    inputSummary: "different prompt, still comparable",
     status: "failed" as const,
     latencyMs: 90,
     tokenCost: 10,
@@ -111,6 +111,27 @@ const mockedRuns = [
     errorMessage: "provider rate limit exceeded",
     tags: [],
     createdAt: "2026-03-23T23:00:00Z"
+  },
+  {
+    runId: "run-older",
+    inputSummary: "older prompt",
+    status: "succeeded" as const,
+    latencyMs: 88,
+    tokenCost: 12,
+    toolCalls: 0,
+    project: "project-a",
+    dataset: "dataset-a",
+    agentId: "customer_service",
+    model: "gpt-4.1-mini",
+    agentType: "openai-agents-sdk",
+    entrypoint: "app.agent_plugins.customer_service:build_agent",
+    executionBackend: "docker",
+    containerImage: "agent-flight-recorder-backend:test",
+    resolvedModel: "gpt-4.1-mini",
+    errorCode: null,
+    errorMessage: null,
+    tags: [],
+    createdAt: "2026-03-23T22:00:00Z"
   }
 ];
 
@@ -204,7 +225,7 @@ describe("TrajectoryViewer integration", () => {
     });
   });
 
-  it("renders trajectory and shows diffs against previous run", async () => {
+  it("renders trajectory and compares against the selected run inside the same scope", async () => {
     renderWithQueryClient(<TrajectoryWorkspace />);
 
     expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
@@ -213,22 +234,32 @@ describe("TrajectoryViewer integration", () => {
     expect(screen.getByTestId("graph-node-ids")).toHaveTextContent("s1|s2|s3|s4");
     expect(screen.getByTestId("graph-edge-pairs")).toHaveTextContent("s1->s2|s1->s3|s2->s4");
 
-    fireEvent.click(screen.getByRole("button", { name: "Diff with previous run" }));
+    fireEvent.change(screen.getByLabelText("Compare run"), { target: { value: "run-older" } });
+    fireEvent.click(screen.getByRole("button", { name: "Compare selected run" }));
     await waitFor(() => {
-      expect(screen.getByText(/Compared with run-pre/)).toBeInTheDocument();
+      expect(screen.getByText(/Compared with run-olde/)).toBeInTheDocument();
     });
   });
 
-  it("does not compare against an unrelated earlier run", async () => {
+  it("limits compare options to runs in the same project dataset and agent scope", async () => {
     renderWithQueryClient(<TrajectoryWorkspace />);
 
     expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Diff with previous run" }));
+    const compareSelect = screen.getByLabelText("Compare run");
 
-    await waitFor(() => {
-      expect(trajectoryApi.getTrajectory).toHaveBeenCalledWith("run-previous");
-    });
-    expect(trajectoryApi.getTrajectory).not.toHaveBeenCalledWith("run-unrelated-seed");
+    expect(screen.getByRole("option", { name: /run-previ/i })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /run-older/i })).toBeInTheDocument();
+    expect(compareSelect).not.toHaveTextContent("run-unrelated-seed");
+  });
+
+  it("shows a compare empty state when the selected run has no peers in scope", async () => {
+    (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue([mockedRuns[0], mockedRuns[1]]);
+
+    renderWithQueryClient(<TrajectoryWorkspace />);
+
+    expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Compare run")).toBeDisabled();
+    expect(screen.getByText("No comparable runs found in this project / dataset / agent scope.")).toBeInTheDocument();
   });
 
   it("exports trace snapshot for selected run", async () => {
