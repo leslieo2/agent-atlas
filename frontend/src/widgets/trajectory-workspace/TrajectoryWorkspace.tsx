@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getArtifactDownloadUrl } from "@/src/entities/artifact/api";
 import { useExportArtifactMutation } from "@/src/entities/artifact/query";
 import { useRunsQuery } from "@/src/entities/run/query";
+import { buildPlaygroundRerunHref } from "@/src/entities/run/presentation";
 import { trajectoryQueryOptions, useTrajectoryQuery } from "@/src/entities/trajectory/query";
 import { ArtifactExportFeedback } from "@/src/features/artifact-export/ArtifactExportFeedback";
 import { ComparePreviousRunAction } from "@/src/features/trajectory-compare/ComparePreviousRunAction";
@@ -13,6 +14,7 @@ import { TrajectoryGraph } from "@/src/features/trajectory-graph/TrajectoryGraph
 import { StepInspector } from "@/src/features/step-inspector/StepInspector";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
+import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
 import {
   buildTrajectoryEdges,
@@ -87,6 +89,7 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   }, [steps]);
 
   const selectedRunRecord = runs.find((run) => run.runId === selectedRun);
+  const rerunHref = selectedRunRecord ? buildPlaygroundRerunHref(selectedRunRecord) : "/playground";
   const nodes = useMemo(() => buildTrajectoryNodes(steps, focusedStepId), [focusedStepId, steps]);
   const edges = useMemo(() => buildTrajectoryEdges(steps), [steps]);
   const metrics = useMemo(() => getTrajectoryMetrics(steps), [steps]);
@@ -212,6 +215,11 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
                   ))}
                 </select>
               ) : null}
+              {selectedRunRecord ? (
+                <Button href={rerunHref} variant="secondary">
+                  Rerun in Playground
+                </Button>
+              ) : null}
               <ComparePreviousRunAction onCompare={compareWithPreviousRun} />
               <div className="action-stack action-stack-right">
                 <Button
@@ -232,6 +240,31 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
             <MetricCard label="Avg latency" value={`${Math.round(metrics.averageLatency)} ms`} />
             <MetricCard label="Token usage" value={metrics.tokens} />
           </div>
+
+          {selectedRunRecord ? (
+            <div className="surface" style={{ marginBottom: 18 }}>
+              <div className="surface-header">
+                <div>
+                  <p className="surface-kicker">Run context</p>
+                  <h4 className="panel-title">Published snapshot and execution details</h4>
+                  <p className="muted-note">
+                    Inspect the exact agent handoff, runtime backend, and failure reason before re-running.
+                  </p>
+                </div>
+              </div>
+              <div className="metrics">
+                <MetricCard label="Resolved model" value={selectedRunRecord.resolvedModel ?? "-"} />
+                <MetricCard label="Backend" value={selectedRunRecord.executionBackend ?? "-"} />
+                <MetricCard label="Container image" value={selectedRunRecord.containerImage ?? "-"} />
+                <MetricCard label="Failure code" value={selectedRunRecord.errorCode ?? "-"} />
+              </div>
+              <Notice className="mono">
+                {`entrypoint: ${selectedRunRecord.entrypoint ?? "-"}${
+                  selectedRunRecord.errorMessage ? `\nerror: ${selectedRunRecord.errorMessage}` : ""
+                }`}
+              </Notice>
+            </div>
+          ) : null}
 
           <TrajectoryGraph nodes={nodes} edges={edges} />
         </Panel>

@@ -462,7 +462,7 @@ class StatePersistence:
         if not self.conn:
             raise RuntimeError("task queue requires sqlite persistence")
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         now_iso = now.isoformat()
         stale_before = (now - timedelta(seconds=max(1, lease_seconds))).isoformat()
         self.conn.execute("BEGIN IMMEDIATE")
@@ -558,7 +558,7 @@ class StatePersistence:
             (
                 status.value,
                 error,
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
                 str(to_uuid(task_id)),
             ),
         )

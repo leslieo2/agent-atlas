@@ -13,11 +13,17 @@ export interface RunRecord {
   dataset: string | null;
   agentId: string;
   model: string;
+  entrypoint?: string | null;
   agentType: AdapterKind;
   tags: string[];
   createdAt: string;
   projectMetadata?: Record<string, unknown>;
   artifactRef?: string | null;
+  executionBackend?: string | null;
+  containerImage?: string | null;
+  resolvedModel?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
   terminationReason?: string | null;
 }
 

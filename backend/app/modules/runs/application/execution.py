@@ -3,16 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from app.core.errors import AppError
 from app.modules.runs.application.ports import (
     PublishedRunRuntimePort,
     RunRepository,
     TraceIngestionPort,
 )
 from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import (
-    ExecutionMetrics,
-    RunSpec,
-)
+from app.modules.runs.domain.models import ExecutionMetrics, RunSpec, RuntimeExecutionResult
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus, StepType
 from app.modules.traces.domain.models import TraceIngestEvent
@@ -41,6 +39,20 @@ class ProjectedExecutionRecord:
     metrics: ExecutionMetrics
 
 
+@dataclass(frozen=True)
+class RunFailureDetails:
+    code: str
+    message: str
+
+
+def normalize_run_failure(exc: Exception) -> RunFailureDetails:
+    if isinstance(exc, AppError):
+        return RunFailureDetails(code=exc.code, message=exc.message)
+
+    message = str(exc).strip() or "run execution failed"
+    return RunFailureDetails(code="run_execution_failed", message=message)
+
+
 class RunExecutionProjector:
     @staticmethod
     def runtime_result_span_id(run_id: UUID) -> str:
@@ -67,9 +79,9 @@ class RunExecutionProjector:
     def project_runtime_failure(
         self,
         context: RunExecutionContext,
-        error: str,
+        error: RunFailureDetails,
     ) -> ProjectedExecutionRecord:
-        output = f"live execution failed: {error}"
+        output = f"live execution failed: {error.message}"
         return ProjectedExecutionRecord(
             events=[
                 self._build_event(
@@ -83,7 +95,12 @@ class RunExecutionProjector:
                         "model": context.payload.model,
                         "temperature": 0.0,
                     },
-                    output_payload={"output": output, "success": False, "error": error},
+                    output_payload={
+                        "output": output,
+                        "success": False,
+                        "error": error.message,
+                        "error_code": error.code,
+                    },
                     latency_ms=0,
                     token_usage=0,
                 )
@@ -208,12 +225,14 @@ class RunExecutionService:
 
         try:
             result = self.published_runtime.execute_published(run_id, payload)
-            self._update_run_model(run_id, result.runtime_result.resolved_model)
+            self._update_run_execution_details(run_id, result.runtime_result)
             self.recorder.record(run_id, self.projector.project_runtime_success(context, result))
             self._set_status(run_id, RunStatus.SUCCEEDED)
         except Exception as exc:
-            self.recorder.record(run_id, self.projector.project_runtime_failure(context, str(exc)))
-            self._set_status(run_id, RunStatus.FAILED, reason=str(exc))
+            failure = normalize_run_failure(exc)
+            self.recorder.record(run_id, self.projector.project_runtime_failure(context, failure))
+            self._record_failure(run_id, failure)
+            self._set_status(run_id, RunStatus.FAILED, reason=failure.message)
 
     def _set_status(
         self,
@@ -241,9 +260,28 @@ class RunExecutionService:
         self.run_repository.save(updated)
         return True
 
-    def _update_run_model(self, run_id: UUID, model: str | None) -> None:
+    def _update_run_execution_details(
+        self,
+        run_id: UUID,
+        runtime_result: RuntimeExecutionResult,
+    ) -> None:
         run = self.run_repository.get(run_id)
         if not run:
             return
-        updated = RunAggregate.load(run).update_model(model)
+        aggregate = RunAggregate.load(run)
+        aggregate.update_model(runtime_result.resolved_model)
+        updated = aggregate.update_execution_runtime(
+            execution_backend=runtime_result.execution_backend,
+            container_image=runtime_result.container_image,
+        )
+        self.run_repository.save(updated)
+
+    def _record_failure(self, run_id: UUID, failure: RunFailureDetails) -> None:
+        run = self.run_repository.get(run_id)
+        if not run:
+            return
+        updated = RunAggregate.load(run).record_failure(
+            error_code=failure.code,
+            error_message=failure.message,
+        )
         self.run_repository.save(updated)

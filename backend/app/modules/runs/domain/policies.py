@@ -17,6 +17,7 @@ class RunAggregate:
             dataset=spec.dataset,
             agent_id=spec.agent_id,
             model=spec.model,
+            entrypoint=spec.entrypoint,
             agent_type=spec.agent_type,
             tags=spec.tags,
             project_metadata={
@@ -57,9 +58,31 @@ class RunAggregate:
         return self.run
 
     def update_model(self, model: str | None = None) -> RunRecord:
-        if not model:
-            return self.run
-        self.run.model = model
+        self.run.resolved_model = model
+        return self.run
+
+    def update_execution_runtime(
+        self,
+        *,
+        execution_backend: str | None,
+        container_image: str | None,
+    ) -> RunRecord:
+        self.run.execution_backend = execution_backend
+        self.run.container_image = container_image
+        self.run.error_code = None
+        self.run.error_message = None
+        if self.run.status != RunStatus.TERMINATED:
+            self.run.termination_reason = None
+        return self.run
+
+    def record_failure(
+        self,
+        *,
+        error_code: str,
+        error_message: str,
+    ) -> RunRecord:
+        self.run.error_code = error_code
+        self.run.error_message = error_message
         return self.run
 
     def terminate(self, reason: str = "terminated by user") -> RunRecord:

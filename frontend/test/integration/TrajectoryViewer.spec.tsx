@@ -55,10 +55,20 @@ const mockedRuns = [
     toolCalls: 0,
     project: "project-a",
     dataset: "dataset-a",
+    agentId: "customer_service",
     model: "gpt-4.1-mini",
     agentType: "openai-agents-sdk",
-    tags: [],
-    createdAt: "2026-03-24T01:00:00Z"
+    entrypoint: "app.agent_plugins.customer_service:build_agent",
+    executionBackend: "docker",
+    containerImage: "agent-flight-recorder-backend:test",
+    resolvedModel: "gpt-4.1-mini",
+    errorCode: null,
+    errorMessage: null,
+    tags: ["retry", "support"],
+    createdAt: "2026-03-24T01:00:00Z",
+    projectMetadata: {
+      prompt: "Retry the failed support run."
+    }
   },
   {
     runId: "run-unrelated-seed",
@@ -69,8 +79,15 @@ const mockedRuns = [
     toolCalls: 0,
     project: "project-seed",
     dataset: "dataset-seed",
+    agentId: "basic",
     model: "gpt-4.1-mini",
     agentType: "openai-agents-sdk",
+    entrypoint: "app.agent_plugins.basic:build_agent",
+    executionBackend: "local",
+    containerImage: null,
+    resolvedModel: "gpt-4.1-mini",
+    errorCode: null,
+    errorMessage: null,
     tags: [],
     createdAt: "2026-03-24T00:30:00Z"
   },
@@ -83,8 +100,15 @@ const mockedRuns = [
     toolCalls: 0,
     project: "project-a",
     dataset: "dataset-a",
+    agentId: "customer_service",
     model: "gpt-4.1-mini",
     agentType: "openai-agents-sdk",
+    entrypoint: "app.agent_plugins.customer_service:build_agent",
+    executionBackend: "docker",
+    containerImage: "agent-flight-recorder-backend:test",
+    resolvedModel: "gpt-4.1-mini",
+    errorCode: "rate_limited",
+    errorMessage: "provider rate limit exceeded",
     tags: [],
     createdAt: "2026-03-23T23:00:00Z"
   }
@@ -220,6 +244,16 @@ describe("TrajectoryViewer integration", () => {
     expect(screen.getByRole("link", { name: "Download JSONL" })).toHaveAttribute(
       "href",
       "http://127.0.0.1:8000/api/v1/artifacts/artifact-001"
+    );
+  });
+
+  it("links rerun in playground with the selected run context", async () => {
+    renderWithQueryClient(<TrajectoryWorkspace />);
+
+    expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rerun in Playground" })).toHaveAttribute(
+      "href",
+      "/playground?agent=customer_service&dataset=dataset-a&prompt=Retry+the+failed+support+run.&tags=retry%2Csupport"
     );
   });
 });

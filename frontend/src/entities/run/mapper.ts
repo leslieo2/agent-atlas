@@ -13,11 +13,17 @@ export function mapRun(run: ApiRunRecord): RunRecord {
     dataset: run.dataset ?? null,
     agentId: run.agent_id,
     model: run.model,
+    entrypoint: run.entrypoint ?? null,
     agentType: run.agent_type,
     tags: run.tags,
     createdAt: run.created_at,
     projectMetadata: run.project_metadata,
     artifactRef: run.artifact_ref,
+    executionBackend: run.execution_backend ?? null,
+    containerImage: run.container_image ?? null,
+    resolvedModel: run.resolved_model ?? null,
+    errorCode: run.error_code ?? null,
+    errorMessage: run.error_message ?? null,
     terminationReason: run.termination_reason
   };
 }

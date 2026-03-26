@@ -9,9 +9,11 @@ type Props = {
   agents: AgentRecord[];
   dataset: string;
   datasets: string[];
+  tagsText: string;
   onPromptChange: (value: string) => void;
   onAgentIdChange: (value: string) => void;
   onDatasetChange: (value: string) => void;
+  onTagsTextChange: (value: string) => void;
 };
 
 export function PlaygroundForm({
@@ -20,9 +22,11 @@ export function PlaygroundForm({
   agents,
   dataset,
   datasets,
+  tagsText,
   onPromptChange,
   onAgentIdChange,
-  onDatasetChange
+  onDatasetChange,
+  onTagsTextChange
 }: Props) {
   return (
     <>
@@ -59,6 +63,14 @@ export function PlaygroundForm({
           </select>
         </Field>
       </div>
+      <Field label="Execution tags" htmlFor="playground-tags" wide>
+        <input
+          id="playground-tags"
+          value={tagsText}
+          onChange={(event) => onTagsTextChange(event.target.value)}
+          placeholder="retry, support, staging"
+        />
+      </Field>
     </>
   );
 }

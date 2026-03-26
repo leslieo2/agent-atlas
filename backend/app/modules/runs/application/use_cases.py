@@ -97,6 +97,7 @@ class RunCommands:
             dataset=payload.dataset,
             agent_id=payload.agent_id,
             model=agent.default_model,
+            entrypoint=agent.entrypoint,
             agent_type=AdapterKind.OPENAI_AGENTS,
             input_summary=payload.input_summary,
             prompt=payload.prompt,

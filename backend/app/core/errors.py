@@ -38,7 +38,7 @@ class RateLimitedError(AppError):
 
 
 class ProviderTimeoutError(AppError):
-    code = "timeout"
+    code = "provider_timeout"
     status_code = 504
 
 

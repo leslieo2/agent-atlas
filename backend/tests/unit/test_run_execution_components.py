@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from app.core.errors import ProviderAuthError
 from app.infrastructure.adapters.traces import DefaultTraceProjector
 from app.infrastructure.repositories import (
     StateRunRepository,
@@ -254,6 +255,74 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
         f"span-{run_id}-1",
         f"span-{run_id}-2",
     ]
+
+
+def test_run_execution_service_records_structured_failure_details():
+    run_id = uuid4()
+    run_repository = StateRunRepository()
+    trajectory_repository = StateTrajectoryRepository()
+    trace_repository = StateTraceRepository()
+
+    run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="record failure",
+            project="control-plane",
+            dataset="crm-v2",
+            agent_id="basic",
+            model="gpt-4.1-mini",
+            entrypoint="app.agent_plugins.basic:build_agent",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            status=RunStatus.QUEUED,
+        )
+    )
+
+    trace_ingestor = TraceCommands(
+        workflow=TraceIngestionWorkflow(
+            trace_projector=DefaultTraceProjector(),
+            trace_recorder=TraceRecorder(
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
+        )
+    )
+
+    class ExplodingPublishedRuntime:
+        def execute_published(self, *_args, **_kwargs):
+            raise ProviderAuthError("provider authentication failed")
+
+    from app.modules.runs.application.execution import RunExecutionService
+
+    service = RunExecutionService(
+        run_repository=run_repository,
+        published_runtime=ExplodingPublishedRuntime(),
+        trace_ingestor=trace_ingestor,
+    )
+
+    payload = RunSpec(
+        project="control-plane",
+        dataset="crm-v2",
+        agent_id="basic",
+        model="gpt-4.1-mini",
+        entrypoint="app.agent_plugins.basic:build_agent",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        input_summary="record failure",
+        prompt="Trigger a failure.",
+    )
+
+    service.execute_run(run_id, payload)
+
+    run = run_repository.get(run_id)
+    steps = trajectory_repository.list_for_run(run_id)
+
+    assert run is not None
+    assert run.status == RunStatus.FAILED
+    assert run.entrypoint == "app.agent_plugins.basic:build_agent"
+    assert run.error_code == "provider_auth_error"
+    assert run.error_message == "provider authentication failed"
+    assert run.termination_reason == "provider authentication failed"
+    assert len(steps) == 1
+    assert steps[0].output == "live execution failed: provider authentication failed"
 
 
 def test_run_execution_projector_handles_prompt_only_run():

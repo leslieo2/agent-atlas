@@ -33,11 +33,17 @@ class RunResponse(BaseModel):
     dataset: str | None = None
     agent_id: str
     model: str
+    entrypoint: str | None = None
     agent_type: AdapterKind
     tags: list[str]
     created_at: datetime
     project_metadata: dict[str, object]
     artifact_ref: str | None = None
+    execution_backend: str | None = None
+    container_image: str | None = None
+    resolved_model: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
     termination_reason: str | None = None
 
     @classmethod

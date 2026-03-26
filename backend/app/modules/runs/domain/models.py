@@ -14,6 +14,7 @@ class RunSpec(BaseModel):
     dataset: str | None = None
     agent_id: str = ""
     model: str
+    entrypoint: str | None = None
     agent_type: AdapterKind
     input_summary: str
     prompt: str
@@ -62,11 +63,17 @@ class RunRecord(BaseModel):
     dataset: str | None = None
     agent_id: str = ""
     model: str
+    entrypoint: str | None = None
     agent_type: AdapterKind
     tags: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     artifact_ref: str | None = None
+    execution_backend: str | None = None
+    container_image: str | None = None
+    resolved_model: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
     termination_reason: str | None = None
 
 

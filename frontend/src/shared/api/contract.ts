@@ -84,11 +84,17 @@ export interface RunResponse {
   "dataset"?: string | null;
   "agent_id": string;
   "model": string;
+  "entrypoint"?: string | null;
   "agent_type": AdapterKind;
   "tags": Array<string>;
   "created_at": string;
   "project_metadata": Record<string, unknown>;
   "artifact_ref"?: string | null;
+  "execution_backend"?: string | null;
+  "container_image"?: string | null;
+  "resolved_model"?: string | null;
+  "error_code"?: string | null;
+  "error_message"?: string | null;
   "termination_reason"?: string | null;
 }
 export type RunStatus = "queued" | "running" | "succeeded" | "failed" | "terminated";

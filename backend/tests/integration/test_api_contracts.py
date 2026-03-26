@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.bootstrap.container import get_container
+from app.core.errors import ProviderAuthError
 from app.modules.agents.domain.models import (
     AgentManifest,
     AgentValidationIssue,
@@ -152,6 +153,47 @@ def test_runs_api_persists_tool_steps_from_runtime_trace_events(monkeypatch, cli
     run_state = client.get(f"/api/v1/runs/{run_id}")
     assert run_state.status_code == 200
     assert run_state.json()["tool_calls"] == 1
+
+
+def test_runs_api_exposes_structured_failure_details(monkeypatch, client, worker_drain):
+    container = get_container()
+
+    def execute_published(*_args, **_kwargs):
+        raise ProviderAuthError("provider authentication failed")
+
+    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "project": "integration-failure",
+            "agent_id": "basic",
+            "input_summary": "structured failure",
+            "prompt": "Trigger a provider auth failure.",
+            "tags": ["integration", "failure"],
+        },
+    )
+    assert response.status_code == 201
+    created = response.json()
+    assert created["entrypoint"] == "app.agent_plugins.basic:build_agent"
+
+    run_id = created["run_id"]
+    assert worker_drain() >= 1
+
+    run_state = client.get(f"/api/v1/runs/{run_id}")
+    assert run_state.status_code == 200
+    assert run_state.json() == {
+        **run_state.json(),
+        "run_id": run_id,
+        "status": "failed",
+        "entrypoint": "app.agent_plugins.basic:build_agent",
+        "execution_backend": None,
+        "container_image": None,
+        "resolved_model": None,
+        "error_code": "provider_auth_error",
+        "error_message": "provider authentication failed",
+        "termination_reason": "provider authentication failed",
+    }
 
 
 def test_trace_ingest_and_normalize_endpoints(client):

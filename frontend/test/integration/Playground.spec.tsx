@@ -14,7 +14,8 @@ vi.mock("@/src/entities/agent/api", () => ({
 }));
 
 vi.mock("@/src/entities/dataset/api", () => ({
-  listDatasets: vi.fn()
+  listDatasets: vi.fn(),
+  createDataset: vi.fn()
 }));
 
 vi.mock("@/src/entities/run/api", () => ({
@@ -61,6 +62,7 @@ describe("Playground integration", () => {
   beforeEach(() => {
     (agentApi.listAgents as unknown as MockedApiFn).mockReset();
     (datasetApi.listDatasets as unknown as MockedApiFn).mockReset();
+    (datasetApi.createDataset as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
     (runApi.createRun as unknown as MockedApiFn).mockReset();
     (runApi.getRun as unknown as MockedApiFn).mockReset();
@@ -88,6 +90,7 @@ describe("Playground integration", () => {
       }
     ]);
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([{ name: "customer-live", rows: [] }]);
+    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({ name: "customer-live", rows: [] });
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(runs);
     (runApi.createRun as unknown as MockedApiFn).mockResolvedValue({
       ...runs[0],
@@ -275,5 +278,107 @@ describe("Playground integration", () => {
         })
       )
     );
+  });
+
+  it("hydrates rerun state from query-derived props", async () => {
+    renderWithQueryClient(
+      <PlaygroundWorkspace
+        initialDataset="customer-live"
+        initialAgentId="customer_service"
+        initialPrompt="Retry the failed support run."
+        initialTags={["rerun", "support"]}
+      />
+    );
+
+    await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByDisplayValue("Retry the failed support run.")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("rerun, support")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("customer-live")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Customer Service (customer_service)")).toBeInTheDocument();
+  });
+
+  it("creates a dataset inline and auto-selects it", async () => {
+    (datasetApi.listDatasets as unknown as MockedApiFn)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ name: "returns-review", rows: [{ sampleId: "sample-1", input: "review order return" }] }]);
+    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({
+      name: "returns-review",
+      rows: [{ sampleId: "sample-1", input: "review order return" }]
+    });
+
+    renderWithQueryClient(<PlaygroundWorkspace />);
+
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText("Dataset name"), { target: { value: "returns-review" } });
+    fireEvent.change(screen.getByLabelText("Sample input"), { target: { value: "review order return" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create dataset" }));
+
+    await waitFor(() =>
+      expect(datasetApi.createDataset).toHaveBeenCalledWith({
+        name: "returns-review",
+        rows: [
+          {
+            sampleId: "returns-review-sample-1",
+            input: "review order return",
+            expected: null,
+            tags: []
+          }
+        ]
+      })
+    );
+    expect(await screen.findByText("Selected dataset preview · 1 rows")).toBeInTheDocument();
+    expect(screen.getByText("sample-1 · review order return")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("returns-review")).toBeInTheDocument();
+  });
+
+  it("uploads dataset jsonl inline and auto-selects it", async () => {
+    (datasetApi.listDatasets as unknown as MockedApiFn)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([
+        {
+          name: "support-batch",
+          rows: [
+            { sampleId: "support-1", input: "where is my refund?" },
+            { sampleId: "support-2", input: "cancel this order" }
+          ]
+        }
+      ]);
+    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({
+      name: "support-batch",
+      rows: [
+        { sampleId: "support-1", input: "where is my refund?" },
+        { sampleId: "support-2", input: "cancel this order" }
+      ]
+    });
+
+    renderWithQueryClient(<PlaygroundWorkspace />);
+
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText("Dataset name"), { target: { value: "support-batch" } });
+    const file = new File(
+      ['{"sample_id":"support-1","input":"where is my refund?"}\n{"sample_id":"support-2","input":"cancel this order"}\n'],
+      "support-batch.jsonl",
+      { type: "application/json" }
+    );
+    fireEvent.change(screen.getByLabelText("Upload dataset JSONL"), {
+      target: { files: [file] }
+    });
+
+    await waitFor(() =>
+      expect(datasetApi.createDataset).toHaveBeenCalledWith({
+        name: "support-batch",
+        rows: [
+          { sampleId: "support-1", input: "where is my refund?", expected: null, tags: [] },
+          { sampleId: "support-2", input: "cancel this order", expected: null, tags: [] }
+        ]
+      })
+    );
+    expect(await screen.findByText("Selected dataset preview · 2 rows")).toBeInTheDocument();
+    expect(screen.getByText("support-1 · where is my refund?")).toBeInTheDocument();
+    expect(screen.getByText("support-2 · cancel this order")).toBeInTheDocument();
   });
 });

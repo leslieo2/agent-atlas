@@ -5,6 +5,7 @@ import { Play } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useCreateRunMutation, useTerminateRunMutation, runQueryOptions } from "@/src/entities/run/query";
 import type { RunRecord } from "@/src/entities/run/model";
+import { buildPlaygroundRerunHref } from "@/src/entities/run/presentation";
 import { traceQueryOptions } from "@/src/entities/trace/query";
 import { trajectoryQueryOptions } from "@/src/entities/trajectory/query";
 import { Button } from "@/src/shared/ui/Button";
@@ -16,6 +17,7 @@ type Props = {
   agentId: string;
   agentName: string;
   dataset: string;
+  tags: string[];
   latestRunId: string;
   latestRunStatus: RunRecord["status"] | null;
   onLatestRunChange: (value: string) => void;
@@ -53,8 +55,13 @@ function formatRunLog({
     `agent_name: ${agentName}`,
     `framework: ${run.agentType}`,
     `model: ${run.model}`,
+    `resolved_model: ${run.resolvedModel ?? "-"}`,
+    `entrypoint: ${run.entrypoint ?? "-"}`,
+    `execution_backend: ${run.executionBackend ?? "-"}`,
+    `container_image: ${run.containerImage ?? "-"}`,
     `prompt: ${prompt}`,
     `dataset: ${run.dataset ?? "-"}`,
+    `tags: ${run.tags.join(", ") || "-"}`,
     `status: ${run.status}`,
     `token_cost: ${run.tokenCost}`,
     `latency_ms: ${run.latencyMs}`
@@ -62,6 +69,12 @@ function formatRunLog({
 
   if (run.terminationReason) {
     lines.push(`termination_reason: ${run.terminationReason}`);
+  }
+  if (run.errorCode) {
+    lines.push(`error_code: ${run.errorCode}`);
+  }
+  if (run.errorMessage) {
+    lines.push(`error_message: ${run.errorMessage}`);
   }
 
   return lines.join("\n");
@@ -84,6 +97,7 @@ export function ManualRunActions({
   agentId,
   agentName,
   dataset,
+  tags,
   latestRunId,
   latestRunStatus,
   onLatestRunChange,
@@ -173,7 +187,8 @@ export function ManualRunActions({
         dataset: dataset || null,
         agentId,
         inputSummary: prompt.slice(0, 80),
-        prompt
+        prompt,
+        tags
       });
 
       if (requestId !== activeRunPollRef.current) {
@@ -245,13 +260,31 @@ export function ManualRunActions({
     }
   };
 
+  const rerunHref = buildPlaygroundRerunHref({
+    runId: latestRunId || "playground-rerun",
+    inputSummary: prompt.slice(0, 80) || prompt,
+    status: latestRunStatus ?? "queued",
+    latencyMs: 0,
+    tokenCost: 0,
+    toolCalls: 0,
+    project: "playground",
+    dataset: dataset || null,
+    agentId,
+    model: "",
+    entrypoint: null,
+    agentType: "openai-agents-sdk",
+    tags,
+    createdAt: new Date(0).toISOString(),
+    projectMetadata: { prompt }
+  });
+
   return (
     <div className="toolbar" style={{ marginTop: 12 }}>
       <Button onClick={runManual}>
         <Play size={14} /> Run now
       </Button>
-      <Button variant="ghost" onClick={() => navigator.clipboard?.writeText(latestRunId)}>
-        Save snapshot
+      <Button variant="ghost" href={rerunHref}>
+        Rerun in Playground
       </Button>
       <Button variant="ghost" onClick={refreshLiveTrace} disabled={!latestRunId}>
         Refresh live trace
