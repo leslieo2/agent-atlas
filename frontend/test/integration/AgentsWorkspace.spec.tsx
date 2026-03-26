@@ -28,7 +28,25 @@ describe("Agents workspace", () => {
         tags: ["example", "smoke"],
         publishState: "published" as const,
         validationStatus: "valid" as const,
-        validationIssues: []
+        validationIssues: [],
+        publishedAt: "2026-03-20T09:00:00Z",
+        lastValidatedAt: "2026-03-26T09:00:00Z",
+        hasUnpublishedChanges: false
+      },
+      {
+        agentId: "customer_service",
+        name: "Customer Service",
+        description: "Published agent with local changes.",
+        framework: "openai-agents-sdk",
+        entrypoint: "app.agent_plugins.customer_service:build_agent",
+        defaultModel: "gpt-4.1-mini",
+        tags: ["support", "ops"],
+        publishState: "published" as const,
+        validationStatus: "valid" as const,
+        validationIssues: [],
+        publishedAt: "2026-03-18T08:30:00Z",
+        lastValidatedAt: "2026-03-26T09:00:00Z",
+        hasUnpublishedChanges: true
       },
       {
         agentId: "tools",
@@ -40,7 +58,10 @@ describe("Agents workspace", () => {
         tags: ["example", "tools"],
         publishState: "draft" as const,
         validationStatus: "valid" as const,
-        validationIssues: []
+        validationIssues: [],
+        publishedAt: undefined,
+        lastValidatedAt: "2026-03-26T09:00:00Z",
+        hasUnpublishedChanges: false
       },
       {
         agentId: "broken",
@@ -52,7 +73,10 @@ describe("Agents workspace", () => {
         tags: [],
         publishState: "published" as const,
         validationStatus: "invalid" as const,
-        validationIssues: [{ code: "build_agent_failed", message: "entrypoint validation failed" }]
+        validationIssues: [{ code: "build_agent_failed", message: "entrypoint validation failed" }],
+        publishedAt: "2026-03-12T10:00:00Z",
+        lastValidatedAt: "2026-03-26T09:00:00Z",
+        hasUnpublishedChanges: false
       }
     ];
 
@@ -80,8 +104,11 @@ describe("Agents workspace", () => {
 
     expect(await screen.findByText("Agents")).toBeInTheDocument();
     expect(await screen.findByText("Published smoke agent.")).toBeInTheDocument();
+    expect(await screen.findByText("Published agent with local changes.")).toBeInTheDocument();
     expect(await screen.findByText("Draft tool agent.")).toBeInTheDocument();
     expect(await screen.findByText("entrypoint validation failed")).toBeInTheDocument();
+    expect(screen.getByText("Published with draft changes")).toBeInTheDocument();
+    expect(screen.getByText("Current repository code differs from the published snapshot.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
     await waitFor(() => expect(agentApi.publishAgent).toHaveBeenCalledWith("tools"));

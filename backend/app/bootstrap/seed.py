@@ -23,7 +23,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
         published = container.published_agent_repository.get_agent(agent_id)
         if published is None:
             return {}
-        return {"agent_snapshot": published.model_dump(mode="json")}
+        return {"agent_snapshot": published.to_snapshot()}
 
     seeded_runs = [
         RunRecord(

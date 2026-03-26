@@ -104,7 +104,7 @@ class RunCommands:
             tags=payload.tags,
             project_metadata={
                 **payload.project_metadata,
-                "agent_snapshot": agent.model_dump(mode="json"),
+                "agent_snapshot": agent.to_snapshot(),
             },
         )
 

@@ -60,6 +60,9 @@ export interface DiscoveredAgentResponse {
   "publish_state": AgentPublishState;
   "validation_status": AgentValidationStatus;
   "validation_issues": Array<AgentValidationIssueResponse>;
+  "published_at"?: string | null;
+  "last_validated_at": string;
+  "has_unpublished_changes": boolean;
 }
 export interface HTTPValidationError {
   "detail"?: Array<ValidationError>;

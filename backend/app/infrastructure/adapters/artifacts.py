@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
+
+from app.modules.agents.domain.models import PublishedAgent
 from app.modules.artifacts.application.ports import (
     ArtifactRepository,
     RunLookupSource,
@@ -116,6 +119,7 @@ class ArtifactExporterAdapter:
                 f"Run context: project={run.project}, dataset={run.dataset}, "
                 f"adapter={run.agent_type.value}"
             )
+        published_agent = self._published_agent_summary(run)
         return {
             "schema_version": "flight-recorder-jsonl-v1",
             "split": split,
@@ -123,6 +127,10 @@ class ArtifactExporterAdapter:
             "run_id": str(step.run_id),
             "project": run.project if run else None,
             "dataset": run.dataset if run else None,
+            "agent_id": run.agent_id if run else None,
+            "entrypoint": run.entrypoint if run else None,
+            "resolved_model": run.resolved_model if run else None,
+            "published_agent": published_agent,
             "agent_type": run.agent_type.value if run else None,
             "step_id": step.id,
             "span_id": step.id,
@@ -152,4 +160,24 @@ class ArtifactExporterAdapter:
                 "tool_name": step.tool_name,
                 "exported_at": datetime.now(UTC).isoformat(),
             },
+        }
+
+    @staticmethod
+    def _published_agent_summary(run: RunRecord | None) -> dict[str, Any] | None:
+        if run is None:
+            return None
+
+        raw_snapshot = run.project_metadata.get("agent_snapshot")
+        if not isinstance(raw_snapshot, dict):
+            return None
+
+        try:
+            snapshot = PublishedAgent.model_validate(raw_snapshot)
+        except ValidationError:
+            return None
+
+        return {
+            "published_at": snapshot.published_at.isoformat().replace("+00:00", "Z"),
+            "default_model": snapshot.default_model,
+            "tags": snapshot.tags,
         }

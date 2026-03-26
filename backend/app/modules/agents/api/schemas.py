@@ -57,6 +57,9 @@ class DiscoveredAgentResponse(BaseModel):
     publish_state: AgentPublishState
     validation_status: AgentValidationStatus
     validation_issues: list[AgentValidationIssueResponse]
+    published_at: datetime | None = None
+    last_validated_at: datetime
+    has_unpublished_changes: bool
 
     @classmethod
     def from_domain(cls, agent: DiscoveredAgent) -> DiscoveredAgentResponse:
@@ -73,6 +76,9 @@ class DiscoveredAgentResponse(BaseModel):
             validation_issues=[
                 AgentValidationIssueResponse.from_domain(issue) for issue in agent.validation_issues
             ],
+            published_at=agent.published_at,
+            last_validated_at=agent.last_validated_at,
+            has_unpublished_changes=agent.has_unpublished_changes,
         )
 
 

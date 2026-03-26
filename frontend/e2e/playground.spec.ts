@@ -49,10 +49,11 @@ test("playground can launch a run and open the latest trace", async ({ page }) =
   ]);
 
   await page.goto("http://127.0.0.1:3000/playground");
-  await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible();
-  await expect(page.getByLabel("Dataset")).toContainText("crm-v2");
+  await expect(page.getByRole("heading", { name: "Playground", exact: true })).toBeVisible();
+  const datasetSelect = page.locator("#playground-dataset");
+  await expect(datasetSelect).toContainText("crm-v2");
 
-  await page.getByLabel("Dataset").selectOption("crm-v2");
+  await datasetSelect.selectOption("crm-v2");
   await page.getByRole("button", { name: "Attach dataset sample" }).click();
   await expect(page.locator("textarea").filter({ hasText: "Can you create a shipping itinerary?" })).toBeVisible();
 

@@ -36,6 +36,9 @@ export function mapDiscoveredAgent(agent: DiscoveredAgentResponse): DiscoveredAg
     tags: agent.tags,
     publishState: agent.publish_state,
     validationStatus: agent.validation_status,
-    validationIssues: agent.validation_issues.map(mapAgentIssue)
+    validationIssues: agent.validation_issues.map(mapAgentIssue),
+    publishedAt: agent.published_at ?? undefined,
+    lastValidatedAt: agent.last_validated_at,
+    hasUnpublishedChanges: agent.has_unpublished_changes
   };
 }

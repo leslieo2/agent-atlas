@@ -20,8 +20,25 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
             status=RunStatus.SUCCEEDED,
             project="policy-project",
             dataset="policy-dataset",
+            agent_id="policy-agent",
             model="gpt-4.1-mini",
+            entrypoint="app.agent_plugins.policy:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
+            resolved_model="gpt-4.1-mini-2026-03-01",
+            project_metadata={
+                "agent_snapshot": {
+                    "manifest": {
+                        "agent_id": "policy-agent",
+                        "name": "Policy Agent",
+                        "description": "Summarize policy artifacts.",
+                        "framework": "openai-agents-sdk",
+                        "default_model": "gpt-4.1-mini",
+                        "tags": ["policy", "ops"],
+                    },
+                    "entrypoint": "app.agent_plugins.policy:build_agent",
+                    "published_at": "2026-03-20T09:00:00Z",
+                }
+            },
         )
     )
 
@@ -76,7 +93,15 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
     assert rows[0]["schema_version"] == "flight-recorder-jsonl-v1"
     assert rows[0]["split"] == "train"
     assert rows[0]["format"] == "chat"
+    assert rows[0]["agent_id"] == "policy-agent"
+    assert rows[0]["entrypoint"] == "app.agent_plugins.policy:build_agent"
+    assert rows[0]["resolved_model"] == "gpt-4.1-mini-2026-03-01"
     assert rows[0]["project"] == "policy-project"
+    assert rows[0]["published_agent"] == {
+        "published_at": "2026-03-20T09:00:00Z",
+        "default_model": "gpt-4.1-mini",
+        "tags": ["policy", "ops"],
+    }
     assert rows[0]["messages"] == [
         {
             "role": "system",

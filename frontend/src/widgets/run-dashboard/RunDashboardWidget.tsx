@@ -2,6 +2,13 @@
 
 import { ArrowUpRight, Boxes } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { getArtifactDownloadUrl } from "@/src/entities/artifact/api";
+import { useArtifactsQuery } from "@/src/entities/artifact/query";
+import {
+  formatArtifactDate,
+  formatArtifactRunCount,
+  formatArtifactSize
+} from "@/src/entities/artifact/presentation";
 import { useDatasetsQuery } from "@/src/entities/dataset/query";
 import { useRunsQuery } from "@/src/entities/run/query";
 import { ArtifactExportActions } from "@/src/features/artifact-export/ArtifactExportActions";
@@ -13,6 +20,7 @@ import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
 import { getFilterOptions, getRunStats, filterRuns } from "./selectors";
+import styles from "./RunDashboardWidget.module.css";
 
 const defaultFilterState: RunFilterState = {
   projectFilter: "all",
@@ -30,6 +38,7 @@ export default function RunDashboardWidget() {
   const [actionMessage, setActionMessage] = useState("");
   const [filters, setFilters] = useState<RunFilterState>(defaultFilterState);
   const datasetsQuery = useDatasetsQuery();
+  const artifactsQuery = useArtifactsQuery();
   const { projectFilter, datasetFilter, agentFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo } =
     filters;
   const requestFilters = useMemo(
@@ -71,6 +80,7 @@ export default function RunDashboardWidget() {
   const stats = useMemo(() => getRunStats(filteredRuns), [filteredRuns]);
   const defaultDatasetName = datasetsQuery.data?.[0]?.name;
   const latestRun = runRecords[0];
+  const recentArtifacts = useMemo(() => (artifactsQuery.data ?? []).slice(0, 6), [artifactsQuery.data]);
 
   return (
     <section className="page-stack">
@@ -164,6 +174,49 @@ export default function RunDashboardWidget() {
           rows={filteredRuns}
           message={filteredRuns.length === 0 && runRecords.length > 0 ? "No runs match current filters." : message}
         />
+      </Panel>
+
+      <Panel>
+        <div className="surface-header">
+          <div>
+            <p className="surface-kicker">Artifacts</p>
+            <h3 className="panel-title">Artifact history</h3>
+            <p className="muted-note">
+              Review recent JSONL and parquet exports without leaving the dashboard.
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.artifactHistory}>
+          {artifactsQuery.isPending ? <Notice>Loading artifact history...</Notice> : null}
+          {artifactsQuery.isError ? <Notice>Artifact history is temporarily unavailable.</Notice> : null}
+          {!artifactsQuery.isPending && !artifactsQuery.isError && recentArtifacts.length === 0 ? (
+            <Notice>No exported artifacts yet.</Notice>
+          ) : null}
+          {recentArtifacts.length ? (
+            <div className={styles.artifactRows}>
+              {recentArtifacts.map((artifact) => (
+                <article key={artifact.artifactId} className={styles.artifactRow}>
+                  <div className={styles.artifactPrimary}>
+                    <strong className={`${styles.artifactId} mono`}>{artifact.artifactId}</strong>
+                    <div className={styles.artifactMeta}>
+                      <span>{artifact.format.toUpperCase()}</span>
+                      <span>{formatArtifactRunCount(artifact)}</span>
+                      <span>{formatArtifactSize(artifact.sizeBytes)}</span>
+                    </div>
+                  </div>
+                  <div className={styles.artifactSecondary}>
+                    <span className="page-eyebrow">Exported</span>
+                    <span className="muted-note">{formatArtifactDate(artifact.createdAt)}</span>
+                  </div>
+                  <Button href={getArtifactDownloadUrl(artifact.artifactId)} variant="ghost">
+                    Download {artifact.format.toUpperCase()} artifact
+                  </Button>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </Panel>
     </section>
   );

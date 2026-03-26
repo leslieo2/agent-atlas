@@ -102,6 +102,7 @@ vi.mock("@/src/entities/dataset/api", () => ({
 }));
 
 vi.mock("@/src/entities/artifact/api", () => ({
+  listArtifacts: vi.fn(),
   exportArtifact: vi.fn(),
   getArtifactDownloadUrl: vi.fn(() => "http://127.0.0.1:8000/api/v1/artifacts/artifact-history-001")
 }));
@@ -112,9 +113,28 @@ describe("RunDashboard integration", () => {
   beforeEach(() => {
     (datasetApi.listDatasets as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
+    (artifactApi.listArtifacts as unknown as MockedApiFn).mockReset();
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([{ name: "customer-live", rows: [] }]);
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
+    (artifactApi.listArtifacts as unknown as MockedApiFn).mockResolvedValue([
+      {
+        artifactId: "artifact-history-001",
+        format: "jsonl",
+        runIds: ["run-001", "run-002"],
+        createdAt: "2026-03-23T11:02:00Z",
+        path: "/tmp/artifact-history-001.jsonl",
+        sizeBytes: 52
+      },
+      {
+        artifactId: "artifact-history-002",
+        format: "parquet",
+        runIds: ["run-001"],
+        createdAt: "2026-03-23T10:55:00Z",
+        path: "/tmp/artifact-history-002.parquet",
+        sizeBytes: 86
+      }
+    ]);
     (artifactApi.exportArtifact as unknown as MockedApiFn)
       .mockResolvedValueOnce({
         artifactId: "artifact-001",
@@ -138,6 +158,7 @@ describe("RunDashboard integration", () => {
     renderWithQueryClient(<RunDashboardWidget />);
 
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(artifactApi.listArtifacts).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
     expect(screen.getByText("Generate a booking itinerary from CRM contact data")).toBeVisible();
 
@@ -148,6 +169,7 @@ describe("RunDashboard integration", () => {
     renderWithQueryClient(<RunDashboardWidget />);
 
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(artifactApi.listArtifacts).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Export 2 runs as JSONL" }));
@@ -174,6 +196,20 @@ describe("RunDashboard integration", () => {
     expect(await screen.findByText("Exported 2 runs as Parquet.")).toBeInTheDocument();
     expect(screen.getByText("21 bytes · current filter result")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Download Parquet" })).toHaveAttribute(
+      "href",
+      "http://127.0.0.1:8000/api/v1/artifacts/artifact-history-001"
+    );
+  });
+
+  it("renders artifact history from the export listing endpoint", async () => {
+    renderWithQueryClient(<RunDashboardWidget />);
+
+    await waitFor(() => expect(artifactApi.listArtifacts).toHaveBeenCalledTimes(1));
+
+    expect(await screen.findByText("Artifact history")).toBeInTheDocument();
+    expect(screen.getByText("artifact-history-001")).toBeInTheDocument();
+    expect(screen.getByText("2 runs")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download JSONL artifact" })).toHaveAttribute(
       "href",
       "http://127.0.0.1:8000/api/v1/artifacts/artifact-history-001"
     );

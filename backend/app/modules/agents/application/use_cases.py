@@ -7,7 +7,6 @@ from app.modules.agents.application.ports import (
     RunnableAgentCatalogPort,
 )
 from app.modules.agents.domain.models import (
-    AgentPublishState,
     AgentValidationStatus,
     DiscoveredAgent,
     PublishedAgent,
@@ -24,14 +23,10 @@ class AgentDiscoveryQueries:
         self.published_agents = published_agents
 
     def list_agents(self) -> list[DiscoveredAgent]:
-        published_ids = {agent.agent_id for agent in self.published_agents.list_agents()}
+        published_by_id = {agent.agent_id: agent for agent in self.published_agents.list_agents()}
         discovered_agents = self.discovery.list_agents()
         return [
-            agent.with_publish_state(
-                AgentPublishState.PUBLISHED
-                if agent.agent_id in published_ids
-                else AgentPublishState.DRAFT
-            )
+            agent.with_publication(published_by_id.get(agent.agent_id))
             for agent in discovered_agents
         ]
 

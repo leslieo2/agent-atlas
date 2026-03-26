@@ -21,4 +21,7 @@ export interface DiscoveredAgentRecord extends AgentRecord {
   publishState: AgentPublishState;
   validationStatus: AgentValidationStatus;
   validationIssues: AgentValidationIssueRecord[];
+  publishedAt?: string;
+  lastValidatedAt: string;
+  hasUnpublishedChanges: boolean;
 }

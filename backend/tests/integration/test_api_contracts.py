@@ -256,6 +256,9 @@ def test_agents_discovered_publish_and_unpublish_flow(client):
     by_id = {agent["agent_id"]: agent for agent in discovered.json()}
     assert by_id["tools"]["publish_state"] == "draft"
     assert by_id["tools"]["validation_status"] == "valid"
+    assert by_id["tools"]["published_at"] is None
+    assert by_id["tools"]["has_unpublished_changes"] is False
+    assert by_id["tools"]["last_validated_at"].endswith("Z")
 
     publish = client.post("/api/v1/agents/tools/publish")
     assert publish.status_code == 200
@@ -273,6 +276,48 @@ def test_agents_discovered_publish_and_unpublish_flow(client):
     runnable_after_unpublish = client.get("/api/v1/agents")
     assert runnable_after_unpublish.status_code == 200
     assert "tools" not in {agent["agent_id"] for agent in runnable_after_unpublish.json()}
+
+
+def test_discovered_agents_flag_published_drift(monkeypatch, client):
+    container = get_container()
+
+    monkeypatch.setattr(
+        container.agent_discovery,
+        "list_agents",
+        lambda: [
+            DiscoveredAgent(
+                manifest=AgentManifest(
+                    agent_id="basic",
+                    name="Basic",
+                    description="Basic smoke agent",
+                    default_model="gpt-4.1",
+                    tags=["example", "smoke", "drifted"],
+                ),
+                entrypoint="app.agent_plugins.basic_v2:build_agent",
+                validation_status=AgentValidationStatus.VALID,
+            )
+        ],
+    )
+
+    discovered = client.get("/api/v1/agents/discovered")
+    assert discovered.status_code == 200
+    assert len(discovered.json()) == 1
+    payload = discovered.json()[0]
+    assert payload["agent_id"] == "basic"
+    assert payload["name"] == "Basic"
+    assert payload["description"] == "Basic smoke agent"
+    assert payload["framework"] == "openai-agents-sdk"
+    assert payload["entrypoint"] == "app.agent_plugins.basic_v2:build_agent"
+    assert payload["default_model"] == "gpt-4.1"
+    assert payload["tags"] == ["example", "smoke", "drifted"]
+    assert payload["publish_state"] == "published"
+    assert payload["validation_status"] == "valid"
+    assert payload["validation_issues"] == []
+    assert isinstance(payload["published_at"], str) and payload["published_at"].endswith("Z")
+    assert isinstance(payload["last_validated_at"], str) and payload["last_validated_at"].endswith(
+        "Z"
+    )
+    assert payload["has_unpublished_changes"] is True
 
 
 def test_runs_reject_unpublished_agent(client):
@@ -310,7 +355,7 @@ def test_published_invalid_agent_disappears_from_runnable_catalog(monkeypatch, c
                 manifest=AgentManifest(
                     agent_id="basic",
                     name="Basic",
-                    description="Broken plugin",
+                    description="Minimal plugin agent for smoke testing the SDK execution path.",
                     default_model="gpt-4.1-mini",
                     tags=["example", "smoke"],
                 ),
@@ -332,22 +377,27 @@ def test_published_invalid_agent_disappears_from_runnable_catalog(monkeypatch, c
 
     discovered = client.get("/api/v1/agents/discovered")
     assert discovered.status_code == 200
-    assert discovered.json() == [
+    assert len(discovered.json()) == 1
+    payload = discovered.json()[0]
+    assert payload["agent_id"] == "basic"
+    assert payload["name"] == "Basic"
+    assert (
+        payload["description"] == "Minimal plugin agent for smoke testing the SDK execution path."
+    )
+    assert payload["framework"] == "openai-agents-sdk"
+    assert payload["entrypoint"] == "app.agent_plugins.basic:build_agent"
+    assert payload["default_model"] == "gpt-4.1-mini"
+    assert payload["tags"] == ["example", "smoke"]
+    assert payload["publish_state"] == "published"
+    assert payload["validation_status"] == "invalid"
+    assert payload["validation_issues"] == [
         {
-            "agent_id": "basic",
-            "name": "Basic",
-            "description": "Broken plugin",
-            "framework": "openai-agents-sdk",
-            "entrypoint": "app.agent_plugins.basic:build_agent",
-            "default_model": "gpt-4.1-mini",
-            "tags": ["example", "smoke"],
-            "publish_state": "published",
-            "validation_status": "invalid",
-            "validation_issues": [
-                {
-                    "code": "build_agent_failed",
-                    "message": "entrypoint validation failed",
-                }
-            ],
+            "code": "build_agent_failed",
+            "message": "entrypoint validation failed",
         }
     ]
+    assert isinstance(payload["published_at"], str) and payload["published_at"].endswith("Z")
+    assert isinstance(payload["last_validated_at"], str) and payload["last_validated_at"].endswith(
+        "Z"
+    )
+    assert payload["has_unpublished_changes"] is False

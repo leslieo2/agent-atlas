@@ -21,12 +21,41 @@ type AgentGroup = {
   items: DiscoveredAgentRecord[];
 };
 
+type AgentWorkspaceState = "published" | "published_with_draft_changes" | "draft" | "invalid";
+
+function getAgentWorkspaceState(agent: DiscoveredAgentRecord): AgentWorkspaceState {
+  if (agent.validationStatus === "invalid") {
+    return "invalid";
+  }
+  if (agent.publishState === "published" && agent.hasUnpublishedChanges) {
+    return "published_with_draft_changes";
+  }
+  if (agent.publishState === "published") {
+    return "published";
+  }
+  return "draft";
+}
+
+function stateLabel(state: AgentWorkspaceState) {
+  if (state === "published_with_draft_changes") {
+    return "Draft changes";
+  }
+  if (state === "published") {
+    return "Published";
+  }
+  if (state === "draft") {
+    return "Draft";
+  }
+  return "Invalid";
+}
+
 function validationTone(agent: DiscoveredAgentRecord) {
   return agent.validationStatus === "valid" ? "success" : "error";
 }
 
 function publishTone(agent: DiscoveredAgentRecord) {
-  return agent.publishState === "published" ? "success" : "warn";
+  const state = getAgentWorkspaceState(agent);
+  return state === "published" ? "success" : "warn";
 }
 
 function AgentCard({
@@ -44,6 +73,8 @@ function AgentCard({
 }) {
   const isValid = agent.validationStatus === "valid";
   const isPublished = agent.publishState === "published";
+  const state = getAgentWorkspaceState(agent);
+  const hasDraftChanges = state === "published_with_draft_changes";
 
   return (
     <article className={styles.card}>
@@ -56,10 +87,14 @@ function AgentCard({
           <p className="muted-note">{agent.description}</p>
         </div>
         <div className="toolbar">
-          <StatusPill tone={publishTone(agent)}>{agent.publishState}</StatusPill>
+          <StatusPill tone={publishTone(agent)}>{stateLabel(state)}</StatusPill>
           <StatusPill tone={validationTone(agent)}>{agent.validationStatus}</StatusPill>
         </div>
       </div>
+
+      {hasDraftChanges ? (
+        <p className={styles.driftNotice}>Publish the current repository draft to refresh the runnable snapshot.</p>
+      ) : null}
 
       <div className={styles.meta}>
         <div className={styles.metaItem}>
@@ -82,6 +117,14 @@ function AgentCard({
           <span className={styles.metaLabel}>Tags</span>
           <span className={styles.metaValue}>{agent.tags.length ? agent.tags.join(", ") : "none"}</span>
         </div>
+        <div className={styles.metaItem}>
+          <span className={styles.metaLabel}>Published at</span>
+          <span className={styles.metaValue}>{agent.publishedAt ? new Date(agent.publishedAt).toLocaleString("en") : "-"}</span>
+        </div>
+        <div className={styles.metaItem}>
+          <span className={styles.metaLabel}>Last validated</span>
+          <span className={styles.metaValue}>{new Date(agent.lastValidatedAt).toLocaleString("en")}</span>
+        </div>
       </div>
 
       {!isValid ? (
@@ -99,6 +142,11 @@ function AgentCard({
         {isValid && !isPublished ? (
           <Button onClick={() => onPublish(agent.agentId)} disabled={isPublishing}>
             Publish
+          </Button>
+        ) : null}
+        {isValid && hasDraftChanges ? (
+          <Button onClick={() => onPublish(agent.agentId)} disabled={isPublishing}>
+            Publish update
           </Button>
         ) : null}
         {isPublished ? (
@@ -127,17 +175,22 @@ export default function AgentsWorkspace() {
       {
         title: "Published",
         description: "Runnable agents exposed to Playground and run creation.",
-        items: agents.filter((agent) => agent.publishState === "published" && agent.validationStatus === "valid")
+        items: agents.filter((agent) => getAgentWorkspaceState(agent) === "published")
+      },
+      {
+        title: "Published with draft changes",
+        description: "Current repository code differs from the published snapshot.",
+        items: agents.filter((agent) => getAgentWorkspaceState(agent) === "published_with_draft_changes")
       },
       {
         title: "Draft",
         description: "Valid repository plugins that are not yet exposed.",
-        items: agents.filter((agent) => agent.publishState === "draft" && agent.validationStatus === "valid")
+        items: agents.filter((agent) => getAgentWorkspaceState(agent) === "draft")
       },
       {
         title: "Invalid",
         description: "Discovered plugins that currently fail the OpenAI Agents SDK contract.",
-        items: agents.filter((agent) => agent.validationStatus === "invalid")
+        items: agents.filter((agent) => getAgentWorkspaceState(agent) === "invalid")
       }
     ],
     [agents]
@@ -166,7 +219,7 @@ export default function AgentsWorkspace() {
               Ready to run <strong>{groups[0].items.length}</strong>
             </span>
             <span className="page-tag">
-              Needs review <strong>{groups[2].items.length}</strong>
+              Needs review <strong>{groups[1].items.length + groups[3].items.length}</strong>
             </span>
           </div>
         </div>
@@ -174,10 +227,10 @@ export default function AgentsWorkspace() {
           <div className="page-info-item">
             <span className="page-info-label">Publishing status</span>
             <span className="page-info-value">
-              {groups[0].items.length} live / {groups[1].items.length} staged
+              {groups[0].items.length} live / {groups[1].items.length} drifted / {groups[2].items.length} staged
             </span>
             <p className="page-info-detail">
-              Valid draft agents can be published directly into Playground once their runtime surface is ready.
+              Re-publish drifted agents to refresh the runnable snapshot without expanding release scope.
             </p>
           </div>
         </div>
@@ -185,9 +238,9 @@ export default function AgentsWorkspace() {
 
       <div className="summary-strip">
         <MetricCard label="Published" value={groups[0].items.length} />
-        <MetricCard label="Draft" value={groups[1].items.length} />
-        <MetricCard label="Invalid" value={groups[2].items.length} />
-        <MetricCard label="Discovered" value={agents.length} />
+        <MetricCard label="Draft changes" value={groups[1].items.length} />
+        <MetricCard label="Draft" value={groups[2].items.length} />
+        <MetricCard label="Invalid" value={groups[3].items.length} />
       </div>
 
       {errorMessage ? <Notice>{errorMessage}</Notice> : null}
