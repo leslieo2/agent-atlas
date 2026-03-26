@@ -16,15 +16,10 @@ export function RunCreateButton({
 
   return (
     <Button
-      disabled={!datasetName}
       onClick={async () => {
-        if (!datasetName) {
-          return;
-        }
-
         const run = await createRunMutation.mutateAsync({
           project: "workbench",
-          dataset: datasetName,
+          dataset: datasetName ?? null,
           model: "gpt-4.1-mini",
           agentType: "openai-agents-sdk",
           inputSummary: "Manual run from dashboard",

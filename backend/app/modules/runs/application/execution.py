@@ -59,8 +59,9 @@ class RunExecutionProjector:
         return f"span-{run_id}-4"
 
     def project_planner(self, context: RunExecutionContext) -> ProjectedExecutionRecord:
+        dataset_label = context.payload.dataset or "no dataset"
         prompt = (
-            f"Plan execution flow for dataset {context.payload.dataset} "
+            f"Plan execution flow for dataset {dataset_label} "
             f"using adapter {context.payload.agent_type.value}."
         )
         output = f"Single-step live model execution planned for project {context.payload.project}."

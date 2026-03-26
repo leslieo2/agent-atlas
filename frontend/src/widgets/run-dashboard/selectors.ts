@@ -5,7 +5,7 @@ export function filterRuns(runRecords: RunRecord[], query: string) {
 
   return runRecords.filter((run) =>
     needle
-      ? [run.inputSummary, run.runId, run.project, run.dataset].join(" ").toLowerCase().includes(needle)
+      ? [run.inputSummary, run.runId, run.project, run.dataset ?? ""].join(" ").toLowerCase().includes(needle)
       : true
   );
 }
@@ -13,7 +13,7 @@ export function filterRuns(runRecords: RunRecord[], query: string) {
 export function getFilterOptions(runRecords: RunRecord[]) {
   return {
     projects: Array.from(new Set(runRecords.map((run) => run.project))),
-    datasets: Array.from(new Set(runRecords.map((run) => run.dataset))),
+    datasets: Array.from(new Set(runRecords.map((run) => run.dataset).filter((dataset): dataset is string => Boolean(dataset)))),
     models: Array.from(new Set(runRecords.map((run) => run.model))),
     tags: Array.from(new Set(runRecords.flatMap((run) => run.tags)))
   };

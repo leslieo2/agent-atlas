@@ -10,7 +10,7 @@ export function mapRun(run: ApiRunRecord): RunRecord {
     tokenCost: run.token_cost,
     toolCalls: run.tool_calls,
     project: run.project,
-    dataset: run.dataset,
+    dataset: run.dataset ?? null,
     model: run.model,
     agentType: run.agent_type,
     tags: run.tags,

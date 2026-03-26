@@ -38,15 +38,8 @@ export default function PlaygroundWorkspace() {
   }, [latestRunId, runsQuery.data]);
 
   useEffect(() => {
-    if (!datasets.length) {
-      if (dataset) {
-        setDataset("");
-      }
-      return;
-    }
-
-    if (!datasets.includes(dataset)) {
-      setDataset(datasets[0]);
+    if (dataset && !datasets.includes(dataset)) {
+      setDataset("");
     }
   }, [dataset, datasets]);
 
@@ -86,7 +79,7 @@ export default function PlaygroundWorkspace() {
               <h3 className="panel-title">Prompt and runtime settings</h3>
             </div>
           </div>
-          {!dataset ? <Notice>No dataset available. Upload or create one before running Playground.</Notice> : null}
+          {!dataset ? <Notice>No dataset attached. Playground will run prompt-only until you select one.</Notice> : null}
           <PlaygroundForm
             prompt={prompt}
             agentType={agentType}

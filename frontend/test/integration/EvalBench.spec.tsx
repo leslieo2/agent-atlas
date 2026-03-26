@@ -185,9 +185,11 @@ describe("EvalBench integration", () => {
     renderWithQueryClient(<EvalWorkspace initialRunIds={["run-eval", "run-candidate"]} />);
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
+    await screen.findByText(/run-cand.*candidate/i);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Run batch eval" })).toBeEnabled());
 
     fireEvent.click(screen.getByRole("button", { name: "Run batch eval" }));
-    expect(await screen.findByText(/Eval job job-001 is queued. Waiting for completion/)).toBeInTheDocument();
+    await waitFor(() => expect(evalApi.createEvalJob).toHaveBeenCalledTimes(1));
     expect(await screen.findByText(/Eval job job-001 finished with status done/)).toBeInTheDocument();
     await waitFor(() => expect(evalApi.getEvalJob).toHaveBeenCalledWith("job-001"));
     expect(evalApi.createEvalJob).toHaveBeenCalledWith({

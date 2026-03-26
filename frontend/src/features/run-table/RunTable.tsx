@@ -44,7 +44,7 @@ export function RunTable({ rows, message }: { rows: RunRecord[]; message: string
                   </StatusPill>
                 </td>
                 <td>{run.project}</td>
-                <td>{run.dataset}</td>
+                <td>{run.dataset ?? "-"}</td>
                 <td>{run.latencyMs ? `${run.latencyMs} ms` : "-"}</td>
                 <td>{run.tokenCost.toLocaleString()}</td>
                 <td>{formatRunDate(run.createdAt)}</td>

@@ -85,7 +85,7 @@ export interface ReplayResponse {
 }
 export interface RunCreateRequest {
   "project": string;
-  "dataset": string;
+  "dataset"?: string | null;
   "model": string;
   "agent_type": AdapterKind;
   "input_summary": string;
@@ -102,7 +102,7 @@ export interface RunResponse {
   "token_cost": number;
   "tool_calls": number;
   "project": string;
-  "dataset": string;
+  "dataset"?: string | null;
   "model": string;
   "agent_type": AdapterKind;
   "tags": Array<string>;

@@ -88,7 +88,9 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
   const replayedOutput = activeReplay?.replayOutput ?? "Run replay to generate output.";
   const evalHref =
     selectedRunRecord && latestCandidateRunId
-      ? `/evals?runIds=${selectedRunRecord.runId},${latestCandidateRunId}&dataset=${selectedRunRecord.dataset}`
+      ? selectedRunRecord.dataset
+        ? `/evals?runIds=${selectedRunRecord.runId},${latestCandidateRunId}&dataset=${selectedRunRecord.dataset}`
+        : `/evals?runIds=${selectedRunRecord.runId},${latestCandidateRunId}`
       : "";
 
   return (

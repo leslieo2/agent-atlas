@@ -71,6 +71,20 @@ def test_create_run_and_get_by_id(client):
     assert got.json()["status"] == RunStatus.QUEUED.value
 
 
+def test_create_run_without_dataset(client):
+    payload = {
+        "project": "smoke-test",
+        "model": "gpt-4.1-mini",
+        "agent_type": "openai-agents-sdk",
+        "input_summary": "prompt only smoke",
+        "prompt": "Summarize all current runs.",
+    }
+
+    created = client.post("/api/v1/runs", json=payload)
+    assert created.status_code == 201
+    assert created.json()["dataset"] is None
+
+
 def test_run_stays_queued_until_worker_runs(client):
     payload = {
         "project": "queued-test",

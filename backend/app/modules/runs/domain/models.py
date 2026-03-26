@@ -11,7 +11,7 @@ from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 
 class RunSpec(BaseModel):
     project: str
-    dataset: str
+    dataset: str | None = None
     model: str
     agent_type: AdapterKind
     input_summary: str
@@ -48,7 +48,7 @@ class RunRecord(BaseModel):
     token_cost: int = 0
     tool_calls: int = 0
     project: str
-    dataset: str
+    dataset: str | None = None
     model: str
     agent_type: AdapterKind
     tags: list[str] = Field(default_factory=list)

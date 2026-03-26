@@ -134,3 +134,26 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     assert [step.id for step in steps] == expected_span_ids
     assert [step.parent_step_id for step in steps] == [None, f"span-{run_id}-1", f"span-{run_id}-2"]
     assert [span.span_id for span in spans] == expected_span_ids
+
+
+def test_run_execution_projector_handles_prompt_only_run():
+    run_id = uuid4()
+    context = RunExecutionContext.from_spec(
+        run_id,
+        RunSpec(
+            project="control-plane",
+            dataset=None,
+            model="gpt-4.1-mini",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            input_summary="prompt only",
+            prompt="Explain the plan.",
+        ),
+    )
+    projector = RunExecutionProjector()
+
+    record = projector.project_planner(context)
+
+    assert record.event.input["prompt"] == (
+        "Plan execution flow for dataset no dataset "
+        "using adapter openai-agents-sdk."
+    )

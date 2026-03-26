@@ -8,7 +8,7 @@ export interface RunRecord {
   tokenCost: number;
   toolCalls: number;
   project: string;
-  dataset: string;
+  dataset: string | null;
   model: string;
   tags: string[];
   createdAt: string;

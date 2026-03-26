@@ -10,7 +10,7 @@ export interface RunRecord {
   tokenCost: number;
   toolCalls: number;
   project: string;
-  dataset: string;
+  dataset: string | null;
   model: string;
   agentType: AdapterKind;
   tags: string[];
@@ -32,7 +32,7 @@ export interface RunListFilters {
 
 export interface CreateRunInput {
   project: string;
-  dataset: string;
+  dataset?: string | null;
   model: string;
   agentType: AdapterKind;
   inputSummary: string;

@@ -49,12 +49,8 @@ export function PlaygroundForm({
           </select>
         </Field>
         <Field label="Dataset">
-          <select value={dataset} onChange={(event) => onDatasetChange(event.target.value)} disabled={!datasets.length}>
-            {!datasets.length ? (
-              <option value="">No datasets available</option>
-            ) : !datasets.includes(dataset) ? (
-              <option value="">Select a dataset</option>
-            ) : null}
+          <select value={dataset} onChange={(event) => onDatasetChange(event.target.value)}>
+            <option value="">{datasets.length ? "No dataset" : "No datasets available"}</option>
             {datasets.map((name) => (
               <option key={name} value={name}>
                 {name}

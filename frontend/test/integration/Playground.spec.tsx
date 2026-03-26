@@ -143,6 +143,7 @@ describe("Playground integration", () => {
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
+    fireEvent.change(screen.getAllByRole("combobox")[2], { target: { value: "customer-live" } });
     fireEvent.click(screen.getByRole("button", { name: "Attach dataset sample" }));
     expect(screen.getByDisplayValue("Can you create a shipping itinerary?")).toBeInTheDocument();
   });
@@ -158,12 +159,21 @@ describe("Playground integration", () => {
     expect(await screen.findByText(/termination_reason:\s*terminated by user/)).toBeInTheDocument();
   });
 
-  it("disables manual execution when no dataset exists", async () => {
+  it("allows prompt-only execution when no dataset exists", async () => {
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([]);
 
     renderWithQueryClient(<PlaygroundWorkspace />);
 
-    expect(await screen.findByText(/No dataset available. Upload or create one before running Playground./)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Run now" })).toBeDisabled();
+    expect(await screen.findByText(/No dataset attached. Playground will run prompt-only until you select one./)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Run now" }));
+
+    await waitFor(() =>
+      expect(runApi.createRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataset: null
+        })
+      )
+    );
   });
 });

@@ -11,7 +11,7 @@ from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 
 class RunCreateRequest(BaseModel):
     project: str
-    dataset: str
+    dataset: str | None = None
     model: str
     agent_type: AdapterKind
     input_summary: str
@@ -32,7 +32,7 @@ class RunResponse(BaseModel):
     token_cost: int
     tool_calls: int
     project: str
-    dataset: str
+    dataset: str | None = None
     model: str
     agent_type: AdapterKind
     tags: list[str]

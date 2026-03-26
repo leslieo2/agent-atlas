@@ -23,7 +23,7 @@ export async function listRuns(filters: RunListFilters = {}) {
 export async function createRun(payload: CreateRunInput) {
   const body: RunCreateRequest = {
     project: payload.project,
-    dataset: payload.dataset,
+    dataset: payload.dataset ?? null,
     model: payload.model,
     agent_type: payload.agentType,
     input_summary: payload.inputSummary,

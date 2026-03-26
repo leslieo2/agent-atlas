@@ -197,12 +197,20 @@ describe("RunDashboard integration", () => {
     expect(screen.getByRole("link", { name: "Download" })).toBeInTheDocument();
   });
 
-  it("disables ad-hoc run creation when no dataset exists", async () => {
+  it("allows ad-hoc run creation when no dataset exists", async () => {
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([]);
 
     renderWithQueryClient(<RunDashboardWidget />);
 
-    expect(await screen.findByText("No dataset available for ad-hoc run creation.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New Run" })).toBeDisabled();
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "New Run" }));
+    await waitFor(() =>
+      expect(runApi.createRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataset: null
+        })
+      )
+    );
   });
 });

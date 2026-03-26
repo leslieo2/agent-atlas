@@ -122,7 +122,6 @@ export default function RunDashboardWidget() {
 
         <RunFilters options={filterOptions} state={filters} onChange={setFilters} />
         <Notice>{message}</Notice>
-        {!defaultDatasetName ? <Notice>No dataset available for ad-hoc run creation.</Notice> : null}
       </Panel>
 
       <Panel>

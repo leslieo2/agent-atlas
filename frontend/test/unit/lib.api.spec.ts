@@ -103,6 +103,41 @@ describe("api client", () => {
     ).rejects.toThrow("Request failed: 500");
   });
 
+  it("sends null dataset for prompt-only createRun requests", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonBody({
+        run_id: "run-001",
+        input_summary: "prompt only",
+        status: "queued" as RunStatus,
+        latency_ms: 0,
+        token_cost: 0,
+        tool_calls: 0,
+        project: "sales",
+        dataset: null,
+        model: "gpt-4.1-mini",
+        agent_type: "openai-agents-sdk",
+        tags: [],
+        created_at: "2026-03-24T00:00:00Z",
+        project_metadata: {}
+      })
+    );
+
+    await createRun({
+      project: "sales",
+      dataset: null,
+      model: "gpt-4.1-mini",
+      agentType: "openai-agents-sdk",
+      inputSummary: "prompt only",
+      prompt: "do it"
+    });
+
+    const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(requestInit.body).toBeDefined();
+    expect(JSON.parse(String(requestInit.body))).toMatchObject({
+      dataset: null
+    });
+  });
+
   it("surfaces structured API error messages", async () => {
     fetchSpy.mockResolvedValueOnce(
       jsonBody(
