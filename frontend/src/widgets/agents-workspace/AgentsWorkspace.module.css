@@ -1,6 +1,8 @@
 .group {
   display: grid;
   gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(158, 189, 226, 0.08);
 }
 
 .cards {
@@ -12,9 +14,9 @@
   display: grid;
   gap: 16px;
   padding: 18px;
-  border: 1px solid rgba(158, 189, 226, 0.12);
-  border-radius: 22px;
-  background: radial-gradient(circle at top right, rgba(117, 218, 255, 0.06), transparent 28%), rgba(6, 11, 20, 0.72);
+  border: 1px solid rgba(158, 189, 226, 0.08);
+  border-radius: 16px;
+  background: rgba(6, 11, 20, 0.26);
   transition:
     transform 160ms ease,
     border-color 160ms ease,
@@ -22,8 +24,9 @@
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(117, 218, 255, 0.22);
+  transform: translateY(-1px);
+  border-color: rgba(117, 218, 255, 0.16);
+  background: rgba(6, 11, 20, 0.34);
 }
 
 .cardHeader {
@@ -41,7 +44,9 @@
 .meta {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px 16px;
+  gap: 12px 18px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(158, 189, 226, 0.08);
 }
 
 .metaItem {

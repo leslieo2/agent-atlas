@@ -25,6 +25,7 @@ Allowed responsibilities:
 - Fetching and multi-step screen orchestration belongs in widgets or widget-local model hooks.
 - Reusable entity display helpers should live with the entity, not inside a widget.
 - Test fixtures belong under `test/`, not in app-facing code directories.
+- Visual and interaction rules belong in `DESIGN_LANGUAGE.md`, not in this architecture doc.
 
 ## Guardrails
 

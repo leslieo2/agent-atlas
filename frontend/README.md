@@ -18,6 +18,10 @@ If the backend is not running on `http://127.0.0.1:8000`, copy `frontend/.env.ex
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the frontend layering rules, dependency direction, and module ownership. The current frontend is organized as thin route entrypoints in `app/` plus layered product code in `src/widgets`, `src/features`, `src/entities`, and `src/shared`, with TanStack Query handling server-state coordination.
 
+## Design Language
+
+See [DESIGN_LANGUAGE.md](./DESIGN_LANGUAGE.md) for the frontend visual system, page composition rules, tone, tokens, and component guidance. Use it together with `ARCHITECTURE.md`: architecture decides where UI code belongs, design language decides how it should feel and read.
+
 ## 质量检查命令
 
 ```bash

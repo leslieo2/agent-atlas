@@ -194,7 +194,7 @@ export default function AgentsWorkspace() {
       {discoveredAgentsQuery.isLoading ? <Notice>Loading discovered agents...</Notice> : null}
 
       {groups.map((group) => (
-        <Panel key={group.title} tone={group.title === "Published" ? "strong" : "default"} className={styles.group}>
+        <Panel key={group.title} tone="plain" className={styles.group}>
           <div className="surface-header">
             <div>
               <p className="surface-kicker">{group.title}</p>

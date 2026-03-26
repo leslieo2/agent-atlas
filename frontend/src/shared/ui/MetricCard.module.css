@@ -1,14 +1,13 @@
 .card {
   display: grid;
-  gap: 10px;
-  min-height: 124px;
-  padding: 18px 20px;
-  border: 1px solid rgba(158, 189, 226, 0.12);
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at top right, rgba(117, 218, 255, 0.08), transparent 32%),
-    linear-gradient(180deg, rgba(17, 28, 47, 0.96), rgba(9, 15, 27, 0.92));
-  box-shadow: var(--shadow-crisp);
+  gap: 8px;
+  min-height: 96px;
+  padding: 14px 16px;
+  border: 1px solid rgba(158, 189, 226, 0.1);
+  border-top-color: rgba(117, 218, 255, 0.26);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 22, 39, 0.9), rgba(8, 13, 24, 0.78));
+  box-shadow: none;
 }
 
 .label {

@@ -123,9 +123,9 @@ code {
   grid-template-columns: minmax(0, 1.3fr) auto;
   align-items: end;
   gap: 24px;
-  padding: 30px;
+  padding: 28px 30px;
   border: 1px solid rgba(117, 218, 255, 0.16);
-  border-radius: 32px;
+  border-radius: 28px;
   overflow: hidden;
   background:
     radial-gradient(circle at top right, rgba(117, 218, 255, 0.14), transparent 24%),
@@ -209,12 +209,12 @@ code {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid rgba(117, 218, 255, 0.18);
+  padding: 7px 11px;
+  border: 1px solid rgba(158, 189, 226, 0.12);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--text-muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   line-height: 1;
 }
 
@@ -230,10 +230,10 @@ code {
 }
 
 .page-info-item {
-  padding: 16px 18px;
-  border: 1px solid rgba(158, 189, 226, 0.14);
-  border-radius: 20px;
-  background: rgba(6, 11, 20, 0.5);
+  padding: 14px 16px;
+  border: 1px solid rgba(158, 189, 226, 0.12);
+  border-radius: 18px;
+  background: rgba(5, 10, 19, 0.42);
   backdrop-filter: blur(16px);
   animation: metricRiseIn 520ms ease-out both;
 }
@@ -332,13 +332,14 @@ code {
 .summary-strip > div,
 .metric {
   display: grid;
-  gap: 10px;
-  min-height: 124px;
-  padding: 18px 20px;
-  border: 1px solid rgba(158, 189, 226, 0.12);
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(17, 28, 47, 0.96), rgba(9, 15, 27, 0.92)), rgba(9, 15, 27, 0.92);
-  box-shadow: var(--shadow-crisp);
+  gap: 8px;
+  min-height: 96px;
+  padding: 14px 16px;
+  border: 1px solid rgba(158, 189, 226, 0.1);
+  border-top-color: rgba(117, 218, 255, 0.26);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 22, 39, 0.9), rgba(8, 13, 24, 0.78)), rgba(9, 15, 27, 0.78);
+  box-shadow: none;
   animation: metricRiseIn 520ms ease-out both;
 }
 
@@ -386,7 +387,7 @@ code {
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.95fr);
-  gap: 18px;
+  gap: 20px;
   align-items: start;
 }
 
@@ -397,27 +398,27 @@ code {
 .layout-two {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.95fr);
-  gap: 18px;
+  gap: 20px;
 }
 
 .run-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 1fr);
-  gap: 18px;
+  gap: 20px;
 }
 
 .surface {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, rgba(12, 19, 34, 0.96), rgba(8, 14, 25, 0.92));
+  background: linear-gradient(180deg, rgba(10, 17, 30, 0.84), rgba(7, 12, 22, 0.74));
   padding: 20px;
-  box-shadow: var(--shadow-soft);
+  box-shadow: none;
 }
 
 .surface-strong {
   background:
-    radial-gradient(circle at top right, rgba(117, 218, 255, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(14, 22, 39, 0.98), rgba(9, 15, 27, 0.94));
+    radial-gradient(circle at top right, rgba(117, 218, 255, 0.06), transparent 24%),
+    linear-gradient(180deg, rgba(11, 19, 33, 0.9), rgba(8, 14, 25, 0.82));
 }
 
 .surface-inspector {
@@ -435,7 +436,7 @@ code {
 .panel-title {
   margin: 0;
   max-width: 42rem;
-  font-size: 1.14rem;
+  font-size: 1.08rem;
   line-height: 1.4;
   letter-spacing: -0.03em;
 }
@@ -524,7 +525,7 @@ textarea {
 .table-shell {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  background: rgba(8, 13, 24, 0.72);
+  background: rgba(8, 13, 24, 0.52);
   padding: 14px;
 }
 
@@ -670,15 +671,15 @@ thead th {
 }
 
 .step-item {
-  border: 1px solid rgba(158, 189, 226, 0.12);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(158, 189, 226, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.01);
   padding: 12px;
 }
 
 .step-item.active {
-  border-color: rgba(117, 218, 255, 0.32);
-  background: rgba(117, 218, 255, 0.05);
+  border-color: rgba(117, 218, 255, 0.22);
+  background: rgba(117, 218, 255, 0.03);
 }
 
 .step-trigger {
