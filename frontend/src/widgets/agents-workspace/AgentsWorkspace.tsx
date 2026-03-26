@@ -67,6 +67,10 @@ function AgentCard({
           <span className={`${styles.metaValue} mono`}>{agent.agentId}</span>
         </div>
         <div className={styles.metaItem}>
+          <span className={styles.metaLabel}>Framework</span>
+          <span className={styles.metaValue}>{agent.framework}</span>
+        </div>
+        <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Default model</span>
           <span className={styles.metaValue}>{agent.defaultModel || "-"}</span>
         </div>
@@ -154,6 +158,28 @@ export default function AgentsWorkspace() {
           <p className="kicker">
             Discover repository-local plugins, publish runnable snapshots, and keep invalid agents out of Playground.
           </p>
+          <div className="page-tag-list">
+            <span className="page-tag">
+              Discovered <strong>{agents.length}</strong>
+            </span>
+            <span className="page-tag">
+              Ready to run <strong>{groups[0].items.length}</strong>
+            </span>
+            <span className="page-tag">
+              Needs review <strong>{groups[2].items.length}</strong>
+            </span>
+          </div>
+        </div>
+        <div className="page-info-grid">
+          <div className="page-info-item">
+            <span className="page-info-label">Publishing status</span>
+            <span className="page-info-value">
+              {groups[0].items.length} live / {groups[1].items.length} staged
+            </span>
+            <p className="page-info-detail">
+              Valid draft agents can be published directly into Playground once their runtime surface is ready.
+            </p>
+          </div>
         </div>
       </header>
 
@@ -173,6 +199,7 @@ export default function AgentsWorkspace() {
             <div>
               <p className="surface-kicker">{group.title}</p>
               <h3 className="panel-title">{group.description}</h3>
+              <p className="muted-note">{group.items.length} agents in this section.</p>
             </div>
           </div>
 

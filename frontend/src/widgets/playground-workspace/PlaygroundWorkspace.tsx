@@ -63,17 +63,43 @@ export default function PlaygroundWorkspace({ initialDataset = "", initialAgentI
         <div>
           <p className="page-eyebrow">Manual run</p>
           <h2 className="section-title">Playground</h2>
-          <p className="kicker">Launch a published agent, inspect the output, and jump straight into its run workspace.</p>
+          <p className="kicker">
+            Launch a published agent, inspect the output, and jump straight into its run workspace.
+          </p>
+          <div className="page-tag-list">
+            <span className="page-tag">
+              Published agents <strong>{agents.length}</strong>
+            </span>
+            <span className="page-tag">
+              Datasets <strong>{datasets.length}</strong>
+            </span>
+            <span className="page-tag">
+              Run state <strong>{latestRun?.status ?? "idle"}</strong>
+            </span>
+          </div>
         </div>
-        <div className="toolbar">
-          <Button variant="secondary" onClick={() => setPrompt("Can you create a shipping itinerary?")} disabled={!dataset}>
-            Attach dataset sample
-          </Button>
-          {latestRunId ? (
-            <Button href={`/runs/${latestRunId}`}>
-              Open run workspace <ArrowUpRight size={14} />
+        <div className="page-info-grid">
+          <div className="page-info-item">
+            <span className="page-info-label">Execution target</span>
+            <span className="page-info-value">{selectedAgent?.name ?? "Waiting for a published agent"}</span>
+            <p className="page-info-detail">
+              {dataset ? `Dataset attached: ${dataset}.` : "Prompt-only mode is active until a dataset is selected."}
+            </p>
+          </div>
+          <div className="toolbar">
+            <Button
+              variant="secondary"
+              onClick={() => setPrompt("Can you create a shipping itinerary?")}
+              disabled={!dataset}
+            >
+              Attach dataset sample
             </Button>
-          ) : null}
+            {latestRunId ? (
+              <Button href={`/runs/${latestRunId}`}>
+                Open run workspace <ArrowUpRight size={14} />
+              </Button>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -92,9 +118,14 @@ export default function PlaygroundWorkspace({ initialDataset = "", initialAgentI
             <div>
               <p className="surface-kicker">Run controls</p>
               <h3 className="panel-title">Prompt and published agent settings</h3>
+              <p className="muted-note">
+                Keep agent choice, dataset attachment, and run execution in one continuous working surface.
+              </p>
             </div>
           </div>
-          {agentsQuery.isError ? <Notice>Agent catalog unavailable. Check the API connection and try again.</Notice> : null}
+          {agentsQuery.isError ? (
+            <Notice>Agent catalog unavailable. Check the API connection and try again.</Notice>
+          ) : null}
           {selectedAgent ? (
             <Notice>
               {`${selectedAgent.description} Default model: ${selectedAgent.defaultModel}. Tags: ${
@@ -102,7 +133,9 @@ export default function PlaygroundWorkspace({ initialDataset = "", initialAgentI
               }.`}
             </Notice>
           ) : null}
-          {!dataset ? <Notice>No dataset attached. Playground will run prompt-only until you select one.</Notice> : null}
+          {!dataset ? (
+            <Notice>No dataset attached. Playground will run prompt-only until you select one.</Notice>
+          ) : null}
           <PlaygroundForm
             prompt={prompt}
             agentId={agentId}
@@ -130,6 +163,9 @@ export default function PlaygroundWorkspace({ initialDataset = "", initialAgentI
             <div>
               <p className="surface-kicker">Trace output</p>
               <h3 className="panel-title">Execution output</h3>
+              <p className="muted-note">
+                Stream raw trace feedback beside the run controls so failures are visible immediately.
+              </p>
             </div>
           </div>
           <TraceLogPanel log={log} />

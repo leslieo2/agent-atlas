@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Airplay, Cpu, Shapes } from "lucide-react";
@@ -32,17 +33,34 @@ const navItems = [
 
 export default function WorkbenchShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const activeItem = navItems.find((item) => item.match(pathname)) ?? navItems[0];
 
   return (
     <div className={styles.shell}>
-      <aside className={styles.sidebar}>
+      <motion.aside
+        className={styles.sidebar}
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
         <div className={styles.brand}>
-          <span className={styles.eyebrow}>Execution workbench</span>
+          <div className={styles.brandRow}>
+            <span className={styles.brandBadge}>AFR</span>
+            <span className={styles.eyebrow}>Execution workbench</span>
+          </div>
           <h1>Agent Flight Recorder</h1>
-          <p>Discover agents, run them, inspect trajectories, and export trace artifacts from one place.</p>
+          <p>
+            Operate discovery, execution, trajectory review, and artifact export from a single local-first workspace.
+          </p>
         </div>
 
-        <nav className={styles.nav} aria-label="Primary">
+        <motion.nav
+          className={styles.nav}
+          aria-label="Primary"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.08, ease: "easeOut" }}
+        >
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = item.match(pathname);
@@ -61,10 +79,24 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
-        </nav>
+        </motion.nav>
 
-      </aside>
-      <main className={styles.content}>{children}</main>
+        <div className={styles.sidebarFooter}>
+          <div className={styles.focusCard}>
+            <span className={styles.focusLabel}>Current workspace</span>
+            <strong>{activeItem.label}</strong>
+            <p>{activeItem.description}</p>
+          </div>
+        </div>
+      </motion.aside>
+      <motion.main
+        className={styles.content}
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }}
+      >
+        {children}
+      </motion.main>
     </div>
   );
 }

@@ -4,20 +4,24 @@
   justify-content: center;
   gap: 8px;
   border-radius: 999px;
-  padding: 10px 15px;
-  border: 1px solid rgba(91, 192, 255, 0.22);
-  background: linear-gradient(180deg, rgba(91, 192, 255, 0.18), rgba(91, 192, 255, 0.08));
+  padding: 10px 16px;
+  border: 1px solid rgba(117, 218, 255, 0.24);
+  background: linear-gradient(180deg, rgba(117, 218, 255, 0.22), rgba(50, 184, 239, 0.08));
   color: var(--text);
   cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(50, 184, 239, 0.1);
   transition:
-    transform 120ms ease,
-    border-color 120ms ease,
-    background-color 120ms ease;
+    transform 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .button:hover {
   transform: translateY(-1px);
-  border-color: rgba(91, 192, 255, 0.4);
+  border-color: rgba(117, 218, 255, 0.42);
+  box-shadow: 0 16px 30px rgba(50, 184, 239, 0.16);
 }
 
 .button:disabled {
@@ -30,5 +34,5 @@
 .ghost {
   background: rgba(255, 255, 255, 0.03);
   border-color: var(--border-subtle);
+  box-shadow: none;
 }
-

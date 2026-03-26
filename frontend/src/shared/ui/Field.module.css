@@ -1,6 +1,6 @@
 .field {
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 
 .wide {
@@ -9,8 +9,8 @@
 
 .label {
   color: var(--text-faint);
-  font-size: 0.78rem;
-  letter-spacing: 0.05em;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-

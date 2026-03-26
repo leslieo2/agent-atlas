@@ -1,20 +1,29 @@
 .group {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .cards {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .card {
   display: grid;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: rgba(8, 13, 24, 0.74);
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(158, 189, 226, 0.12);
+  border-radius: 22px;
+  background: radial-gradient(circle at top right, rgba(117, 218, 255, 0.06), transparent 28%), rgba(6, 11, 20, 0.72);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(117, 218, 255, 0.22);
 }
 
 .cardHeader {
@@ -31,8 +40,8 @@
 
 .meta {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 16px;
 }
 
 .metaItem {
@@ -43,7 +52,8 @@
 .metaLabel {
   color: var(--text-faint);
   font-size: 0.74rem;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -68,7 +78,17 @@
   gap: 10px;
 }
 
+@media (max-width: 1180px) {
+  .meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
+  .cardHeader {
+    flex-direction: column;
+  }
+
   .meta {
     grid-template-columns: minmax(0, 1fr);
   }

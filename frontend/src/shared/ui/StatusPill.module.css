@@ -3,23 +3,23 @@
   align-items: center;
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
-  background: rgba(11, 18, 33, 0.92);
-  padding: 5px 9px;
-  font-size: 0.78rem;
+  background: rgba(9, 16, 29, 0.96);
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
 }
 
 .success {
-  border-color: rgba(110, 231, 183, 0.28);
+  border-color: rgba(121, 236, 180, 0.3);
   color: var(--success);
 }
 
 .warn {
-  border-color: rgba(245, 196, 100, 0.32);
+  border-color: rgba(244, 202, 114, 0.34);
   color: var(--warning);
 }
 
 .error {
-  border-color: rgba(255, 122, 135, 0.32);
+  border-color: rgba(255, 135, 144, 0.34);
   color: var(--danger);
 }
-
