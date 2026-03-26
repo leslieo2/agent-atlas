@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Airplay, Cpu } from "lucide-react";
+import { Airplay, Cpu, Shapes } from "lucide-react";
 import type { ReactNode } from "react";
 import styles from "./WorkbenchShell.module.css";
 
@@ -13,6 +13,13 @@ const navItems = [
     description: "Search executions, inspect status, and launch new work.",
     icon: Airplay,
     match: (pathname: string) => pathname === "/runs" || pathname.startsWith("/runs/")
+  },
+  {
+    href: "/agents",
+    label: "Agents",
+    description: "Discover plugins, publish runnable snapshots, and inspect validation state.",
+    icon: Shapes,
+    match: (pathname: string) => pathname.startsWith("/agents")
   },
   {
     href: "/playground",

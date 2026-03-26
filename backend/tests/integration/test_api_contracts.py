@@ -3,6 +3,12 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.bootstrap.container import get_container
+from app.modules.agents.domain.models import (
+    AgentManifest,
+    AgentValidationIssue,
+    AgentValidationStatus,
+    DiscoveredAgent,
+)
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import RunStatus
 
@@ -11,7 +17,7 @@ def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client, worker
     container = get_container()
     monkeypatch.setattr(
         container.model_runtime,
-        "execute_registered",
+        "execute_published",
         lambda *_args, **_kwargs: RuntimeExecutionResult(
             output="mocked integration output",
             latency_ms=1,
@@ -98,7 +104,8 @@ def test_trace_ingest_and_normalize_endpoints(client):
     assert trajectory[0]["step_type"] == "tool"
     assert trajectory[0]["tool_name"] == "mcp"
 
-def test_agents_list_available_registered_agents(client):
+
+def test_agents_list_available_published_agents(client):
     response = client.get("/api/v1/agents")
 
     assert response.status_code == 200
@@ -107,3 +114,109 @@ def test_agents_list_available_registered_agents(client):
         "customer_service",
         "tools",
     }
+
+
+def test_agents_discovered_publish_and_unpublish_flow(client):
+    container = get_container()
+    assert container.agent_publication_commands.unpublish("tools") is True
+
+    discovered = client.get("/api/v1/agents/discovered")
+    assert discovered.status_code == 200
+    by_id = {agent["agent_id"]: agent for agent in discovered.json()}
+    assert by_id["tools"]["publish_state"] == "draft"
+    assert by_id["tools"]["validation_status"] == "valid"
+
+    publish = client.post("/api/v1/agents/tools/publish")
+    assert publish.status_code == 200
+    assert publish.json()["agent_id"] == "tools"
+    assert publish.json()["entrypoint"] == "app.agent_plugins.tools:build_agent"
+
+    runnable_after_publish = client.get("/api/v1/agents")
+    assert runnable_after_publish.status_code == 200
+    assert "tools" in {agent["agent_id"] for agent in runnable_after_publish.json()}
+
+    unpublish = client.post("/api/v1/agents/tools/unpublish")
+    assert unpublish.status_code == 200
+    assert unpublish.json() == {"agent_id": "tools", "published": False}
+
+    runnable_after_unpublish = client.get("/api/v1/agents")
+    assert runnable_after_unpublish.status_code == 200
+    assert "tools" not in {agent["agent_id"] for agent in runnable_after_unpublish.json()}
+
+
+def test_runs_reject_unpublished_agent(client):
+    container = get_container()
+    assert container.agent_publication_commands.unpublish("basic") is True
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "project": "integration",
+            "agent_id": "basic",
+            "input_summary": "should fail",
+            "prompt": "Do not run.",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": {
+            "code": "agent_not_published",
+            "message": "agent_id 'basic' is not published",
+            "agent_id": "basic",
+        }
+    }
+
+
+def test_published_invalid_agent_disappears_from_runnable_catalog(monkeypatch, client):
+    container = get_container()
+
+    monkeypatch.setattr(
+        container.agent_discovery,
+        "list_agents",
+        lambda: [
+            DiscoveredAgent(
+                manifest=AgentManifest(
+                    agent_id="basic",
+                    name="Basic",
+                    description="Broken plugin",
+                    default_model="gpt-4.1-mini",
+                    tags=["example", "smoke"],
+                ),
+                entrypoint="app.agent_plugins.basic:build_agent",
+                validation_status=AgentValidationStatus.INVALID,
+                validation_issues=[
+                    AgentValidationIssue(
+                        code="build_agent_failed",
+                        message="entrypoint validation failed",
+                    )
+                ],
+            )
+        ],
+    )
+
+    runnable = client.get("/api/v1/agents")
+    assert runnable.status_code == 200
+    assert runnable.json() == []
+
+    discovered = client.get("/api/v1/agents/discovered")
+    assert discovered.status_code == 200
+    assert discovered.json() == [
+        {
+            "agent_id": "basic",
+            "name": "Basic",
+            "description": "Broken plugin",
+            "framework": "openai-agents-sdk",
+            "entrypoint": "app.agent_plugins.basic:build_agent",
+            "default_model": "gpt-4.1-mini",
+            "tags": ["example", "smoke"],
+            "publish_state": "published",
+            "validation_status": "invalid",
+            "validation_issues": [
+                {
+                    "code": "build_agent_failed",
+                    "message": "entrypoint validation failed",
+                }
+            ],
+        }
+    ]

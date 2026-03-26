@@ -40,8 +40,8 @@ class RunnerRegistryPort(Protocol):
     def get_runner(self, agent_type: AdapterKind) -> RunnerPort: ...
 
 
-class RegisteredRunRuntimePort(Protocol):
-    def execute_registered(
+class PublishedRunRuntimePort(Protocol):
+    def execute_published(
         self,
         run_id: UUID,
         payload: RunSpec,

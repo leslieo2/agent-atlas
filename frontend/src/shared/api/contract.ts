@@ -10,7 +10,18 @@ export interface AgentDescriptorResponse {
   "entrypoint": string;
   "default_model": string;
   "tags": Array<string>;
+  "published_at": string;
 }
+export interface AgentPublicationResponse {
+  "agent_id": string;
+  "published": boolean;
+}
+export type AgentPublishState = "draft" | "published";
+export interface AgentValidationIssueResponse {
+  "code": string;
+  "message": string;
+}
+export type AgentValidationStatus = "valid" | "invalid";
 export interface ArtifactExportRequest {
   "run_ids": Array<string>;
   "format"?: ArtifactFormat;
@@ -37,6 +48,18 @@ export interface DatasetSample {
   "input": string;
   "expected"?: string | null;
   "tags"?: Array<string>;
+}
+export interface DiscoveredAgentResponse {
+  "agent_id": string;
+  "name": string;
+  "description": string;
+  "framework": string;
+  "entrypoint": string;
+  "default_model": string;
+  "tags": Array<string>;
+  "publish_state": AgentPublishState;
+  "validation_status": AgentValidationStatus;
+  "validation_issues": Array<AgentValidationIssueResponse>;
 }
 export interface HTTPValidationError {
   "detail"?: Array<ValidationError>;

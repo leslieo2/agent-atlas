@@ -14,4 +14,5 @@ class StateDatasetRepository:
     def save(self, dataset: Dataset) -> None:
         persistence.save_dataset(dataset)
 
+
 __all__ = ["StateDatasetRepository"]

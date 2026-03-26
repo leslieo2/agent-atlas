@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID
 
 from app.core.config import settings
+from app.modules.agents.domain.models import PublishedAgent
 from app.modules.artifacts.domain.models import ArtifactMetadata
 from app.modules.datasets.domain.models import Dataset
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
@@ -37,6 +38,16 @@ _PAYLOAD_STATEMENTS: dict[tuple[str, str], tuple[str, str]] = {
     ): (
         "INSERT OR REPLACE INTO artifacts (artifact_id, payload, updated_at) VALUES (?, ?, ?)",
         "SELECT payload FROM artifacts WHERE artifact_id = ?",
+    ),
+    (
+        "published_agents",
+        "agent_id",
+    ): (
+        (
+            "INSERT OR REPLACE INTO published_agents (agent_id, payload, updated_at) "
+            "VALUES (?, ?, ?)"
+        ),
+        "SELECT payload FROM published_agents WHERE agent_id = ?",
     ),
 }
 
@@ -123,6 +134,11 @@ class StatePersistence:
                     payload TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS published_agents (
+                    agent_id TEXT PRIMARY KEY,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
 
                 CREATE TABLE IF NOT EXISTS tasks (
                     task_id TEXT PRIMARY KEY,
@@ -190,6 +206,38 @@ class StatePersistence:
     def list_runs(self) -> list[RunRecord]:
         payloads = self._fetch_payloads("SELECT payload FROM runs ORDER BY updated_at DESC")
         return [RunRecord.model_validate(json.loads(payload)) for payload in payloads]
+
+    def save_published_agent(self, agent: PublishedAgent) -> None:
+        self._upsert(
+            "published_agents",
+            "agent_id",
+            agent.agent_id,
+            serialize_model(agent),
+            datetime.now(UTC).isoformat(),
+        )
+
+    def get_published_agent(self, agent_id: str) -> PublishedAgent | None:
+        payload = self._fetch_payload("published_agents", "agent_id", agent_id)
+        if payload is None:
+            return None
+        return PublishedAgent.model_validate(json.loads(payload))
+
+    def list_published_agents(self) -> list[PublishedAgent]:
+        payloads = self._fetch_payloads(
+            "SELECT payload FROM published_agents ORDER BY updated_at DESC"
+        )
+        return [PublishedAgent.model_validate(json.loads(payload)) for payload in payloads]
+
+    def delete_published_agent(self, agent_id: str) -> bool:
+        if not self.conn:
+            return False
+        with self._lock:
+            cursor = self.conn.execute(
+                "DELETE FROM published_agents WHERE agent_id = ?",
+                (agent_id,),
+            )
+            self.conn.commit()
+        return bool(cursor.rowcount)
 
     def save_trajectory_step(self, step: TrajectoryStep, position: int) -> None:
         if not self.conn:
@@ -486,6 +534,7 @@ class StatePersistence:
             DELETE FROM runs;
             DELETE FROM datasets;
             DELETE FROM artifacts;
+            DELETE FROM published_agents;
             DELETE FROM tasks;
             """
         )
@@ -570,6 +619,7 @@ class StatePersistence:
                 DELETE FROM runs;
                 DELETE FROM datasets;
                 DELETE FROM artifacts;
+                DELETE FROM published_agents;
                 """
             )
             self.conn.commit()

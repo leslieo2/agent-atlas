@@ -70,9 +70,10 @@ def test_adapter_normalize_span_payload():
 
 def test_run_commands_can_force_success(monkeypatch, worker_drain):
     container = get_container()
+    container.agent_publication_commands.publish("basic")
     monkeypatch.setattr(
         container.model_runtime,
-        "execute_registered",
+        "execute_published",
         lambda *_args, **_kwargs: RuntimeExecutionResult(
             output="mocked unit output",
             latency_ms=1,
@@ -102,6 +103,7 @@ def test_run_commands_can_force_success(monkeypatch, worker_drain):
     assert [step.id for step in trajectory] == [span.span_id for span in traces]
     assert container.run_queries.get_run(run.run_id).status == RunStatus.SUCCEEDED
     assert container.run_queries.get_run(run.run_id).agent_id == "basic"
+
 
 def test_artifact_commands_jsonl_output(tmp_path):
     container = get_container()

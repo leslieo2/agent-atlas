@@ -8,7 +8,7 @@ def test_end_to_end_workbench_flow(monkeypatch, client, worker_drain):
     container = get_container()
     monkeypatch.setattr(
         container.model_runtime,
-        "execute_registered",
+        "execute_published",
         lambda *_args, **_kwargs: RuntimeExecutionResult(
             output="mocked e2e output",
             latency_ms=1,

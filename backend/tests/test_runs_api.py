@@ -69,10 +69,16 @@ def test_create_run_and_get_by_id(client):
     assert got.json()["agent_id"] == "basic"
     assert got.json()["status"] == RunStatus.QUEUED.value
     assert got.json()["project_metadata"]["agent_snapshot"] == {
-        "entrypoint": "app.registered_agents.basic:build_agent",
-        "framework": "openai-agents-sdk",
-        "default_model": "gpt-4.1-mini",
-        "registry_tags": ["example", "smoke"],
+        "manifest": {
+            "agent_id": "basic",
+            "name": "Basic",
+            "description": "Minimal plugin agent for smoke testing the SDK execution path.",
+            "framework": "openai-agents-sdk",
+            "default_model": "gpt-4.1-mini",
+            "tags": ["example", "smoke"],
+        },
+        "entrypoint": "app.agent_plugins.basic:build_agent",
+        "published_at": got.json()["project_metadata"]["agent_snapshot"]["published_at"],
     }
 
 
@@ -143,8 +149,8 @@ def test_create_run_with_unknown_agent_returns_structured_400(client):
     assert response.status_code == 400
     assert response.json() == {
         "detail": {
-            "code": "agent_not_registered",
-            "message": "agent_id 'unknown-agent' is not registered",
+            "code": "agent_not_published",
+            "message": "agent_id 'unknown-agent' is not published",
             "agent_id": "unknown-agent",
         }
     }

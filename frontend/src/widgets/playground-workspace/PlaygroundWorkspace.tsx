@@ -15,18 +15,19 @@ import { Panel } from "@/src/shared/ui/Panel";
 
 type Props = {
   initialDataset?: string;
+  initialAgentId?: string;
 };
 
-export default function PlaygroundWorkspace({ initialDataset = "" }: Props) {
+export default function PlaygroundWorkspace({ initialDataset = "", initialAgentId = "" }: Props) {
   const agentsQuery = useAgentsQuery();
   const datasetsQuery = useDatasetsQuery();
   const runsQuery = useRunsQuery();
   const [prompt, setPrompt] = useState("Draft a concise customer response for delayed shipping.");
-  const [agentId, setAgentId] = useState("");
+  const [agentId, setAgentId] = useState(initialAgentId);
   const [dataset, setDataset] = useState(initialDataset);
   const [latestRunId, setLatestRunId] = useState("");
   const [log, setLog] = useState("trace: waiting for manual run...\n");
-  const agents = agentsQuery.data ?? [];
+  const agents = useMemo(() => agentsQuery.data ?? [], [agentsQuery.data]);
   const selectedAgent = agents.find((item) => item.agentId === agentId) ?? agents[0] ?? null;
   const datasets = useMemo(() => datasetsQuery.data?.map((item) => item.name) ?? [], [datasetsQuery.data]);
 
@@ -58,7 +59,7 @@ export default function PlaygroundWorkspace({ initialDataset = "" }: Props) {
         <div>
           <p className="page-eyebrow">Manual run</p>
           <h2 className="section-title">Playground</h2>
-          <p className="kicker">Launch a registered agent, inspect the output, and jump straight into its run workspace.</p>
+          <p className="kicker">Launch a published agent, inspect the output, and jump straight into its run workspace.</p>
         </div>
         <div className="toolbar">
           <Button variant="secondary" onClick={() => setPrompt("Can you create a shipping itinerary?")} disabled={!dataset}>
@@ -86,7 +87,7 @@ export default function PlaygroundWorkspace({ initialDataset = "" }: Props) {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">Run controls</p>
-              <h3 className="panel-title">Prompt and registered agent settings</h3>
+              <h3 className="panel-title">Prompt and published agent settings</h3>
             </div>
           </div>
           {agentsQuery.isError ? <Notice>Agent catalog unavailable. Check the API connection and try again.</Notice> : null}

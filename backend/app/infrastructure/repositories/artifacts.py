@@ -16,4 +16,5 @@ class StateArtifactRepository:
     def save(self, artifact: ArtifactMetadata) -> None:
         persistence.save_artifact(artifact)
 
+
 __all__ = ["StateArtifactRepository"]

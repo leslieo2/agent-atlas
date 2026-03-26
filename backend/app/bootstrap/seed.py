@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from uuid import UUID
 
 from app.bootstrap.container import AppContainer, get_container
+from app.core.errors import AgentValidationFailedError
 from app.modules.datasets.domain.models import Dataset, DatasetSample
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
@@ -12,6 +14,16 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
     container = container or get_container()
     if container.dataset_queries.list():
         return
+
+    for agent_id in ("basic", "customer_service", "tools"):
+        with suppress(AgentValidationFailedError):
+            container.agent_publication_commands.publish(agent_id)
+
+    def _agent_snapshot(agent_id: str) -> dict[str, object]:
+        published = container.published_agent_repository.get_agent(agent_id)
+        if published is None:
+            return {}
+        return {"agent_snapshot": published.model_dump(mode="json")}
 
     seeded_runs = [
         RunRecord(
@@ -27,6 +39,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             model="gpt-4.1-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["example", "support"],
+            project_metadata=_agent_snapshot("customer_service"),
         ),
         RunRecord(
             run_id=UUID("a6f3f2a1-2222-4f8d-9999-111111111111"),
@@ -41,6 +54,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             model="gpt-5-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["example", "support"],
+            project_metadata=_agent_snapshot("customer_service"),
         ),
         RunRecord(
             run_id=UUID("a6f3f2a1-3333-4f8d-9999-111111111111"),
@@ -55,6 +69,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             model="gpt-4.1",
             agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["example", "smoke"],
+            project_metadata=_agent_snapshot("basic"),
         ),
         RunRecord(
             run_id=UUID("a6f3f2a1-4444-4f8d-9999-111111111111"),
@@ -69,6 +84,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             model="gpt-4.1-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["example", "tools"],
+            project_metadata=_agent_snapshot("tools"),
         ),
     ]
     seeded_steps = {

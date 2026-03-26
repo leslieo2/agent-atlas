@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from agents import Agent, RunContextWrapper, function_tool
 
-from app.registered_agents.context import RegisteredAgentBuildContext
+from app.modules.agents.domain.models import AgentBuildContext, AgentManifest
+
+AGENT_MANIFEST = AgentManifest(
+    agent_id="tools",
+    name="Tools",
+    description="Example agent with local function tools for exercising plugin tool execution.",
+    default_model="gpt-4.1-mini",
+    tags=["example", "tools"],
+)
 
 
 @function_tool
 def lookup_shipping_window(
-    wrapper: RunContextWrapper[RegisteredAgentBuildContext],
+    wrapper: RunContextWrapper[AgentBuildContext],
     order_reference: str,
 ) -> str:
     dataset = wrapper.context.dataset or "prompt-only"
@@ -18,7 +26,7 @@ def lookup_shipping_window(
     )
 
 
-def build_agent(context: RegisteredAgentBuildContext) -> Agent[RegisteredAgentBuildContext]:
+def build_agent(context: AgentBuildContext) -> Agent[AgentBuildContext]:
     del context
     return Agent(
         name="Tools Agent",

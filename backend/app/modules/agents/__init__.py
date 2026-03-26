@@ -1,1 +1,1 @@
-"""Registered agents module."""
+"""Agent discovery and publication module."""

@@ -10,17 +10,17 @@ from pydantic import SecretStr
 
 from app.core.config import RuntimeMode, settings
 from app.core.errors import (
-    AgentNotRegisteredError,
+    AgentLoadFailedError,
     ModelNotFoundError,
     ProviderAuthError,
     ProviderTimeoutError,
     RateLimitedError,
     UnsupportedAdapterError,
 )
-from app.infrastructure.repositories.agents import StateAgentCatalog
+from app.infrastructure.adapters.agents import PublishedOpenAIAgentLoader
+from app.modules.agents.domain.models import AgentBuildContext, PublishedAgent
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
-from app.registered_agents.context import RegisteredAgentBuildContext
 
 
 class RuntimeAdapter(Protocol):
@@ -296,38 +296,38 @@ class OpenAIAgentsSdkAdapter:
         )
 
 
-class RegisteredOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
-    def __init__(self, agent_catalog: StateAgentCatalog) -> None:
-        self.agent_catalog = agent_catalog
+class PublishedOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
+    def __init__(self, agent_loader: PublishedOpenAIAgentLoader) -> None:
+        self.agent_loader = agent_loader
 
-    def execute_registered(
+    def execute_published(
         self,
         *,
         api_key: SecretStr | None,
         payload: RunSpec,
-        context: RegisteredAgentBuildContext,
+        context: AgentBuildContext,
     ) -> RuntimeExecutionResult:
         try:
             from agents import OpenAIProvider, RunConfig
         except ImportError as exc:
             raise RuntimeError("OpenAI Agents SDK package 'agents' is not installed") from exc
 
-        descriptor = self.agent_catalog.get_agent(payload.agent_id)
-        if descriptor is None:
-            raise AgentNotRegisteredError(payload.agent_id)
-
-        agent = self.agent_catalog.build_agent(payload.agent_id, context=context)
+        published_agent = self._published_agent_from_payload(payload)
+        agent = self.agent_loader.build_agent(
+            published_agent=published_agent,
+            context=context,
+        )
         run_config = RunConfig(
-            model=descriptor.default_model,
+            model=published_agent.default_model,
             model_provider=OpenAIProvider(
                 api_key=api_key.get_secret_value() if api_key is not None else None,
             ),
-            workflow_name=descriptor.name,
+            workflow_name=published_agent.name,
             group_id=str(payload.project),
             trace_metadata={
                 "run_id": str(context.run_id),
                 "agent_id": payload.agent_id,
-                "framework": descriptor.framework,
+                "framework": published_agent.framework,
             },
         )
         started = time.perf_counter()
@@ -342,7 +342,7 @@ class RegisteredOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
             latency_ms=latency_ms,
             token_usage=_usage_total_tokens(usage),
             provider="openai-agents-sdk",
-            resolved_model=resolved_model or descriptor.default_model,
+            resolved_model=resolved_model or published_agent.default_model,
         )
 
     @staticmethod
@@ -355,6 +355,17 @@ class RegisteredOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
             if isinstance(candidate, str) and candidate.strip():
                 return candidate.strip()
         return None
+
+    @staticmethod
+    def _published_agent_from_payload(payload: RunSpec) -> PublishedAgent:
+        snapshot = payload.project_metadata.get("agent_snapshot")
+        try:
+            return PublishedAgent.model_validate(snapshot)
+        except Exception as exc:
+            raise AgentLoadFailedError(
+                "run payload is missing a valid published agent snapshot",
+                agent_id=payload.agent_id,
+            ) from exc
 
 
 class LangChainRuntimeAdapter:
@@ -384,12 +395,12 @@ class ModelRuntimeService:
     def __init__(
         self,
         adapters: Mapping[AdapterKind, RuntimeAdapter] | None = None,
-        registered_adapter: RegisteredOpenAIAgentAdapter | None = None,
+        published_adapter: PublishedOpenAIAgentAdapter | None = None,
     ) -> None:
         self.api_key = settings.openai_api_key
         self.runtime_mode = settings.runtime_mode
         self.adapters = dict(adapters or self._default_adapters())
-        self.registered_adapter = registered_adapter
+        self.published_adapter = published_adapter
 
     def _effective_runtime_mode(self) -> RuntimeMode:
         if self.runtime_mode == RuntimeMode.MOCK:
@@ -423,7 +434,7 @@ class ModelRuntimeService:
             fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
             return fallback
 
-    def execute_registered(self, run_id: Any, payload: RunSpec) -> RuntimeExecutionResult:
+    def execute_published(self, run_id: Any, payload: RunSpec) -> RuntimeExecutionResult:
         effective_mode = self._effective_runtime_mode()
         if effective_mode == RuntimeMode.MOCK:
             fallback = self._simulate_output(payload.agent_type, payload.model, payload.prompt)
@@ -432,9 +443,9 @@ class ModelRuntimeService:
         try:
             if not self.api_key:
                 raise RuntimeError("OPENAI_API_KEY is not set")
-            if self.registered_adapter is None:
-                raise RuntimeError("registered runtime is not configured")
-            context = RegisteredAgentBuildContext(
+            if self.published_adapter is None:
+                raise RuntimeError("published runtime is not configured")
+            context = AgentBuildContext(
                 run_id=run_id,
                 project=payload.project,
                 dataset=payload.dataset,
@@ -442,7 +453,7 @@ class ModelRuntimeService:
                 tags=payload.tags,
                 project_metadata=payload.project_metadata,
             )
-            return self.registered_adapter.execute_registered(
+            return self.published_adapter.execute_published(
                 api_key=self.api_key,
                 payload=payload,
                 context=context,

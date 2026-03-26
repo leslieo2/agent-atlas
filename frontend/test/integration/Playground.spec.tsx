@@ -68,7 +68,7 @@ describe("Playground integration", () => {
         name: "Basic",
         description: "Minimal smoke agent.",
         framework: "openai-agents-sdk",
-        entrypoint: "app.registered_agents.basic:build_agent",
+        entrypoint: "app.agent_plugins.basic:build_agent",
         defaultModel: "gpt-4.1-mini",
         tags: ["example", "smoke"]
       },
@@ -77,7 +77,7 @@ describe("Playground integration", () => {
         name: "Customer Service",
         description: "Support agent.",
         framework: "openai-agents-sdk",
-        entrypoint: "app.registered_agents.customer_service:build_agent",
+        entrypoint: "app.agent_plugins.customer_service:build_agent",
         defaultModel: "gpt-4.1-mini",
         tags: ["example", "support"]
       }

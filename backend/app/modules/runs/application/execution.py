@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.modules.runs.application.ports import (
-    RegisteredRunRuntimePort,
+    PublishedRunRuntimePort,
     RunRepository,
     TraceIngestionPort,
 )
@@ -156,13 +156,13 @@ class RunExecutionService:
     def __init__(
         self,
         run_repository: RunRepository,
-        registered_runtime: RegisteredRunRuntimePort,
+        published_runtime: PublishedRunRuntimePort,
         trace_ingestor: TraceIngestionPort,
         projector: RunExecutionProjector | None = None,
         recorder: ExecutionRecorder | None = None,
     ) -> None:
         self.run_repository = run_repository
-        self.registered_runtime = registered_runtime
+        self.published_runtime = published_runtime
         self.projector = projector or RunExecutionProjector()
         self.recorder = recorder or ExecutionRecorder(
             run_repository=run_repository,
@@ -176,7 +176,7 @@ class RunExecutionService:
         context = RunExecutionContext.from_spec(run_id, payload)
 
         try:
-            result = self.registered_runtime.execute_registered(run_id, payload)
+            result = self.published_runtime.execute_published(run_id, payload)
             self._update_run_model(run_id, result.resolved_model)
             self.recorder.record(run_id, self.projector.project_runtime_success(context, result))
             self._set_status(run_id, RunStatus.SUCCEEDED)

@@ -47,13 +47,25 @@ class UnsupportedAdapterError(AppError, ValueError):
     status_code = 400
 
 
-class AgentNotRegisteredError(AppError, ValueError):
-    code = "agent_not_registered"
+class AgentNotPublishedError(AppError, ValueError):
+    code = "agent_not_published"
     status_code = 400
 
     def __init__(self, agent_id: str) -> None:
         self.agent_id = agent_id
-        super().__init__(f"agent_id '{agent_id}' is not registered", agent_id=agent_id)
+        super().__init__(f"agent_id '{agent_id}' is not published", agent_id=agent_id)
+
+
+class AgentValidationFailedError(AppError, ValueError):
+    code = "agent_validation_failed"
+    status_code = 400
+
+    def __init__(self, agent_id: str, message: str | None = None) -> None:
+        self.agent_id = agent_id
+        super().__init__(
+            message or f"agent_id '{agent_id}' failed contract validation",
+            agent_id=agent_id,
+        )
 
 
 class AgentLoadFailedError(AppError):

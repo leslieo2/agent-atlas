@@ -3,10 +3,17 @@ from __future__ import annotations
 from functools import lru_cache
 
 from app.bootstrap.worker import AppWorker
+from app.infrastructure.adapters.agents import (
+    FilesystemAgentDiscovery,
+    FilesystemAgentSourceCatalog,
+    OpenAIAgentContractValidator,
+    PublishedOpenAIAgentLoader,
+    StateRunnableAgentCatalog,
+)
 from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
 from app.infrastructure.adapters.model_runtime import (
     ModelRuntimeService,
-    RegisteredOpenAIAgentAdapter,
+    PublishedOpenAIAgentAdapter,
 )
 from app.infrastructure.adapters.runner import (
     FallbackRunnerAdapter,
@@ -15,15 +22,19 @@ from app.infrastructure.adapters.runner import (
 from app.infrastructure.adapters.tasks import StateTaskQueue
 from app.infrastructure.adapters.traces import DefaultTraceProjector
 from app.infrastructure.repositories import (
-    StateAgentCatalog,
     StateArtifactRepository,
     StateDatasetRepository,
+    StatePublishedAgentRepository,
     StateRunRepository,
     StateSystemStatus,
     StateTraceRepository,
     StateTrajectoryRepository,
 )
-from app.modules.agents.application.use_cases import AgentQueries
+from app.modules.agents.application.use_cases import (
+    AgentCatalogQueries,
+    AgentDiscoveryQueries,
+    AgentPublicationCommands,
+)
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
 from app.modules.health.application.use_cases import HealthQueries
@@ -43,11 +54,22 @@ class AppContainer:
         self.trace_repository = StateTraceRepository()
         self.dataset_repository = StateDatasetRepository()
         self.artifact_repository = StateArtifactRepository()
-        self.agent_catalog = StateAgentCatalog()
+        self.agent_source_catalog = FilesystemAgentSourceCatalog()
+        self.agent_validator = OpenAIAgentContractValidator()
+        self.agent_discovery = FilesystemAgentDiscovery(
+            source_catalog=self.agent_source_catalog,
+            validator=self.agent_validator,
+        )
+        self.published_agent_repository = StatePublishedAgentRepository()
+        self.runnable_agent_catalog = StateRunnableAgentCatalog(
+            discovery=self.agent_discovery,
+            published_agents=self.published_agent_repository,
+        )
         self.system_status = StateSystemStatus()
         self.task_queue = StateTaskQueue()
+        self.published_agent_loader = PublishedOpenAIAgentLoader(validator=self.agent_validator)
         self.model_runtime = ModelRuntimeService(
-            registered_adapter=RegisteredOpenAIAgentAdapter(agent_catalog=self.agent_catalog)
+            published_adapter=PublishedOpenAIAgentAdapter(agent_loader=self.published_agent_loader)
         )
         self.runner = FallbackRunnerAdapter(runtime_service=self.model_runtime)
         self.runner_registry = StaticRunnerRegistry(default_runner=self.runner)
@@ -68,7 +90,7 @@ class AppContainer:
 
         run_execution_service = RunExecutionService(
             run_repository=self.run_repository,
-            registered_runtime=self.model_runtime,
+            published_runtime=self.model_runtime,
             trace_ingestor=self.trace_commands,
         )
 
@@ -80,13 +102,23 @@ class AppContainer:
         self.run_commands = RunCommands(
             run_repository=self.run_repository,
             task_queue=self.task_queue,
-            agent_catalog=self.agent_catalog,
+            agent_catalog=self.runnable_agent_catalog,
         )
         self.dataset_queries = DatasetQueries(dataset_repository=self.dataset_repository)
         self.dataset_commands = DatasetCommands(dataset_repository=self.dataset_repository)
         self.artifact_queries = ArtifactQueries(artifact_repository=self.artifact_repository)
         self.artifact_commands = ArtifactCommands(artifact_exporter=self.artifact_exporter)
-        self.agent_queries = AgentQueries(agent_catalog=self.agent_catalog)
+        self.agent_catalog_queries = AgentCatalogQueries(
+            runnable_catalog=self.runnable_agent_catalog
+        )
+        self.agent_discovery_queries = AgentDiscoveryQueries(
+            discovery=self.agent_discovery,
+            published_agents=self.published_agent_repository,
+        )
+        self.agent_publication_commands = AgentPublicationCommands(
+            discovery=self.agent_discovery,
+            published_agents=self.published_agent_repository,
+        )
         self.health_queries = HealthQueries(system_status=self.system_status)
         self.app_worker = AppWorker(
             task_queue=self.task_queue,
@@ -123,8 +155,16 @@ def get_artifact_commands() -> ArtifactCommands:
     return get_container().artifact_commands
 
 
-def get_agent_queries() -> AgentQueries:
-    return get_container().agent_queries
+def get_agent_catalog_queries() -> AgentCatalogQueries:
+    return get_container().agent_catalog_queries
+
+
+def get_agent_discovery_queries() -> AgentDiscoveryQueries:
+    return get_container().agent_discovery_queries
+
+
+def get_agent_publication_commands() -> AgentPublicationCommands:
+    return get_container().agent_publication_commands
 
 
 def get_trace_commands() -> TraceCommands:

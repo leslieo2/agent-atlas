@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from app.core.errors import AgentNotRegisteredError
-from app.modules.agents.application.ports import AgentCatalogPort
+from app.core.errors import AgentNotPublishedError
+from app.modules.agents.application.ports import RunnableAgentCatalogPort
 from app.modules.runs.application.ports import (
     RunRepository,
     TrajectoryRepository,
@@ -81,7 +81,7 @@ class RunCommands:
         self,
         run_repository: RunRepository,
         task_queue: TaskQueuePort,
-        agent_catalog: AgentCatalogPort,
+        agent_catalog: RunnableAgentCatalogPort,
     ) -> None:
         self.run_repository = run_repository
         self.task_queue = task_queue
@@ -90,7 +90,7 @@ class RunCommands:
     def create_run(self, payload: RunCreateInput) -> RunRecord:
         agent = self.agent_catalog.get_agent(payload.agent_id)
         if agent is None:
-            raise AgentNotRegisteredError(payload.agent_id)
+            raise AgentNotPublishedError(payload.agent_id)
 
         spec = RunSpec(
             project=payload.project,
@@ -103,12 +103,7 @@ class RunCommands:
             tags=payload.tags,
             project_metadata={
                 **payload.project_metadata,
-                "agent_snapshot": {
-                    "entrypoint": agent.entrypoint,
-                    "framework": agent.framework,
-                    "default_model": agent.default_model,
-                    "registry_tags": agent.tags,
-                },
+                "agent_snapshot": agent.model_dump(mode="json"),
             },
         )
 

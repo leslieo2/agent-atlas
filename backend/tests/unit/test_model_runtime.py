@@ -109,7 +109,7 @@ def test_model_runtime_service_raises_clear_error_when_agents_sdk_missing():
         sys.modules.pop("agents", None)
 
 
-def test_model_runtime_service_dispatches_through_registered_adapters():
+def test_model_runtime_service_dispatches_through_runtime_adapters():
     class StubAdapter:
         def __init__(self) -> None:
             self.calls: list[tuple[str, str]] = []
