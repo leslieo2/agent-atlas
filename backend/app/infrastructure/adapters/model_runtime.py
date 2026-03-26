@@ -10,14 +10,17 @@ from pydantic import SecretStr
 
 from app.core.config import RuntimeMode, settings
 from app.core.errors import (
+    AgentNotRegisteredError,
     ModelNotFoundError,
     ProviderAuthError,
     ProviderTimeoutError,
     RateLimitedError,
     UnsupportedAdapterError,
 )
-from app.modules.runs.domain.models import RuntimeExecutionResult
+from app.infrastructure.repositories.agents import StateAgentCatalog
+from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
+from app.registered_agents.context import RegisteredAgentBuildContext
 
 
 class RuntimeAdapter(Protocol):
@@ -205,21 +208,38 @@ class OpenAIAgentsSdkAdapter:
         "Return the best direct answer."
     )
 
-    async def _run_async(self, agent: Any, prompt: str, run_config: Any) -> object:
+    async def _run_async(
+        self,
+        agent: Any,
+        prompt: str,
+        run_config: Any,
+        context: object | None = None,
+    ) -> object:
         from agents import Runner
 
-        return await Runner.run(agent, prompt, run_config=run_config)
+        return await Runner.run(agent, prompt, context=context, run_config=run_config)
 
-    def _run_with_explicit_event_loop(self, agent: Any, prompt: str, run_config: Any) -> object:
+    def _run_with_explicit_event_loop(
+        self,
+        agent: Any,
+        prompt: str,
+        run_config: Any,
+        context: object | None = None,
+    ) -> object:
         from agents import Runner
 
         if not hasattr(Runner, "run"):
-            return Runner.run_sync(agent, prompt, run_config=run_config)
+            if context is None:
+                return Runner.run_sync(agent, prompt, run_config=run_config)
+            try:
+                return Runner.run_sync(agent, prompt, context=context, run_config=run_config)
+            except TypeError:
+                return Runner.run_sync(agent, prompt, run_config=run_config)
 
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            return asyncio.run(self._run_async(agent, prompt, run_config))
+            return asyncio.run(self._run_async(agent, prompt, run_config, context))
 
         result: object | None = None
         error: BaseException | None = None
@@ -227,7 +247,7 @@ class OpenAIAgentsSdkAdapter:
         def runner_target() -> None:
             nonlocal result, error
             try:
-                result = asyncio.run(self._run_async(agent, prompt, run_config))
+                result = asyncio.run(self._run_async(agent, prompt, run_config, context))
             except BaseException as exc:  # pragma: no cover - defensive handoff
                 error = exc
 
@@ -272,7 +292,69 @@ class OpenAIAgentsSdkAdapter:
             latency_ms=latency_ms,
             token_usage=_usage_total_tokens(usage),
             provider="openai-agents-sdk",
+            resolved_model=model,
         )
+
+
+class RegisteredOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
+    def __init__(self, agent_catalog: StateAgentCatalog) -> None:
+        self.agent_catalog = agent_catalog
+
+    def execute_registered(
+        self,
+        *,
+        api_key: SecretStr | None,
+        payload: RunSpec,
+        context: RegisteredAgentBuildContext,
+    ) -> RuntimeExecutionResult:
+        try:
+            from agents import OpenAIProvider, RunConfig
+        except ImportError as exc:
+            raise RuntimeError("OpenAI Agents SDK package 'agents' is not installed") from exc
+
+        descriptor = self.agent_catalog.get_agent(payload.agent_id)
+        if descriptor is None:
+            raise AgentNotRegisteredError(payload.agent_id)
+
+        agent = self.agent_catalog.build_agent(payload.agent_id, context=context)
+        run_config = RunConfig(
+            model=descriptor.default_model,
+            model_provider=OpenAIProvider(
+                api_key=api_key.get_secret_value() if api_key is not None else None,
+            ),
+            workflow_name=descriptor.name,
+            group_id=str(payload.project),
+            trace_metadata={
+                "run_id": str(context.run_id),
+                "agent_id": payload.agent_id,
+                "framework": descriptor.framework,
+            },
+        )
+        started = time.perf_counter()
+        result = self._run_with_explicit_event_loop(agent, payload.prompt, run_config, context)
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        final_output = getattr(result, "final_output", "")
+        context_wrapper = getattr(result, "context_wrapper", None)
+        usage = getattr(context_wrapper, "usage", None)
+        resolved_model = self._resolve_model(result=result, agent=agent, run_config=run_config)
+        return RuntimeExecutionResult(
+            output=final_output if isinstance(final_output, str) else str(final_output),
+            latency_ms=latency_ms,
+            token_usage=_usage_total_tokens(usage),
+            provider="openai-agents-sdk",
+            resolved_model=resolved_model or descriptor.default_model,
+        )
+
+    @staticmethod
+    def _resolve_model(*, result: object, agent: object, run_config: object) -> str | None:
+        for candidate in (
+            getattr(getattr(result, "last_agent", None), "model", None),
+            getattr(agent, "model", None),
+            getattr(run_config, "model", None),
+        ):
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        return None
 
 
 class LangChainRuntimeAdapter:
@@ -299,10 +381,15 @@ class LangChainRuntimeAdapter:
 
 
 class ModelRuntimeService:
-    def __init__(self, adapters: Mapping[AdapterKind, RuntimeAdapter] | None = None) -> None:
+    def __init__(
+        self,
+        adapters: Mapping[AdapterKind, RuntimeAdapter] | None = None,
+        registered_adapter: RegisteredOpenAIAgentAdapter | None = None,
+    ) -> None:
         self.api_key = settings.openai_api_key
         self.runtime_mode = settings.runtime_mode
         self.adapters = dict(adapters or self._default_adapters())
+        self.registered_adapter = registered_adapter
 
     def _effective_runtime_mode(self) -> RuntimeMode:
         if self.runtime_mode == RuntimeMode.MOCK:
@@ -336,6 +423,40 @@ class ModelRuntimeService:
             fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
             return fallback
 
+    def execute_registered(self, run_id: Any, payload: RunSpec) -> RuntimeExecutionResult:
+        effective_mode = self._effective_runtime_mode()
+        if effective_mode == RuntimeMode.MOCK:
+            fallback = self._simulate_output(payload.agent_type, payload.model, payload.prompt)
+            return fallback.model_copy(update={"resolved_model": payload.model})
+
+        try:
+            if not self.api_key:
+                raise RuntimeError("OPENAI_API_KEY is not set")
+            if self.registered_adapter is None:
+                raise RuntimeError("registered runtime is not configured")
+            context = RegisteredAgentBuildContext(
+                run_id=run_id,
+                project=payload.project,
+                dataset=payload.dataset,
+                prompt=payload.prompt,
+                tags=payload.tags,
+                project_metadata=payload.project_metadata,
+            )
+            return self.registered_adapter.execute_registered(
+                api_key=self.api_key,
+                payload=payload,
+                context=context,
+            )
+        except Exception as exc:
+            normalized_exc = _normalize_runtime_exception(exc, payload.model)
+            if effective_mode == RuntimeMode.LIVE:
+                if normalized_exc is exc:
+                    raise
+                raise normalized_exc from exc
+            fallback = self._simulate_output(payload.agent_type, payload.model, payload.prompt)
+            fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
+            return fallback.model_copy(update={"resolved_model": payload.model})
+
     @staticmethod
     def _default_adapters() -> dict[AdapterKind, RuntimeAdapter]:
         return {
@@ -357,7 +478,5 @@ class ModelRuntimeService:
             latency_ms=25,
             token_usage=0,
             provider="mock",
+            resolved_model=model,
         )
-
-
-model_runtime_service = ModelRuntimeService()

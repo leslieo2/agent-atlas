@@ -2,6 +2,7 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useAgentsQuery } from "@/src/entities/agent/query";
 import { useDatasetsQuery } from "@/src/entities/dataset/query";
 import { useRunsQuery } from "@/src/entities/run/query";
 import { ManualRunActions } from "@/src/features/manual-run/ManualRunActions";
@@ -12,23 +13,21 @@ import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
 
-function countSelectedTools(value: string) {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean).length;
-}
+type Props = {
+  initialDataset?: string;
+};
 
-export default function PlaygroundWorkspace() {
+export default function PlaygroundWorkspace({ initialDataset = "" }: Props) {
+  const agentsQuery = useAgentsQuery();
   const datasetsQuery = useDatasetsQuery();
   const runsQuery = useRunsQuery();
   const [prompt, setPrompt] = useState("Draft a concise customer response for delayed shipping.");
-  const [agentType, setAgentType] = useState("OpenAI Agents SDK");
-  const [model, setModel] = useState("gpt-4.1-mini");
-  const [dataset, setDataset] = useState("");
-  const [tools, setTools] = useState("");
+  const [agentId, setAgentId] = useState("");
+  const [dataset, setDataset] = useState(initialDataset);
   const [latestRunId, setLatestRunId] = useState("");
   const [log, setLog] = useState("trace: waiting for manual run...\n");
+  const agents = agentsQuery.data ?? [];
+  const selectedAgent = agents.find((item) => item.agentId === agentId) ?? agents[0] ?? null;
   const datasets = useMemo(() => datasetsQuery.data?.map((item) => item.name) ?? [], [datasetsQuery.data]);
 
   useEffect(() => {
@@ -36,6 +35,16 @@ export default function PlaygroundWorkspace() {
       setLatestRunId(runsQuery.data[0].runId);
     }
   }, [latestRunId, runsQuery.data]);
+
+  useEffect(() => {
+    if (!agents.length) {
+      return;
+    }
+
+    if (!agentId || !agents.some((agent) => agent.agentId === agentId)) {
+      setAgentId(agents[0].agentId);
+    }
+  }, [agentId, agents]);
 
   useEffect(() => {
     if (dataset && !datasets.includes(dataset)) {
@@ -49,7 +58,7 @@ export default function PlaygroundWorkspace() {
         <div>
           <p className="page-eyebrow">Manual run</p>
           <h2 className="section-title">Playground</h2>
-          <p className="kicker">Launch a single smoke run, inspect the output, and jump straight into its run workspace.</p>
+          <p className="kicker">Launch a registered agent, inspect the output, and jump straight into its run workspace.</p>
         </div>
         <div className="toolbar">
           <Button variant="secondary" onClick={() => setPrompt("Can you create a shipping itinerary?")} disabled={!dataset}>
@@ -64,11 +73,12 @@ export default function PlaygroundWorkspace() {
       </header>
 
       <div className="summary-strip">
-        <MetricCard label="Runtime" value={agentType} />
-        <MetricCard label="Model" value={model} />
+        <MetricCard label="Agent" value={selectedAgent?.name ?? "-"} />
+        <MetricCard label="Agent ID" value={selectedAgent?.agentId ?? "-"} />
+        <MetricCard label="Default model" value={selectedAgent?.defaultModel ?? "-"} />
         <MetricCard label="Dataset" value={dataset || "-"} />
         <MetricCard label="Latest run" value={latestRunId || "-"} />
-        <MetricCard label="Tool chain" value={countSelectedTools(tools)} />
+        <MetricCard label="Framework" value={selectedAgent?.framework ?? "-"} />
       </div>
 
       <div className="workspace-grid workspace-grid-wide">
@@ -76,29 +86,33 @@ export default function PlaygroundWorkspace() {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">Run controls</p>
-              <h3 className="panel-title">Prompt and runtime settings</h3>
+              <h3 className="panel-title">Prompt and registered agent settings</h3>
             </div>
           </div>
+          {agentsQuery.isError ? <Notice>Agent catalog unavailable. Check the API connection and try again.</Notice> : null}
+          {selectedAgent ? (
+            <Notice>
+              {`${selectedAgent.description} Default model: ${selectedAgent.defaultModel}. Tags: ${
+                selectedAgent.tags.length ? selectedAgent.tags.join(", ") : "none"
+              }.`}
+            </Notice>
+          ) : null}
           {!dataset ? <Notice>No dataset attached. Playground will run prompt-only until you select one.</Notice> : null}
           <PlaygroundForm
             prompt={prompt}
-            agentType={agentType}
-            model={model}
+            agentId={agentId}
+            agents={agents}
             dataset={dataset}
             datasets={datasets}
-            tools={tools}
             onPromptChange={setPrompt}
-            onAgentTypeChange={setAgentType}
-            onModelChange={setModel}
+            onAgentIdChange={setAgentId}
             onDatasetChange={setDataset}
-            onToolsChange={setTools}
           />
           <ManualRunActions
             prompt={prompt}
-            agentType={agentType}
-            model={model}
+            agentId={selectedAgent?.agentId ?? ""}
+            agentName={selectedAgent?.name ?? "Unknown"}
             dataset={dataset}
-            tools={tools}
             latestRunId={latestRunId}
             onLatestRunChange={setLatestRunId}
             onLogChange={setLog}

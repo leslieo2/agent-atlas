@@ -8,6 +8,7 @@ type NormalizedRunFilters = {
   status: RunListFilters["status"] | null;
   project: string | null;
   dataset: string | null;
+  agentId: string | null;
   model: string | null;
   tag: string | null;
   createdFrom: string | null;
@@ -19,6 +20,7 @@ function normalizeRunFilters(filters: RunListFilters = {}): NormalizedRunFilters
     status: filters.status ?? null,
     project: filters.project ?? null,
     dataset: filters.dataset ?? null,
+    agentId: filters.agentId ?? null,
     model: filters.model ?? null,
     tag: filters.tag ?? null,
     createdFrom: filters.createdFrom ?? null,

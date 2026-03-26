@@ -74,12 +74,10 @@ export function PromoteReplayAction({
           const run = await createRunMutation.mutateAsync({
             project: sourceRun.project,
             dataset: sourceRun.dataset,
-            model,
-            agentType: sourceRun.agentType,
+            agentId: sourceRun.agentId,
             inputSummary: `Replay candidate from ${candidate.id}`,
             prompt,
             tags: Array.from(new Set([...sourceRun.tags, "candidate", "replay"])),
-            toolConfig: toolOverrides,
             projectMetadata: buildCandidateProjectMetadata({
               candidate,
               sourceRun,

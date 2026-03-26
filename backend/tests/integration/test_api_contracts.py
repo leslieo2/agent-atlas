@@ -2,18 +2,23 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from app.bootstrap.container import get_container
+from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import RunStatus
 
 
 def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client, worker_drain):
+    container = get_container()
     monkeypatch.setattr(
-        "app.infrastructure.adapters.runner.execute_with_fallback",
-        lambda *_args, **_kwargs: {
-            "output": "mocked integration output",
-            "latency_ms": 1,
-            "token_usage": 1,
-            "provider": "mock",
-        },
+        container.model_runtime,
+        "execute_registered",
+        lambda *_args, **_kwargs: RuntimeExecutionResult(
+            output="mocked integration output",
+            latency_ms=1,
+            token_usage=1,
+            provider="mock",
+            resolved_model="gpt-4.1-mini",
+        ),
     )
 
     response = client.post(
@@ -21,8 +26,7 @@ def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client, worker
         json={
             "project": "integration",
             "dataset": "crm-v2",
-            "model": "gpt-4.1-mini",
-            "agent_type": "openai-agents-sdk",
+            "agent_id": "basic",
             "input_summary": "integration smoke",
             "prompt": "Say hello.",
             "tags": ["integration"],
@@ -33,6 +37,7 @@ def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client, worker
     run = response.json()
     run_id = run["run_id"]
     assert run["project"] == "integration"
+    assert run["agent_id"] == "basic"
     assert run["status"] == RunStatus.QUEUED.value
 
     assert worker_drain() >= 1
@@ -49,6 +54,9 @@ def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client, worker
 
     filtered = client.get("/api/v1/runs", params={"project": "integration"}).json()
     assert any(item["run_id"] == run_id for item in filtered)
+
+    filtered_by_agent = client.get("/api/v1/runs", params={"agent_id": "basic"}).json()
+    assert any(item["run_id"] == run_id for item in filtered_by_agent)
 
 
 def test_trace_ingest_and_normalize_endpoints(client):
@@ -97,4 +105,15 @@ def test_adapters_list_available_adapters(client):
         "openai-agents-sdk",
         "langchain",
         "mcp",
+    }
+
+
+def test_agents_list_available_registered_agents(client):
+    response = client.get("/api/v1/agents")
+
+    assert response.status_code == 200
+    assert {agent["agent_id"] for agent in response.json()} == {
+        "basic",
+        "customer_service",
+        "tools",
     }

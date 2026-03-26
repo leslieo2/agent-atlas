@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.bootstrap.container import get_run_commands, get_run_queries
+from app.core.errors import AppError
 from app.modules.runs.api.schemas import (
     RunCreateRequest,
     RunResponse,
@@ -25,12 +26,22 @@ def list_runs(
     status: RunStatus | None = None,
     project: str | None = None,
     dataset: str | None = None,
+    agent_id: str | None = None,
     model: str | None = None,
     tag: str | None = None,
     created_from: datetime | None = None,
     created_to: datetime | None = None,
 ) -> list[RunResponse]:
-    runs = queries.list_runs(status, project, dataset, model, tag, created_from, created_to)
+    runs = queries.list_runs(
+        status,
+        project,
+        dataset,
+        agent_id,
+        model,
+        tag,
+        created_from,
+        created_to,
+    )
     return [RunResponse.from_domain(run) for run in runs]
 
 
@@ -39,8 +50,11 @@ def create_run(
     payload: RunCreateRequest,
     commands: Annotated[RunCommands, Depends(get_run_commands)],
 ) -> RunResponse:
-    run = commands.create_run(payload.to_domain())
-    return RunResponse.from_domain(run)
+    try:
+        run = commands.create_run(payload.to_domain())
+        return RunResponse.from_domain(run)
+    except AppError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
 
 
 @router.get("/{run_id}", response_model=RunResponse)

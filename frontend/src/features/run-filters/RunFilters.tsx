@@ -6,6 +6,7 @@ import type { RunListFilters } from "@/src/entities/run/model";
 export type RunFilterState = {
   projectFilter: string;
   datasetFilter: string;
+  agentFilter: string;
   modelFilter: string;
   statusFilter: string;
   tagFilter: string;
@@ -18,6 +19,7 @@ type Props = {
   options: {
     projects: string[];
     datasets: string[];
+    agents: string[];
     models: string[];
     tags: string[];
   };
@@ -30,6 +32,7 @@ export function buildRunFilters(state: RunFilterState): RunListFilters {
 
   if (state.projectFilter !== "all") filters.project = state.projectFilter;
   if (state.datasetFilter !== "all") filters.dataset = state.datasetFilter;
+  if (state.agentFilter !== "all") filters.agentId = state.agentFilter;
   if (state.modelFilter !== "all") filters.model = state.modelFilter;
   if (state.statusFilter !== "all") filters.status = state.statusFilter as RunListFilters["status"];
   if (state.tagFilter !== "all") filters.tag = state.tagFilter;
@@ -62,6 +65,16 @@ export function RunFilters({ options, state, onChange }: Props) {
         >
           <option value="all">all</option>
           {options.datasets.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Agent">
+        <select value={state.agentFilter} onChange={(event) => onChange({ ...state, agentFilter: event.target.value })}>
+          <option value="all">all</option>
+          {options.agents.map((item) => (
             <option key={item} value={item}>
               {item}
             </option>
@@ -124,4 +137,3 @@ export function RunFilters({ options, state, onChange }: Props) {
     </div>
   );
 }
-

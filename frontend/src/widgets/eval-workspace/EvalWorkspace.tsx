@@ -17,6 +17,7 @@ import { EvalRunActions } from "@/src/features/eval-run/EvalRunActions";
 import { SampleDrilldown } from "@/src/features/sample-drilldown/SampleDrilldown";
 import { Field } from "@/src/shared/ui/Field";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
+import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
 import { getEvalTotals, getRunEvalSummaries, getVisibleEvalRows } from "./selectors";
 
@@ -119,6 +120,10 @@ export default function EvalWorkspace({ initialRunIds = [], initialDataset }: Pr
     () => datasetsQuery.data?.find((item) => item.name === dataset) ?? null,
     [dataset, datasetsQuery.data]
   );
+  const hasRegisteredRunSelection = useMemo(
+    () => selectedRunIds.some((runId) => runs.some((run) => run.runId === runId && Boolean(run.agentId))),
+    [runs, selectedRunIds]
+  );
 
   const pollEvalJobUntilSettled = async (jobId: string, requestId: number) => {
     while (requestId === activeEvalPollRef.current) {
@@ -159,7 +164,7 @@ export default function EvalWorkspace({ initialRunIds = [], initialDataset }: Pr
   };
 
   const runEval = async () => {
-    if (!dataset || selectedRunIds.length === 0) return;
+    if (!dataset || selectedRunIds.length === 0 || hasRegisteredRunSelection) return;
     const requestId = activeEvalPollRef.current + 1;
     activeEvalPollRef.current = requestId;
     setSelectedSample(null);
@@ -290,9 +295,16 @@ export default function EvalWorkspace({ initialRunIds = [], initialDataset }: Pr
         </div>
         <div className="toolbar">
           <DatasetUpload fileInputRef={fileInputRef} onChange={handleUpload} />
-          <EvalRunActions onRunEval={runEval} onExport={exportEvalArtifacts} disabled={!dataset || selectedRunIds.length === 0} />
+          <EvalRunActions
+            onRunEval={runEval}
+            onExport={exportEvalArtifacts}
+            disabled={!dataset || selectedRunIds.length === 0 || hasRegisteredRunSelection}
+          />
         </div>
       </div>
+      {hasRegisteredRunSelection ? (
+        <Notice>Eval is not supported for registered agent runs in v1. Select legacy runs only.</Notice>
+      ) : null}
 
       <div className="metrics">
         <MetricCard label="Success rate" value={`${totals.successRate}%`} />

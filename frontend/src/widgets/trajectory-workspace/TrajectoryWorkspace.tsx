@@ -11,6 +11,7 @@ import { TrajectoryGraph } from "@/src/features/trajectory-graph/TrajectoryGraph
 import { StepInspector } from "@/src/features/step-inspector/StepInspector";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
+import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
 import {
   buildTrajectoryEdges,
@@ -80,6 +81,7 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   }, [steps]);
 
   const selectedRunRecord = runs.find((run) => run.runId === selectedRun);
+  const replayUnsupported = Boolean(selectedRunRecord?.agentId);
   const focusedStep = steps.find((step) => step.id === focusedStepId) ?? steps[0] ?? null;
   const nodes = useMemo(() => buildTrajectoryNodes(steps, focusedStepId), [focusedStepId, steps]);
   const edges = useMemo(() => buildTrajectoryEdges(steps), [steps]);
@@ -121,24 +123,26 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
         <div>
           <p className="page-eyebrow">Run detail</p>
           <h2 className="section-title">Trajectory viewer</h2>
-          <p className="kicker">
-            Inspect the run graph, review each step, and jump into replay from the current selection.
-          </p>
+          <p className="kicker">Inspect the run graph, review each step, and inspect registered run metadata.</p>
         </div>
         <div className="toolbar">
           <Button href="/runs" variant="secondary">
             <ArrowLeft size={14} /> Back to runs
           </Button>
-          <Button
-            href={selectedRun ? `/runs/${selectedRun}/replay${focusedStep ? `?stepId=${focusedStep.id}` : ""}` : "/runs"}
-          >
-            <RefreshCcw size={14} /> Replay selected step
-          </Button>
+          {!replayUnsupported ? (
+            <Button
+              href={selectedRun ? `/runs/${selectedRun}/replay${focusedStep ? `?stepId=${focusedStep.id}` : ""}` : "/runs"}
+            >
+              <RefreshCcw size={14} /> Replay selected step
+            </Button>
+          ) : null}
         </div>
       </header>
 
       <div className="summary-strip">
         <MetricCard label="Run ID" value={selectedRunRecord?.runId ?? (selectedRun || "-")} />
+        <MetricCard label="Agent ID" value={selectedRunRecord?.agentId ?? "-"} />
+        <MetricCard label="Framework" value={selectedRunRecord?.agentType ?? "-"} />
         <MetricCard label="Project" value={selectedRunRecord?.project ?? "-"} />
         <MetricCard label="Failed steps" value={metrics.failed} />
         <MetricCard label="Token usage" value={metrics.tokens} />
@@ -174,6 +178,7 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
               </Button>
             </div>
           </div>
+          {replayUnsupported ? <Notice>Replay is not supported for registered agent runs in v1.</Notice> : null}
 
           <div className="metrics">
             <MetricCard label="Nodes" value={metrics.toolCalls} />

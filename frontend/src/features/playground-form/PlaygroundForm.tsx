@@ -1,33 +1,28 @@
 "use client";
 
+import type { AgentRecord } from "@/src/entities/agent/model";
 import { Field } from "@/src/shared/ui/Field";
 
 type Props = {
   prompt: string;
-  agentType: string;
-  model: string;
+  agentId: string;
+  agents: AgentRecord[];
   dataset: string;
   datasets: string[];
-  tools: string;
   onPromptChange: (value: string) => void;
-  onAgentTypeChange: (value: string) => void;
-  onModelChange: (value: string) => void;
+  onAgentIdChange: (value: string) => void;
   onDatasetChange: (value: string) => void;
-  onToolsChange: (value: string) => void;
 };
 
 export function PlaygroundForm({
   prompt,
-  agentType,
-  model,
+  agentId,
+  agents,
   dataset,
   datasets,
-  tools,
   onPromptChange,
-  onAgentTypeChange,
-  onModelChange,
-  onDatasetChange,
-  onToolsChange
+  onAgentIdChange,
+  onDatasetChange
 }: Props) {
   return (
     <>
@@ -35,17 +30,13 @@ export function PlaygroundForm({
         <textarea rows={7} value={prompt} onChange={(event) => onPromptChange(event.target.value)} />
       </Field>
       <div className="two-col" style={{ marginTop: 12 }}>
-        <Field label="Agent type">
-          <select value={agentType} onChange={(event) => onAgentTypeChange(event.target.value)}>
-            <option>OpenAI Agents SDK</option>
-            <option>LangChain</option>
-          </select>
-        </Field>
-        <Field label="Model">
-          <select value={model} onChange={(event) => onModelChange(event.target.value)}>
-            <option>gpt-4.1-mini</option>
-            <option>gpt-4.1</option>
-            <option>gpt-5-mini</option>
+        <Field label="Agent">
+          <select value={agentId} onChange={(event) => onAgentIdChange(event.target.value)}>
+            {agents.map((agent) => (
+              <option key={agent.agentId} value={agent.agentId}>
+                {agent.name} ({agent.agentId})
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Dataset">
@@ -59,9 +50,6 @@ export function PlaygroundForm({
           </select>
         </Field>
       </div>
-      <Field label="Tool selection (comma-separated)">
-        <input value={tools} onChange={(event) => onToolsChange(event.target.value)} />
-      </Field>
     </>
   );
 }

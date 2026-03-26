@@ -36,7 +36,14 @@ def test_docker_runtime_reads_request_and_writes_result(
             provider="mock",
         )
 
-    monkeypatch.setattr(docker_runtime.model_runtime_service, "execute", fake_execute)
+    class StubRuntimeService:
+        execute = staticmethod(fake_execute)
+
+    monkeypatch.setattr(
+        docker_runtime,
+        "build_runtime_service",
+        lambda: StubRuntimeService(),
+    )
     monkeypatch.setenv("AFLIGHT_RUN_REQUEST_PATH", str(request_path))
     monkeypatch.setenv("AFLIGHT_RUN_RESULT_PATH", str(result_path))
 
@@ -50,4 +57,5 @@ def test_docker_runtime_reads_request_and_writes_result(
         "provider": "mock",
         "execution_backend": None,
         "container_image": None,
+        "resolved_model": None,
     }

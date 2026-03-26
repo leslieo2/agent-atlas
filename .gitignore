@@ -62,3 +62,6 @@ htmlcov/
 
 # Tooling artifacts
 **/.DS_Store
+
+# Local planning docs
+prd.md

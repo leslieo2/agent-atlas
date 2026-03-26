@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from app.core.config import RunnerMode, settings
-from app.infrastructure.adapters.model_runtime import model_runtime_service
+from app.infrastructure.adapters.model_runtime import ModelRuntimeService
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 
@@ -26,8 +26,11 @@ class Runner:
 class LocalRunner(Runner):
     name = "local"
 
+    def __init__(self, runtime_service: ModelRuntimeService) -> None:
+        self.runtime_service = runtime_service
+
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
-        result = model_runtime_service.execute(agent_type, model, prompt)
+        result = self.runtime_service.execute(agent_type, model, prompt)
         return result.model_copy(update={"execution_backend": "local", "container_image": None})
 
 
@@ -122,46 +125,51 @@ class DockerRunner(Runner):
 class MockRunner(Runner):
     name = "mock"
 
+    def __init__(self, runtime_service: ModelRuntimeService) -> None:
+        self.runtime_service = runtime_service
+
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
-        result = model_runtime_service._simulate_output(agent_type, model, prompt)
+        result = self.runtime_service._simulate_output(agent_type, model, prompt)
         return result.model_copy(update={"execution_backend": "mock", "container_image": None})
 
 
-_runners = {
-    "local": LocalRunner(),
-    "docker": DockerRunner(),
-    "mock": MockRunner(),
-}
+def _ordered_runners(
+    runtime_service: ModelRuntimeService,
+    docker_runner: DockerRunner | None = None,
+) -> list[Runner]:
+    local_runner = LocalRunner(runtime_service)
+    mock_runner = MockRunner(runtime_service)
+    docker_runner = docker_runner or DockerRunner()
 
-
-def _ordered_runners() -> list[Runner]:
     mode = settings.runner_mode
     if mode == RunnerMode.MOCK:
-        return [_runners["mock"]]
+        return [mock_runner]
     if mode == RunnerMode.LOCAL:
-        return [_runners["local"]]
+        return [local_runner]
     if mode == RunnerMode.DOCKER:
-        return [_runners["docker"]]
+        return [docker_runner]
 
-    if not settings.should_allow_mock_fallback(model_runtime_service.api_key):
-        ordered: list[Runner] = [_runners["local"]]
-        if _runners["docker"].is_available():
-            ordered.insert(0, _runners["docker"])
+    if not settings.should_allow_mock_fallback(runtime_service.api_key):
+        ordered: list[Runner] = [local_runner]
+        if docker_runner.is_available():
+            ordered.insert(0, docker_runner)
         return ordered
 
-    ordered = [_runners["local"], _runners["mock"]]
-    if _runners["docker"].is_available():
-        ordered.insert(0, _runners["docker"])
+    ordered = [local_runner, mock_runner]
+    if docker_runner.is_available():
+        ordered.insert(0, docker_runner)
     return ordered
 
 
 def execute_with_fallback(
+    runtime_service: ModelRuntimeService,
     agent_type: AdapterKind,
     model: str,
     prompt: str,
+    docker_runner: DockerRunner | None = None,
 ) -> RuntimeExecutionResult:
     last_error: Exception | None = None
-    for runner in _ordered_runners():
+    for runner in _ordered_runners(runtime_service, docker_runner):
         try:
             return runner.execute(agent_type, model, prompt)
         except Exception as exc:  # pragma: no cover
@@ -171,8 +179,22 @@ def execute_with_fallback(
 
 
 class FallbackRunnerAdapter:
+    def __init__(
+        self,
+        runtime_service: ModelRuntimeService,
+        docker_runner: DockerRunner | None = None,
+    ) -> None:
+        self.runtime_service = runtime_service
+        self.docker_runner = docker_runner
+
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
-        result = execute_with_fallback(agent_type, model, prompt)
+        result = execute_with_fallback(
+            self.runtime_service,
+            agent_type,
+            model,
+            prompt,
+            self.docker_runner,
+        )
         return RuntimeExecutionResult.model_validate(result)
 
 

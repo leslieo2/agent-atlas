@@ -13,10 +13,9 @@ const RUN_POLL_INTERVAL_MS = 500;
 
 type Props = {
   prompt: string;
-  agentType: string;
-  model: string;
+  agentId: string;
+  agentName: string;
   dataset: string;
-  tools: string;
   latestRunId: string;
   onLatestRunChange: (value: string) => void;
   onLogChange: (value: string) => void;
@@ -34,22 +33,23 @@ function isTerminalStatus(status: RunRecord["status"]) {
 
 function formatRunLog({
   run,
-  agentType,
-  prompt,
-  tools
+  agentId,
+  agentName,
+  prompt
 }: {
   run: RunRecord;
-  agentType: string;
+  agentId: string;
+  agentName: string;
   prompt: string;
-  tools: string;
 }) {
   const lines = [
     `run_id: ${run.runId}`,
-    `agent: ${agentType}`,
+    `agent_id: ${agentId}`,
+    `agent_name: ${agentName}`,
+    `framework: ${run.agentType}`,
     `model: ${run.model}`,
     `prompt: ${prompt}`,
     `dataset: ${run.dataset ?? "-"}`,
-    `tools: ${tools}`,
     `status: ${run.status}`,
     `token_cost: ${run.tokenCost}`,
     `latency_ms: ${run.latencyMs}`
@@ -76,10 +76,9 @@ function formatTraceValue(value: unknown): string {
 
 export function ManualRunActions({
   prompt,
-  agentType,
-  model,
+  agentId,
+  agentName,
   dataset,
-  tools,
   latestRunId,
   onLatestRunChange,
   onLogChange
@@ -108,7 +107,7 @@ export function ManualRunActions({
       return;
     }
 
-    const baseLog = formatRunLog({ run, agentType, prompt, tools });
+    const baseLog = formatRunLog({ run, agentId, agentName, prompt });
     if (traces.length) {
       onLogChange(
         [
@@ -151,7 +150,7 @@ export function ManualRunActions({
         return run;
       }
 
-      onLogChange(`${formatRunLog({ run, agentType, prompt, tools })}\n\nWaiting for run completion...`);
+      onLogChange(`${formatRunLog({ run, agentId, agentName, prompt })}\n\nWaiting for run completion...`);
       await sleep(RUN_POLL_INTERVAL_MS);
     }
 
@@ -166,14 +165,9 @@ export function ManualRunActions({
       const run = await createRunMutation.mutateAsync({
         project: "playground",
         dataset: dataset || null,
-        model,
-        agentType: agentType === "LangChain" ? "langchain" : "openai-agents-sdk",
+        agentId,
         inputSummary: prompt.slice(0, 80),
-        prompt,
-        tags: tools
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean)
+        prompt
       });
 
       if (requestId !== activeRunPollRef.current) {
@@ -181,7 +175,7 @@ export function ManualRunActions({
       }
 
       onLatestRunChange(run.runId);
-      onLogChange(`${formatRunLog({ run, agentType, prompt, tools })}\n\nWaiting for run completion...`);
+      onLogChange(`${formatRunLog({ run, agentId, agentName, prompt })}\n\nWaiting for run completion...`);
 
       const finalRun = isTerminalStatus(run.status) ? run : await pollRunUntilTerminal(run.runId, requestId);
 

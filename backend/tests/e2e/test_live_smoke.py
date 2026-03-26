@@ -4,8 +4,8 @@ import os
 from uuid import uuid4
 
 import pytest
+from app.bootstrap.container import get_container
 from app.core.config import settings
-from app.infrastructure.adapters.model_runtime import model_runtime_service
 from pydantic import SecretStr
 
 
@@ -23,10 +23,11 @@ def _require_live_openai_env() -> str:
 @pytest.fixture
 def live_openai_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     api_key = _require_live_openai_env()
+    container = get_container()
     monkeypatch.setattr(settings, "runtime_mode", "live")
     monkeypatch.setattr(settings, "runner_mode", "local")
-    monkeypatch.setattr(model_runtime_service, "api_key", SecretStr(api_key))
-    monkeypatch.setattr(model_runtime_service, "runtime_mode", "live")
+    monkeypatch.setattr(container.model_runtime, "api_key", SecretStr(api_key))
+    monkeypatch.setattr(container.model_runtime, "runtime_mode", "live")
 
 
 def test_live_openai_run_eval_export_smoke(client, worker_drain, live_openai_runtime) -> None:
@@ -52,8 +53,7 @@ def test_live_openai_run_eval_export_smoke(client, worker_drain, live_openai_run
         json={
             "project": f"live-smoke-{scope}",
             "dataset": dataset_name,
-            "model": "gpt-4.1-mini",
-            "agent_type": "openai-agents-sdk",
+            "agent_id": "basic",
             "input_summary": "reply with the token alpha",
             "prompt": "Reply with exactly one token: alpha",
             "tags": ["live", "smoke"],
@@ -81,17 +81,8 @@ def test_live_openai_run_eval_export_smoke(client, worker_drain, live_openai_run
         "/api/v1/eval-jobs",
         json={"run_ids": [run_id], "dataset": dataset_name, "evaluators": ["rule"]},
     )
-    assert eval_job.status_code == 200
-    job_id = eval_job.json()["job_id"]
-
-    assert worker_drain(limit=2) >= 1
-
-    job = client.get(f"/api/v1/eval-jobs/{job_id}")
-    assert job.status_code == 200
-    job_payload = job.json()
-    assert job_payload["status"] == "done"
-    assert len(job_payload["results"]) == 1
-    assert job_payload["results"][0]["run_id"] == run_id
+    assert eval_job.status_code == 400
+    assert eval_job.json()["detail"]["code"] == "unsupported_operation"
 
     artifact = client.post(
         "/api/v1/artifacts/export",

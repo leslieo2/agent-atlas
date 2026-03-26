@@ -5,23 +5,21 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.modules.runs.domain.models import RunRecord, RunSpec, TrajectoryStep
+from app.modules.runs.domain.models import RunCreateInput, RunRecord, TrajectoryStep
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 
 
 class RunCreateRequest(BaseModel):
     project: str
     dataset: str | None = None
-    model: str
-    agent_type: AdapterKind
+    agent_id: str
     input_summary: str
     prompt: str
     tags: list[str] = Field(default_factory=list)
-    tool_config: dict[str, object] = Field(default_factory=dict)
     project_metadata: dict[str, object] = Field(default_factory=dict)
 
-    def to_domain(self) -> RunSpec:
-        return RunSpec.model_validate(self.model_dump())
+    def to_domain(self) -> RunCreateInput:
+        return RunCreateInput.model_validate(self.model_dump())
 
 
 class RunResponse(BaseModel):
@@ -33,6 +31,7 @@ class RunResponse(BaseModel):
     tool_calls: int
     project: str
     dataset: str | None = None
+    agent_id: str
     model: str
     agent_type: AdapterKind
     tags: list[str]

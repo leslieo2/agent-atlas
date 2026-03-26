@@ -11,6 +11,7 @@ export interface RunRecord {
   toolCalls: number;
   project: string;
   dataset: string | null;
+  agentId: string;
   model: string;
   agentType: AdapterKind;
   tags: string[];
@@ -24,6 +25,7 @@ export interface RunListFilters {
   status?: RunStatus;
   project?: string;
   dataset?: string;
+  agentId?: string;
   model?: string;
   tag?: string;
   createdFrom?: string;
@@ -33,12 +35,10 @@ export interface RunListFilters {
 export interface CreateRunInput {
   project: string;
   dataset?: string | null;
-  model: string;
-  agentType: AdapterKind;
+  agentId: string;
   inputSummary: string;
   prompt: string;
   tags?: string[];
-  toolConfig?: Record<string, unknown>;
   projectMetadata?: Record<string, unknown>;
 }
 

@@ -10,12 +10,10 @@ from app.modules.datasets.domain.models import DatasetCreate
 from app.modules.evals.domain.models import EvalJobCreate
 from app.modules.replays.domain.models import ReplayRequest
 from app.modules.runs.domain.models import (
+    RunCreateInput,
     RunRecord,
     RuntimeExecutionResult,
     TrajectoryStep,
-)
-from app.modules.runs.domain.models import (
-    RunSpec as RunCreateRequest,
 )
 from app.modules.shared.domain.enums import (
     AdapterKind,
@@ -78,23 +76,23 @@ def test_adapter_normalize_span_payload():
 def test_run_commands_can_force_success(monkeypatch, worker_drain):
     container = get_container()
     monkeypatch.setattr(
-        "app.infrastructure.adapters.runner.execute_with_fallback",
-        lambda *_args, **_kwargs: {
-            "output": "mocked unit output",
-            "latency_ms": 1,
-            "token_usage": 2,
-            "provider": "mock",
-        },
+        container.model_runtime,
+        "execute_registered",
+        lambda *_args, **_kwargs: RuntimeExecutionResult(
+            output="mocked unit output",
+            latency_ms=1,
+            token_usage=2,
+            provider="mock",
+            resolved_model="gpt-4.1-mini",
+        ),
     )
-    payload = RunCreateRequest(
+    payload = RunCreateInput(
         project="orchestrator",
         dataset="test-ds",
-        model="gpt-4.1-mini",
-        agent_type="openai-agents-sdk",
+        agent_id="basic",
         input_summary="run test",
         prompt="run test prompt",
         tags=["ci"],
-        tool_config={"primary_tool": "mock"},
         project_metadata={},
     )
     run = container.run_commands.create_run(payload)
@@ -108,6 +106,7 @@ def test_run_commands_can_force_success(monkeypatch, worker_drain):
     assert len(traces) == 1
     assert [step.id for step in trajectory] == [span.span_id for span in traces]
     assert container.run_queries.get_run(run.run_id).status == RunStatus.SUCCEEDED
+    assert container.run_queries.get_run(run.run_id).agent_id == "basic"
 
 
 def test_replay_commands_create_diffed_output(monkeypatch):

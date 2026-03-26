@@ -4,6 +4,10 @@ from functools import lru_cache
 
 from app.bootstrap.worker import AppWorker
 from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
+from app.infrastructure.adapters.model_runtime import (
+    ModelRuntimeService,
+    RegisteredOpenAIAgentAdapter,
+)
 from app.infrastructure.adapters.runner import (
     FallbackRunnerAdapter,
     StaticRunnerRegistry,
@@ -12,6 +16,7 @@ from app.infrastructure.adapters.tasks import StateTaskQueue
 from app.infrastructure.adapters.traces import DefaultTraceProjector
 from app.infrastructure.repositories import (
     StateAdapterCatalog,
+    StateAgentCatalog,
     StateArtifactRepository,
     StateDatasetRepository,
     StateEvalJobRepository,
@@ -22,6 +27,7 @@ from app.infrastructure.repositories import (
     StateTrajectoryRepository,
 )
 from app.modules.adapters.application.use_cases import AdapterQueries
+from app.modules.agents.application.use_cases import AgentQueries
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
 from app.modules.evals.application.execution import EvalJobRecorder, EvalJobRunner
@@ -47,10 +53,14 @@ class AppContainer:
         self.eval_job_repository = StateEvalJobRepository()
         self.replay_repository = StateReplayRepository()
         self.artifact_repository = StateArtifactRepository()
+        self.agent_catalog = StateAgentCatalog()
         self.adapter_catalog = StateAdapterCatalog()
         self.system_status = StateSystemStatus()
         self.task_queue = StateTaskQueue()
-        self.runner = FallbackRunnerAdapter()
+        self.model_runtime = ModelRuntimeService(
+            registered_adapter=RegisteredOpenAIAgentAdapter(agent_catalog=self.agent_catalog)
+        )
+        self.runner = FallbackRunnerAdapter(runtime_service=self.model_runtime)
         self.runner_registry = StaticRunnerRegistry(default_runner=self.runner)
         self.trace_projector = DefaultTraceProjector()
         self.trace_workflow = TraceIngestionWorkflow(
@@ -69,7 +79,7 @@ class AppContainer:
 
         run_execution_service = RunExecutionService(
             run_repository=self.run_repository,
-            runner_registry=self.runner_registry,
+            registered_runtime=self.model_runtime,
             trace_ingestor=self.trace_commands,
         )
 
@@ -81,6 +91,7 @@ class AppContainer:
         self.run_commands = RunCommands(
             run_repository=self.run_repository,
             task_queue=self.task_queue,
+            agent_catalog=self.agent_catalog,
         )
         self.replay_queries = ReplayQueries(replay_repository=self.replay_repository)
         self.replay_commands = ReplayCommands(
@@ -96,11 +107,13 @@ class AppContainer:
         self.eval_job_commands = EvalJobCommands(
             eval_job_repository=self.eval_job_repository,
             task_queue=self.task_queue,
+            run_repository=self.run_repository,
         )
         self.dataset_queries = DatasetQueries(dataset_repository=self.dataset_repository)
         self.dataset_commands = DatasetCommands(dataset_repository=self.dataset_repository)
         self.artifact_queries = ArtifactQueries(artifact_repository=self.artifact_repository)
         self.artifact_commands = ArtifactCommands(artifact_exporter=self.artifact_exporter)
+        self.agent_queries = AgentQueries(agent_catalog=self.agent_catalog)
         self.adapter_queries = AdapterQueries(adapter_catalog=self.adapter_catalog)
         self.health_queries = HealthQueries(system_status=self.system_status)
         self.app_worker = AppWorker(
@@ -153,6 +166,10 @@ def get_artifact_queries() -> ArtifactQueries:
 
 def get_artifact_commands() -> ArtifactCommands:
     return get_container().artifact_commands
+
+
+def get_agent_queries() -> AgentQueries:
+    return get_container().agent_queries
 
 
 def get_trace_commands() -> TraceCommands:

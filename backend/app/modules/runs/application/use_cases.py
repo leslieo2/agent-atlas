@@ -3,14 +3,16 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
+from app.core.errors import AgentNotRegisteredError
+from app.modules.agents.application.ports import AgentCatalogPort
 from app.modules.runs.application.ports import (
     RunRepository,
     TrajectoryRepository,
 )
-from app.modules.runs.domain.models import RunRecord, RunSpec, TrajectoryStep
+from app.modules.runs.domain.models import RunCreateInput, RunRecord, RunSpec, TrajectoryStep
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.application.ports import TaskQueuePort
-from app.modules.shared.domain.enums import RunStatus
+from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.tasks import QueuedTask, TaskType
 from app.modules.traces.application.ports import TraceRepository
 from app.modules.traces.domain.models import TraceSpan
@@ -32,6 +34,7 @@ class RunQueries:
         status: RunStatus | None,
         project: str | None,
         dataset: str | None,
+        agent_id: str | None,
         model: str | None,
         tag: str | None,
         created_from: datetime | None,
@@ -51,6 +54,8 @@ class RunQueries:
             runs = [run for run in runs if run.project == project]
         if dataset:
             runs = [run for run in runs if run.dataset == dataset]
+        if agent_id:
+            runs = [run for run in runs if run.agent_id == agent_id]
         if model:
             runs = [run for run in runs if run.model == model]
         if tag:
@@ -76,18 +81,44 @@ class RunCommands:
         self,
         run_repository: RunRepository,
         task_queue: TaskQueuePort,
+        agent_catalog: AgentCatalogPort,
     ) -> None:
         self.run_repository = run_repository
         self.task_queue = task_queue
+        self.agent_catalog = agent_catalog
 
-    def create_run(self, payload: RunSpec) -> RunRecord:
-        run = RunAggregate.create(payload)
+    def create_run(self, payload: RunCreateInput) -> RunRecord:
+        agent = self.agent_catalog.get_agent(payload.agent_id)
+        if agent is None:
+            raise AgentNotRegisteredError(payload.agent_id)
+
+        spec = RunSpec(
+            project=payload.project,
+            dataset=payload.dataset,
+            agent_id=payload.agent_id,
+            model=agent.default_model,
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            input_summary=payload.input_summary,
+            prompt=payload.prompt,
+            tags=payload.tags,
+            project_metadata={
+                **payload.project_metadata,
+                "agent_snapshot": {
+                    "entrypoint": agent.entrypoint,
+                    "framework": agent.framework,
+                    "default_model": agent.default_model,
+                    "registry_tags": agent.tags,
+                },
+            },
+        )
+
+        run = RunAggregate.create(spec)
         self.run_repository.save(run)
         self.task_queue.enqueue(
             QueuedTask(
                 task_type=TaskType.RUN_EXECUTION,
                 target_id=run.run_id,
-                payload=payload.model_dump(mode="json"),
+                payload=spec.model_dump(mode="json"),
             )
         )
         return run

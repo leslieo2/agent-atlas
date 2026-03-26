@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from app.core.errors import UnsupportedOperationError
 from app.modules.replays.application.execution import (
     ReplayBaselineResolver,
     ReplayExecutor,
@@ -46,6 +47,13 @@ class ReplayCommands:
         run = self.run_repository.get(request.run_id)
         if not run:
             raise KeyError(f"run '{request.run_id}' not found")
+        if run.agent_id:
+            raise UnsupportedOperationError(
+                "replay is not supported for registered agent runs",
+                operation="replay",
+                run_id=str(request.run_id),
+                agent_id=run.agent_id,
+            )
         baseline_step = self.baseline_resolver.resolve(
             self.trajectory_repository.list_for_run(request.run_id),
             request.step_id,

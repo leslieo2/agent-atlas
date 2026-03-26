@@ -13,6 +13,7 @@ import { ReplaySourceSelector } from "@/src/features/replay-source-selector/Repl
 import { PromoteReplayAction } from "@/src/features/promote-run/PromoteReplayAction";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
+import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
 
 type Props = {
@@ -44,6 +45,7 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
   const steps = trajectoryQuery.data ?? [];
 
   const selectedRunRecord = runs.find((run) => run.runId === selectedRun) ?? null;
+  const replayUnsupported = Boolean(selectedRunRecord?.agentId);
   const candidate = steps.find((step) => step.id === selectedStepId) ?? null;
 
   useEffect(() => {
@@ -107,13 +109,13 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
           <Button href={selectedRun ? `/runs/${selectedRun}` : "/runs"} variant="secondary">
             <ArrowLeft size={14} /> Open source run
           </Button>
-          {evalHref ? (
+          {evalHref && !replayUnsupported ? (
             <Button href={evalHref} variant="secondary">
               Compare in eval
             </Button>
           ) : null}
           <Button
-            disabled={createReplayMutation.isPending || !candidate}
+            disabled={createReplayMutation.isPending || !candidate || replayUnsupported}
             onClick={async () => {
               if (!candidate) return;
               try {
@@ -141,6 +143,7 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
 
       <div className="summary-strip">
         <MetricCard label="Source run" value={candidate?.runId ?? (selectedRun || "-")} />
+        <MetricCard label="Agent ID" value={selectedRunRecord?.agentId ?? "-"} />
         <MetricCard label="Active step" value={candidate?.id ?? "-"} />
         <MetricCard label="Model" value={model} />
         <MetricCard label="Replay state" value={createReplayMutation.isPending ? "Running" : "Idle"} />
@@ -154,6 +157,7 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
               <h3 className="panel-title">Choose the source step, patch prompt or tool payload, then replay</h3>
             </div>
           </div>
+          {replayUnsupported ? <Notice>Replay is not supported for registered agent runs in v1.</Notice> : null}
 
           <div className="two-col">
             <ReplaySourceSelector

@@ -15,8 +15,22 @@ def test_empty_eval_job_request_is_invalid(client):
 
 
 def test_replay_missing_step_returns_404(client):
+    container = get_container()
+    run_id = uuid4()
+    container.run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="missing step replay seed",
+            status=RunStatus.SUCCEEDED,
+            project="workbench",
+            dataset="crm-v2",
+            model="gpt-4.1-mini",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            tags=["replay"],
+        )
+    )
     payload = {
-        "run_id": "a6f3f2a1-1111-4f8d-9999-111111111111",
+        "run_id": str(run_id),
         "step_id": "non-existent-step",
         "edited_prompt": "patched",
         "model": "gpt-4.1-mini",

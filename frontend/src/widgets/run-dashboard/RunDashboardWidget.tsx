@@ -19,6 +19,7 @@ import { getFilterOptions, getRunStats, filterRuns } from "./selectors";
 const defaultFilterState: RunFilterState = {
   projectFilter: "all",
   datasetFilter: "all",
+  agentFilter: "all",
   modelFilter: "all",
   statusFilter: "all",
   tagFilter: "all",
@@ -32,20 +33,22 @@ export default function RunDashboardWidget() {
   const [filters, setFilters] = useState<RunFilterState>(defaultFilterState);
   const artifactsQuery = useArtifactsQuery();
   const datasetsQuery = useDatasetsQuery();
-  const { projectFilter, datasetFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo } = filters;
+  const { projectFilter, datasetFilter, agentFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo } =
+    filters;
   const requestFilters = useMemo(
     () =>
       buildRunFilters({
         ...defaultFilterState,
         projectFilter,
         datasetFilter,
+        agentFilter,
         modelFilter,
         statusFilter,
         tagFilter,
         createdFrom,
         createdTo
       }),
-    [projectFilter, datasetFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo]
+    [projectFilter, datasetFilter, agentFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo]
   );
   const runsQuery = useRunsQuery(requestFilters);
   const runRecords = runsQuery.data ?? [];
@@ -90,8 +93,8 @@ export default function RunDashboardWidget() {
           </Button>
           <RunCreateButton
             datasetName={defaultDatasetName}
-            onCreated={(run) => {
-              setActionMessage(`Created run ${run.runId}`);
+            onCreated={() => {
+              setActionMessage("Opening Playground with the selected dataset.");
             }}
           />
         </div>
@@ -108,7 +111,7 @@ export default function RunDashboardWidget() {
         <div className="surface-header">
           <div>
             <p className="surface-kicker">Filters</p>
-            <h3 className="panel-title">Search by project, dataset, model, tag, and time range</h3>
+            <h3 className="panel-title">Search by project, dataset, agent, model, tag, and time range</h3>
           </div>
           <div className="toolbar">
             {runRecords[0] ? (

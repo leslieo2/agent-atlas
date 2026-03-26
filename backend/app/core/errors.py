@@ -45,3 +45,22 @@ class ProviderTimeoutError(AppError):
 class UnsupportedAdapterError(AppError, ValueError):
     code = "unsupported_adapter"
     status_code = 400
+
+
+class AgentNotRegisteredError(AppError, ValueError):
+    code = "agent_not_registered"
+    status_code = 400
+
+    def __init__(self, agent_id: str) -> None:
+        self.agent_id = agent_id
+        super().__init__(f"agent_id '{agent_id}' is not registered", agent_id=agent_id)
+
+
+class AgentLoadFailedError(AppError):
+    code = "agent_load_failed"
+    status_code = 500
+
+
+class UnsupportedOperationError(AppError, ValueError):
+    code = "unsupported_operation"
+    status_code = 400

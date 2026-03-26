@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.modules.runs.application.ports import (
-    RunnerRegistryPort,
+    RegisteredRunRuntimePort,
     RunRepository,
     TraceIngestionPort,
 )
@@ -57,10 +57,10 @@ class RunExecutionProjector:
                 span_id=self.runtime_result_span_id(context.run_id),
                 parent_span_id=None,
                 step_type=StepType.LLM,
-                name=context.payload.model,
+                name=result.resolved_model or context.payload.model,
                 input_payload={
                     "prompt": context.payload.prompt,
-                    "model": context.payload.model,
+                    "model": result.resolved_model or context.payload.model,
                     "temperature": 0.0,
                 },
                 output_payload={
@@ -156,13 +156,13 @@ class RunExecutionService:
     def __init__(
         self,
         run_repository: RunRepository,
-        runner_registry: RunnerRegistryPort,
+        registered_runtime: RegisteredRunRuntimePort,
         trace_ingestor: TraceIngestionPort,
         projector: RunExecutionProjector | None = None,
         recorder: ExecutionRecorder | None = None,
     ) -> None:
         self.run_repository = run_repository
-        self.runner_registry = runner_registry
+        self.registered_runtime = registered_runtime
         self.projector = projector or RunExecutionProjector()
         self.recorder = recorder or ExecutionRecorder(
             run_repository=run_repository,
@@ -176,8 +176,8 @@ class RunExecutionService:
         context = RunExecutionContext.from_spec(run_id, payload)
 
         try:
-            runner = self.runner_registry.get_runner(payload.agent_type)
-            result = runner.execute(payload.agent_type, payload.model, payload.prompt)
+            result = self.registered_runtime.execute_registered(run_id, payload)
+            self._update_run_model(run_id, result.resolved_model)
             self.recorder.record(run_id, self.projector.project_runtime_success(context, result))
             self._set_status(run_id, RunStatus.SUCCEEDED)
         except Exception as exc:
@@ -209,3 +209,10 @@ class RunExecutionService:
 
         self.run_repository.save(updated)
         return True
+
+    def _update_run_model(self, run_id: UUID, model: str | None) -> None:
+        run = self.run_repository.get(run_id)
+        if not run:
+            return
+        updated = RunAggregate.load(run).update_model(model)
+        self.run_repository.save(updated)

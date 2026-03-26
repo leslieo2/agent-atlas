@@ -83,6 +83,7 @@ def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest
         latency_ms=result.latency_ms,
         token_usage=123,
         provider="openai-agents-sdk",
+        resolved_model="gpt-4.1-mini",
     )
     assert result.latency_ms >= 0
 

@@ -33,6 +33,7 @@ describe("api client", () => {
           tool_calls: 3,
           project: "sales-assistant",
           dataset: "crm-v2",
+          agent_id: "customer_service",
           model: "gpt-4.1-mini",
           agent_type: "openai-agents-sdk",
           tags: ["agent-sdk"],
@@ -51,6 +52,7 @@ describe("api client", () => {
       latencyMs: 10,
       tokenCost: 20,
       toolCalls: 3,
+      agentId: "customer_service",
       agentType: "openai-agents-sdk",
       tags: ["agent-sdk"]
     });
@@ -95,8 +97,7 @@ describe("api client", () => {
       createRun({
         project: "sales",
         dataset: "crm-v2",
-        model: "gpt-4.1-mini",
-        agentType: "openai-agents-sdk",
+        agentId: "basic",
         inputSummary: "bad run",
         prompt: "do it"
       })
@@ -114,6 +115,7 @@ describe("api client", () => {
         tool_calls: 0,
         project: "sales",
         dataset: null,
+        agent_id: "basic",
         model: "gpt-4.1-mini",
         agent_type: "openai-agents-sdk",
         tags: [],
@@ -125,8 +127,7 @@ describe("api client", () => {
     await createRun({
       project: "sales",
       dataset: null,
-      model: "gpt-4.1-mini",
-      agentType: "openai-agents-sdk",
+      agentId: "basic",
       inputSummary: "prompt only",
       prompt: "do it"
     });

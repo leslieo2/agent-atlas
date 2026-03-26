@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.infrastructure.repositories.agents import StateAgentCatalog
 from app.infrastructure.repositories.artifacts import StateAdapterCatalog, StateArtifactRepository
 from app.infrastructure.repositories.datasets import (
     StateDatasetRepository,
@@ -15,6 +16,7 @@ from app.infrastructure.repositories.system import StateSystemStatus, reset_stat
 
 __all__ = [
     "StateAdapterCatalog",
+    "StateAgentCatalog",
     "StateArtifactRepository",
     "StateDatasetRepository",
     "StateEvalJobRepository",

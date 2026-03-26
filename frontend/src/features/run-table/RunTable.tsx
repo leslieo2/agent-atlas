@@ -11,6 +11,8 @@ export function RunTable({ rows, message }: { rows: RunRecord[]; message: string
         <thead>
           <tr>
             <th>Run ID</th>
+            <th>Agent ID</th>
+            <th>Framework</th>
             <th>Input Summary</th>
             <th>Status</th>
             <th>Project</th>
@@ -23,7 +25,7 @@ export function RunTable({ rows, message }: { rows: RunRecord[]; message: string
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={8} className="muted-note">
+              <td colSpan={10} className="muted-note">
                 {message}
               </td>
             </tr>
@@ -35,6 +37,8 @@ export function RunTable({ rows, message }: { rows: RunRecord[]; message: string
                     {run.runId}
                   </Link>
                 </td>
+                <td className="mono">{run.agentId || "-"}</td>
+                <td>{run.agentType}</td>
                 <td>{run.inputSummary}</td>
                 <td>
                   <StatusPill

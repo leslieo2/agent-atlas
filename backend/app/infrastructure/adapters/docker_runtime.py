@@ -4,16 +4,21 @@ import json
 import os
 from pathlib import Path
 
-from app.infrastructure.adapters.model_runtime import model_runtime_service
+from app.infrastructure.adapters.model_runtime import ModelRuntimeService
 from app.modules.shared.domain.enums import AdapterKind
+
+
+def build_runtime_service() -> ModelRuntimeService:
+    return ModelRuntimeService()
 
 
 def main() -> None:
     request_path = _required_env_path("AFLIGHT_RUN_REQUEST_PATH")
     result_path = _required_env_path("AFLIGHT_RUN_RESULT_PATH")
     payload = json.loads(request_path.read_text(encoding="utf-8"))
+    runtime_service = build_runtime_service()
 
-    result = model_runtime_service.execute(
+    result = runtime_service.execute(
         AdapterKind(payload["agent_type"]),
         payload["model"],
         payload["prompt"],

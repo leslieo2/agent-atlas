@@ -7,18 +7,20 @@ from pathlib import Path
 import pytest
 from app.core.config import RunnerMode, RuntimeMode
 from app.infrastructure.adapters import runner
+from app.infrastructure.adapters.model_runtime import ModelRuntimeService
 from app.modules.shared.domain.enums import AdapterKind
 from pydantic import SecretStr
 
 
 def test_runner_prefers_docker_when_available_in_auto_mode(monkeypatch):
+    runtime_service = ModelRuntimeService()
     monkeypatch.setattr(runner.settings, "runner_mode", RunnerMode.AUTO)
     monkeypatch.setattr(runner.settings, "runtime_mode", RuntimeMode.AUTO)
     monkeypatch.setattr(runner.settings, "openai_api_key", None)
-    monkeypatch.setattr(runner.model_runtime_service, "api_key", None)
+    monkeypatch.setattr(runtime_service, "api_key", None)
     monkeypatch.setattr(runner.DockerRunner, "is_available", lambda self: True)
 
-    ordered = runner._ordered_runners()
+    ordered = runner._ordered_runners(runtime_service)
 
     assert ordered[0].name == "docker"
     assert ordered[1].name == "local"
@@ -26,36 +28,39 @@ def test_runner_prefers_docker_when_available_in_auto_mode(monkeypatch):
 
 
 def test_runner_falls_back_to_mock_when_mode_is_mock(monkeypatch):
+    runtime_service = ModelRuntimeService()
     monkeypatch.setattr(runner.settings, "runner_mode", RunnerMode.MOCK)
 
-    ordered = runner._ordered_runners()
+    ordered = runner._ordered_runners(runtime_service)
 
     assert len(ordered) == 1
     assert ordered[0].name == "mock"
 
 
 def test_runner_docker_mode_does_not_include_local_or_mock_fallbacks(monkeypatch):
+    runtime_service = ModelRuntimeService()
     monkeypatch.setattr(runner.settings, "runner_mode", RunnerMode.DOCKER)
     monkeypatch.setattr(runner.DockerRunner, "is_available", lambda self: True)
 
-    ordered = runner._ordered_runners()
+    ordered = runner._ordered_runners(runtime_service)
 
     assert [item.name for item in ordered] == ["docker"]
 
 
 def test_runner_auto_mode_does_not_fallback_to_mock_in_live_runtime(monkeypatch):
+    runtime_service = ModelRuntimeService()
     monkeypatch.setattr(runner.settings, "runner_mode", RunnerMode.AUTO)
     monkeypatch.setattr(runner.settings, "runtime_mode", RuntimeMode.LIVE)
-    monkeypatch.setattr(runner.model_runtime_service, "api_key", SecretStr("sk-test"))
+    monkeypatch.setattr(runtime_service, "api_key", SecretStr("sk-test"))
     monkeypatch.setattr(runner.DockerRunner, "is_available", lambda self: False)
 
-    ordered = runner._ordered_runners()
+    ordered = runner._ordered_runners(runtime_service)
 
     assert [item.name for item in ordered] == ["local"]
 
 
 def test_static_runner_registry_returns_default_runner():
-    default_runner = runner.FallbackRunnerAdapter()
+    default_runner = runner.FallbackRunnerAdapter(runtime_service=ModelRuntimeService())
     registry = runner.StaticRunnerRegistry(default_runner=default_runner)
 
     selected = registry.get_runner("openai-agents-sdk")

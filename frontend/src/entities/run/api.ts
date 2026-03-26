@@ -9,6 +9,7 @@ export async function listRuns(filters: RunListFilters = {}) {
   if (filters.status) query.set("status", filters.status);
   if (filters.project) query.set("project", filters.project);
   if (filters.dataset) query.set("dataset", filters.dataset);
+  if (filters.agentId) query.set("agent_id", filters.agentId);
   if (filters.model) query.set("model", filters.model);
   if (filters.tag) query.set("tag", filters.tag);
   if (filters.createdFrom) query.set("created_from", filters.createdFrom);
@@ -24,12 +25,10 @@ export async function createRun(payload: CreateRunInput) {
   const body: RunCreateRequest = {
     project: payload.project,
     dataset: payload.dataset ?? null,
-    model: payload.model,
-    agent_type: payload.agentType,
+    agent_id: payload.agentId,
     input_summary: payload.inputSummary,
     prompt: payload.prompt,
     tags: payload.tags ?? [],
-    tool_config: payload.toolConfig ?? {},
     project_metadata: payload.projectMetadata ?? {}
   };
 

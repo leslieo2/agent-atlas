@@ -3,7 +3,12 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.runs.domain.models import RunRecord, RuntimeExecutionResult, TrajectoryStep
+from app.modules.runs.domain.models import (
+    RunRecord,
+    RunSpec,
+    RuntimeExecutionResult,
+    TrajectoryStep,
+)
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
@@ -33,6 +38,14 @@ class RunnerPort(Protocol):
 
 class RunnerRegistryPort(Protocol):
     def get_runner(self, agent_type: AdapterKind) -> RunnerPort: ...
+
+
+class RegisteredRunRuntimePort(Protocol):
+    def execute_registered(
+        self,
+        run_id: UUID,
+        payload: RunSpec,
+    ) -> RuntimeExecutionResult: ...
 
 
 class TraceIngestionPort(Protocol):

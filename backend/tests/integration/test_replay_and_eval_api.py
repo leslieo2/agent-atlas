@@ -126,8 +126,7 @@ def test_candidate_run_provenance_persists_through_runs_api(client):
         json={
             "project": "replay-lab",
             "dataset": "crm-v2",
-            "model": "gpt-4.1-mini",
-            "agent_type": "openai-agents-sdk",
+            "agent_id": "basic",
             "input_summary": "baseline run",
             "prompt": "Reply with exactly one token: alpha",
             "tags": ["baseline"],
@@ -141,12 +140,10 @@ def test_candidate_run_provenance_persists_through_runs_api(client):
         json={
             "project": "replay-lab",
             "dataset": "crm-v2",
-            "model": "gpt-4.1-mini",
-            "agent_type": "openai-agents-sdk",
+            "agent_id": "basic",
             "input_summary": "candidate run",
             "prompt": "Reply with exactly one token: beta",
             "tags": ["candidate", "replay"],
-            "tool_config": {"carrier": "FedEx"},
             "project_metadata": {
                 "candidate": {
                     "kind": "replay",
@@ -160,6 +157,7 @@ def test_candidate_run_provenance_persists_through_runs_api(client):
                     "dataset": "crm-v2",
                     "model": "gpt-4.1-mini",
                     "agentType": "openai-agents-sdk",
+                    "agentId": "basic",
                 },
             },
         },
@@ -179,9 +177,15 @@ def test_candidate_run_provenance_persists_through_runs_api(client):
         "dataset": "crm-v2",
         "model": "gpt-4.1-mini",
         "agentType": "openai-agents-sdk",
+        "agentId": "basic",
     }
-    assert candidate_payload["project_metadata"]["tool_config"] == {"carrier": "FedEx"}
     assert candidate_payload["project_metadata"]["prompt"] == "Reply with exactly one token: beta"
+    assert candidate_payload["project_metadata"]["agent_snapshot"] == {
+        "entrypoint": "app.registered_agents.basic:build_agent",
+        "framework": "openai-agents-sdk",
+        "default_model": "gpt-4.1-mini",
+        "registry_tags": ["example", "smoke"],
+    }
 
     fetched_candidate = client.get(f"/api/v1/runs/{candidate_payload['run_id']}")
     assert fetched_candidate.status_code == 200

@@ -32,6 +32,7 @@ const mockedRuns = [
     toolCalls: 2,
     project: "project-a",
     dataset: "dataset-a",
+    agentId: "",
     model: "gpt-4.1-mini",
     agentType: "openai-agents-sdk",
     tags: [],
@@ -137,12 +138,10 @@ describe("StepReplayPanel integration", () => {
     expect(runApi.createRun).toHaveBeenCalledWith({
       project: "project-a",
       dataset: "dataset-a",
-      model: "gpt-4.1-mini",
-      agentType: "openai-agents-sdk",
+      agentId: "",
       inputSummary: "Replay candidate from step-replay",
       prompt: "base prompt",
       tags: ["candidate", "replay"],
-      toolConfig: { carrier: "FedEx" },
       projectMetadata: {
         candidate: {
           kind: "replay",

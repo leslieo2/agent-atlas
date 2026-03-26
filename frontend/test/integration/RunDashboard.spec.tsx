@@ -70,6 +70,7 @@ const mockedRuns = [
     toolCalls: 5,
     project: "sales-assistant",
     dataset: "crm-v2",
+    agentId: "customer_service",
     model: "gpt-4.1-mini",
     agentType: "openai-agents-sdk",
     tags: ["agent-sdk", "mcp"],
@@ -84,6 +85,7 @@ const mockedRuns = [
     toolCalls: 3,
     project: "support-router",
     dataset: "support-incidents",
+    agentId: "",
     model: "gpt-4.1-mini",
     agentType: "langchain",
     tags: ["langchain"],
@@ -92,8 +94,7 @@ const mockedRuns = [
 ];
 
 vi.mock("@/src/entities/run/api", () => ({
-  listRuns: vi.fn(),
-  createRun: vi.fn()
+  listRuns: vi.fn()
 }));
 
 vi.mock("@/src/entities/dataset/api", () => ({
@@ -112,7 +113,6 @@ describe("RunDashboard integration", () => {
   beforeEach(() => {
     (datasetApi.listDatasets as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
-    (runApi.createRun as unknown as MockedApiFn).mockReset();
     (artifactApi.listArtifacts as unknown as MockedApiFn).mockReset();
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([{ name: "customer-live", rows: [] }]);
@@ -127,12 +127,6 @@ describe("RunDashboard integration", () => {
         sizeBytes: 99
       }
     ]);
-    (runApi.createRun as unknown as MockedApiFn).mockResolvedValue({
-      ...mockedRuns[0],
-      runId: "run-003",
-      inputSummary: "Manual run from dashboard",
-      status: "queued"
-    });
     (artifactApi.exportArtifact as unknown as MockedApiFn)
       .mockResolvedValueOnce({
         artifactId: "artifact-001",
@@ -152,15 +146,14 @@ describe("RunDashboard integration", () => {
       });
   });
 
-  it("loads runs and can create a new run", async () => {
+  it("loads runs and links new runs to Playground", async () => {
     renderWithQueryClient(<RunDashboardWidget />);
 
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
     expect(screen.getByText("Generate a booking itinerary from CRM contact data")).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "New Run" }));
-    expect(await screen.findByText("Created run run-003")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "New Run" })).toHaveAttribute("href", "/playground?dataset=customer-live");
   });
 
   it("exports jsonl and parquet artifacts for the latest run", async () => {
@@ -197,20 +190,12 @@ describe("RunDashboard integration", () => {
     expect(screen.getByRole("link", { name: "Download" })).toBeInTheDocument();
   });
 
-  it("allows ad-hoc run creation when no dataset exists", async () => {
+  it("links ad-hoc creation to Playground when no dataset exists", async () => {
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([]);
 
     renderWithQueryClient(<RunDashboardWidget />);
 
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByRole("button", { name: "New Run" }));
-    await waitFor(() =>
-      expect(runApi.createRun).toHaveBeenCalledWith(
-        expect.objectContaining({
-          dataset: null
-        })
-      )
-    );
+    expect(screen.getByRole("link", { name: "New Run" })).toHaveAttribute("href", "/playground");
   });
 });

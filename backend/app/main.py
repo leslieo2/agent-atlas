@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
     adapter_router,
+    agent_router,
     artifact_router,
     dataset_router,
     eval_router,
@@ -49,6 +50,7 @@ def health(queries: Annotated[HealthQueries, Depends(get_health_queries)]):
 
 
 app.include_router(run_router, prefix=settings.api_prefix)
+app.include_router(agent_router, prefix=settings.api_prefix)
 app.include_router(replay_router, prefix=settings.api_prefix)
 app.include_router(eval_router, prefix=settings.api_prefix)
 app.include_router(dataset_router, prefix=settings.api_prefix)

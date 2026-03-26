@@ -15,13 +15,13 @@ class RunAggregate:
             status=RunStatus.QUEUED,
             project=spec.project,
             dataset=spec.dataset,
+            agent_id=spec.agent_id,
             model=spec.model,
             agent_type=spec.agent_type,
             tags=spec.tags,
             project_metadata={
                 **spec.project_metadata,
                 "prompt": spec.prompt,
-                "tool_config": spec.tool_config,
             },
         )
 
@@ -54,6 +54,12 @@ class RunAggregate:
         self.run.latency_ms += metrics.latency_ms
         self.run.token_cost += metrics.token_cost
         self.run.tool_calls += metrics.tool_calls
+        return self.run
+
+    def update_model(self, model: str | None = None) -> RunRecord:
+        if not model:
+            return self.run
+        self.run.model = model
         return self.run
 
     def terminate(self, reason: str = "terminated by user") -> RunRecord:

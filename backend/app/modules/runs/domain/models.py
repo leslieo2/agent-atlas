@@ -12,12 +12,22 @@ from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 class RunSpec(BaseModel):
     project: str
     dataset: str | None = None
+    agent_id: str = ""
     model: str
     agent_type: AdapterKind
     input_summary: str
     prompt: str
     tags: list[str] = Field(default_factory=list)
-    tool_config: dict[str, Any] = Field(default_factory=dict)
+    project_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class RunCreateInput(BaseModel):
+    project: str
+    dataset: str | None = None
+    agent_id: str
+    input_summary: str
+    prompt: str
+    tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -34,6 +44,7 @@ class RuntimeExecutionResult(BaseModel):
     provider: str
     execution_backend: str | None = None
     container_image: str | None = None
+    resolved_model: str | None = None
 
 
 def utc_now() -> datetime:
@@ -49,6 +60,7 @@ class RunRecord(BaseModel):
     tool_calls: int = 0
     project: str
     dataset: str | None = None
+    agent_id: str = ""
     model: str
     agent_type: AdapterKind
     tags: list[str] = Field(default_factory=list)

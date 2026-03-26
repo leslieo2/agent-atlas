@@ -10,6 +10,15 @@ export interface AdapterDescriptorResponse {
   "supports_eval"?: boolean;
 }
 export type AdapterKind = "openai-agents-sdk" | "langchain" | "mcp";
+export interface AgentDescriptorResponse {
+  "agent_id": string;
+  "name": string;
+  "description": string;
+  "framework": string;
+  "entrypoint": string;
+  "default_model": string;
+  "tags": Array<string>;
+}
 export interface ArtifactExportRequest {
   "run_ids": Array<string>;
   "format"?: ArtifactFormat;
@@ -86,12 +95,10 @@ export interface ReplayResponse {
 export interface RunCreateRequest {
   "project": string;
   "dataset"?: string | null;
-  "model": string;
-  "agent_type": AdapterKind;
+  "agent_id": string;
   "input_summary": string;
   "prompt": string;
   "tags"?: Array<string>;
-  "tool_config"?: Record<string, unknown>;
   "project_metadata"?: Record<string, unknown>;
 }
 export interface RunResponse {
@@ -103,6 +110,7 @@ export interface RunResponse {
   "tool_calls": number;
   "project": string;
   "dataset"?: string | null;
+  "agent_id": string;
   "model": string;
   "agent_type": AdapterKind;
   "tags": Array<string>;

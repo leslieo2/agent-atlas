@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+from app.bootstrap.container import get_container
+from app.modules.runs.domain.models import RuntimeExecutionResult
+
 
 def test_end_to_end_workbench_flow(monkeypatch, client, worker_drain):
+    container = get_container()
     monkeypatch.setattr(
-        "app.infrastructure.adapters.runner.execute_with_fallback",
-        lambda *_args, **_kwargs: {
-            "output": "mocked e2e output",
-            "latency_ms": 1,
-            "token_usage": 2,
-            "provider": "mock",
-        },
+        container.model_runtime,
+        "execute_registered",
+        lambda *_args, **_kwargs: RuntimeExecutionResult(
+            output="mocked e2e output",
+            latency_ms=1,
+            token_usage=2,
+            provider="mock",
+            resolved_model="gpt-4.1-mini",
+        ),
     )
 
     dataset = client.post(
@@ -24,8 +30,7 @@ def test_end_to_end_workbench_flow(monkeypatch, client, worker_drain):
         json={
             "project": "e2e-project",
             "dataset": "e2e-ds",
-            "model": "gpt-4.1-mini",
-            "agent_type": "openai-agents-sdk",
+            "agent_id": "basic",
             "input_summary": "e2e smoke run",
             "prompt": "Generate safe output.",
             "tags": ["e2e"],
@@ -53,23 +58,15 @@ def test_end_to_end_workbench_flow(monkeypatch, client, worker_drain):
             "model": "gpt-4.1-mini",
         },
     )
-    assert replay.status_code == 201
-    replay_payload = replay.json()
-    assert replay_payload["replay_id"]
-    assert replay_payload["run_id"] == run_id
-    assert replay_payload["step_id"] == trajectory_rows[0]["id"]
+    assert replay.status_code == 400
+    assert replay.json()["detail"]["code"] == "unsupported_operation"
 
     eval_job = client.post(
         "/api/v1/eval-jobs",
         json={"run_ids": [run_id], "dataset": "e2e-ds", "evaluators": ["rule", "judge"]},
     )
-    assert eval_job.status_code == 200
-    job_id = eval_job.json()["job_id"]
-
-    assert worker_drain() >= 1
-
-    job = client.get(f"/api/v1/eval-jobs/{job_id}")
-    assert job.json()["status"] == "done"
+    assert eval_job.status_code == 400
+    assert eval_job.json()["detail"]["code"] == "unsupported_operation"
 
     artifact = client.post(
         "/api/v1/artifacts/export",

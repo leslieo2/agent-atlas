@@ -52,12 +52,10 @@ def test_create_run_and_get_by_id(client):
     payload = {
         "project": "smoke-test",
         "dataset": "smoke-ds",
-        "model": "gpt-4.1-mini",
-        "agent_type": "openai-agents-sdk",
+        "agent_id": "basic",
         "input_summary": "health check smoke",
         "prompt": "Summarize all current runs.",
         "tags": ["smoke", "api"],
-        "tool_config": {"primary_tool": "vector_search"},
         "project_metadata": {"team": "backend"},
     }
 
@@ -68,14 +66,20 @@ def test_create_run_and_get_by_id(client):
     got = client.get(f"/api/v1/runs/{run_id}")
     assert got.status_code == 200
     assert got.json()["run_id"] == run_id
+    assert got.json()["agent_id"] == "basic"
     assert got.json()["status"] == RunStatus.QUEUED.value
+    assert got.json()["project_metadata"]["agent_snapshot"] == {
+        "entrypoint": "app.registered_agents.basic:build_agent",
+        "framework": "openai-agents-sdk",
+        "default_model": "gpt-4.1-mini",
+        "registry_tags": ["example", "smoke"],
+    }
 
 
 def test_create_run_without_dataset(client):
     payload = {
         "project": "smoke-test",
-        "model": "gpt-4.1-mini",
-        "agent_type": "openai-agents-sdk",
+        "agent_id": "basic",
         "input_summary": "prompt only smoke",
         "prompt": "Summarize all current runs.",
     }
@@ -89,8 +93,7 @@ def test_run_stays_queued_until_worker_runs(client):
     payload = {
         "project": "queued-test",
         "dataset": "smoke-ds",
-        "model": "gpt-4.1-mini",
-        "agent_type": "openai-agents-sdk",
+        "agent_id": "customer_service",
         "input_summary": "queue only",
         "prompt": "Do not run yet.",
     }
@@ -111,6 +114,7 @@ def test_terminate_running_run_in_memory(client):
         input_summary="temporary run",
         project="tmp-project",
         dataset="tmp-ds",
+        agent_id="basic",
         model="gpt-4.1-mini",
         agent_type="openai-agents-sdk",
         status=RunStatus.RUNNING,
@@ -123,3 +127,24 @@ def test_terminate_running_run_in_memory(client):
 
     already_terminated = client.post(f"/api/v1/runs/{run.run_id}/terminate")
     assert already_terminated.status_code == 400
+
+
+def test_create_run_with_unknown_agent_returns_structured_400(client):
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "project": "smoke-test",
+            "agent_id": "unknown-agent",
+            "input_summary": "bad agent",
+            "prompt": "Do not run.",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": {
+            "code": "agent_not_registered",
+            "message": "agent_id 'unknown-agent' is not registered",
+            "agent_id": "unknown-agent",
+        }
+    }

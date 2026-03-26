@@ -2,11 +2,28 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from app.bootstrap.container import get_container
+from app.modules.runs.domain.models import RunRecord
+from app.modules.shared.domain.enums import AdapterKind, RunStatus
+
 
 def test_end_to_end_error_flow_replay_step_not_found(client):
+    run_id = uuid4()
+    get_container().run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="negative replay seed",
+            status=RunStatus.SUCCEEDED,
+            project="workbench",
+            dataset="crm-v2",
+            model="gpt-4.1-mini",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            tags=["replay"],
+        )
+    )
     response = client.post(
         "/api/v1/replays",
-        json={"run_id": "a6f3f2a1-1111-4f8d-9999-111111111111", "step_id": "no-such-step"},
+        json={"run_id": str(run_id), "step_id": "no-such-step"},
     )
     assert response.status_code == 404
     assert response.json()["detail"] == "step 'no-such-step' not found"
