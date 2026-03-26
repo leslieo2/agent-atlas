@@ -5,9 +5,9 @@ type ApiRun = {
   status: "queued" | "running" | "succeeded" | "failed" | "terminated";
 };
 
-const liveEnabled = process.env.AFLIGHT_E2E_LIVE === "1";
-const apiBaseUrl = process.env.AFLIGHT_API_BASE_URL ?? "http://127.0.0.1:8000";
-const runTimeoutMs = Number(process.env.AFLIGHT_LIVE_RUN_TIMEOUT_MS ?? 120000);
+const liveEnabled = process.env.AGENT_ATLAS_E2E_LIVE === "1";
+const apiBaseUrl = process.env.AGENT_ATLAS_API_BASE_URL ?? "http://127.0.0.1:8000";
+const runTimeoutMs = Number(process.env.AGENT_ATLAS_LIVE_RUN_TIMEOUT_MS ?? 120000);
 const pollIntervalMs = 500;
 
 function sleep(milliseconds: number) {
@@ -53,7 +53,7 @@ async function waitForRunTerminal(request: APIRequestContext, runId: string) {
 }
 
 test.describe("live smoke", () => {
-  test.skip(!liveEnabled, "set AFLIGHT_E2E_LIVE=1 to run the real backend smoke");
+  test.skip(!liveEnabled, "set AGENT_ATLAS_E2E_LIVE=1 to run the real backend smoke");
 
   test("trajectory diff uses the previous comparable live run", async ({ page, request }) => {
     const scope = `live-diff-${Date.now()}`;

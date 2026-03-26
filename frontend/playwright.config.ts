@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const liveE2E = process.env.AFLIGHT_E2E_LIVE === "1";
+const liveE2E = process.env.AGENT_ATLAS_E2E_LIVE === "1";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 
 export default defineConfig({

@@ -13,8 +13,8 @@ def build_runtime_service() -> ModelRuntimeService:
 
 
 def main() -> None:
-    request_path = _required_env_path("AFLIGHT_RUN_REQUEST_PATH")
-    result_path = _required_env_path("AFLIGHT_RUN_RESULT_PATH")
+    request_path = _required_env_path("AGENT_ATLAS_RUN_REQUEST_PATH")
+    result_path = _required_env_path("AGENT_ATLAS_RUN_RESULT_PATH")
     payload = json.loads(request_path.read_text(encoding="utf-8"))
     runtime_service = build_runtime_service()
 

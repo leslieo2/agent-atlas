@@ -1,7 +1,7 @@
 [project]
-name = "agent-flight-recorder-backend"
+name = "agent-atlas-backend"
 version = "0.1.0"
-description = "Backend service for agent flight recorder."
+description = "Backend service for Agent Atlas."
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115,<0.116",

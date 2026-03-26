@@ -73,10 +73,9 @@ def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest
     )
 
     assert calls["agent"] == {
-        "name": "Agent Flight Recorder Assistant",
+        "name": "Agent Atlas Assistant",
         "instructions": (
-            "You are a concise assistant inside Agent Flight Recorder. "
-            "Return the best direct answer."
+            "You are a concise assistant inside Agent Atlas. " "Return the best direct answer."
         ),
         "model": "gpt-4.1-mini",
     }

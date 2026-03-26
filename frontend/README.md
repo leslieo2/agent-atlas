@@ -1,11 +1,11 @@
-# Agent Flight Recorder Frontend
+# Agent Atlas Frontend
 
 This is a Next.js + TypeScript frontend scaffold for the PRD v1 workbench.
 
 ## Start
 
 ```bash
-cd /Users/leslie/PycharmProjects/agent-flight-recorder/frontend
+cd /Users/leslie/PycharmProjects/agent-atlas/frontend
 npm install
 npm run dev
 ```

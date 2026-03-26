@@ -10,12 +10,12 @@ from pydantic import SecretStr
 
 
 def _require_live_openai_env() -> str:
-    if os.getenv("AFLIGHT_LIVE_TESTS") != "1":
-        pytest.skip("set AFLIGHT_LIVE_TESTS=1 to enable real OpenAI smoke tests")
+    if os.getenv("AGENT_ATLAS_LIVE_TESTS") != "1":
+        pytest.skip("set AGENT_ATLAS_LIVE_TESTS=1 to enable real OpenAI smoke tests")
 
-    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("AFLIGHT_OPENAI_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("AGENT_ATLAS_OPENAI_API_KEY")
     if not api_key:
-        pytest.skip("set OPENAI_API_KEY or AFLIGHT_OPENAI_API_KEY for live smoke tests")
+        pytest.skip("set OPENAI_API_KEY or AGENT_ATLAS_OPENAI_API_KEY for live smoke tests")
 
     return api_key
 

@@ -44,8 +44,8 @@ def test_docker_runtime_reads_request_and_writes_result(
         "build_runtime_service",
         lambda: StubRuntimeService(),
     )
-    monkeypatch.setenv("AFLIGHT_RUN_REQUEST_PATH", str(request_path))
-    monkeypatch.setenv("AFLIGHT_RUN_RESULT_PATH", str(result_path))
+    monkeypatch.setenv("AGENT_ATLAS_RUN_REQUEST_PATH", str(request_path))
+    monkeypatch.setenv("AGENT_ATLAS_RUN_RESULT_PATH", str(result_path))
 
     docker_runtime.main()
 

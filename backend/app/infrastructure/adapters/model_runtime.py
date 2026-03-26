@@ -402,8 +402,7 @@ def _normalize_runtime_exception(exc: Exception, model: str) -> Exception:
 
 class OpenAIAgentsSdkAdapter:
     _instructions = (
-        "You are a concise assistant inside Agent Flight Recorder. "
-        "Return the best direct answer."
+        "You are a concise assistant inside Agent Atlas. " "Return the best direct answer."
     )
 
     async def _run_async(
@@ -449,7 +448,7 @@ class OpenAIAgentsSdkAdapter:
             except BaseException as exc:  # pragma: no cover - defensive handoff
                 error = exc
 
-        runner_thread = threading.Thread(target=runner_target, name="aflight-openai-replay")
+        runner_thread = threading.Thread(target=runner_target, name="agent-atlas-openai-replay")
         runner_thread.start()
         runner_thread.join()
 
@@ -470,7 +469,7 @@ class OpenAIAgentsSdkAdapter:
             raise RuntimeError("OpenAI Agents SDK package 'agents' is not installed") from exc
 
         agent = Agent(
-            name="Agent Flight Recorder Assistant",
+            name="Agent Atlas Assistant",
             instructions=self._instructions,
             model=model,
         )

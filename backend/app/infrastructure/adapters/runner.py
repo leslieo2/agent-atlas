@@ -36,7 +36,7 @@ class LocalRunner(Runner):
 
 class DockerRunner(Runner):
     name = "docker"
-    _default_image = "agent-flight-recorder-backend:latest"
+    _default_image = "agent-atlas-backend:latest"
 
     def __init__(self, image: str | None = None) -> None:
         self.image = image or settings.runner_image or self._default_image
@@ -47,7 +47,7 @@ class DockerRunner(Runner):
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
         if not self.is_available():
             raise RuntimeError("docker binary not found")
-        with TemporaryDirectory(prefix="aflight-docker-run-") as temp_dir:
+        with TemporaryDirectory(prefix="agent-atlas-docker-run-") as temp_dir:
             io_dir = Path(temp_dir)
             request_path = io_dir / "request.json"
             result_path = io_dir / "result.json"
@@ -95,11 +95,11 @@ class DockerRunner(Runner):
             "-w",
             "/app",
             "-e",
-            "AFLIGHT_RUN_REQUEST_PATH=/workspace/io/request.json",
+            "AGENT_ATLAS_RUN_REQUEST_PATH=/workspace/io/request.json",
             "-e",
-            "AFLIGHT_RUN_RESULT_PATH=/workspace/io/result.json",
+            "AGENT_ATLAS_RUN_RESULT_PATH=/workspace/io/result.json",
             "-e",
-            "AFLIGHT_RUNTIME_MODE=live",
+            "AGENT_ATLAS_RUNTIME_MODE=live",
         ]
         command.extend(self._forwarded_env_args())
         command.extend(
@@ -115,7 +115,7 @@ class DockerRunner(Runner):
     @staticmethod
     def _forwarded_env_args() -> list[str]:
         args: list[str] = []
-        for env_name in ("OPENAI_API_KEY", "AFLIGHT_OPENAI_API_KEY"):
+        for env_name in ("OPENAI_API_KEY", "AGENT_ATLAS_OPENAI_API_KEY"):
             value = os.getenv(env_name)
             if value:
                 args.extend(["-e", f"{env_name}={value}"])

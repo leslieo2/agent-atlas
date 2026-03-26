@@ -71,7 +71,7 @@ def test_static_runner_registry_returns_default_runner():
 def test_docker_runner_executes_inside_container_and_reads_result(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    monkeypatch.setattr(runner.settings, "runner_image", "agent-flight-recorder-backend:test")
+    monkeypatch.setattr(runner.settings, "runner_image", "agent-atlas-backend:test")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
     calls: list[list[str]] = []
@@ -82,10 +82,10 @@ def test_docker_runner_executes_inside_container_and_reads_result(
         assert kwargs["text"] is True
         assert kwargs["check"] is False
         assert command[:3] == ["docker", "run", "--rm"]
-        assert "agent-flight-recorder-backend:test" in command
+        assert "agent-atlas-backend:test" in command
         assert command[-3:] == ["python", "-m", "app.infrastructure.adapters.docker_runtime"]
         assert "OPENAI_API_KEY=sk-test" in command
-        assert "AFLIGHT_RUNTIME_MODE=live" in command
+        assert "AGENT_ATLAS_RUNTIME_MODE=live" in command
 
         io_dir = _mounted_host_dir(command, "/workspace/io")
         assert "-w" in command
@@ -125,11 +125,11 @@ def test_docker_runner_executes_inside_container_and_reads_result(
     assert result.output == "isolated output"
     assert result.provider == "docker-runtime"
     assert result.execution_backend == "docker"
-    assert result.container_image == "agent-flight-recorder-backend:test"
+    assert result.container_image == "agent-atlas-backend:test"
 
 
 def test_docker_runner_raises_when_container_execution_fails(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr(runner.settings, "runner_image", "agent-flight-recorder-backend:test")
+    monkeypatch.setattr(runner.settings, "runner_image", "agent-atlas-backend:test")
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(command, 1, stdout="stdout trace", stderr="stderr trace")

@@ -1,6 +1,6 @@
 # Backend Architecture
 
-This document describes the current backend architecture for Agent Flight Recorder.
+This document describes the current backend architecture for Agent Atlas.
 
 It is intentionally practical. The goal is to make the codebase easier to navigate, explain the dependency rules, and reduce ambiguity when adding new features.
 

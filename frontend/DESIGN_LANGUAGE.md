@@ -1,6 +1,6 @@
 # Frontend Design Language
 
-This document defines the visual and interaction language for the Agent Flight Recorder frontend.
+This document defines the visual and interaction language for the Agent Atlas frontend.
 
 The current style direction is:
 

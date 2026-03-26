@@ -21,13 +21,13 @@ class RunnerMode(StrEnum):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="AFLIGHT_",
+        env_prefix="AGENT_ATLAS_",
         env_file=".env",
         extra="ignore",
         populate_by_name=True,
     )
 
-    app_name: str = "Agent Flight Recorder API"
+    app_name: str = "Agent Atlas API"
     api_prefix: str = "/api/v1"
     allowed_origins: list[str] = Field(default_factory=lambda: ["*"])
     runtime_mode: RuntimeMode = Field(
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     )
     openai_api_key: SecretStr | None = Field(
         default=None,
-        validation_alias=AliasChoices("AFLIGHT_OPENAI_API_KEY", "OPENAI_API_KEY"),
+        validation_alias=AliasChoices("AGENT_ATLAS_OPENAI_API_KEY", "OPENAI_API_KEY"),
         repr=False,
         description="OpenAI API key used for live execution.",
     )
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
         ),
     )
     runner_image: str = Field(
-        default="agent-flight-recorder-backend:latest",
+        default="agent-atlas-backend:latest",
         description="Docker image used for isolated run execution.",
     )
     database_url: str | None = Field(

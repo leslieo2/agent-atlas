@@ -22,8 +22,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agent Flight Recorder",
-  description: "Agent Infra Workbench for discovery, execution, trajectory inspection, and export."
+  title: "Agent Atlas",
+  description: "A local-first execution workbench for agents, runs, traces, and trajectories."
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -35,7 +35,7 @@ test-e2e:
 	uv run pytest -m e2e
 
 test-e2e-live:
-	AFLIGHT_LIVE_TESTS=1 AFLIGHT_RUNTIME_MODE=live AFLIGHT_RUNNER_MODE=local AFLIGHT_SEED_DEMO=false AFLIGHT_DATABASE_URL=sqlite:///$(CURDIR)/.aflight-pytest-live.db uv run pytest tests/e2e/test_live_smoke.py --no-cov
+	AGENT_ATLAS_LIVE_TESTS=1 AGENT_ATLAS_RUNTIME_MODE=live AGENT_ATLAS_RUNNER_MODE=local AGENT_ATLAS_SEED_DEMO=false AGENT_ATLAS_DATABASE_URL=sqlite:///$(CURDIR)/.agent-atlas-pytest-live.db uv run pytest tests/e2e/test_live_smoke.py --no-cov
 
 test-tdd-unit:
 	uv run pytest -m unit --no-cov -x --ff

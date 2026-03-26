@@ -1,6 +1,6 @@
-# Agent Flight Recorder
+# Agent Atlas
 
-Agent Flight Recorder is a monorepo containing a FastAPI backend and a Next.js frontend.
+Agent Atlas is a monorepo containing a FastAPI backend and a Next.js frontend.
 
 ## Repository Structure
 

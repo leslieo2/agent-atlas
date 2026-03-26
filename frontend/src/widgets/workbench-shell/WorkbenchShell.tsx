@@ -45,10 +45,10 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
       >
         <div className={styles.brand}>
           <div className={styles.brandRow}>
-            <span className={styles.brandBadge}>AFR</span>
-            <span className={styles.eyebrow}>Execution workbench</span>
+            <span className={styles.brandBadge}>AA</span>
+            <span className={styles.eyebrow}>Execution atlas</span>
           </div>
-          <h1>Agent Flight Recorder</h1>
+          <h1>Agent Atlas</h1>
           <p>
             Operate discovery, execution, trajectory review, and artifact export from a single local-first workspace.
           </p>

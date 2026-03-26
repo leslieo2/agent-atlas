@@ -1,6 +1,6 @@
-# Agent Flight Recorder Testing Strategy
+# Agent Atlas Testing Strategy
 
-This repository uses a layered testing model aligned to the current scanned-and-published agent product shape described in [prd.md](/Users/leslie/PycharmProjects/agent-flight-recorder/prd.md).
+This repository uses a layered testing model aligned to the current scanned-and-published agent product shape described in [prd.md](/Users/leslie/PycharmProjects/agent-atlas/prd.md).
 
 ## Test Pyramid
 
