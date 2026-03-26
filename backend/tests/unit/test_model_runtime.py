@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from types import ModuleType, SimpleNamespace
+from uuid import UUID
 
 import pytest
 from app.core.config import RuntimeMode
@@ -12,9 +13,12 @@ from app.core.errors import (
     RateLimitedError,
     UnsupportedAdapterError,
 )
-from app.infrastructure.adapters.model_runtime import ModelRuntimeService
+from app.infrastructure.adapters.model_runtime import (
+    ModelRuntimeService,
+    build_trace_events_from_agent_run,
+)
 from app.modules.runs.domain.models import RuntimeExecutionResult
-from app.modules.shared.domain.enums import AdapterKind
+from app.modules.shared.domain.enums import AdapterKind, StepType
 from pydantic import SecretStr
 
 
@@ -86,6 +90,62 @@ def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest
         resolved_model="gpt-4.1-mini",
     )
     assert result.latency_ms >= 0
+
+
+def test_build_trace_events_from_agent_run_expands_tool_calls():
+    run_id = UUID("00000000-0000-0000-0000-000000000123")
+    result = SimpleNamespace(
+        raw_responses=[
+            SimpleNamespace(
+                output=[
+                    SimpleNamespace(
+                        type="function_call",
+                        name="lookup_shipping_window",
+                        arguments='{"order_reference":"A-1024"}',
+                        call_id="call-1",
+                    )
+                ],
+                usage=SimpleNamespace(total_tokens=11),
+            ),
+            SimpleNamespace(
+                output=[
+                    SimpleNamespace(
+                        type="message",
+                        content=[
+                            SimpleNamespace(type="output_text", text="ETA is 2 business days.")
+                        ],
+                    )
+                ],
+                usage=SimpleNamespace(total_tokens=17),
+            ),
+        ],
+        new_items=[
+            SimpleNamespace(
+                raw_item={"call_id": "call-1", "output": "eta_window=2 business days"},
+                output="eta_window=2 business days",
+            )
+        ],
+    )
+
+    events = build_trace_events_from_agent_run(
+        run_id=run_id,
+        prompt="Use the available tools to look up the shipping window for order A-1024.",
+        model="gpt-4.1-mini",
+        provider="openai-agents-sdk",
+        result=result,
+    )
+
+    assert [event.step_type for event in events] == [StepType.LLM, StepType.TOOL, StepType.LLM]
+    assert [event.span_id for event in events] == [
+        f"span-{run_id}-1",
+        f"span-{run_id}-2",
+        f"span-{run_id}-3",
+    ]
+    assert events[1].parent_span_id == f"span-{run_id}-1"
+    assert events[1].tool_name == "lookup_shipping_window"
+    assert events[1].output["output"] == "eta_window=2 business days"
+    assert events[2].parent_span_id == f"span-{run_id}-2"
+    assert events[2].token_usage == 17
 
 
 def test_model_runtime_service_raises_clear_error_when_agents_sdk_missing():

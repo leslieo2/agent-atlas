@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
+from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import (
     RunRecord,
     RunSpec,
@@ -45,7 +46,7 @@ class PublishedRunRuntimePort(Protocol):
         self,
         run_id: UUID,
         payload: RunSpec,
-    ) -> RuntimeExecutionResult: ...
+    ) -> PublishedRunExecutionResult: ...
 
 
 class TraceIngestionPort(Protocol):

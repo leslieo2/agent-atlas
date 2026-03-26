@@ -130,7 +130,9 @@ def write_contract() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate frontend API contract types from backend OpenAPI.")
+    parser = argparse.ArgumentParser(
+        description="Generate frontend API contract types from backend OpenAPI."
+    )
     parser.add_argument(
         "--check",
         action="store_true",
@@ -139,11 +141,17 @@ def main() -> None:
     args = parser.parse_args()
 
     rendered = render_contract_source()
-    existing = FRONTEND_CONTRACT_PATH.read_text(encoding="utf-8") if FRONTEND_CONTRACT_PATH.exists() else None
+    existing = (
+        FRONTEND_CONTRACT_PATH.read_text(encoding="utf-8")
+        if FRONTEND_CONTRACT_PATH.exists()
+        else None
+    )
 
     if args.check:
         if existing != rendered:
-            raise SystemExit("frontend API contract is out of date; run backend/scripts/generate_frontend_contract.py")
+            raise SystemExit(
+                "frontend API contract is out of date; run backend/scripts/generate_frontend_contract.py"
+            )
         return
 
     FRONTEND_CONTRACT_PATH.write_text(rendered, encoding="utf-8")

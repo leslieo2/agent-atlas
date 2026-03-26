@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.bootstrap.container import get_container
+from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RuntimeExecutionResult
 
 
@@ -9,12 +10,14 @@ def test_end_to_end_workbench_flow(monkeypatch, client, worker_drain):
     monkeypatch.setattr(
         container.model_runtime,
         "execute_published",
-        lambda *_args, **_kwargs: RuntimeExecutionResult(
-            output="mocked e2e output",
-            latency_ms=1,
-            token_usage=2,
-            provider="mock",
-            resolved_model="gpt-4.1-mini",
+        lambda *_args, **_kwargs: PublishedRunExecutionResult(
+            runtime_result=RuntimeExecutionResult(
+                output="mocked e2e output",
+                latency_ms=1,
+                token_usage=2,
+                provider="mock",
+                resolved_model="gpt-4.1-mini",
+            )
         ),
     )
 

@@ -7,6 +7,7 @@ from app.bootstrap.container import get_container
 from app.infrastructure.adapters.traces import DefaultTraceProjector
 from app.modules.artifacts.domain.models import ArtifactExportRequest
 from app.modules.datasets.domain.models import DatasetCreate
+from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import (
     RunCreateInput,
     RuntimeExecutionResult,
@@ -74,12 +75,14 @@ def test_run_commands_can_force_success(monkeypatch, worker_drain):
     monkeypatch.setattr(
         container.model_runtime,
         "execute_published",
-        lambda *_args, **_kwargs: RuntimeExecutionResult(
-            output="mocked unit output",
-            latency_ms=1,
-            token_usage=2,
-            provider="mock",
-            resolved_model="gpt-4.1-mini",
+        lambda *_args, **_kwargs: PublishedRunExecutionResult(
+            runtime_result=RuntimeExecutionResult(
+                output="mocked unit output",
+                latency_ms=1,
+                token_usage=2,
+                provider="mock",
+                resolved_model="gpt-4.1-mini",
+            )
         ),
     )
     payload = RunCreateInput(

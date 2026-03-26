@@ -8,10 +8,10 @@ from app.modules.runs.application.ports import (
     RunRepository,
     TraceIngestionPort,
 )
+from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import (
     ExecutionMetrics,
     RunSpec,
-    RuntimeExecutionResult,
 )
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus, StepType
@@ -37,7 +37,7 @@ class RunExecutionContext:
 
 @dataclass(frozen=True)
 class ProjectedExecutionRecord:
-    event: TraceIngestEvent
+    events: list[TraceIngestEvent]
     metrics: ExecutionMetrics
 
 
@@ -49,32 +49,18 @@ class RunExecutionProjector:
     def project_runtime_success(
         self,
         context: RunExecutionContext,
-        result: RuntimeExecutionResult,
+        result: PublishedRunExecutionResult,
     ) -> ProjectedExecutionRecord:
+        events = self._project_trace_events(context=context, result=result)
+        runtime_result = result.runtime_result
         return ProjectedExecutionRecord(
-            event=self._build_event(
-                context=context,
-                span_id=self.runtime_result_span_id(context.run_id),
-                parent_span_id=None,
-                step_type=StepType.LLM,
-                name=result.resolved_model or context.payload.model,
-                input_payload={
-                    "prompt": context.payload.prompt,
-                    "model": result.resolved_model or context.payload.model,
-                    "temperature": 0.0,
-                },
-                output_payload={
-                    "output": result.output,
-                    "success": True,
-                    "provider": result.provider,
-                },
-                latency_ms=result.latency_ms,
-                token_usage=result.token_usage,
-                image_digest=result.container_image or context.image_digest,
-            ),
+            events=events,
             metrics=ExecutionMetrics(
-                latency_ms=result.latency_ms,
-                token_cost=result.token_usage,
+                latency_ms=runtime_result.latency_ms,
+                token_cost=runtime_result.token_usage,
+                tool_calls=sum(
+                    1 for event in result.trace_events if event.step_type == StepType.TOOL
+                ),
             ),
         )
 
@@ -85,23 +71,67 @@ class RunExecutionProjector:
     ) -> ProjectedExecutionRecord:
         output = f"live execution failed: {error}"
         return ProjectedExecutionRecord(
-            event=self._build_event(
-                context=context,
-                span_id=self.runtime_result_span_id(context.run_id),
-                parent_span_id=None,
-                step_type=StepType.LLM,
-                name=context.payload.model,
-                input_payload={
-                    "prompt": context.payload.prompt,
-                    "model": context.payload.model,
-                    "temperature": 0.0,
-                },
-                output_payload={"output": output, "success": False, "error": error},
-                latency_ms=0,
-                token_usage=0,
-            ),
+            events=[
+                self._build_event(
+                    context=context,
+                    span_id=self.runtime_result_span_id(context.run_id),
+                    parent_span_id=None,
+                    step_type=StepType.LLM,
+                    name=context.payload.model,
+                    input_payload={
+                        "prompt": context.payload.prompt,
+                        "model": context.payload.model,
+                        "temperature": 0.0,
+                    },
+                    output_payload={"output": output, "success": False, "error": error},
+                    latency_ms=0,
+                    token_usage=0,
+                )
+            ],
             metrics=ExecutionMetrics(),
         )
+
+    def _project_trace_events(
+        self,
+        context: RunExecutionContext,
+        result: PublishedRunExecutionResult,
+    ) -> list[TraceIngestEvent]:
+        runtime_result = result.runtime_result
+        if not result.trace_events:
+            return [
+                self._build_event(
+                    context=context,
+                    span_id=self.runtime_result_span_id(context.run_id),
+                    parent_span_id=None,
+                    step_type=StepType.LLM,
+                    name=runtime_result.resolved_model or context.payload.model,
+                    input_payload={
+                        "prompt": context.payload.prompt,
+                        "model": runtime_result.resolved_model or context.payload.model,
+                        "temperature": 0.0,
+                    },
+                    output_payload={
+                        "output": runtime_result.output,
+                        "success": True,
+                        "provider": runtime_result.provider,
+                    },
+                    latency_ms=runtime_result.latency_ms,
+                    token_usage=runtime_result.token_usage,
+                    image_digest=runtime_result.container_image or context.image_digest,
+                )
+            ]
+
+        return [
+            event.model_copy(
+                update={
+                    "image_digest": event.image_digest
+                    or runtime_result.container_image
+                    or context.image_digest,
+                    "prompt_version": event.prompt_version or context.prompt_version,
+                }
+            )
+            for event in result.trace_events
+        ]
 
     def _build_event(
         self,
@@ -143,7 +173,8 @@ class ExecutionRecorder:
         self.trace_ingestor = trace_ingestor
 
     def record(self, run_id: UUID, record: ProjectedExecutionRecord) -> None:
-        self.trace_ingestor.ingest(record.event)
+        for event in record.events:
+            self.trace_ingestor.ingest(event)
 
         run = self.run_repository.get(run_id)
         if not run:
@@ -177,7 +208,7 @@ class RunExecutionService:
 
         try:
             result = self.published_runtime.execute_published(run_id, payload)
-            self._update_run_model(run_id, result.resolved_model)
+            self._update_run_model(run_id, result.runtime_result.resolved_model)
             self.recorder.record(run_id, self.projector.project_runtime_success(context, result))
             self._set_status(run_id, RunStatus.SUCCEEDED)
         except Exception as exc:

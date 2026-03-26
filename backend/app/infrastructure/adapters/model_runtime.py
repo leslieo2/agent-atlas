@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 import time
 from collections.abc import Mapping, Sequence
@@ -19,8 +20,10 @@ from app.core.errors import (
 )
 from app.infrastructure.adapters.agents import PublishedOpenAIAgentLoader
 from app.modules.agents.domain.models import AgentBuildContext, PublishedAgent
+from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
-from app.modules.shared.domain.enums import AdapterKind
+from app.modules.shared.domain.enums import AdapterKind, StepType
+from app.modules.traces.domain.models import TraceIngestEvent
 
 
 class RuntimeAdapter(Protocol):
@@ -39,6 +42,201 @@ def _usage_total_tokens(usage: object) -> int:
     if isinstance(usage, dict):
         return int(usage.get("total_tokens", 0) or 0)
     return int(getattr(usage, "total_tokens", 0) or 0)
+
+
+def _dump_json(value: object) -> str:
+    try:
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    except TypeError:
+        return str(value)
+
+
+def _extract_message_text(item: object) -> str:
+    if getattr(item, "type", None) != "message":
+        return ""
+
+    fragments: list[str] = []
+    for content in getattr(item, "content", []) or []:
+        content_type = getattr(content, "type", None)
+        if content_type == "output_text":
+            text = getattr(content, "text", None)
+        elif content_type == "refusal":
+            text = getattr(content, "refusal", None)
+        else:
+            text = None
+        if isinstance(text, str) and text.strip():
+            fragments.append(text.strip())
+    return "\n".join(fragments)
+
+
+def _serialize_response_output(items: Sequence[object]) -> str:
+    serialized: list[object] = []
+    for item in items:
+        if hasattr(item, "model_dump"):
+            serialized.append(item.model_dump(exclude_unset=True))
+        else:
+            serialized.append(str(item))
+    return _dump_json(serialized)
+
+
+def _tool_outputs_by_call_id(result: object) -> dict[str, str]:
+    tool_outputs: dict[str, str] = {}
+    for item in getattr(result, "new_items", []) or []:
+        raw_item = getattr(item, "raw_item", None)
+        if isinstance(raw_item, dict):
+            call_id = raw_item.get("call_id")
+            fallback_output = raw_item.get("output")
+            item_type = raw_item.get("type")
+        else:
+            call_id = getattr(raw_item, "call_id", None)
+            fallback_output = getattr(raw_item, "output", None)
+            item_type = getattr(raw_item, "type", None)
+
+        if (
+            type(item).__name__ != "ToolCallOutputItem"
+            and item_type != "function_call_output"
+            and not (call_id and hasattr(item, "output"))
+        ):
+            continue
+
+        if not isinstance(call_id, str) or not call_id:
+            continue
+
+        output = getattr(item, "output", None)
+        normalized_output = (
+            output if isinstance(output, str) else str(output or fallback_output or "")
+        )
+        tool_outputs[call_id] = normalized_output
+    return tool_outputs
+
+
+def _build_follow_up_prompt(prompt: str, tool_outputs: Sequence[str]) -> str:
+    if not tool_outputs:
+        return prompt
+    return "\n".join(
+        [
+            prompt,
+            "",
+            "Tool outputs:",
+            *tool_outputs,
+        ]
+    )
+
+
+def build_trace_events_from_agent_run(
+    *,
+    run_id: Any,
+    prompt: str,
+    model: str,
+    provider: str,
+    result: object,
+) -> list[TraceIngestEvent]:
+    raw_responses = getattr(result, "raw_responses", None)
+    if not isinstance(raw_responses, list) or not raw_responses:
+        return []
+
+    tool_outputs = _tool_outputs_by_call_id(result)
+    events: list[TraceIngestEvent] = []
+    previous_parent_span_id: str | None = None
+    previous_tool_outputs: list[str] = []
+    step_index = 1
+
+    for response in raw_responses:
+        response_items = getattr(response, "output", None)
+        if not isinstance(response_items, list):
+            response_items = []
+
+        llm_prompt = (
+            prompt
+            if not events
+            else _build_follow_up_prompt(prompt=prompt, tool_outputs=previous_tool_outputs)
+        )
+        llm_span_id = f"span-{run_id}-{step_index}"
+        step_index += 1
+
+        tool_calls = [
+            item for item in response_items if getattr(item, "type", None) == "function_call"
+        ]
+        if tool_calls:
+            llm_output = "\n".join(
+                [
+                    "tool_call: "
+                    f"{getattr(item, 'name', 'unknown')}({getattr(item, 'arguments', '{}')})"
+                    for item in tool_calls
+                ]
+            )
+        else:
+            message_outputs = [
+                text for text in (_extract_message_text(item) for item in response_items) if text
+            ]
+            llm_output = (
+                message_outputs[-1]
+                if message_outputs
+                else _serialize_response_output(response_items)
+            )
+
+        events.append(
+            TraceIngestEvent(
+                run_id=run_id,
+                span_id=llm_span_id,
+                parent_span_id=previous_parent_span_id,
+                step_type=StepType.LLM,
+                name=model,
+                input={
+                    "prompt": llm_prompt,
+                    "model": model,
+                    "temperature": 0.0,
+                },
+                output={
+                    "output": llm_output,
+                    "success": True,
+                    "provider": provider,
+                },
+                token_usage=_usage_total_tokens(getattr(response, "usage", None)),
+            )
+        )
+
+        current_parent_span_id = llm_span_id
+        current_tool_outputs: list[str] = []
+        for tool_call in tool_calls:
+            call_id = getattr(tool_call, "call_id", None)
+            tool_name = getattr(tool_call, "name", None)
+            arguments = getattr(tool_call, "arguments", None)
+            if not isinstance(call_id, str) or not isinstance(tool_name, str):
+                continue
+
+            output = tool_outputs.get(call_id)
+            if output is None:
+                continue
+
+            tool_span_id = f"span-{run_id}-{step_index}"
+            step_index += 1
+            prompt_payload = arguments if isinstance(arguments, str) else _dump_json(arguments)
+            events.append(
+                TraceIngestEvent(
+                    run_id=run_id,
+                    span_id=tool_span_id,
+                    parent_span_id=current_parent_span_id,
+                    step_type=StepType.TOOL,
+                    name=tool_name,
+                    input={
+                        "prompt": prompt_payload,
+                        "tool_name": tool_name,
+                    },
+                    output={
+                        "output": output,
+                        "success": True,
+                    },
+                    tool_name=tool_name,
+                )
+            )
+            current_parent_span_id = tool_span_id
+            current_tool_outputs.append(f"{tool_name}: {output}")
+
+        previous_parent_span_id = current_parent_span_id
+        previous_tool_outputs = current_tool_outputs
+
+    return events
 
 
 def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
@@ -306,7 +504,7 @@ class PublishedOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
         api_key: SecretStr | None,
         payload: RunSpec,
         context: AgentBuildContext,
-    ) -> RuntimeExecutionResult:
+    ) -> PublishedRunExecutionResult:
         try:
             from agents import OpenAIProvider, RunConfig
         except ImportError as exc:
@@ -337,12 +535,23 @@ class PublishedOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
         context_wrapper = getattr(result, "context_wrapper", None)
         usage = getattr(context_wrapper, "usage", None)
         resolved_model = self._resolve_model(result=result, agent=agent, run_config=run_config)
-        return RuntimeExecutionResult(
+        effective_model = resolved_model or published_agent.default_model
+        runtime_result = RuntimeExecutionResult(
             output=final_output if isinstance(final_output, str) else str(final_output),
             latency_ms=latency_ms,
             token_usage=_usage_total_tokens(usage),
             provider="openai-agents-sdk",
-            resolved_model=resolved_model or published_agent.default_model,
+            resolved_model=effective_model,
+        )
+        return PublishedRunExecutionResult(
+            runtime_result=runtime_result,
+            trace_events=build_trace_events_from_agent_run(
+                run_id=context.run_id,
+                prompt=payload.prompt,
+                model=effective_model,
+                provider="openai-agents-sdk",
+                result=result,
+            ),
         )
 
     @staticmethod
@@ -434,11 +643,13 @@ class ModelRuntimeService:
             fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
             return fallback
 
-    def execute_published(self, run_id: Any, payload: RunSpec) -> RuntimeExecutionResult:
+    def execute_published(self, run_id: Any, payload: RunSpec) -> PublishedRunExecutionResult:
         effective_mode = self._effective_runtime_mode()
         if effective_mode == RuntimeMode.MOCK:
             fallback = self._simulate_output(payload.agent_type, payload.model, payload.prompt)
-            return fallback.model_copy(update={"resolved_model": payload.model})
+            return PublishedRunExecutionResult(
+                runtime_result=fallback.model_copy(update={"resolved_model": payload.model})
+            )
 
         try:
             if not self.api_key:
@@ -466,7 +677,9 @@ class ModelRuntimeService:
                 raise normalized_exc from exc
             fallback = self._simulate_output(payload.agent_type, payload.model, payload.prompt)
             fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
-            return fallback.model_copy(update={"resolved_model": payload.model})
+            return PublishedRunExecutionResult(
+                runtime_result=fallback.model_copy(update={"resolved_model": payload.model})
+            )
 
     @staticmethod
     def _default_adapters() -> dict[AdapterKind, RuntimeAdapter]:
