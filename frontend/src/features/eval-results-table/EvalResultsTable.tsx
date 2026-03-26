@@ -5,11 +5,11 @@ import { TableShell } from "@/src/shared/ui/TableShell";
 
 export function EvalResultsTable({
   rows,
-  selectedSampleId,
+  selectedKey,
   onSelect
 }: {
   rows: EvalResult[];
-  selectedSampleId?: string;
+  selectedKey?: string;
   onSelect: (row: EvalResult) => void;
 }) {
   return (
@@ -33,7 +33,8 @@ export function EvalResultsTable({
               onClick={() => onSelect(row)}
               style={{
                 cursor: "pointer",
-                outline: selectedSampleId === row.sampleId ? "1px solid rgba(110, 255, 166, 0.6)" : "none"
+                outline:
+                  selectedKey === `${row.runId}-${row.sampleId}` ? "1px solid rgba(110, 255, 166, 0.6)" : "none"
               }}
             >
               <td>{row.runId.slice(0, 8)}</td>
@@ -49,4 +50,3 @@ export function EvalResultsTable({
     </TableShell>
   );
 }
-

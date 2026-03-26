@@ -38,6 +38,7 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
   const [model, setModel] = useState("gpt-4.1-mini");
   const [lastDiff, setLastDiff] = useState("Waiting for replay...");
   const [latestReplay, setLatestReplay] = useState<ReplayResult | null>(null);
+  const [latestCandidateRunId, setLatestCandidateRunId] = useState("");
   const runs = runsQuery.data ?? [];
   const trajectoryQuery = useTrajectoryQuery(selectedRun);
   const steps = trajectoryQuery.data ?? [];
@@ -79,11 +80,16 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
   useEffect(() => {
     setLatestReplay(null);
     setLastDiff("Waiting for replay...");
+    setLatestCandidateRunId("");
   }, [selectedRun, selectedStepId]);
 
   const activeReplay = latestReplay?.stepId === candidate?.id && latestReplay?.runId === candidate?.runId ? latestReplay : null;
   const replayedPrompt = activeReplay?.updatedPrompt ?? prompt;
   const replayedOutput = activeReplay?.replayOutput ?? "Run replay to generate output.";
+  const evalHref =
+    selectedRunRecord && latestCandidateRunId
+      ? `/evals?runIds=${selectedRunRecord.runId},${latestCandidateRunId}&dataset=${selectedRunRecord.dataset}`
+      : "";
 
   return (
     <section className="page-stack">
@@ -99,17 +105,23 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
           <Button href={selectedRun ? `/runs/${selectedRun}` : "/runs"} variant="secondary">
             <ArrowLeft size={14} /> Open source run
           </Button>
+          {evalHref ? (
+            <Button href={evalHref} variant="secondary">
+              Compare in eval
+            </Button>
+          ) : null}
           <Button
             disabled={createReplayMutation.isPending || !candidate}
             onClick={async () => {
               if (!candidate) return;
               try {
+                const parsedToolOverrides = JSON.parse(toolPayload) as Record<string, unknown>;
                 const result = await createReplayMutation.mutateAsync({
                   runId: candidate.runId,
                   stepId: candidate.id,
                   editedPrompt: prompt,
                   model,
-                  toolOverrides: JSON.parse(toolPayload),
+                  toolOverrides: parsedToolOverrides,
                   rationale: "Replay from UI"
                 });
                 setLatestReplay(result);
@@ -190,12 +202,27 @@ export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {
           <div className="toolbar" style={{ marginTop: 8 }}>
             <PromoteReplayAction
               candidate={candidate}
+              sourceRun={selectedRunRecord}
+              replayResult={activeReplay}
               model={model}
               prompt={prompt}
+              toolOverrides={(() => {
+                try {
+                  return JSON.parse(toolPayload) as Record<string, unknown>;
+                } catch {
+                  return {};
+                }
+              })()}
               lastDiff={lastDiff}
               onUpdated={setLastDiff}
+              onCandidateCreated={setLatestCandidateRunId}
             />
           </div>
+          {latestCandidateRunId ? (
+            <p className="muted-note" style={{ marginTop: 8 }}>
+              Candidate run {latestCandidateRunId.slice(0, 8)} is ready for eval comparison.
+            </p>
+          ) : null}
         </Panel>
       </div>
     </section>

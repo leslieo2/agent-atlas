@@ -132,11 +132,42 @@ describe("StepReplayPanel integration", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Replay step" }));
     await waitFor(() => expect(replayApi.createReplay).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole("button", { name: "Promote to new run" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save as candidate run" }));
     await waitFor(() => expect(runApi.createRun).toHaveBeenCalledTimes(1));
+    expect(runApi.createRun).toHaveBeenCalledWith({
+      project: "project-a",
+      dataset: "dataset-a",
+      model: "gpt-4.1-mini",
+      agentType: "openai-agents-sdk",
+      inputSummary: "Replay candidate from step-replay",
+      prompt: "base prompt",
+      tags: ["candidate", "replay"],
+      toolConfig: { carrier: "FedEx" },
+      projectMetadata: {
+        candidate: {
+          kind: "replay",
+          replayId: "replay-001",
+          sourceRunId: "run-step",
+          sourceStepId: "step-replay",
+          baselineModel: "gpt-4.1-mini",
+          replayModel: "gpt-4.1-mini",
+          diff: "patched"
+        },
+        sourceRun: {
+          project: "project-a",
+          dataset: "dataset-a",
+          model: "gpt-4.1-mini",
+          agentType: "openai-agents-sdk"
+        }
+      }
+    });
     expect(
-      await screen.findByText(/Promoted replay to new run run-replay-candidate/)
+      await screen.findByText(/Saved replay as candidate run run-replay-candidate/)
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Compare in eval" })).toHaveAttribute(
+      "href",
+      "/evals?runIds=run-step,run-replay-candidate&dataset=dataset-a"
+    );
   });
 
   it("falls back to the source run model for non-llm steps", async () => {
