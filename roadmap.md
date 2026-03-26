@@ -2,44 +2,49 @@
 
 ## Current Product Direction
 
-The near-term roadmap follows the registered-agent v1 product shape:
+The near-term roadmap follows the scanned-and-published agent v1 product shape:
 
-- Registered OpenAI Agents SDK agents as the primary runtime object
-- Python registry-based agent catalog
+- Repository-local OpenAI Agents SDK agent plugins as the primary runtime object
+- Automatic discovery plus explicit publish / unpublish workflow
+- Published runnable agent catalog
 - Playground flow driven by `agent_id`
-- Local and Docker execution for registered agents
+- Local and Docker execution for published agents
+- Agent Management workspace for discovery and publication
 - Run dashboard and trajectory inspection for real executions
 - JSONL export for successful runs
 
 ## Current Priorities
 
-### 1. Registered Agent Catalog
+### 1. Agent Discovery and Publication
 
 Priority: High
 
 Goal:
-- Make repository-local OpenAI Agents SDK agents discoverable and selectable from the UI.
+- Make repository-local OpenAI Agents SDK agent plugins discoverable, validatable, and publishable from the UI.
 
 What this includes:
-- A Python registry as the source of truth for registered agents
+- Filesystem scanning of `backend/app/agent_plugins/`
+- A fixed plugin contract: `AGENT_MANIFEST` plus `build_agent(context) -> Agent`
+- `GET /api/v1/agents/discovered`
 - `GET /api/v1/agents`
-- Agent metadata visible in Playground and Run Dashboard
-- Validation for missing or invalid entrypoints
+- `POST /api/v1/agents/{agent_id}/publish`
+- `POST /api/v1/agents/{agent_id}/unpublish`
+- Validation for missing or invalid manifests and entrypoints
 
 Why this matters:
 - This is the entry point into the product.
-- Without a real catalog, the workbench cannot serve existing user-authored agents.
+- Without a real discovery and publication workflow, the workbench cannot safely serve existing user-authored agents.
 
-### 2. Registered-Agent Run Path
+### 2. Published-Agent Run Path
 
 Priority: High
 
 Goal:
-- Execute a real registered agent from `agent_id` rather than from a platform-built mini runtime.
+- Execute a real published agent from `agent_id` rather than from a platform-built mini runtime.
 
 What this includes:
 - `POST /api/v1/runs` driven by `agent_id`
-- Runtime loading of repository-local Python entrypoints
+- Runtime loading driven by the published catalog
 - Local and Docker execution support
 - Structured runtime error handling
 
@@ -47,7 +52,7 @@ Why this matters:
 - This is the core product promise.
 - It determines whether the workbench is truly an agent infrastructure tool or only a prompt playground.
 
-### 3. Playground and Run Workspace
+### 3. Agent Management, Playground, and Run Workspace
 
 Priority: High
 
@@ -55,7 +60,9 @@ Goal:
 - Make the main user workflow clear and reliable.
 
 What this includes:
-- Registered agent selector
+- Agent Management workspace with Draft, Published, and Invalid states
+- Publish / Unpublish actions
+- Published agent selector
 - Prompt input
 - Optional dataset selector
 - Run creation from Playground
@@ -74,7 +81,7 @@ Goal:
 
 What this includes:
 - Export selected runs as JSONL
-- Include run metadata, agent metadata, and recorded execution steps
+- Include run metadata, published-agent metadata, and recorded execution steps
 - Keep export semantics stable for downstream workflows
 
 Why this matters:
@@ -82,30 +89,30 @@ Why this matters:
 
 ## Post-v1 Backlog
 
-### Registered-Agent Replay
+### Published-Agent Replay
 
 Priority: Medium
 
 Why this exists:
 - Replay remains valuable for debugging and experimentation.
-- It is intentionally out of the first registered-agent v1 scope.
+- It is intentionally out of the first scanned-and-published v1 scope.
 
 What is missing:
-- A replay contract for registered agents
+- A replay contract for published agents
 - Stable replay semantics for agent-owned tools and state
-- Clear UI behavior for replaying registered-agent runs
+- Clear UI behavior for replaying published-agent runs
 
 Implementation direction:
-- Reintroduce replay only after the registered-agent run path is stable
+- Reintroduce replay only after the published-agent run path is stable
 - Base replay on `agent_id` and recorded execution metadata
 - Avoid prompt-only replay semantics for agent-owned tool behavior
 
-### Registered-Agent Eval
+### Published-Agent Eval
 
 Priority: Medium
 
 Why this exists:
-- Dataset-based evaluation is important, but it should be built on top of a stable registered-agent execution path.
+- Dataset-based evaluation is important, but it should be built on top of a stable published-agent execution path.
 
 What is missing:
 - Eval contracts centered on `agent_id`
@@ -113,7 +120,7 @@ What is missing:
 - Real scoring semantics rather than placeholder evaluation
 
 Implementation direction:
-- Add batch execution for registered agents
+- Add batch execution for published agents
 - Support rule-based and model-based evaluation only after run and export flows are stable
 
 ### Deterministic Tool Replay
@@ -121,7 +128,7 @@ Implementation direction:
 Priority: Low
 
 Why this exists:
-- Deterministic replay of tool steps becomes important once registered-agent replay is a supported workflow.
+- Deterministic replay of tool steps becomes important once published-agent replay is a supported workflow.
 
 What is missing:
 - A dedicated tool replay backend
@@ -129,18 +136,50 @@ What is missing:
 - A strategy for external state such as network responses and versioned dependencies
 
 Implementation direction:
-- Treat this as a follow-on to registered-agent replay
-- Do not implement it as an isolated replay track ahead of the core registered-agent product path
+- Treat this as a follow-on to published-agent replay
+- Do not implement it as an isolated replay track ahead of the core scanned-and-published product path
+
+### Versioned Agent Publication
+
+Priority: Low
+
+Why this exists:
+- Publication currently controls platform exposure, not code freezing.
+- Teams may later need auditable, reproducible publish artifacts.
+
+What is missing:
+- Manifest version history
+- Source snapshots or content hashing
+- Clear rollback semantics for a previously published agent revision
+
+Implementation direction:
+- Add after discovery, publication, and run flows are stable
+- Keep v1 publish lightweight and runtime-oriented first
+
+### Additional Agent Sources
+
+Priority: Low
+
+Why this exists:
+- Some teams will eventually want to source agents from installed packages or remote repositories.
+
+What is missing:
+- A safe source abstraction beyond repository-local Python modules
+- Trust, isolation, and compatibility rules for external sources
+
+Implementation direction:
+- Keep v1 constrained to `backend/app/agent_plugins/`
+- Add new sources only after the repository-local plugin path is stable
 
 ### Additional Framework Support
 
 Priority: Low
 
 Why this exists:
-- LangChain and MCP may become important once the registered OpenAI Agents SDK path is stable.
+- LangChain and MCP may become important once the repository-local OpenAI Agents SDK plugin path is stable.
 
 What is missing:
-- A registry and runtime contract for non-OpenAI frameworks
+- A plugin contract and runtime contract for non-OpenAI frameworks
 - Clear compatibility rules for tool and trace semantics across frameworks
 
 Implementation direction:

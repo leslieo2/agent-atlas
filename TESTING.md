@@ -1,31 +1,32 @@
 # Agent Flight Recorder Testing Strategy
 
-This repository uses a layered testing model aligned to the current registered-agent product shape described in [prd.md](/Users/leslie/PycharmProjects/agent-flight-recorder/prd.md).
+This repository uses a layered testing model aligned to the current scanned-and-published agent product shape described in [prd.md](/Users/leslie/PycharmProjects/agent-flight-recorder/prd.md).
 
 ## Test Pyramid
 
 - `unit`
-  - Goal: verify pure business rules, registry loading, schema mapping, runtime loading, exporter formatting, and frontend API/data mapping.
+  - Goal: verify pure business rules, plugin discovery, manifest validation, publication state transitions, runtime loading, exporter formatting, and frontend API/data mapping.
   - Scope: no real network, no browser navigation, no background process orchestration beyond local stubs and mocks.
 - `integration`
   - Goal: verify boundary collaboration inside one app.
-  - Backend: FastAPI routes, registered-agent catalog, run creation, persistence, export flow.
+  - Backend: FastAPI routes, discovery and published-agent catalogs, publish and unpublish flows, run creation, persistence, export flow.
   - Frontend: rendered React components plus mocked API boundaries.
 - `e2e`
-  - Goal: verify the main registered-agent user workflow through the actual UI or full backend workflow.
+  - Goal: verify the main scanned-and-published agent user workflow through the actual UI or full backend workflow.
   - Frontend: Playwright against a running Next.js app with route interception or live services.
-  - Backend: end-to-end flows across agent catalog, run creation, trajectory inspection, and export.
+  - Backend: end-to-end flows across discovery, publication, runnable catalog, run creation, trajectory inspection, and export.
 
 ## PRD-to-Suite Mapping
 
-- Registered agent catalog
-  - Backend unit: registry parsing and entrypoint validation
+- Agent discovery and publication
+  - Backend unit: plugin scanning, manifest parsing, duplicate detection, and entrypoint validation
+  - Backend integration: `GET /agents/discovered`, publish, unpublish
   - Backend integration: `GET /agents`
-  - Frontend integration: Playground agent selector and agent metadata rendering
+  - Frontend integration: Agent Management state rendering, publish and unpublish actions, Playground agent selector and agent metadata rendering
 - Run an agent
-  - Backend integration: `POST /runs`, `GET /runs/{id}`, trajectory persistence, structured runtime errors
+  - Backend integration: `POST /runs`, `GET /runs/{id}`, trajectory persistence, structured runtime errors, unpublished-agent rejection
   - Frontend integration: `Playground`, `RunDashboard`
-  - Frontend e2e: Playground create-run flow from selected `agent_id`
+  - Frontend e2e: publish a valid agent, then create a run from selected `agent_id`
 - Debug a run
   - Backend integration: trajectory and trace persistence contracts
   - Frontend integration: `TrajectoryViewer`, step inspection surfaces
@@ -39,11 +40,13 @@ This repository uses a layered testing model aligned to the current registered-a
 
 The following are intentionally not part of the current v1 golden-path test matrix:
 
-- Replay for registered agents
-- Eval for registered agents
-- LangChain registered-agent support
-- MCP registered-agent support
+- Replay for published agents
+- Eval for published agents
+- LangChain plugin support
+- MCP plugin support
 - Deterministic tool-step replay
+- External package or remote plugin sources
+- Versioned publish snapshots
 
 They may retain historical tests where needed, but they do not define the primary product verification path.
 
@@ -81,7 +84,7 @@ Files kept at the test root are also classified:
 
 `frontend/test/setup.ts` provides stable browser shims for `matchMedia`, `ResizeObserver`, and `IntersectionObserver`, which avoids false failures in jsdom-based integration tests.
 
-`frontend/e2e/support/mockApi.ts` centralizes Playwright API fixtures so new registered-agent flows can be added without repeating raw `page.route` boilerplate.
+`frontend/e2e/support/mockApi.ts` centralizes Playwright API fixtures so new agent discovery, publication, and run flows can be added without repeating raw `page.route` boilerplate.
 
 ## TDD Workflow
 
@@ -95,16 +98,16 @@ Use a strict red-green-refactor loop:
 
 Recommended command path:
 
-1. Registry or backend service change: `make test-tdd-unit`
+1. Agent discovery or backend service change: `make test-tdd-unit`
 2. Backend API contract or persistence change: `make test-tdd-integration`
 3. Frontend mapping or util change: `npm run test:tdd:unit`
 4. Frontend component behavior change: `npm run test:tdd:integration`
-5. Cross-screen registered-agent workflow change: `npm run test:e2e:ui`
+5. Cross-screen discovery, publication, or run workflow change: `npm run test:e2e:ui`
 
 ## Coverage Guidance
 
 - Keep unit tests dominant in count and speed.
-- Use integration tests to cover registry loading, route wiring, schema contracts, and state transitions.
+- Use integration tests to cover plugin discovery, publication flows, route wiring, schema contracts, and state transitions.
 - Reserve e2e for a few golden paths from the current PRD.
 - Do not push low-level mapping checks into Playwright.
 - Do not use e2e to compensate for missing unit tests.
