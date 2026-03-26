@@ -17,6 +17,7 @@ type Props = {
   agentName: string;
   dataset: string;
   latestRunId: string;
+  latestRunStatus: RunRecord["status"] | null;
   onLatestRunChange: (value: string) => void;
   onLogChange: (value: string) => void;
 };
@@ -29,6 +30,10 @@ function sleep(milliseconds: number) {
 
 function isTerminalStatus(status: RunRecord["status"]) {
   return status === "succeeded" || status === "failed" || status === "terminated";
+}
+
+function isTerminableStatus(status: RunRecord["status"]) {
+  return status === "queued" || status === "running";
 }
 
 function formatRunLog({
@@ -80,6 +85,7 @@ export function ManualRunActions({
   agentName,
   dataset,
   latestRunId,
+  latestRunStatus,
   onLatestRunChange,
   onLogChange
 }: Props) {
@@ -194,6 +200,51 @@ export function ManualRunActions({
     }
   };
 
+  const refreshLiveTrace = async () => {
+    if (!latestRunId) return;
+
+    try {
+      const run = await queryClient.fetchQuery(runQueryOptions(latestRunId));
+      await syncTraceLog({ run, requestId: activeRunPollRef.current });
+    } catch (error) {
+      onLogChange(error instanceof Error ? error.message : "Failed to refresh live trace.");
+    }
+  };
+
+  const terminateLatestRun = async () => {
+    if (!latestRunId) return;
+
+    const requestId = activeRunPollRef.current + 1;
+    activeRunPollRef.current = requestId;
+
+    try {
+      const run = await queryClient.fetchQuery(runQueryOptions(latestRunId));
+
+      if (!isTerminableStatus(run.status)) {
+        onLogChange(
+          `${formatRunLog({ run, agentId, agentName, prompt })}\n\nRun ${run.runId} is already ${run.status} and can no longer be terminated.`
+        );
+        return;
+      }
+
+      const result = await terminateRunMutation.mutateAsync(latestRunId);
+
+      if (requestId !== activeRunPollRef.current) {
+        return;
+      }
+
+      onLogChange(
+        `run_id: ${result.runId}\nstatus: ${result.status}\ntermination_reason: ${result.terminationReason ?? "terminated by user"}`
+      );
+    } catch (error) {
+      if (requestId !== activeRunPollRef.current) {
+        return;
+      }
+
+      onLogChange(error instanceof Error ? error.message : "Failed to terminate run.");
+    }
+  };
+
   return (
     <div className="toolbar" style={{ marginTop: 12 }}>
       <Button onClick={runManual}>
@@ -202,25 +253,18 @@ export function ManualRunActions({
       <Button variant="ghost" onClick={() => navigator.clipboard?.writeText(latestRunId)}>
         Save snapshot
       </Button>
-      <Button
-        variant="ghost"
-        onClick={async () => {
-          if (!latestRunId) return;
-          const run = await queryClient.fetchQuery(runQueryOptions(latestRunId));
-          await syncTraceLog({ run, requestId: activeRunPollRef.current });
-        }}
-      >
+      <Button variant="ghost" onClick={refreshLiveTrace} disabled={!latestRunId}>
         Refresh live trace
       </Button>
       <Button
         variant="ghost"
-        onClick={async () => {
-          if (!latestRunId) return;
-          const result = await terminateRunMutation.mutateAsync(latestRunId);
-          onLogChange(
-            `run_id: ${result.runId}\nstatus: ${result.status}\ntermination_reason: ${result.terminationReason ?? "terminated by user"}`
-          );
-        }}
+        onClick={terminateLatestRun}
+        disabled={
+          !latestRunId ||
+          terminateRunMutation.isPending ||
+          createRunMutation.isPending ||
+          (latestRunStatus !== null && !isTerminableStatus(latestRunStatus))
+        }
       >
         Terminate run
       </Button>

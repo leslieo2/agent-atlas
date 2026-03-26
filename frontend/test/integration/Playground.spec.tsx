@@ -52,6 +52,11 @@ const runs = [
   }
 ];
 
+const runningRun = {
+  ...runs[0],
+  status: "running" as const
+};
+
 describe("Playground integration", () => {
   beforeEach(() => {
     (agentApi.listAgents as unknown as MockedApiFn).mockReset();
@@ -178,6 +183,15 @@ describe("Playground integration", () => {
   });
 
   it("terminates the latest run", async () => {
+    (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue([runningRun]);
+    (runApi.getRun as unknown as MockedApiFn).mockResolvedValue(runningRun);
+    (runApi.terminateRun as unknown as MockedApiFn).mockResolvedValue({
+      runId: "run-play",
+      terminated: true,
+      status: "terminated",
+      terminationReason: "terminated by user"
+    });
+
     renderWithQueryClient(<PlaygroundWorkspace />);
     await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
@@ -187,6 +201,21 @@ describe("Playground integration", () => {
     fireEvent.click(screen.getByRole("button", { name: "Terminate run" }));
     await waitFor(() => expect(runApi.terminateRun).toHaveBeenCalledWith("run-play"));
     expect(await screen.findByText(/termination_reason:\s*terminated by user/)).toBeInTheDocument();
+  });
+
+  it("does not terminate a completed latest run", async () => {
+    (runApi.getRun as unknown as MockedApiFn).mockResolvedValue(runs[0]);
+
+    renderWithQueryClient(<PlaygroundWorkspace />);
+    await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
+
+    const terminateButton = screen.getByRole("button", { name: "Terminate run" });
+    expect(terminateButton).toBeDisabled();
+
+    fireEvent.click(terminateButton);
+    expect(runApi.terminateRun).not.toHaveBeenCalled();
   });
 
   it("allows prompt-only execution when no dataset exists", async () => {

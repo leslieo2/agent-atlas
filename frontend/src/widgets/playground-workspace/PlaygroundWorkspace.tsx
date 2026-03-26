@@ -30,6 +30,10 @@ export default function PlaygroundWorkspace({ initialDataset = "", initialAgentI
   const agents = useMemo(() => agentsQuery.data ?? [], [agentsQuery.data]);
   const selectedAgent = agents.find((item) => item.agentId === agentId) ?? agents[0] ?? null;
   const datasets = useMemo(() => datasetsQuery.data?.map((item) => item.name) ?? [], [datasetsQuery.data]);
+  const latestRun = useMemo(
+    () => runsQuery.data?.find((run) => run.runId === latestRunId) ?? null,
+    [latestRunId, runsQuery.data]
+  );
 
   useEffect(() => {
     if (!latestRunId && runsQuery.data?.[0]) {
@@ -115,6 +119,7 @@ export default function PlaygroundWorkspace({ initialDataset = "", initialAgentI
             agentName={selectedAgent?.name ?? "Unknown"}
             dataset={dataset}
             latestRunId={latestRunId}
+            latestRunStatus={latestRun?.status ?? null}
             onLatestRunChange={setLatestRunId}
             onLogChange={setLog}
           />
