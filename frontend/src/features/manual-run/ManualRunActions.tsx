@@ -15,6 +15,7 @@ type Props = {
   prompt: string;
   agentType: string;
   model: string;
+  dataset: string;
   tools: string;
   latestRunId: string;
   onLatestRunChange: (value: string) => void;
@@ -76,6 +77,7 @@ export function ManualRunActions({
   prompt,
   agentType,
   model,
+  dataset,
   tools,
   latestRunId,
   onLatestRunChange,
@@ -160,9 +162,14 @@ export function ManualRunActions({
     activeRunPollRef.current = requestId;
 
     try {
+      if (!dataset) {
+        onLogChange("No dataset available. Create or upload a dataset before starting a live run.");
+        return;
+      }
+
       const run = await createRunMutation.mutateAsync({
         project: "playground",
-        dataset: "crm-v2",
+        dataset,
         model,
         agentType: agentType === "LangChain" ? "langchain" : "openai-agents-sdk",
         inputSummary: prompt.slice(0, 80),
@@ -199,7 +206,7 @@ export function ManualRunActions({
 
   return (
     <div className="toolbar" style={{ marginTop: 12 }}>
-      <Button onClick={runManual}>
+      <Button onClick={runManual} disabled={!dataset}>
         <Play size={14} /> Run now
       </Button>
       <Button variant="ghost" onClick={() => navigator.clipboard?.writeText(latestRunId)}>

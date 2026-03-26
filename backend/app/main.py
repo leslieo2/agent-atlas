@@ -23,7 +23,8 @@ from app.modules.health.application.use_cases import HealthQueries
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    seed_demo_state()
+    if settings.should_seed_demo():
+        seed_demo_state()
     yield
 
 

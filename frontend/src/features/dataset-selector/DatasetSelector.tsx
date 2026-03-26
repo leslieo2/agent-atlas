@@ -13,7 +13,12 @@ export function DatasetSelector({
 }) {
   return (
     <Field label="Dataset">
-      <select value={dataset} onChange={(event) => onDatasetChange(event.target.value)}>
+      <select value={dataset} onChange={(event) => onDatasetChange(event.target.value)} disabled={!datasets.length}>
+        {!datasets.length ? (
+          <option value="">No datasets available</option>
+        ) : !datasets.includes(dataset) ? (
+          <option value="">Select a dataset</option>
+        ) : null}
         {datasets.map((name) => (
           <option key={name} value={name}>
             {name}
@@ -23,4 +28,3 @@ export function DatasetSelector({
     </Field>
   );
 }
-

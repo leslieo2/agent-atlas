@@ -7,7 +7,7 @@ import subprocess  # nosec B404
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from app.core.config import settings
+from app.core.config import RunnerMode, settings
 from app.infrastructure.adapters.model_runtime import model_runtime_service
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
@@ -135,15 +135,21 @@ _runners = {
 
 
 def _ordered_runners() -> list[Runner]:
-    mode = (settings.runner_mode or settings.runtime_mode or "auto").lower()
-    if mode == "mock":
+    mode = settings.runner_mode
+    if mode == RunnerMode.MOCK:
         return [_runners["mock"]]
-    if mode == "local":
+    if mode == RunnerMode.LOCAL:
         return [_runners["local"]]
-    if mode == "docker":
+    if mode == RunnerMode.DOCKER:
         return [_runners["docker"]]
 
-    ordered: list[Runner] = [_runners["local"], _runners["mock"]]
+    if not settings.should_allow_mock_fallback(model_runtime_service.api_key):
+        ordered: list[Runner] = [_runners["local"]]
+        if _runners["docker"].is_available():
+            ordered.insert(0, _runners["docker"])
+        return ordered
+
+    ordered = [_runners["local"], _runners["mock"]]
     if _runners["docker"].is_available():
         ordered.insert(0, _runners["docker"])
     return ordered

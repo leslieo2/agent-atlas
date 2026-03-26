@@ -6,10 +6,13 @@ type Props = {
   prompt: string;
   agentType: string;
   model: string;
+  dataset: string;
+  datasets: string[];
   tools: string;
   onPromptChange: (value: string) => void;
   onAgentTypeChange: (value: string) => void;
   onModelChange: (value: string) => void;
+  onDatasetChange: (value: string) => void;
   onToolsChange: (value: string) => void;
 };
 
@@ -17,10 +20,13 @@ export function PlaygroundForm({
   prompt,
   agentType,
   model,
+  dataset,
+  datasets,
   tools,
   onPromptChange,
   onAgentTypeChange,
   onModelChange,
+  onDatasetChange,
   onToolsChange
 }: Props) {
   return (
@@ -42,6 +48,20 @@ export function PlaygroundForm({
             <option>gpt-5-mini</option>
           </select>
         </Field>
+        <Field label="Dataset">
+          <select value={dataset} onChange={(event) => onDatasetChange(event.target.value)} disabled={!datasets.length}>
+            {!datasets.length ? (
+              <option value="">No datasets available</option>
+            ) : !datasets.includes(dataset) ? (
+              <option value="">Select a dataset</option>
+            ) : null}
+            {datasets.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </Field>
       </div>
       <Field label="Tool selection (comma-separated)">
         <input value={tools} onChange={(event) => onToolsChange(event.target.value)} />
@@ -49,4 +69,3 @@ export function PlaygroundForm({
     </>
   );
 }
-

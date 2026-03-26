@@ -1,5 +1,6 @@
 import { request } from "@/src/shared/api/http";
 import type { ArtifactExportRequest, ArtifactMetadataResponse } from "@/src/shared/api/contract";
+import { getApiBaseUrl } from "@/src/shared/config/env";
 import { mapArtifact } from "./mapper";
 import type { ExportArtifactInput } from "./model";
 
@@ -22,6 +23,5 @@ export async function exportArtifact(payload: ExportArtifactInput) {
 }
 
 export function getArtifactDownloadUrl(artifactId: string) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
-  return `${apiBase}/api/v1/artifacts/${artifactId}`;
+  return `${getApiBaseUrl()}/api/v1/artifacts/${artifactId}`;
 }

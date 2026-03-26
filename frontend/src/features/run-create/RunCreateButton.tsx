@@ -6,18 +6,25 @@ import { useCreateRunMutation } from "@/src/entities/run/query";
 import { Button } from "@/src/shared/ui/Button";
 
 export function RunCreateButton({
+  datasetName,
   onCreated
 }: {
+  datasetName?: string;
   onCreated: (run: RunRecord) => void;
 }) {
   const createRunMutation = useCreateRunMutation();
 
   return (
     <Button
+      disabled={!datasetName}
       onClick={async () => {
+        if (!datasetName) {
+          return;
+        }
+
         const run = await createRunMutation.mutateAsync({
           project: "workbench",
-          dataset: "crm-v2",
+          dataset: datasetName,
           model: "gpt-4.1-mini",
           agentType: "openai-agents-sdk",
           inputSummary: "Manual run from dashboard",

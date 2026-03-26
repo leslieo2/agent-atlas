@@ -1,4 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+import { getApiBaseUrl } from "@/src/shared/config/env";
+
+const API_BASE = getApiBaseUrl();
 
 type ApiErrorDetail =
   | string

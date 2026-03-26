@@ -4,6 +4,7 @@ import { ArrowUpRight, Boxes, ClipboardList } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { getArtifactDownloadUrl } from "@/src/entities/artifact/api";
 import { useArtifactsQuery } from "@/src/entities/artifact/query";
+import { useDatasetsQuery } from "@/src/entities/dataset/query";
 import { useRunsQuery } from "@/src/entities/run/query";
 import { ArtifactExportActions } from "@/src/features/artifact-export/ArtifactExportActions";
 import { RunCreateButton } from "@/src/features/run-create/RunCreateButton";
@@ -30,6 +31,7 @@ export default function RunDashboardWidget() {
   const [actionMessage, setActionMessage] = useState("");
   const [filters, setFilters] = useState<RunFilterState>(defaultFilterState);
   const artifactsQuery = useArtifactsQuery();
+  const datasetsQuery = useDatasetsQuery();
   const { projectFilter, datasetFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo } = filters;
   const requestFilters = useMemo(
     () =>
@@ -67,6 +69,7 @@ export default function RunDashboardWidget() {
   const filterOptions = useMemo(() => getFilterOptions(runRecords), [runRecords]);
   const stats = useMemo(() => getRunStats(filteredRuns), [filteredRuns]);
   const recentArtifacts = (artifactsQuery.data ?? []).slice(0, 5);
+  const defaultDatasetName = datasetsQuery.data?.[0]?.name;
 
   return (
     <section className="page-stack">
@@ -86,6 +89,7 @@ export default function RunDashboardWidget() {
             <Boxes size={14} /> Playground
           </Button>
           <RunCreateButton
+            datasetName={defaultDatasetName}
             onCreated={(run) => {
               setActionMessage(`Created run ${run.runId}`);
             }}
@@ -118,6 +122,7 @@ export default function RunDashboardWidget() {
 
         <RunFilters options={filterOptions} state={filters} onChange={setFilters} />
         <Notice>{message}</Notice>
+        {!defaultDatasetName ? <Notice>No dataset available for ad-hoc run creation.</Notice> : null}
       </Panel>
 
       <Panel>

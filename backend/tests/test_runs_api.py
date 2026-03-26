@@ -3,8 +3,10 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.bootstrap.container import get_container
+from app.core.config import RuntimeMode, settings
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import RunStatus
+from fastapi.testclient import TestClient
 
 
 def test_run_list_and_filters_include_seeded_data(client):
@@ -18,6 +20,32 @@ def test_run_list_and_filters_include_seeded_data(client):
     response = client.get("/api/v1/runs", params={"status": RunStatus.SUCCEEDED.value})
     assert response.status_code == 200
     assert all(run["status"] == RunStatus.SUCCEEDED.value for run in response.json())
+
+
+def test_live_mode_does_not_seed_demo_by_default(monkeypatch):
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", None)
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/runs")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_seed_demo_can_be_explicitly_enabled_in_live_mode(monkeypatch):
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", True)
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/runs")
+
+    assert response.status_code == 200
+    assert any(run["project"] == "sales-assistant" for run in response.json())
 
 
 def test_create_run_and_get_by_id(client):

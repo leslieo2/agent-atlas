@@ -23,12 +23,12 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 cd "$BACKEND_DIR"
-AFLIGHT_DATABASE_URL="$DB_URL" AFLIGHT_RUNTIME_MODE=live AFLIGHT_RUNNER_MODE=local \
+AFLIGHT_DATABASE_URL="$DB_URL" AFLIGHT_RUNTIME_MODE=live AFLIGHT_RUNNER_MODE=local AFLIGHT_SEED_DEMO=false \
   .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port "$API_PORT" \
   >/tmp/agent-flight-recorder-live-api.log 2>&1 &
 API_PID=$!
 
-AFLIGHT_DATABASE_URL="$DB_URL" AFLIGHT_RUNTIME_MODE=live AFLIGHT_RUNNER_MODE=local \
+AFLIGHT_DATABASE_URL="$DB_URL" AFLIGHT_RUNTIME_MODE=live AFLIGHT_RUNNER_MODE=local AFLIGHT_SEED_DEMO=false \
   AFLIGHT_WORKER_POLL_INTERVAL_SECONDS=0.2 .venv/bin/python -m app.worker \
   >/tmp/agent-flight-recorder-live-worker.log 2>&1 &
 WORKER_PID=$!

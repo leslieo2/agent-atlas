@@ -101,7 +101,7 @@ export default function EvalWorkspace({ initialRunIds = [], initialDataset }: Pr
   const exportArtifactMutation = useExportArtifactMutation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [rows, setRows] = useState<EvalResult[]>([]);
-  const [dataset, setDataset] = useState(initialDataset ?? "crm-v2");
+  const [dataset, setDataset] = useState(initialDataset ?? "");
   const [query, setQuery] = useState("");
   const [selectedSample, setSelectedSample] = useState<EvalResult | null>(null);
   const [selectedRunIds, setSelectedRunIds] = useState<string[]>(initialRunIds);
@@ -290,7 +290,7 @@ export default function EvalWorkspace({ initialRunIds = [], initialDataset }: Pr
         </div>
         <div className="toolbar">
           <DatasetUpload fileInputRef={fileInputRef} onChange={handleUpload} />
-          <EvalRunActions onRunEval={runEval} onExport={exportEvalArtifacts} />
+          <EvalRunActions onRunEval={runEval} onExport={exportEvalArtifacts} disabled={!dataset || selectedRunIds.length === 0} />
         </div>
       </div>
 
@@ -345,6 +345,12 @@ export default function EvalWorkspace({ initialRunIds = [], initialDataset }: Pr
           </select>
         </Field>
       </Panel>
+
+      {!dataset ? (
+        <Panel style={{ marginTop: 16 }}>
+          <p className="muted-note">No dataset available. Upload a JSONL dataset before running eval.</p>
+        </Panel>
+      ) : null}
 
       <Panel style={{ marginTop: 16 }}>
         <div className="surface-header">

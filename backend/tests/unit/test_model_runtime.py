@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import os
 import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
+from app.core.config import RuntimeMode
 from app.core.errors import (
     ModelNotFoundError,
     ProviderAuthError,
@@ -21,7 +21,6 @@ from pydantic import SecretStr
 def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest.MonkeyPatch):
     calls: dict[str, object] = {}
     fake_agents = ModuleType("agents")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     class Agent:
         def __init__(self, *, name: str, instructions: str, model: str) -> None:
@@ -33,20 +32,35 @@ def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest
 
     class Runner:
         @staticmethod
-        def run_sync(agent: Agent, prompt: str) -> SimpleNamespace:
-            calls["run_sync"] = {"agent": agent, "prompt": prompt}
-            calls["api_key"] = os.environ.get("OPENAI_API_KEY")
+        def run_sync(
+            agent: Agent,
+            prompt: str,
+            *,
+            run_config: object | None = None,
+        ) -> SimpleNamespace:
+            calls["run_sync"] = {"agent": agent, "prompt": prompt, "run_config": run_config}
+            calls["model_provider"] = getattr(run_config, "model_provider", None)
             usage = SimpleNamespace(total_tokens=123)
             context_wrapper = SimpleNamespace(usage=usage)
             return SimpleNamespace(final_output="sdk output", context_wrapper=context_wrapper)
 
+    class OpenAIProvider:
+        def __init__(self, *, api_key: str | None = None) -> None:
+            self._stored_api_key = api_key
+
+    class RunConfig:
+        def __init__(self, *, model_provider: object) -> None:
+            self.model_provider = model_provider
+
     fake_agents.Agent = Agent
     fake_agents.Runner = Runner
+    fake_agents.OpenAIProvider = OpenAIProvider
+    fake_agents.RunConfig = RunConfig
     monkeypatch.setitem(sys.modules, "agents", fake_agents)
 
     service = ModelRuntimeService()
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = "live"
+    service.runtime_mode = RuntimeMode.LIVE
 
     result = service.execute(
         AdapterKind.OPENAI_AGENTS,
@@ -62,8 +76,8 @@ def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest
         ),
         "model": "gpt-4.1-mini",
     }
-    assert calls["api_key"] == "sk-test"
     assert calls["run_sync"]["prompt"] == "Summarize the ticket."
+    assert calls["model_provider"]._stored_api_key == "sk-test"
     assert result == RuntimeExecutionResult(
         output="sdk output",
         latency_ms=result.latency_ms,
@@ -78,7 +92,7 @@ def test_model_runtime_service_raises_clear_error_when_agents_sdk_missing():
     sys.modules["agents"] = None
     service = ModelRuntimeService()
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = "live"
+    service.runtime_mode = RuntimeMode.LIVE
 
     try:
         with pytest.raises(
@@ -118,7 +132,7 @@ def test_model_runtime_service_dispatches_through_registered_adapters():
     adapter = StubAdapter()
     service = ModelRuntimeService(adapters={AdapterKind.LANGCHAIN: adapter})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = "live"
+    service.runtime_mode = RuntimeMode.LIVE
 
     result = service.execute(
         AdapterKind.LANGCHAIN,
@@ -159,7 +173,7 @@ def test_model_runtime_service_normalizes_invalid_model_errors():
 
     service = ModelRuntimeService(adapters={AdapterKind.OPENAI_AGENTS: ExplodingAdapter()})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = "live"
+    service.runtime_mode = RuntimeMode.LIVE
 
     with pytest.raises(ModelNotFoundError) as exc_info:
         service.execute(
@@ -200,7 +214,7 @@ def test_model_runtime_service_normalizes_invalid_model_errors_from_param_only_s
 
     service = ModelRuntimeService(adapters={AdapterKind.OPENAI_AGENTS: ExplodingAdapter()})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = "live"
+    service.runtime_mode = RuntimeMode.LIVE
 
     with pytest.raises(ModelNotFoundError):
         service.execute(
@@ -240,7 +254,7 @@ def test_model_runtime_service_normalizes_runtime_provider_errors(
 
     service = ModelRuntimeService(adapters={AdapterKind.OPENAI_AGENTS: ExplodingAdapter()})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = "live"
+    service.runtime_mode = RuntimeMode.LIVE
 
     with pytest.raises(expected_error):
         service.execute(
@@ -253,7 +267,7 @@ def test_model_runtime_service_normalizes_runtime_provider_errors(
 def test_model_runtime_service_raises_structured_error_for_unsupported_adapter():
     service = ModelRuntimeService(adapters={})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = "live"
+    service.runtime_mode = RuntimeMode.LIVE
 
     with pytest.raises(UnsupportedAdapterError) as exc_info:
         service.execute(
@@ -267,3 +281,31 @@ def test_model_runtime_service_raises_structured_error_for_unsupported_adapter()
         "message": "agent_type 'mcp' is not supported for live execution",
         "agent_type": "mcp",
     }
+
+
+def test_model_runtime_service_auto_mode_without_key_uses_mock():
+    service = ModelRuntimeService(adapters={})
+    service.api_key = None
+    service.runtime_mode = RuntimeMode.AUTO
+
+    result = service.execute(
+        AdapterKind.OPENAI_AGENTS,
+        model="gpt-4.1-mini",
+        prompt="Summarize the ticket.",
+    )
+
+    assert result.provider == "mock"
+    assert "Simulated openai-agents-sdk execution" in result.output
+
+
+def test_model_runtime_service_live_mode_without_key_raises():
+    service = ModelRuntimeService(adapters={})
+    service.api_key = None
+    service.runtime_mode = RuntimeMode.LIVE
+
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is not set"):
+        service.execute(
+            AdapterKind.OPENAI_AGENTS,
+            model="gpt-4.1-mini",
+            prompt="Summarize the ticket.",
+        )

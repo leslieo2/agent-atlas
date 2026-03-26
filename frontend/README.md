@@ -12,6 +12,8 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+If the backend is not running on `http://127.0.0.1:8000`, copy `frontend/.env.example` to `frontend/.env.local` and set `NEXT_PUBLIC_API_BASE_URL`.
+
 ## Architecture
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the frontend layering rules, dependency direction, and module ownership. The current frontend is organized as thin route entrypoints in `app/` plus layered product code in `src/widgets`, `src/features`, `src/entities`, and `src/shared`, with TanStack Query handling server-state coordination.

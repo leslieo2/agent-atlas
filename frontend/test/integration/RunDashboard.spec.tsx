@@ -1,6 +1,7 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import * as datasetApi from "@/src/entities/dataset/api";
 import RunDashboardWidget from "@/src/widgets/run-dashboard/RunDashboardWidget";
 import { renderWithQueryClient } from "@/test/setup";
 import * as artifactApi from "@/src/entities/artifact/api";
@@ -95,6 +96,10 @@ vi.mock("@/src/entities/run/api", () => ({
   createRun: vi.fn()
 }));
 
+vi.mock("@/src/entities/dataset/api", () => ({
+  listDatasets: vi.fn()
+}));
+
 vi.mock("@/src/entities/artifact/api", () => ({
   listArtifacts: vi.fn(),
   exportArtifact: vi.fn(),
@@ -105,10 +110,12 @@ type MockedApiFn = ReturnType<typeof vi.fn>;
 
 describe("RunDashboard integration", () => {
   beforeEach(() => {
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
     (runApi.createRun as unknown as MockedApiFn).mockReset();
     (artifactApi.listArtifacts as unknown as MockedApiFn).mockReset();
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([{ name: "customer-live", rows: [] }]);
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
     (artifactApi.listArtifacts as unknown as MockedApiFn).mockResolvedValue([
       {
@@ -148,6 +155,7 @@ describe("RunDashboard integration", () => {
   it("loads runs and can create a new run", async () => {
     renderWithQueryClient(<RunDashboardWidget />);
 
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
     expect(screen.getByText("Generate a booking itinerary from CRM contact data")).toBeVisible();
 
@@ -158,6 +166,7 @@ describe("RunDashboard integration", () => {
   it("exports jsonl and parquet artifacts for the latest run", async () => {
     renderWithQueryClient(<RunDashboardWidget />);
 
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Export JSONL" }));
@@ -182,8 +191,18 @@ describe("RunDashboard integration", () => {
   it("shows recent artifact history", async () => {
     renderWithQueryClient(<RunDashboardWidget />);
 
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Recent exports with direct download links")).toBeInTheDocument();
     expect(await screen.findByText("JSONL")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Download" })).toBeInTheDocument();
+  });
+
+  it("disables ad-hoc run creation when no dataset exists", async () => {
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([]);
+
+    renderWithQueryClient(<RunDashboardWidget />);
+
+    expect(await screen.findByText("No dataset available for ad-hoc run creation.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New Run" })).toBeDisabled();
   });
 });

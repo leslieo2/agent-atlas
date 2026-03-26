@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 from app.bootstrap.container import get_container
+from app.core.config import RunnerMode, RuntimeMode, settings
+from app.infrastructure.adapters.model_runtime import model_runtime_service
 from app.infrastructure.repositories import reset_state
 from fastapi.testclient import TestClient
 
@@ -17,6 +19,12 @@ def _reset_state() -> None:
 
 @pytest.fixture(autouse=True)
 def reset_in_memory_state() -> None:
+    settings.runtime_mode = RuntimeMode.AUTO
+    settings.runner_mode = RunnerMode.AUTO
+    settings.openai_api_key = None
+    settings.seed_demo = True
+    model_runtime_service.api_key = None
+    model_runtime_service.runtime_mode = RuntimeMode.AUTO
     _reset_state()
     yield
     _reset_state()

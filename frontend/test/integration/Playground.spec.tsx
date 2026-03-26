@@ -1,11 +1,16 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import * as datasetApi from "@/src/entities/dataset/api";
 import * as runApi from "@/src/entities/run/api";
 import * as traceApi from "@/src/entities/trace/api";
 import * as trajectoryApi from "@/src/entities/trajectory/api";
 import { renderWithQueryClient } from "@/test/setup";
 import PlaygroundWorkspace from "@/src/widgets/playground-workspace/PlaygroundWorkspace";
+
+vi.mock("@/src/entities/dataset/api", () => ({
+  listDatasets: vi.fn()
+}));
 
 vi.mock("@/src/entities/run/api", () => ({
   listRuns: vi.fn(),
@@ -43,12 +48,14 @@ const runs = [
 
 describe("Playground integration", () => {
   beforeEach(() => {
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
     (runApi.createRun as unknown as MockedApiFn).mockReset();
     (runApi.getRun as unknown as MockedApiFn).mockReset();
     (runApi.terminateRun as unknown as MockedApiFn).mockReset();
     (traceApi.listRunTraces as unknown as MockedApiFn).mockReset();
     (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockReset();
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([{ name: "customer-live", rows: [] }]);
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(runs);
     (runApi.createRun as unknown as MockedApiFn).mockResolvedValue({
       ...runs[0],
@@ -114,6 +121,7 @@ describe("Playground integration", () => {
 
   it("creates a run and opens latest trace", async () => {
     renderWithQueryClient(<PlaygroundWorkspace />);
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("button", { name: "Run now" }));
@@ -132,6 +140,7 @@ describe("Playground integration", () => {
 
   it("loads sample prompt preset", async () => {
     renderWithQueryClient(<PlaygroundWorkspace />);
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("button", { name: "Attach dataset sample" }));
@@ -140,11 +149,21 @@ describe("Playground integration", () => {
 
   it("terminates the latest run", async () => {
     renderWithQueryClient(<PlaygroundWorkspace />);
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("run-play")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Terminate run" }));
     await waitFor(() => expect(runApi.terminateRun).toHaveBeenCalledWith("run-play"));
     expect(await screen.findByText(/termination_reason:\s*terminated by user/)).toBeInTheDocument();
+  });
+
+  it("disables manual execution when no dataset exists", async () => {
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([]);
+
+    renderWithQueryClient(<PlaygroundWorkspace />);
+
+    expect(await screen.findByText(/No dataset available. Upload or create one before running Playground./)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run now" })).toBeDisabled();
   });
 });

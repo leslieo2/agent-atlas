@@ -68,6 +68,16 @@ make run-worker # start background worker for queued runs/evals
 make ci        # lint + typecheck + test + security
 ```
 
+## Environment
+
+Copy `backend/.env.example` to `backend/.env` for local defaults.
+
+- `AFLIGHT_RUNTIME_MODE=mock` forces simulated execution.
+- `AFLIGHT_RUNTIME_MODE=auto` uses live execution when an OpenAI key is configured and mock otherwise.
+- `AFLIGHT_RUNTIME_MODE=live` requires a real OpenAI key and does not seed demo data by default.
+- `AFLIGHT_SEED_DEMO` overrides the default seed behavior when you explicitly want demo records on or off.
+- `OPENAI_API_KEY` and `AFLIGHT_OPENAI_API_KEY` are both supported for live mode.
+
 ## Runtime model
 
 - API requests create `run` and `eval job` records immediately and enqueue background tasks in SQLite.

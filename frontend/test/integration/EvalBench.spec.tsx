@@ -235,4 +235,13 @@ describe("EvalBench integration", () => {
     expect(screen.getByText("expected answer")).toBeInTheDocument();
     expect(screen.getByText("priority")).toBeInTheDocument();
   });
+
+  it("disables eval actions when no dataset exists", async () => {
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([]);
+
+    renderWithQueryClient(<EvalWorkspace initialRunIds={["run-eval"]} />);
+
+    expect(await screen.findByText("No dataset available. Upload a JSONL dataset before running eval.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run batch eval" })).toBeDisabled();
+  });
 });
