@@ -1,5 +1,25 @@
 import type { Page, Route } from "@playwright/test";
 
+export type ApiAgent = {
+  agent_id: string;
+  name: string;
+  description: string;
+  framework: string;
+  entrypoint: string;
+  default_model: string;
+  tags: string[];
+};
+
+export type ApiDataset = {
+  name: string;
+  rows: Array<{
+    sample_id: string;
+    input: string;
+    expected?: string | null;
+    tags?: string[];
+  }>;
+};
+
 export type ApiRun = {
   run_id: string;
   input_summary: string;
@@ -36,6 +56,23 @@ const json = async (route: Route, body: unknown, status = 200) =>
     body: JSON.stringify(body)
   });
 
+export const buildAgent = (overrides: Partial<ApiAgent> = {}): ApiAgent => ({
+  agent_id: "basic",
+  name: "Basic",
+  description: "Minimal smoke agent.",
+  framework: "openai-agents-sdk",
+  entrypoint: "app.agent_plugins.basic:build_agent",
+  default_model: "gpt-4.1-mini",
+  tags: ["example", "smoke"],
+  ...overrides
+});
+
+export const buildDataset = (overrides: Partial<ApiDataset> = {}): ApiDataset => ({
+  name: "crm-v2",
+  rows: [{ sample_id: "sample-001", input: "Can you create a shipping itinerary?" }],
+  ...overrides
+});
+
 export const buildRun = (overrides: Partial<ApiRun> = {}): ApiRun => ({
   run_id: "run-001",
   input_summary: "Generate a booking itinerary from CRM contact data",
@@ -68,11 +105,26 @@ export const buildTrajectoryStep = (
   ...overrides
 });
 
+export async function mockCatalog(
+  page: Page,
+  {
+    agents = [buildAgent()],
+    datasets = [buildDataset()]
+  }: {
+    agents?: ApiAgent[];
+    datasets?: ApiDataset[];
+  } = {}
+) {
+  await page.route("**/api/v1/agents", async (route) => json(route, agents));
+  await page.route("**/api/v1/datasets", async (route) => json(route, datasets));
+}
+
 export async function mockRunsIndex(
   page: Page,
   handlers: {
     list: () => ApiRun[];
     create?: () => ApiRun;
+    detail?: (runId: string) => ApiRun | undefined;
   }
 ) {
   await page.route("**/api/v1/runs", async (route) => {
@@ -81,10 +133,40 @@ export async function mockRunsIndex(
     }
     return json(route, handlers.list());
   });
+
+  await page.route("**/api/v1/runs/*", async (route) => {
+    const url = new URL(route.request().url());
+    const runId = url.pathname.split("/").pop() ?? "";
+    const run = handlers.detail?.(runId);
+
+    if (!run) {
+      return route.fallback();
+    }
+
+    return json(route, run);
+  });
 }
 
 export async function mockTrajectory(page: Page, runId: string, steps: ApiTrajectoryStep[]) {
   await page.route(`**/api/v1/runs/${runId}/trajectory`, async (route) => json(route, steps));
+}
+
+export async function mockRunTraces(
+  page: Page,
+  runId: string,
+  traces: Array<{
+    run_id: string;
+    span_id: string;
+    parent_span_id?: string | null;
+    step_type: "llm" | "tool" | "planner" | "memory";
+    input: Record<string, unknown>;
+    output: { output?: string } | Record<string, unknown>;
+    latency_ms: number;
+    token_usage: number;
+    received_at: string;
+  }>
+) {
+  await page.route(`**/api/v1/runs/${runId}/traces`, async (route) => json(route, traces));
 }
 
 export async function mockArtifactExport(

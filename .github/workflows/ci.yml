@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v4
+      - name: Install backend dependencies
+        run: make -C backend install
+      - name: Run backend CI
+        run: make -C backend ci
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Lint frontend
+        run: npm --prefix frontend run lint
+      - name: Typecheck frontend
+        run: npm --prefix frontend run typecheck
+      - name: Test frontend with coverage
+        run: npm --prefix frontend run test:coverage
+      - name: Build frontend
+        run: npm --prefix frontend run build
+
+  frontend_e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Install Playwright browser
+        run: npx --prefix frontend playwright install --with-deps chromium
+      - name: Run frontend e2e
+        run: npm --prefix frontend run test:e2e

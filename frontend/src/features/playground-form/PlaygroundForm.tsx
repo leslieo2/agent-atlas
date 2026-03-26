@@ -26,12 +26,17 @@ export function PlaygroundForm({
 }: Props) {
   return (
     <>
-      <Field label="Prompt">
-        <textarea rows={7} value={prompt} onChange={(event) => onPromptChange(event.target.value)} />
+      <Field label="Prompt" htmlFor="playground-prompt">
+        <textarea
+          id="playground-prompt"
+          rows={7}
+          value={prompt}
+          onChange={(event) => onPromptChange(event.target.value)}
+        />
       </Field>
       <div className="two-col" style={{ marginTop: 12 }}>
-        <Field label="Agent">
-          <select value={agentId} onChange={(event) => onAgentIdChange(event.target.value)}>
+        <Field label="Agent" htmlFor="playground-agent">
+          <select id="playground-agent" value={agentId} onChange={(event) => onAgentIdChange(event.target.value)}>
             {agents.map((agent) => (
               <option key={agent.agentId} value={agent.agentId}>
                 {agent.name} ({agent.agentId})
@@ -39,8 +44,12 @@ export function PlaygroundForm({
             ))}
           </select>
         </Field>
-        <Field label="Dataset">
-          <select value={dataset} onChange={(event) => onDatasetChange(event.target.value)}>
+        <Field label="Dataset" htmlFor="playground-dataset">
+          <select
+            id="playground-dataset"
+            value={dataset}
+            onChange={(event) => onDatasetChange(event.target.value)}
+          >
             <option value="">{datasets.length ? "No dataset" : "No datasets available"}</option>
             {datasets.map((name) => (
               <option key={name} value={name}>

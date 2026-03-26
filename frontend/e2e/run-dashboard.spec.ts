@@ -1,29 +1,15 @@
 import { expect, test } from "@playwright/test";
-import { buildRun, mockRunsIndex } from "./support/mockApi";
+import { buildDataset, buildRun, mockCatalog, mockRunsIndex } from "./support/mockApi";
 
 test("dashboard supports create run and export jsonl/parquet artifacts", async ({ page }) => {
   let runs = [buildRun()];
-  let nextRunId = 2;
   const exportCalls: Array<{ format: string; runIds: string[] }> = [];
 
+  await mockCatalog(page, {
+    datasets: [buildDataset({ name: "crm-v2" })]
+  });
   await mockRunsIndex(page, {
-    list: () => runs,
-    create: () => {
-      const newRun = buildRun({
-        run_id: `run-${String(nextRunId).padStart(3, "0")}`,
-        input_summary: "Manual run from dashboard",
-        status: "queued",
-        latency_ms: 12,
-        token_cost: 11,
-        tool_calls: 0,
-        project: "workbench",
-        tags: ["ui"],
-        created_at: new Date().toISOString()
-      });
-      nextRunId += 1;
-      runs = [newRun, ...runs];
-      return newRun;
-    }
+    list: () => runs
   });
 
   await page.route("**/api/v1/artifacts/export", async (route) => {
@@ -54,19 +40,19 @@ test("dashboard supports create run and export jsonl/parquet artifacts", async (
 
   await page.goto("http://127.0.0.1:3000/runs");
   await expect(page.getByRole("heading", { name: "Run dashboard" })).toBeVisible();
-  await expect(page.getByText("run-001")).toBeVisible();
+  await expect(page.getByText("Loaded 1 runs.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "run-001" })).toBeVisible();
 
-  await page.getByRole("button", { name: "New Run" }).click();
-  await expect(page.getByText(/Created run run-002/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "New Run" })).toHaveAttribute("href", "/playground?dataset=crm-v2");
 
-  await page.getByRole("button", { name: "Export JSONL" }).click();
-  await expect(page.getByText(/Exported artifact-001/)).toBeVisible();
+  await page.getByRole("button", { name: "Export 1 run as JSONL" }).click();
+  await expect(page.getByText("Exported 1 run as JSONL.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Export Parquet" }).click();
-  await expect(page.getByText(/Exported artifact-002/)).toBeVisible();
+  await page.getByRole("button", { name: "Export 1 run as Parquet" }).click();
+  await expect(page.getByText("Exported 1 run as Parquet.")).toBeVisible();
 
   expect(exportCalls).toEqual([
-    { format: "jsonl", runIds: ["run-002"] },
-    { format: "parquet", runIds: ["run-002"] }
+    { format: "jsonl", runIds: ["run-001"] },
+    { format: "parquet", runIds: ["run-001"] }
   ]);
 });
