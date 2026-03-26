@@ -5,7 +5,13 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
-from app.core.errors import ModelNotFoundError
+from app.core.errors import (
+    ModelNotFoundError,
+    ProviderAuthError,
+    ProviderTimeoutError,
+    RateLimitedError,
+    UnsupportedAdapterError,
+)
 from app.infrastructure.adapters.model_runtime import ModelRuntimeService
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
@@ -167,4 +173,97 @@ def test_model_runtime_service_normalizes_invalid_model_errors():
         "code": "model_not_found",
         "message": "model 'planner-v1' not found",
         "model": "planner-v1",
+    }
+
+
+def test_model_runtime_service_normalizes_invalid_model_errors_from_param_only_signal():
+    class FakeBadRequestError(Exception):
+        def __init__(self) -> None:
+            super().__init__("Error code: 400")
+            self.status_code = 400
+            self.param = "model"
+            self.body = {
+                "error": {
+                    "message": "Unknown model 'planner-v1'.",
+                }
+            }
+
+    class ExplodingAdapter:
+        def execute(
+            self,
+            *,
+            api_key: SecretStr | None,
+            model: str,
+            prompt: str,
+        ) -> RuntimeExecutionResult:
+            raise FakeBadRequestError()
+
+    service = ModelRuntimeService(adapters={AdapterKind.OPENAI_AGENTS: ExplodingAdapter()})
+    service.api_key = SecretStr("sk-test")
+    service.runtime_mode = "live"
+
+    with pytest.raises(ModelNotFoundError):
+        service.execute(
+            AdapterKind.OPENAI_AGENTS,
+            model="planner-v1",
+            prompt="Summarize the ticket.",
+        )
+
+
+@pytest.mark.parametrize(
+    ("status_code", "message", "expected_error"),
+    [
+        (401, "Invalid API key provided", ProviderAuthError),
+        (429, "Rate limit exceeded for requests", RateLimitedError),
+        (None, "The request timed out while waiting for the model response", ProviderTimeoutError),
+    ],
+)
+def test_model_runtime_service_normalizes_runtime_provider_errors(
+    status_code: int | None,
+    message: str,
+    expected_error: type[Exception],
+):
+    class ProviderError(Exception):
+        def __init__(self) -> None:
+            super().__init__(message)
+            self.status_code = status_code
+
+    class ExplodingAdapter:
+        def execute(
+            self,
+            *,
+            api_key: SecretStr | None,
+            model: str,
+            prompt: str,
+        ) -> RuntimeExecutionResult:
+            raise ProviderError()
+
+    service = ModelRuntimeService(adapters={AdapterKind.OPENAI_AGENTS: ExplodingAdapter()})
+    service.api_key = SecretStr("sk-test")
+    service.runtime_mode = "live"
+
+    with pytest.raises(expected_error):
+        service.execute(
+            AdapterKind.OPENAI_AGENTS,
+            model="gpt-4.1-mini",
+            prompt="Summarize the ticket.",
+        )
+
+
+def test_model_runtime_service_raises_structured_error_for_unsupported_adapter():
+    service = ModelRuntimeService(adapters={})
+    service.api_key = SecretStr("sk-test")
+    service.runtime_mode = "live"
+
+    with pytest.raises(UnsupportedAdapterError) as exc_info:
+        service.execute(
+            AdapterKind.MCP,
+            model="gpt-4.1-mini",
+            prompt="Summarize the ticket.",
+        )
+
+    assert exc_info.value.to_detail() == {
+        "code": "unsupported_adapter",
+        "message": "agent_type 'mcp' is not supported for live execution",
+        "agent_type": "mcp",
     }

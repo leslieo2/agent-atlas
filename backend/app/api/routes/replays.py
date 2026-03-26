@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.bootstrap.container import get_replay_commands, get_replay_queries
-from app.core.errors import ModelNotFoundError
+from app.core.errors import AppError
 from app.modules.replays.api.schemas import ReplayRequest, ReplayResponse
 from app.modules.replays.application.use_cases import ReplayCommands, ReplayQueries
 
@@ -23,8 +23,8 @@ def create_replay(
     except KeyError as exc:
         detail = exc.args[0] if exc.args else "replay step not found"
         raise HTTPException(status_code=404, detail=detail) from exc
-    except ModelNotFoundError as exc:
-        raise HTTPException(status_code=400, detail=exc.to_detail()) from exc
+    except AppError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

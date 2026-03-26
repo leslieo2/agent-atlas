@@ -4,13 +4,19 @@ import asyncio
 import os
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
 from pydantic import SecretStr
 
 from app.core.config import settings
-from app.core.errors import ModelNotFoundError
+from app.core.errors import (
+    ModelNotFoundError,
+    ProviderAuthError,
+    ProviderTimeoutError,
+    RateLimitedError,
+    UnsupportedAdapterError,
+)
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 
@@ -63,6 +69,60 @@ def _extract_error_code(candidate: BaseException) -> str | None:
     return None
 
 
+def _extract_error_status(candidate: BaseException) -> int | None:
+    status_code = getattr(candidate, "status_code", None)
+    if isinstance(status_code, int):
+        return status_code
+    return None
+
+
+def _iter_mapping_values(value: object) -> Sequence[object]:
+    if isinstance(value, Mapping):
+        return list(value.values())
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
+        return list(value)
+    return []
+
+
+def _extract_error_message(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, Mapping):
+        for key in ("message", "detail", "error_description"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        for nested in _iter_mapping_values(value):
+            message = _extract_error_message(nested)
+            if message:
+                return message
+        return ""
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
+        for item in value:
+            message = _extract_error_message(item)
+            if message:
+                return message
+    return ""
+
+
+def _candidate_message(candidate: BaseException) -> str:
+    body = getattr(candidate, "body", None)
+    body_message = _extract_error_message(body)
+    if body_message:
+        return body_message
+
+    response = getattr(candidate, "response", None)
+    response_text = getattr(response, "text", None)
+    if isinstance(response_text, str) and response_text.strip():
+        return response_text.strip()
+
+    direct_message = str(candidate).strip()
+    if direct_message:
+        return direct_message
+
+    return ""
+
+
 def _looks_like_model_not_found(candidate: BaseException) -> bool:
     if isinstance(candidate, ModelNotFoundError):
         return True
@@ -71,22 +131,72 @@ def _looks_like_model_not_found(candidate: BaseException) -> bool:
     if code == ModelNotFoundError.code:
         return True
 
-    message = str(candidate).lower()
+    if _extract_error_status(candidate) == 400 and getattr(candidate, "param", None) == "model":
+        message = _candidate_message(candidate).lower()
+        if "model" in message and any(
+            phrase in message for phrase in ("not found", "does not exist", "unknown", "invalid")
+        ):
+            return True
+
+    message = _candidate_message(candidate).lower()
     return bool(
         "model_not_found" in message
         or ("model" in message and ("not found" in message or "does not exist" in message))
     )
 
 
+def _looks_like_provider_auth_error(candidate: BaseException) -> bool:
+    if isinstance(candidate, ProviderAuthError):
+        return True
+
+    if _extract_error_status(candidate) in {401, 403}:
+        return True
+
+    message = _candidate_message(candidate).lower()
+    auth_phrases = ("invalid api key", "incorrect api key", "authentication")
+    return any(phrase in message for phrase in auth_phrases)
+
+
+def _looks_like_rate_limited(candidate: BaseException) -> bool:
+    if isinstance(candidate, RateLimitedError):
+        return True
+
+    if _extract_error_status(candidate) == 429:
+        return True
+
+    message = _candidate_message(candidate).lower()
+    return "rate limit" in message or "too many requests" in message
+
+
+def _looks_like_timeout(candidate: BaseException) -> bool:
+    if isinstance(candidate, ProviderTimeoutError):
+        return True
+
+    message = _candidate_message(candidate).lower()
+    return "timed out" in message or "timeout" in message
+
+
 def _normalize_runtime_exception(exc: Exception, model: str) -> Exception:
     for candidate in _iter_exception_chain(exc):
-        if not _looks_like_model_not_found(candidate):
-            continue
+        if _looks_like_model_not_found(candidate):
+            if isinstance(candidate, ModelNotFoundError):
+                return candidate
+            return ModelNotFoundError(model=model, message=f"model '{model}' not found")
 
-        if isinstance(candidate, ModelNotFoundError):
-            return candidate
+        if _looks_like_provider_auth_error(candidate):
+            if isinstance(candidate, ProviderAuthError):
+                return candidate
+            return ProviderAuthError("provider authentication failed")
 
-        return ModelNotFoundError(model=model, message=f"model '{model}' not found")
+        if _looks_like_rate_limited(candidate):
+            if isinstance(candidate, RateLimitedError):
+                return candidate
+            return RateLimitedError("provider rate limit exceeded")
+
+        if _looks_like_timeout(candidate):
+            if isinstance(candidate, ProviderTimeoutError):
+                return candidate
+            return ProviderTimeoutError("provider request timed out")
     return exc
 
 
@@ -217,8 +327,9 @@ class ModelRuntimeService:
         try:
             adapter = self.adapters.get(agent_type)
             if adapter is None:
-                raise RuntimeError(
-                    f"agent_type '{agent_type.value}' is not supported for live execution"
+                raise UnsupportedAdapterError(
+                    f"agent_type '{agent_type.value}' is not supported for live execution",
+                    agent_type=agent_type.value,
                 )
             return adapter.execute(api_key=self.api_key, model=model, prompt=prompt)
         except Exception as exc:

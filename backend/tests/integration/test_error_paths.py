@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.bootstrap.container import get_container
-from app.core.errors import ModelNotFoundError
+from app.core.errors import ModelNotFoundError, ProviderAuthError
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 
@@ -89,5 +89,59 @@ def test_replay_invalid_model_returns_structured_400(client, monkeypatch):
             "code": "model_not_found",
             "message": "model 'planner-v1' not found",
             "model": "planner-v1",
+        }
+    }
+
+
+def test_replay_provider_auth_failure_returns_structured_502(client, monkeypatch):
+    container = get_container()
+    run_id = uuid4()
+    container.run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="replay auth failure",
+            status=RunStatus.SUCCEEDED,
+            project="workbench",
+            dataset="crm-v2",
+            model="gpt-4.1-mini",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            tags=["replay"],
+        )
+    )
+    container.trajectory_repository.append(
+        TrajectoryStep(
+            id="step-auth-failure",
+            run_id=run_id,
+            step_type=StepType.LLM,
+            prompt="Explain the plan.",
+            output="baseline-output",
+            model="gpt-4.1-mini",
+            temperature=0.0,
+            latency_ms=11,
+            token_usage=4,
+            success=True,
+        )
+    )
+
+    def raise_auth_error(*_args, **_kwargs):
+        raise ProviderAuthError("provider authentication failed")
+
+    monkeypatch.setattr(container.runner_registry.default_runner, "execute", raise_auth_error)
+
+    response = client.post(
+        "/api/v1/replays",
+        json={
+            "run_id": str(run_id),
+            "step_id": "step-auth-failure",
+            "edited_prompt": "Explain the plan with more detail.",
+            "model": "gpt-4.1-mini",
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "detail": {
+            "code": "provider_auth_error",
+            "message": "provider authentication failed",
         }
     }

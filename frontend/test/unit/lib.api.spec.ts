@@ -100,6 +100,30 @@ describe("api client", () => {
         inputSummary: "bad run",
         prompt: "do it"
       })
-    ).rejects.toThrow("\"server_error\"");
+    ).rejects.toThrow("Request failed: 500");
+  });
+
+  it("surfaces structured API error messages", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonBody(
+        {
+          detail: {
+            code: "model_not_found",
+            message: "model 'planner-v1' not found",
+            model: "planner-v1"
+          }
+        },
+        400
+      )
+    );
+
+    await expect(
+      createReplay({
+        runId: "run-001",
+        stepId: "step-1",
+        editedPrompt: "patched",
+        model: "planner-v1"
+      })
+    ).rejects.toThrow("model 'planner-v1' not found");
   });
 });
