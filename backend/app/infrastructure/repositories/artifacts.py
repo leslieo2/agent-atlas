@@ -11,6 +11,9 @@ class StateArtifactRepository:
     def get(self, artifact_id: str | UUID) -> ArtifactMetadata | None:
         return persistence.get_artifact(to_uuid(artifact_id))
 
+    def list(self) -> list[ArtifactMetadata]:
+        return persistence.list_artifacts()
+
     def save(self, artifact: ArtifactMetadata) -> None:
         persistence.save_artifact(artifact)
 

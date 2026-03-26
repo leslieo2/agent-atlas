@@ -4,6 +4,11 @@ import type { Dataset } from "./model";
 export function mapDataset(dataset: ApiDataset): Dataset {
   return {
     name: dataset.name,
-    rows: dataset.rows.map((row) => ({ sampleId: row.sample_id, input: row.input }))
+    rows: dataset.rows.map((row) => ({
+      sampleId: row.sample_id,
+      input: row.input,
+      expected: row.expected ?? null,
+      tags: row.tags ?? []
+    }))
   };
 }

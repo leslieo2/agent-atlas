@@ -43,8 +43,30 @@ describe("EvalBench integration", () => {
     (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockReset();
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
 
-    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([{ name: "crm-v2", rows: [] }]);
-    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({ name: "crm-v2", rows: [] });
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([
+      {
+        name: "crm-v2",
+        rows: [
+          {
+            sampleId: "sample-1",
+            input: "sample input",
+            expected: "expected answer",
+            tags: ["priority"]
+          }
+        ]
+      }
+    ]);
+    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({
+      name: "crm-v2",
+      rows: [
+        {
+          sampleId: "sample-1",
+          input: "sample input",
+          expected: "expected answer",
+          tags: ["priority"]
+        }
+      ]
+    });
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue([
       {
         runId: "run-eval",
@@ -59,11 +81,30 @@ describe("EvalBench integration", () => {
         agentType: "openai-agents-sdk",
         tags: [],
         createdAt: "2026-03-24T00:00:00Z"
+      },
+      {
+        runId: "run-candidate",
+        inputSummary: "eval candidate",
+        status: "succeeded" as const,
+        latencyMs: 5,
+        tokenCost: 9,
+        toolCalls: 2,
+        project: "proj-a",
+        dataset: "crm-v2",
+        model: "gpt-4.1",
+        agentType: "openai-agents-sdk",
+        tags: ["candidate"],
+        createdAt: "2026-03-24T00:05:00Z",
+        projectMetadata: {
+          candidate: {
+            kind: "replay"
+          }
+        }
       }
     ]);
     (evalApi.createEvalJob as unknown as MockedApiFn).mockResolvedValue({
       jobId: "job-001",
-      runIds: ["run-eval"],
+      runIds: ["run-eval", "run-candidate"],
       dataset: "crm-v2",
       status: "queued",
       results: [],
@@ -72,7 +113,7 @@ describe("EvalBench integration", () => {
     (evalApi.getEvalJob as unknown as MockedApiFn)
       .mockResolvedValueOnce({
         jobId: "job-001",
-        runIds: ["run-eval"],
+        runIds: ["run-eval", "run-candidate"],
         dataset: "crm-v2",
         status: "running",
         results: [],
@@ -80,7 +121,7 @@ describe("EvalBench integration", () => {
       })
       .mockResolvedValueOnce({
         jobId: "job-001",
-        runIds: ["run-eval"],
+        runIds: ["run-eval", "run-candidate"],
         dataset: "crm-v2",
         status: "done",
         results: [
@@ -92,18 +133,35 @@ describe("EvalBench integration", () => {
             score: 0.91
           },
           {
+            sampleId: "s-1",
+            runId: "run-candidate",
+            input: "sample input",
+            status: "pass",
+            score: 0.97
+          },
+          {
             sampleId: "s-2",
             runId: "run-eval",
             input: "failing sample",
             status: "fail",
             score: 0.43,
             reason: "tool mismatch"
+          },
+          {
+            sampleId: "s-2",
+            runId: "run-candidate",
+            input: "failing sample",
+            status: "pass",
+            score: 0.82
           }
         ],
         createdAt: "2026-03-24T00:00:00Z"
       });
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockResolvedValue({
       artifactId: "artifact-001",
+      format: "jsonl",
+      runIds: ["run-eval", "run-candidate"],
+      createdAt: "2026-03-24T00:00:00Z",
       path: "/tmp/eval-artifact.jsonl",
       sizeBytes: 42
     });
@@ -123,8 +181,8 @@ describe("EvalBench integration", () => {
     ]);
   });
 
-  it("runs eval job and exports the active run as jsonl artifacts", async () => {
-    renderWithQueryClient(<EvalWorkspace />);
+  it("runs eval job and exports the selected runs as jsonl artifacts", async () => {
+    renderWithQueryClient(<EvalWorkspace initialRunIds={["run-eval", "run-candidate"]} />);
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
@@ -132,11 +190,17 @@ describe("EvalBench integration", () => {
     expect(await screen.findByText(/Eval job job-001 is queued. Waiting for completion/)).toBeInTheDocument();
     expect(await screen.findByText(/Eval job job-001 finished with status done/)).toBeInTheDocument();
     await waitFor(() => expect(evalApi.getEvalJob).toHaveBeenCalledWith("job-001"));
+    expect(evalApi.createEvalJob).toHaveBeenCalledWith({
+      runIds: ["run-eval", "run-candidate"],
+      dataset: "crm-v2",
+      evaluators: ["rule", "judge", "tool-correctness"]
+    });
+    expect(screen.getByText(/run-cand .* success 100% .* avg score 0.9/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Export JSONL" }));
     await waitFor(() => {
       expect(artifactApi.exportArtifact).toHaveBeenCalledWith({
-        runIds: ["run-eval"],
+        runIds: ["run-eval", "run-candidate"],
         format: "jsonl"
       });
     });
@@ -144,7 +208,7 @@ describe("EvalBench integration", () => {
   });
 
   it("compares eval rows and drills into a filtered failure sample", async () => {
-    renderWithQueryClient(<EvalWorkspace />);
+    renderWithQueryClient(<EvalWorkspace initialRunIds={["run-eval", "run-candidate"]} />);
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
@@ -156,10 +220,19 @@ describe("EvalBench integration", () => {
     fireEvent.change(screen.getByPlaceholderText("sample id / run id"), {
       target: { value: "s-2" }
     });
-    expect(screen.getByRole("row", { name: /s-2/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /run-eval.*s-2/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("row", { name: /s-2/ }));
+    fireEvent.click(screen.getByRole("row", { name: /run-eval.*s-2/i }));
     expect(await screen.findByText("Trajectory drill-down · sample s-2")).toBeInTheDocument();
     expect(screen.getByText("e1 · PLANNER · success")).toBeInTheDocument();
+  });
+
+  it("shows dataset preview details for the active dataset", async () => {
+    renderWithQueryClient(<EvalWorkspace initialRunIds={["run-eval"]} />);
+
+    expect(await screen.findByText("Inspect the active dataset before running eval")).toBeInTheDocument();
+    expect(await screen.findByText("sample-1")).toBeInTheDocument();
+    expect(screen.getByText("expected answer")).toBeInTheDocument();
+    expect(screen.getByText("priority")).toBeInTheDocument();
   });
 });

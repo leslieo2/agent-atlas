@@ -1,10 +1,16 @@
+export interface DatasetRow {
+  sampleId: string;
+  input: string;
+  expected?: string | null;
+  tags?: string[];
+}
+
 export interface Dataset {
   name: string;
-  rows: Array<{ sampleId: string; input: string }>;
+  rows: DatasetRow[];
 }
 
 export interface CreateDatasetInput {
   name: string;
-  rows: Array<{ sampleId: string; input: string; expected?: string | null; tags?: string[] }>;
+  rows: DatasetRow[];
 }
-

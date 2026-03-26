@@ -15,6 +15,8 @@ export interface RunRecord {
   agentType: AdapterKind;
   tags: string[];
   createdAt: string;
+  projectMetadata?: Record<string, unknown>;
+  artifactRef?: string | null;
   terminationReason?: string | null;
 }
 
@@ -36,4 +38,13 @@ export interface CreateRunInput {
   inputSummary: string;
   prompt: string;
   tags?: string[];
+  toolConfig?: Record<string, unknown>;
+  projectMetadata?: Record<string, unknown>;
+}
+
+export interface TerminateRunResult {
+  runId: string;
+  terminated: boolean;
+  status: RunStatus;
+  terminationReason?: string | null;
 }

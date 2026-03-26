@@ -438,6 +438,10 @@ class StatePersistence:
             return None
         return ArtifactMetadata.model_validate(json.loads(payload))
 
+    def list_artifacts(self) -> list[ArtifactMetadata]:
+        payloads = self._fetch_payloads("SELECT payload FROM artifacts ORDER BY updated_at DESC")
+        return [ArtifactMetadata.model_validate(json.loads(payload)) for payload in payloads]
+
     def enqueue_task(self, task: QueuedTask) -> None:
         if not self.conn:
             raise RuntimeError("task queue requires sqlite persistence")

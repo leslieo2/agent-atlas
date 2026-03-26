@@ -1,7 +1,7 @@
 import { request } from "@/src/shared/api/http";
-import type { RunCreateRequest, RunResponse } from "@/src/shared/api/contract";
+import type { RunCreateRequest, RunResponse, TerminateRunResponse } from "@/src/shared/api/contract";
 import { mapRun } from "./mapper";
-import type { CreateRunInput, RunListFilters } from "./model";
+import type { CreateRunInput, RunListFilters, TerminateRunResult } from "./model";
 
 export async function listRuns(filters: RunListFilters = {}) {
   const query = new URLSearchParams();
@@ -28,7 +28,9 @@ export async function createRun(payload: CreateRunInput) {
     agent_type: payload.agentType,
     input_summary: payload.inputSummary,
     prompt: payload.prompt,
-    tags: payload.tags ?? []
+    tags: payload.tags ?? [],
+    tool_config: payload.toolConfig ?? {},
+    project_metadata: payload.projectMetadata ?? {}
   };
 
   return mapRun(
@@ -41,4 +43,17 @@ export async function createRun(payload: CreateRunInput) {
 
 export async function getRun(runId: string) {
   return mapRun(await request<RunResponse>(`/api/v1/runs/${runId}`));
+}
+
+export async function terminateRun(runId: string): Promise<TerminateRunResult> {
+  const response = await request<TerminateRunResponse>(`/api/v1/runs/${runId}/terminate`, {
+    method: "POST"
+  });
+
+  return {
+    runId: response.run_id,
+    terminated: response.terminated,
+    status: response.status,
+    terminationReason: response.termination_reason
+  };
 }

@@ -96,7 +96,9 @@ vi.mock("@/src/entities/run/api", () => ({
 }));
 
 vi.mock("@/src/entities/artifact/api", () => ({
-  exportArtifact: vi.fn()
+  listArtifacts: vi.fn(),
+  exportArtifact: vi.fn(),
+  getArtifactDownloadUrl: vi.fn(() => "http://127.0.0.1:8000/api/v1/artifacts/artifact-history-001")
 }));
 
 type MockedApiFn = ReturnType<typeof vi.fn>;
@@ -105,8 +107,19 @@ describe("RunDashboard integration", () => {
   beforeEach(() => {
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
     (runApi.createRun as unknown as MockedApiFn).mockReset();
+    (artifactApi.listArtifacts as unknown as MockedApiFn).mockReset();
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
+    (artifactApi.listArtifacts as unknown as MockedApiFn).mockResolvedValue([
+      {
+        artifactId: "artifact-history-001",
+        format: "jsonl",
+        runIds: ["run-001"],
+        createdAt: "2026-03-23T11:00:00Z",
+        path: "/tmp/artifact-history.jsonl",
+        sizeBytes: 99
+      }
+    ]);
     (runApi.createRun as unknown as MockedApiFn).mockResolvedValue({
       ...mockedRuns[0],
       runId: "run-003",
@@ -116,11 +129,17 @@ describe("RunDashboard integration", () => {
     (artifactApi.exportArtifact as unknown as MockedApiFn)
       .mockResolvedValueOnce({
         artifactId: "artifact-001",
+        format: "jsonl",
+        runIds: ["run-001"],
+        createdAt: "2026-03-23T11:01:00Z",
         path: "/tmp/artifact.jsonl",
         sizeBytes: 11
       })
       .mockResolvedValueOnce({
         artifactId: "artifact-002",
+        format: "parquet",
+        runIds: ["run-001"],
+        createdAt: "2026-03-23T11:02:00Z",
         path: "/tmp/artifact.parquet",
         sizeBytes: 21
       });
@@ -158,5 +177,13 @@ describe("RunDashboard integration", () => {
       });
     });
     expect(await screen.findByText("Exported artifact-002 as PARQUET (21 bytes)")).toBeInTheDocument();
+  });
+
+  it("shows recent artifact history", async () => {
+    renderWithQueryClient(<RunDashboardWidget />);
+
+    expect(await screen.findByText("Recent exports with direct download links")).toBeInTheDocument();
+    expect(await screen.findByText("JSONL")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download" })).toBeInTheDocument();
   });
 });

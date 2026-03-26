@@ -2,6 +2,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as runApi from "@/src/entities/run/api";
+import * as traceApi from "@/src/entities/trace/api";
 import * as trajectoryApi from "@/src/entities/trajectory/api";
 import { renderWithQueryClient } from "@/test/setup";
 import PlaygroundWorkspace from "@/src/widgets/playground-workspace/PlaygroundWorkspace";
@@ -9,11 +10,16 @@ import PlaygroundWorkspace from "@/src/widgets/playground-workspace/PlaygroundWo
 vi.mock("@/src/entities/run/api", () => ({
   listRuns: vi.fn(),
   createRun: vi.fn(),
-  getRun: vi.fn()
+  getRun: vi.fn(),
+  terminateRun: vi.fn()
 }));
 
 vi.mock("@/src/entities/trajectory/api", () => ({
   getTrajectory: vi.fn()
+}));
+
+vi.mock("@/src/entities/trace/api", () => ({
+  listRunTraces: vi.fn()
 }));
 
 type MockedApiFn = ReturnType<typeof vi.fn>;
@@ -40,6 +46,8 @@ describe("Playground integration", () => {
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
     (runApi.createRun as unknown as MockedApiFn).mockReset();
     (runApi.getRun as unknown as MockedApiFn).mockReset();
+    (runApi.terminateRun as unknown as MockedApiFn).mockReset();
+    (traceApi.listRunTraces as unknown as MockedApiFn).mockReset();
     (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(runs);
     (runApi.createRun as unknown as MockedApiFn).mockResolvedValue({
@@ -69,6 +77,25 @@ describe("Playground integration", () => {
         latencyMs: 3412,
         tokenCost: 66
       });
+    (runApi.terminateRun as unknown as MockedApiFn).mockResolvedValue({
+      runId: "run-play",
+      terminated: true,
+      status: "terminated",
+      terminationReason: "terminated by user"
+    });
+    (traceApi.listRunTraces as unknown as MockedApiFn).mockResolvedValue([
+      {
+        runId: "run-play-new",
+        spanId: "trace-1",
+        parentSpanId: null,
+        stepType: "planner",
+        input: {},
+        output: { output: "planner trace output" },
+        latencyMs: 12,
+        tokenUsage: 0,
+        receivedAt: "2026-03-24T00:00:00Z"
+      }
+    ]);
     (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockResolvedValue([
       {
         id: "s1",
@@ -95,12 +122,12 @@ describe("Playground integration", () => {
     expect(await screen.findByText(/status:\s*succeeded/)).toBeInTheDocument();
     expect(await screen.findByText(/token_cost:\s*66/)).toBeInTheDocument();
     expect(await screen.findByText(/trace:/)).toBeInTheDocument();
-    expect(await screen.findByText(/s1 \| planner \| planner output/)).toBeInTheDocument();
+    expect(await screen.findByText(/trace-1 \| planner \| planner trace output/)).toBeInTheDocument();
     await waitFor(() => expect(runApi.getRun).toHaveBeenCalledWith("run-play-new"));
-    await waitFor(() => expect(trajectoryApi.getTrajectory).toHaveBeenCalledWith("run-play-new"));
+    await waitFor(() => expect(traceApi.listRunTraces).toHaveBeenCalledWith("run-play-new"));
 
-    fireEvent.click(screen.getByRole("button", { name: "Open latest trace" }));
-    expect(await screen.findByText(/s1 \| planner \| planner output/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Refresh live trace" }));
+    expect(await screen.findByText(/trace-1 \| planner \| planner trace output/)).toBeInTheDocument();
   });
 
   it("loads sample prompt preset", async () => {
@@ -109,5 +136,15 @@ describe("Playground integration", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Attach dataset sample" }));
     expect(screen.getByDisplayValue("Can you create a shipping itinerary?")).toBeInTheDocument();
+  });
+
+  it("terminates the latest run", async () => {
+    renderWithQueryClient(<PlaygroundWorkspace />);
+    await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("run-play")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Terminate run" }));
+    await waitFor(() => expect(runApi.terminateRun).toHaveBeenCalledWith("run-play"));
+    expect(await screen.findByText(/termination_reason:\s*terminated by user/)).toBeInTheDocument();
   });
 });

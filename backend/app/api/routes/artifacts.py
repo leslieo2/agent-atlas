@@ -12,6 +12,13 @@ from app.modules.artifacts.application.use_cases import ArtifactCommands, Artifa
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
 
+@router.get("", response_model=list[ArtifactMetadataResponse])
+def list_artifacts(
+    queries: Annotated[ArtifactQueries, Depends(get_artifact_queries)],
+) -> list[ArtifactMetadataResponse]:
+    return [ArtifactMetadataResponse.from_domain(artifact) for artifact in queries.list_artifacts()]
+
+
 @router.post("/export", response_model=ArtifactMetadataResponse)
 def create_artifact(
     payload: ArtifactExportRequest,

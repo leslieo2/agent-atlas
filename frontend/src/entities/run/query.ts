@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createRun, getRun, listRuns } from "./api";
+import { createRun, getRun, listRuns, terminateRun } from "./api";
 import type { CreateRunInput, RunListFilters } from "./model";
 
 const runsQueryRoot = ["runs"] as const;
@@ -52,6 +52,18 @@ export function useCreateRunMutation() {
     mutationFn: (payload: CreateRunInput) => createRun(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: runsQueryRoot });
+    }
+  });
+}
+
+export function useTerminateRunMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (runId: string) => terminateRun(runId),
+    onSuccess: (_, runId) => {
+      void queryClient.invalidateQueries({ queryKey: runsQueryRoot });
+      void queryClient.invalidateQueries({ queryKey: [...runsQueryRoot, "detail", runId] });
     }
   });
 }

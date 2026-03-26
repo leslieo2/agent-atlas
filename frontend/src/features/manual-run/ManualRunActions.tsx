@@ -3,8 +3,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Play } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { useCreateRunMutation, useTerminateRunMutation, runQueryOptions } from "@/src/entities/run/query";
 import type { RunRecord } from "@/src/entities/run/model";
-import { runQueryOptions, useCreateRunMutation } from "@/src/entities/run/query";
+import { traceQueryOptions } from "@/src/entities/trace/query";
 import { trajectoryQueryOptions } from "@/src/entities/trajectory/query";
 import { Button } from "@/src/shared/ui/Button";
 
@@ -59,6 +60,18 @@ function formatRunLog({
   return lines.join("\n");
 }
 
+function formatTraceValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export function ManualRunActions({
   prompt,
   agentType,
@@ -70,6 +83,7 @@ export function ManualRunActions({
 }: Props) {
   const queryClient = useQueryClient();
   const createRunMutation = useCreateRunMutation();
+  const terminateRunMutation = useTerminateRunMutation();
   const activeRunPollRef = useRef(0);
 
   useEffect(() => {
@@ -85,17 +99,38 @@ export function ManualRunActions({
     run: RunRecord;
     requestId: number;
   }) => {
-    const steps = await queryClient.fetchQuery(trajectoryQueryOptions(run.runId));
+    const traces = await queryClient.fetchQuery(traceQueryOptions(run.runId));
 
     if (requestId !== activeRunPollRef.current) {
       return;
     }
 
     const baseLog = formatRunLog({ run, agentType, prompt, tools });
+    if (traces.length) {
+      onLogChange(
+        [
+          baseLog,
+          "",
+          "trace:",
+          ...traces.map(
+            (span) =>
+              `${span.spanId} | ${span.stepType} | ${formatTraceValue(span.output.output ?? span.output)}`
+          )
+        ].join("\n")
+      );
+      return;
+    }
+
+    const steps = await queryClient.fetchQuery(trajectoryQueryOptions(run.runId));
+
+    if (requestId !== activeRunPollRef.current) {
+      return;
+    }
+
     onLogChange(
       steps.length
         ? [baseLog, "", "trace:", ...steps.map((step) => `${step.id} | ${step.stepType} | ${step.output}`)].join("\n")
-        : `${baseLog}\n\nNo trajectory found for ${run.runId}`
+        : `${baseLog}\n\nNo trace or trajectory found for ${run.runId}`
     );
   };
 
@@ -107,12 +142,13 @@ export function ManualRunActions({
         return null;
       }
 
-      onLogChange(`${formatRunLog({ run, agentType, prompt, tools })}\n\nWaiting for run completion...`);
+      await syncTraceLog({ run, requestId });
 
       if (isTerminalStatus(run.status)) {
         return run;
       }
 
+      onLogChange(`${formatRunLog({ run, agentType, prompt, tools })}\n\nWaiting for run completion...`);
       await sleep(RUN_POLL_INTERVAL_MS);
     }
 
@@ -177,7 +213,19 @@ export function ManualRunActions({
           await syncTraceLog({ run, requestId: activeRunPollRef.current });
         }}
       >
-        Open latest trace
+        Refresh live trace
+      </Button>
+      <Button
+        variant="ghost"
+        onClick={async () => {
+          if (!latestRunId) return;
+          const result = await terminateRunMutation.mutateAsync(latestRunId);
+          onLogChange(
+            `run_id: ${result.runId}\nstatus: ${result.status}\ntermination_reason: ${result.terminationReason ?? "terminated by user"}`
+          );
+        }}
+      >
+        Terminate run
       </Button>
     </div>
   );

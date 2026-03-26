@@ -93,3 +93,49 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
     assert rows[0]["label"]["success"] is True
     assert rows[1]["reward"] == 0.0
     assert rows[1]["label"]["success"] is False
+
+
+def test_list_artifacts_returns_recent_exports(client, tmp_path):
+    container = get_container()
+    run_id = UUID("33333333-3333-3333-3333-333333333333")
+
+    container.run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="artifact listing",
+            status=RunStatus.SUCCEEDED,
+            project="artifact-project",
+            dataset="artifact-dataset",
+            model="gpt-4.1-mini",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+        )
+    )
+
+    container.trajectory_repository.append(
+        TrajectoryStep(
+            id="step-artifact",
+            run_id=run_id,
+            step_type=StepType.LLM,
+            prompt="summarize state",
+            output="summary ready",
+            model="gpt-4.1-mini",
+            latency_ms=8,
+            token_usage=5,
+            success=True,
+            temperature=0.0,
+        )
+    )
+
+    container.artifact_exporter.output_dir = Path(tmp_path)
+
+    response = client.post(
+        "/api/v1/artifacts/export",
+        json={"run_ids": [str(run_id)], "format": "jsonl"},
+    )
+    assert response.status_code == 200
+    artifact_id = response.json()["artifact_id"]
+
+    listing = client.get("/api/v1/artifacts")
+    assert listing.status_code == 200
+    payload = listing.json()
+    assert any(item["artifact_id"] == artifact_id for item in payload)

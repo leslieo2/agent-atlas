@@ -2,6 +2,8 @@
 
 import { ArrowUpRight, Boxes, ClipboardList } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { getArtifactDownloadUrl } from "@/src/entities/artifact/api";
+import { useArtifactsQuery } from "@/src/entities/artifact/query";
 import { useRunsQuery } from "@/src/entities/run/query";
 import { ArtifactExportActions } from "@/src/features/artifact-export/ArtifactExportActions";
 import { RunCreateButton } from "@/src/features/run-create/RunCreateButton";
@@ -27,6 +29,7 @@ const defaultFilterState: RunFilterState = {
 export default function RunDashboardWidget() {
   const [actionMessage, setActionMessage] = useState("");
   const [filters, setFilters] = useState<RunFilterState>(defaultFilterState);
+  const artifactsQuery = useArtifactsQuery();
   const { projectFilter, datasetFilter, modelFilter, statusFilter, tagFilter, createdFrom, createdTo } = filters;
   const requestFilters = useMemo(
     () =>
@@ -63,6 +66,7 @@ export default function RunDashboardWidget() {
   const filteredRuns = useMemo(() => filterRuns(runRecords, deferredQuery), [deferredQuery, runRecords]);
   const filterOptions = useMemo(() => getFilterOptions(runRecords), [runRecords]);
   const stats = useMemo(() => getRunStats(filteredRuns), [filteredRuns]);
+  const recentArtifacts = (artifactsQuery.data ?? []).slice(0, 5);
 
   return (
     <section className="page-stack">
@@ -128,6 +132,54 @@ export default function RunDashboardWidget() {
           rows={filteredRuns}
           message={filteredRuns.length === 0 && runRecords.length > 0 ? "No runs match current filters." : message}
         />
+      </Panel>
+
+      <Panel>
+        <div className="surface-header">
+          <div>
+            <p className="surface-kicker">Artifacts</p>
+            <h3 className="panel-title">Recent exports with direct download links</h3>
+          </div>
+        </div>
+
+        {artifactsQuery.isPending ? (
+          <Notice>Loading artifact history...</Notice>
+        ) : artifactsQuery.isError ? (
+          <Notice>Artifact history unavailable.</Notice>
+        ) : recentArtifacts.length ? (
+          <div className="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Format</th>
+                  <th>Runs</th>
+                  <th>Size</th>
+                  <th>Created</th>
+                  <th>Download</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentArtifacts.map((artifact) => (
+                  <tr key={artifact.artifactId}>
+                    <td className="mono">{artifact.artifactId.slice(0, 8)}</td>
+                    <td>{artifact.format.toUpperCase()}</td>
+                    <td>{artifact.runIds.length}</td>
+                    <td>{artifact.sizeBytes} bytes</td>
+                    <td>{new Date(artifact.createdAt).toLocaleString()}</td>
+                    <td>
+                      <a href={getArtifactDownloadUrl(artifact.artifactId)} target="_blank" rel="noreferrer">
+                        Download
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Notice>No artifacts exported yet.</Notice>
+        )}
       </Panel>
     </section>
   );

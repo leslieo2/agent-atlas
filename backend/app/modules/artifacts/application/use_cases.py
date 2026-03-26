@@ -13,6 +13,9 @@ class ArtifactQueries:
     def get_artifact(self, artifact_id: str | UUID) -> ArtifactMetadata | None:
         return self.artifact_repository.get(artifact_id)
 
+    def list_artifacts(self) -> list[ArtifactMetadata]:
+        return self.artifact_repository.list()
+
 
 class ArtifactCommands:
     def __init__(self, artifact_exporter: ArtifactExportPort) -> None:

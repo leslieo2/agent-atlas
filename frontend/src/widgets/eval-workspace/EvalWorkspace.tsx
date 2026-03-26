@@ -18,14 +18,59 @@ import { SampleDrilldown } from "@/src/features/sample-drilldown/SampleDrilldown
 import { Field } from "@/src/shared/ui/Field";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Panel } from "@/src/shared/ui/Panel";
-import { getEvalTotals, getVisibleEvalRows } from "./selectors";
+import { getEvalTotals, getRunEvalSummaries, getVisibleEvalRows } from "./selectors";
 
 const EVAL_JOB_POLL_INTERVAL_MS = 500;
+
+type ParsedDatasetRow = {
+  sampleId: string;
+  input: string;
+  expected?: string | null;
+  tags?: string[];
+};
 
 function sleep(milliseconds: number) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, milliseconds);
   });
+}
+
+function parseDatasetJsonl(text: string): ParsedDatasetRow[] {
+  const seenSampleIds = new Set<string>();
+
+  return text
+    .split("\n")
+    .map((line, index) => ({ line: line.trim(), index }))
+    .filter((item) => item.line)
+    .map(({ line, index }) => {
+      let parsed: { sample_id?: string; input?: string; expected?: string; tags?: string[] };
+
+      try {
+        parsed = JSON.parse(line) as { sample_id?: string; input?: string; expected?: string; tags?: string[] };
+      } catch {
+        throw new Error(`Line ${index + 1} is not valid JSON.`);
+      }
+
+      const sampleId = parsed.sample_id?.trim() || `sample-${index + 1}`;
+      const input = parsed.input?.trim();
+
+      if (!input) {
+        throw new Error(`Line ${index + 1} is missing a non-empty input field.`);
+      }
+
+      if (seenSampleIds.has(sampleId)) {
+        throw new Error(`Duplicate sample_id '${sampleId}' at line ${index + 1}.`);
+      }
+
+      seenSampleIds.add(sampleId);
+
+      return {
+        sampleId,
+        input,
+        expected: parsed.expected ?? null,
+        tags: parsed.tags ?? []
+      };
+    });
 }
 
 function getEvalJobStatusMessage(job: EvalJob) {
@@ -38,7 +83,16 @@ function getEvalJobStatusMessage(job: EvalJob) {
   return `Eval job ${job.jobId} finished with status ${job.status}`;
 }
 
-export default function EvalWorkspace() {
+type Props = {
+  initialRunIds?: string[];
+  initialDataset?: string;
+};
+
+function isSameSelection(current: string[], next: string[]) {
+  return current.length === next.length && current.every((item, index) => item === next[index]);
+}
+
+export default function EvalWorkspace({ initialRunIds = [], initialDataset }: Props) {
   const queryClient = useQueryClient();
   const datasetsQuery = useDatasetsQuery();
   const runsQuery = useRunsQuery();
@@ -47,17 +101,24 @@ export default function EvalWorkspace() {
   const exportArtifactMutation = useExportArtifactMutation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [rows, setRows] = useState<EvalResult[]>([]);
-  const [dataset, setDataset] = useState("crm-v2");
+  const [dataset, setDataset] = useState(initialDataset ?? "crm-v2");
   const [query, setQuery] = useState("");
   const [selectedSample, setSelectedSample] = useState<EvalResult | null>(null);
+  const [selectedRunIds, setSelectedRunIds] = useState<string[]>(initialRunIds);
   const [trajectorySteps, setTrajectorySteps] = useState<TrajectoryStep[]>([]);
   const [isDrilling, setIsDrilling] = useState(false);
   const [failuresOnly, setFailuresOnly] = useState(false);
   const [message, setMessage] = useState("Load datasets and run an eval.");
   const [trajectoryError, setTrajectoryError] = useState("");
+  const [uploadSummary, setUploadSummary] = useState("");
   const activeEvalPollRef = useRef(0);
   const datasets = useMemo(() => datasetsQuery.data?.map((item) => item.name) ?? [], [datasetsQuery.data]);
-  const runIds = useMemo(() => runsQuery.data?.map((item) => item.runId) ?? [], [runsQuery.data]);
+  const runs = runsQuery.data ?? [];
+  const runIds = useMemo(() => runs.map((item) => item.runId), [runs]);
+  const selectedDataset = useMemo(
+    () => datasetsQuery.data?.find((item) => item.name === dataset) ?? null,
+    [dataset, datasetsQuery.data]
+  );
 
   const pollEvalJobUntilSettled = async (jobId: string, requestId: number) => {
     while (requestId === activeEvalPollRef.current) {
@@ -98,7 +159,7 @@ export default function EvalWorkspace() {
   };
 
   const runEval = async () => {
-    if (!dataset || !runIds[0]) return;
+    if (!dataset || selectedRunIds.length === 0) return;
     const requestId = activeEvalPollRef.current + 1;
     activeEvalPollRef.current = requestId;
     setSelectedSample(null);
@@ -108,7 +169,7 @@ export default function EvalWorkspace() {
 
     try {
       const job = await createEvalJobMutation.mutateAsync({
-        runIds: [runIds[0]],
+        runIds: selectedRunIds,
         dataset,
         evaluators: ["rule", "judge", "tool-correctness"]
       });
@@ -144,8 +205,8 @@ export default function EvalWorkspace() {
   };
 
   const exportEvalArtifacts = async (format: "jsonl" | "parquet") => {
-    if (!runIds[0]) return;
-    const artifact = await exportArtifactMutation.mutateAsync({ runIds: [runIds[0]], format });
+    if (selectedRunIds.length === 0) return;
+    const artifact = await exportArtifactMutation.mutateAsync({ runIds: selectedRunIds, format });
     setMessage(`Exported ${format.toUpperCase()} artifacts to ${artifact.path}`);
   };
 
@@ -153,26 +214,25 @@ export default function EvalWorkspace() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const text = await file.text();
-    const datasetRows = text
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line, index) => {
-        const parsed = JSON.parse(line) as { sample_id?: string; input: string; expected?: string; tags?: string[] };
-        return {
-          sampleId: parsed.sample_id ?? `sample-${index + 1}`,
-          input: parsed.input,
-          expected: parsed.expected ?? null,
-          tags: parsed.tags ?? []
-        };
-      });
-
-    const datasetName = file.name.replace(/\.jsonl$/i, "") || `dataset-${Date.now()}`;
-    const createdDataset = await createDatasetMutation.mutateAsync({ name: datasetName, rows: datasetRows });
-    setDataset(createdDataset.name);
-    setMessage(`Uploaded dataset ${createdDataset.name} with ${createdDataset.rows.length} rows.`);
-    event.target.value = "";
+    try {
+      const text = await file.text();
+      const datasetRows = parseDatasetJsonl(text);
+      const datasetName = file.name.replace(/\.jsonl$/i, "") || `dataset-${Date.now()}`;
+      const createdDataset = await createDatasetMutation.mutateAsync({ name: datasetName, rows: datasetRows });
+      setDataset(createdDataset.name);
+      setUploadSummary(
+        `Validated ${datasetRows.length} rows. Preview sample: ${datasetRows
+          .slice(0, 2)
+          .map((row) => row.sampleId)
+          .join(", ")}`
+      );
+      setMessage(`Uploaded dataset ${createdDataset.name} with ${createdDataset.rows.length} rows.`);
+    } catch (error) {
+      setUploadSummary("");
+      setMessage(error instanceof Error ? error.message : "Failed to validate dataset upload.");
+    } finally {
+      event.target.value = "";
+    }
   };
 
   useEffect(() => {
@@ -191,9 +251,35 @@ export default function EvalWorkspace() {
     }
   }, [dataset, datasets]);
 
+  useEffect(() => {
+    if (!runIds.length) {
+      return;
+    }
+
+    const validInitialRunIds = initialRunIds.filter((runId) => runIds.includes(runId));
+    if (!selectedRunIds.length) {
+      const nextSelection = validInitialRunIds.length ? validInitialRunIds : [runIds[0]];
+      setSelectedRunIds(nextSelection);
+      return;
+    }
+
+    const stillValidRunIds = selectedRunIds.filter((runId) => runIds.includes(runId));
+    if (!stillValidRunIds.length) {
+      const fallbackSelection = validInitialRunIds.length ? validInitialRunIds : [runIds[0]];
+      setSelectedRunIds(fallbackSelection);
+      return;
+    }
+
+    if (!isSameSelection(selectedRunIds, stillValidRunIds)) {
+      setSelectedRunIds(stillValidRunIds);
+    }
+  }, [initialRunIds, runIds, selectedRunIds]);
+
   const totals = useMemo(() => getEvalTotals(rows), [rows]);
   const failedCount = rows.filter((row) => row.status === "fail").length;
   const visibleRows = useMemo(() => getVisibleEvalRows(rows, query, failuresOnly), [rows, query, failuresOnly]);
+  const runSummaries = useMemo(() => getRunEvalSummaries(rows), [rows]);
+  const selectedSampleKey = selectedSample ? `${selectedSample.runId}-${selectedSample.sampleId}` : "";
 
   return (
     <section>
@@ -220,6 +306,35 @@ export default function EvalWorkspace() {
 
       <Panel className="filters">
         <DatasetSelector datasets={datasets} dataset={dataset} onDatasetChange={setDataset} />
+        <Field label="Runs to compare" wide>
+          <div style={{ display: "grid", gap: 8 }}>
+            {runs.map((run) => {
+              const checked = selectedRunIds.includes(run.runId);
+              const candidateKind = typeof run.projectMetadata?.candidate === "object" ? "candidate" : "";
+
+              return (
+                <label
+                  key={run.runId}
+                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      setSelectedRunIds((current) =>
+                        checked ? current.filter((runId) => runId !== run.runId) : [...current, run.runId]
+                      );
+                    }}
+                  />
+                  <span>
+                    {run.runId.slice(0, 8)} · {run.project} · {run.model}
+                    {candidateKind ? " · candidate" : ""}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </Field>
         <Field label="Search sample">
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="sample id / run id" />
         </Field>
@@ -231,8 +346,81 @@ export default function EvalWorkspace() {
         </Field>
       </Panel>
 
+      <Panel style={{ marginTop: 16 }}>
+        <div className="surface-header">
+          <div>
+            <p className="surface-kicker">Dataset preview</p>
+            <h3 className="panel-title">Inspect the active dataset before running eval</h3>
+          </div>
+        </div>
+        <div className="metrics">
+          <MetricCard label="Dataset" value={selectedDataset?.name ?? (dataset || "-")} />
+          <MetricCard label="Rows" value={selectedDataset?.rows.length ?? 0} />
+          <MetricCard
+            label="Tagged rows"
+            value={selectedDataset?.rows.filter((row) => (row.tags?.length ?? 0) > 0).length ?? 0}
+          />
+          <MetricCard
+            label="Expected labels"
+            value={selectedDataset?.rows.filter((row) => Boolean(row.expected)).length ?? 0}
+          />
+        </div>
+        {uploadSummary ? <p className="muted-note">{uploadSummary}</p> : null}
+        {selectedDataset?.rows.length ? (
+          <div className="table-shell" style={{ marginTop: 12 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Sample</th>
+                  <th>Input</th>
+                  <th>Expected</th>
+                  <th>Tags</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedDataset.rows.slice(0, 5).map((row) => (
+                  <tr key={row.sampleId}>
+                    <td className="mono">{row.sampleId}</td>
+                    <td>{row.input}</td>
+                    <td>{row.expected ?? "-"}</td>
+                    <td>{row.tags?.join(", ") || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted-note">No rows available for preview.</p>
+        )}
+      </Panel>
+
+      <Panel style={{ marginTop: 16 }}>
+        <div className="surface-header">
+          <div>
+            <p className="surface-kicker">Run summaries</p>
+            <h3 className="panel-title">Compare selected runs by pass rate and average score</h3>
+          </div>
+        </div>
+        {runSummaries.length === 0 ? (
+          <p className="muted-note">Run an eval job to generate comparison summaries.</p>
+        ) : (
+          <div className="step-list">
+            {runSummaries.map((summary) => (
+              <div key={summary.runId} className="step-item">
+                <p>
+                  {summary.runId.slice(0, 8)} · success {summary.successRate}% · avg score {summary.averageScore}
+                </p>
+                <p className="muted-note">
+                  {summary.passCount} pass · {summary.failCount} fail · {summary.total} samples
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+
       <div className="run-grid">
-        <EvalResultsTable rows={visibleRows} selectedSampleId={selectedSample?.sampleId} onSelect={loadTrajectory} />
+        <EvalResultsTable rows={visibleRows} selectedKey={selectedSampleKey} onSelect={loadTrajectory} />
         <SampleDrilldown
           rows={rows}
           failedCount={failedCount}
