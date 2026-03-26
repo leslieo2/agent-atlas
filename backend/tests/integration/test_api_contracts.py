@@ -44,7 +44,8 @@ def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client, worker
 
     trajectory = client.get(f"/api/v1/runs/{run_id}/trajectory").json()
     assert isinstance(trajectory, list)
-    assert len(trajectory) >= 4
+    assert len(trajectory) >= 1
+    assert all(step["step_type"] == "llm" for step in trajectory)
 
     filtered = client.get("/api/v1/runs", params={"project": "integration"}).json()
     assert any(item["run_id"] == run_id for item in filtered)

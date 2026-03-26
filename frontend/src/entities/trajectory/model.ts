@@ -7,7 +7,7 @@ export interface TrajectoryStep {
   parentStepId?: string | null;
   prompt: string;
   output: string;
-  model: string;
+  model: string | null;
   temperature: number;
   latencyMs: number;
   tokenUsage: number;

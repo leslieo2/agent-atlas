@@ -87,7 +87,7 @@ export function buildTrajectoryNodes(steps: TrajectoryStep[], focusedStepId: str
         y: ROOT_Y + rowIndex * ROW_HEIGHT
       },
       data: {
-        label: `${step.stepType.toUpperCase()} · ${step.toolName || step.model} · ${step.success ? "OK" : "ERR"}`
+        label: `${step.stepType.toUpperCase()} · ${step.toolName || step.model || step.stepType} · ${step.success ? "OK" : "ERR"}`
       },
       type: "default",
       style: {

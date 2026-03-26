@@ -36,7 +36,7 @@ test("playground can launch a run and open the latest trace", async ({ page }) =
       id: "run-002-step-1",
       run_id: "run-002",
       output: "playground planner output",
-      model: "planner-v1"
+      model: null
     })
   ]);
 

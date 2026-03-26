@@ -65,7 +65,7 @@ def test_replay_result_factory_builds_diffed_result():
         provider="stub",
     )
 
-    result = ReplayResultFactory().build(request, baseline, replay_output)
+    result = ReplayResultFactory().build(request, baseline, replay_output, "gpt-4.1")
 
     assert result.updated_prompt == "Explain the plan with more detail."
     assert result.model == "gpt-4.1"
@@ -131,9 +131,10 @@ def test_replay_executor_runs_isolated_step_via_runner():
     runner = StubRunner()
     executor = ReplayExecutor(runner_registry=StubRegistry(runner))
 
-    result = executor.execute(request, baseline, run)
+    result, resolved_model = executor.execute(request, baseline, run)
 
     assert result.output == "live replay output"
+    assert resolved_model == "gpt-4.1"
     assert runner.calls == [
         (
             AdapterKind.OPENAI_AGENTS,

@@ -21,7 +21,7 @@ export interface TrajectoryStep {
   parentStepId?: string | null;
   prompt: string;
   output: string;
-  model: string;
+  model: string | null;
   temperature: number;
   latencyMs: number;
   tokenUsage: number;
@@ -113,7 +113,7 @@ export const steps: TrajectoryStep[] = [
     parentStepId: null,
     prompt: "Plan retrieval sequence for user request and required tools.",
     output: "Detected required tools: crm_lookup, itinerary_builder, pricing_service",
-    model: "planner-v1",
+    model: null,
     temperature: 0.1,
     latencyMs: 250,
     tokenUsage: 220,

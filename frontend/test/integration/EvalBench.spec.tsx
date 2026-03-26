@@ -172,7 +172,7 @@ describe("EvalBench integration", () => {
         stepType: "planner",
         prompt: "eval prompt",
         output: "eval output",
-        model: "planner-v1",
+        model: null,
         temperature: 0,
         latencyMs: 12,
         tokenUsage: 0,

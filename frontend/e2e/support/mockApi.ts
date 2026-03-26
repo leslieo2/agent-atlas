@@ -21,7 +21,7 @@ export type ApiTrajectoryStep = {
   step_type: "llm" | "tool" | "planner" | "memory";
   prompt: string;
   output: string;
-  model: string;
+  model: string | null;
   temperature: number;
   latency_ms: number;
   token_usage: number;
@@ -60,7 +60,7 @@ export const buildTrajectoryStep = (
   step_type: "planner",
   prompt: "plan",
   output: "current planner output",
-  model: "planner-v1",
+  model: null,
   temperature: 0,
   latency_ms: 10,
   token_usage: 5,

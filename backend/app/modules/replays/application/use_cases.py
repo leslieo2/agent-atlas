@@ -50,7 +50,7 @@ class ReplayCommands:
             self.trajectory_repository.list_for_run(request.run_id),
             request.step_id,
         )
-        replay_result = self.replay_executor.execute(request, baseline_step, run)
-        result = self.result_factory.build(request, baseline_step, replay_result)
+        replay_result, resolved_model = self.replay_executor.execute(request, baseline_step, run)
+        result = self.result_factory.build(request, baseline_step, replay_result, resolved_model)
         self.replay_repository.save(result)
         return result

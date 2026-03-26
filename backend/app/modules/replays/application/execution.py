@@ -29,11 +29,11 @@ class ReplayExecutor:
         request: ReplayRequest,
         baseline_step: TrajectoryStep,
         run: RunRecord,
-    ) -> RuntimeExecutionResult:
+    ) -> tuple[RuntimeExecutionResult, str]:
         resolved_model = self._resolve_model(request, baseline_step, run)
         replay_prompt = self._build_prompt(request, baseline_step)
         runner = self.runner_registry.get_runner(run.agent_type)
-        return runner.execute(run.agent_type, resolved_model, replay_prompt)
+        return runner.execute(run.agent_type, resolved_model, replay_prompt), resolved_model
 
     def _resolve_model(
         self,
@@ -84,9 +84,9 @@ class ReplayResultFactory:
         request: ReplayRequest,
         baseline_step: TrajectoryStep,
         replay_result: RuntimeExecutionResult,
+        resolved_model: str,
     ) -> ReplayResult:
         replay_prompt = request.edited_prompt or baseline_step.prompt
-        model = request.model or baseline_step.model
         diff = "\n".join(
             difflib.unified_diff(
                 baseline_step.output.splitlines(),
@@ -104,6 +104,6 @@ class ReplayResultFactory:
             replay_output=replay_result.output,
             diff=diff,
             updated_prompt=replay_prompt,
-            model=model,
+            model=resolved_model,
             temperature=baseline_step.temperature,
         )

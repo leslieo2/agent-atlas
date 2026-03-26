@@ -85,7 +85,7 @@ export function SampleDrilldown({
                         {step.id} · {step.stepType.toUpperCase()} · {step.success ? "success" : "error"}
                       </p>
                       <p className="muted-note">
-                        model: {step.model} · latency: {step.latencyMs}ms · tokens: {step.tokenUsage}
+                        model: {step.model ?? "-"} · latency: {step.latencyMs}ms · tokens: {step.tokenUsage}
                       </p>
                       <p className="output-log mono" style={{ whiteSpace: "pre-wrap" }}>
                         {step.output}

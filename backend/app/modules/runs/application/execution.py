@@ -43,73 +43,8 @@ class ProjectedExecutionRecord:
 
 class RunExecutionProjector:
     @staticmethod
-    def planner_span_id(run_id: UUID) -> str:
-        return f"span-{run_id}-1"
-
-    @staticmethod
-    def runtime_preamble_span_id(run_id: UUID) -> str:
-        return f"span-{run_id}-2"
-
-    @staticmethod
     def runtime_result_span_id(run_id: UUID) -> str:
-        return f"span-{run_id}-3"
-
-    @staticmethod
-    def persistence_span_id(run_id: UUID) -> str:
-        return f"span-{run_id}-4"
-
-    def project_planner(self, context: RunExecutionContext) -> ProjectedExecutionRecord:
-        dataset_label = context.payload.dataset or "no dataset"
-        prompt = (
-            f"Plan execution flow for dataset {dataset_label} "
-            f"using adapter {context.payload.agent_type.value}."
-        )
-        output = f"Single-step live model execution planned for project {context.payload.project}."
-        return ProjectedExecutionRecord(
-            event=self._build_event(
-                context=context,
-                span_id=self.planner_span_id(context.run_id),
-                parent_span_id=None,
-                step_type=StepType.PLANNER,
-                name="planner-v1",
-                input_payload={
-                    "prompt": prompt,
-                    "agent_type": context.payload.agent_type.value,
-                    "model": "planner-v1",
-                    "temperature": 0.0,
-                },
-                output_payload={"output": output, "success": True},
-                latency_ms=1,
-                token_usage=0,
-            ),
-            metrics=ExecutionMetrics(latency_ms=1, token_cost=0),
-        )
-
-    def project_runtime_preamble(self, context: RunExecutionContext) -> ProjectedExecutionRecord:
-        return ProjectedExecutionRecord(
-            event=self._build_event(
-                context=context,
-                span_id=self.runtime_preamble_span_id(context.run_id),
-                parent_span_id=self.planner_span_id(context.run_id),
-                step_type=StepType.TOOL,
-                name="runtime-context",
-                input_payload={
-                    "prompt": "Prepare runtime context for execution",
-                    "type": "preamble",
-                    "model": "planner-v1",
-                    "temperature": 0.0,
-                },
-                output_payload={"output": "runtime context prepared", "success": True},
-                latency_ms=2,
-                token_usage=0,
-                tool_name="runtime-context",
-            ),
-            metrics=ExecutionMetrics(
-                latency_ms=2,
-                token_cost=0,
-                tool_calls=1,
-            ),
-        )
+        return f"span-{run_id}-1"
 
     def project_runtime_success(
         self,
@@ -120,7 +55,7 @@ class RunExecutionProjector:
             event=self._build_event(
                 context=context,
                 span_id=self.runtime_result_span_id(context.run_id),
-                parent_span_id=self.runtime_preamble_span_id(context.run_id),
+                parent_span_id=None,
                 step_type=StepType.LLM,
                 name=context.payload.model,
                 input_payload={
@@ -153,7 +88,7 @@ class RunExecutionProjector:
             event=self._build_event(
                 context=context,
                 span_id=self.runtime_result_span_id(context.run_id),
-                parent_span_id=self.runtime_preamble_span_id(context.run_id),
+                parent_span_id=None,
                 step_type=StepType.LLM,
                 name=context.payload.model,
                 input_payload={
@@ -166,27 +101,6 @@ class RunExecutionProjector:
                 token_usage=0,
             ),
             metrics=ExecutionMetrics(),
-        )
-
-    def project_persistence(self, context: RunExecutionContext) -> ProjectedExecutionRecord:
-        return ProjectedExecutionRecord(
-            event=self._build_event(
-                context=context,
-                span_id=self.persistence_span_id(context.run_id),
-                parent_span_id=self.runtime_result_span_id(context.run_id),
-                step_type=StepType.MEMORY,
-                name="recorder",
-                input_payload={
-                    "prompt": "Persist normalized artifacts",
-                    "result": "persist",
-                    "model": "recorder",
-                    "temperature": 0.0,
-                },
-                output_payload={"output": "trajectory and spans persisted", "success": True},
-                latency_ms=1,
-                token_usage=0,
-            ),
-            metrics=ExecutionMetrics(latency_ms=1, token_cost=0),
         )
 
     def _build_event(
@@ -260,8 +174,6 @@ class RunExecutionService:
             return
 
         context = RunExecutionContext.from_spec(run_id, payload)
-        self.recorder.record(run_id, self.projector.project_planner(context))
-        self.recorder.record(run_id, self.projector.project_runtime_preamble(context))
 
         try:
             runner = self.runner_registry.get_runner(payload.agent_type)
@@ -271,8 +183,6 @@ class RunExecutionService:
         except Exception as exc:
             self.recorder.record(run_id, self.projector.project_runtime_failure(context, str(exc)))
             self._set_status(run_id, RunStatus.FAILED, reason=str(exc))
-
-        self.recorder.record(run_id, self.projector.project_persistence(context))
 
     def _set_status(
         self,

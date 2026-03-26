@@ -41,7 +41,7 @@ export function StepInspector({ steps, focusedStepId, expanded, diffSummary, mes
                   </StatusPill>
                 </p>
                 <p className="muted-note">
-                  model: {step.model} · temp: {step.temperature} · latency: {step.latencyMs}ms
+                  model: {step.model ?? "-"} · temp: {step.temperature} · latency: {step.latencyMs}ms
                 </p>
                 <p className="muted-note">parent: {step.parentStepId ?? "root"}</p>
                 {step.toolName ? <p className="muted-note">tool: {step.toolName}</p> : null}

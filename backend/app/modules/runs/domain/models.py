@@ -65,7 +65,7 @@ class TrajectoryStep(BaseModel):
     parent_step_id: str | None = None
     prompt: str
     output: str
-    model: str
+    model: str | None = None
     temperature: float = 0.0
     latency_ms: int = 0
     token_usage: int = 0

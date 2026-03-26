@@ -72,11 +72,11 @@ class DefaultTraceProjector:
             return output
         return self._serialize_payload(payload)
 
-    def _extract_model(self, event: TraceIngestEvent, payload: dict[str, Any]) -> str:
+    def _extract_model(self, event: TraceIngestEvent, payload: dict[str, Any]) -> str | None:
         model = payload.get("model")
         if isinstance(model, str) and model:
             return model
-        return event.name
+        return None
 
     def _extract_temperature(self, payload: dict[str, Any]) -> float:
         temperature = payload.get("temperature", 0.0)

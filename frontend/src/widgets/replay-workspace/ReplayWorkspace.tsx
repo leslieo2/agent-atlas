@@ -25,7 +25,7 @@ function resolveReplayModel(step: TrajectoryStep | null, runModel?: string) {
     return runModel ?? "gpt-4.1-mini";
   }
 
-  return step.stepType === "llm" ? step.model : (runModel ?? step.model);
+  return step.stepType === "llm" ? (step.model ?? runModel ?? "gpt-4.1-mini") : (runModel ?? step.model ?? "gpt-4.1-mini");
 }
 
 export default function ReplayWorkspace({ runId, initialStepId }: Props = {}) {

@@ -61,7 +61,7 @@ const mixedSteps = [
     stepType: "planner" as const,
     prompt: "plan the task",
     output: "planning output",
-    model: "planner-v1",
+    model: null,
     temperature: 0,
     latencyMs: 50,
     tokenUsage: 10,

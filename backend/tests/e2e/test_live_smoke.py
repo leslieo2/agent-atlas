@@ -74,8 +74,8 @@ def test_live_openai_run_eval_export_smoke(client, worker_drain, live_openai_run
     trajectory = client.get(f"/api/v1/runs/{run_id}/trajectory")
     assert trajectory.status_code == 200
     trajectory_rows = trajectory.json()
-    assert len(trajectory_rows) >= 4
-    assert any(step["step_type"] == "llm" for step in trajectory_rows)
+    assert len(trajectory_rows) >= 1
+    assert all(step["step_type"] == "llm" for step in trajectory_rows)
 
     eval_job = client.post(
         "/api/v1/eval-jobs",

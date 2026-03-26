@@ -154,7 +154,7 @@ export interface TrajectoryStepResponse {
   "parent_step_id"?: string | null;
   "prompt": string;
   "output": string;
-  "model": string;
+  "model"?: string | null;
   "temperature": number;
   "latency_ms": number;
   "token_usage": number;

@@ -110,7 +110,7 @@ describe("Playground integration", () => {
         stepType: "planner",
         prompt: "prompt",
         output: "planner output",
-        model: "planner-v1",
+        model: null,
         temperature: 0,
         latencyMs: 12,
         tokenUsage: 0,

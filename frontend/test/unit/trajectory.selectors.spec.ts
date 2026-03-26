@@ -12,7 +12,7 @@ const steps = [
     stepType: "planner" as const,
     prompt: "plan",
     output: "planner",
-    model: "planner-v1",
+    model: null,
     temperature: 0,
     latencyMs: 4,
     tokenUsage: 0,

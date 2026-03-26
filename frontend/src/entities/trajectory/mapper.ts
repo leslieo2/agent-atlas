@@ -11,7 +11,7 @@ export function mapStep(step: ApiTrajectoryStep): TrajectoryStep {
     parentStepId: parentStepId ?? null,
     prompt: step.prompt,
     output: step.output,
-    model: step.model,
+    model: step.model ?? null,
     temperature: step.temperature,
     latencyMs: step.latency_ms,
     tokenUsage: step.token_usage,
