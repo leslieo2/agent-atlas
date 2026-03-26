@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Agent Flight Recorder",
-  description: "Agent Infra Workbench for trajectory replay, evaluation, and export."
+  description: "Agent Infra Workbench for discovery, execution, trajectory inspection, and export."
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -49,25 +49,6 @@ def test_end_to_end_workbench_flow(monkeypatch, client, worker_drain):
     trajectory_rows = trajectory.json()
     assert len(trajectory_rows) >= 1
 
-    replay = client.post(
-        "/api/v1/replays",
-        json={
-            "run_id": run_id,
-            "step_id": trajectory_rows[0]["id"],
-            "edited_prompt": "patched prompt",
-            "model": "gpt-4.1-mini",
-        },
-    )
-    assert replay.status_code == 400
-    assert replay.json()["detail"]["code"] == "unsupported_operation"
-
-    eval_job = client.post(
-        "/api/v1/eval-jobs",
-        json={"run_ids": [run_id], "dataset": "e2e-ds", "evaluators": ["rule", "judge"]},
-    )
-    assert eval_job.status_code == 400
-    assert eval_job.json()["detail"]["code"] == "unsupported_operation"
-
     artifact = client.post(
         "/api/v1/artifacts/export",
         json={"run_ids": [run_id], "format": "jsonl"},

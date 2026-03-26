@@ -98,16 +98,6 @@ def test_trace_ingest_and_normalize_endpoints(client):
     assert trajectory[0]["step_type"] == "tool"
     assert trajectory[0]["tool_name"] == "mcp"
 
-
-def test_adapters_list_available_adapters(client):
-    adapters = client.get("/api/v1/adapters").json()
-    assert {adapter["kind"] for adapter in adapters} == {
-        "openai-agents-sdk",
-        "langchain",
-        "mcp",
-    }
-
-
 def test_agents_list_available_registered_agents(client):
     response = client.get("/api/v1/agents")
 

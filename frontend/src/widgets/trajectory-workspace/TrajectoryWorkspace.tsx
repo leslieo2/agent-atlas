@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, RefreshCcw } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useExportArtifactMutation } from "@/src/entities/artifact/query";
 import { useRunsQuery } from "@/src/entities/run/query";
@@ -11,7 +11,6 @@ import { TrajectoryGraph } from "@/src/features/trajectory-graph/TrajectoryGraph
 import { StepInspector } from "@/src/features/step-inspector/StepInspector";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
-import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
 import {
   buildTrajectoryEdges,
@@ -81,8 +80,6 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   }, [steps]);
 
   const selectedRunRecord = runs.find((run) => run.runId === selectedRun);
-  const replayUnsupported = Boolean(selectedRunRecord?.agentId);
-  const focusedStep = steps.find((step) => step.id === focusedStepId) ?? steps[0] ?? null;
   const nodes = useMemo(() => buildTrajectoryNodes(steps, focusedStepId), [focusedStepId, steps]);
   const edges = useMemo(() => buildTrajectoryEdges(steps), [steps]);
   const metrics = useMemo(() => getTrajectoryMetrics(steps), [steps]);
@@ -129,13 +126,6 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
           <Button href="/runs" variant="secondary">
             <ArrowLeft size={14} /> Back to runs
           </Button>
-          {!replayUnsupported ? (
-            <Button
-              href={selectedRun ? `/runs/${selectedRun}/replay${focusedStep ? `?stepId=${focusedStep.id}` : ""}` : "/runs"}
-            >
-              <RefreshCcw size={14} /> Replay selected step
-            </Button>
-          ) : null}
         </div>
       </header>
 
@@ -178,7 +168,6 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
               </Button>
             </div>
           </div>
-          {replayUnsupported ? <Notice>Replay is not supported for registered agent runs in v1.</Notice> : null}
 
           <div className="metrics">
             <MetricCard label="Nodes" value={metrics.toolCalls} />

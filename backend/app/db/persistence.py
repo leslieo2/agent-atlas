@@ -12,8 +12,6 @@ from uuid import UUID
 from app.core.config import settings
 from app.modules.artifacts.domain.models import ArtifactMetadata
 from app.modules.datasets.domain.models import Dataset
-from app.modules.evals.domain.models import EvalJob
-from app.modules.replays.domain.models import ReplayResult
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
 from app.modules.shared.domain.tasks import QueuedTask, TaskStatus
 from app.modules.traces.domain.models import TraceSpan
@@ -32,20 +30,6 @@ _PAYLOAD_STATEMENTS: dict[tuple[str, str], tuple[str, str]] = {
     ): (
         "INSERT OR REPLACE INTO datasets (name, payload, updated_at) VALUES (?, ?, ?)",
         "SELECT payload FROM datasets WHERE name = ?",
-    ),
-    (
-        "eval_jobs",
-        "job_id",
-    ): (
-        "INSERT OR REPLACE INTO eval_jobs (job_id, payload, updated_at) VALUES (?, ?, ?)",
-        "SELECT payload FROM eval_jobs WHERE job_id = ?",
-    ),
-    (
-        "replays",
-        "replay_id",
-    ): (
-        "INSERT OR REPLACE INTO replays (replay_id, payload, updated_at) VALUES (?, ?, ?)",
-        "SELECT payload FROM replays WHERE replay_id = ?",
     ),
     (
         "artifacts",
@@ -134,19 +118,6 @@ class StatePersistence:
                     payload TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
-
-                CREATE TABLE IF NOT EXISTS eval_jobs (
-                    job_id TEXT PRIMARY KEY,
-                    payload TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS replays (
-                    replay_id TEXT PRIMARY KEY,
-                    payload TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-
                 CREATE TABLE IF NOT EXISTS artifacts (
                     artifact_id TEXT PRIMARY KEY,
                     payload TEXT NOT NULL,
@@ -393,36 +364,6 @@ class StatePersistence:
         payloads = self._fetch_payloads("SELECT payload FROM datasets ORDER BY updated_at DESC")
         return [Dataset.model_validate(json.loads(payload)) for payload in payloads]
 
-    def save_eval_job(self, job: EvalJob) -> None:
-        self._upsert(
-            "eval_jobs",
-            "job_id",
-            str(job.job_id),
-            serialize_model(job),
-            job.created_at.isoformat(),
-        )
-
-    def get_eval_job(self, job_id: UUID | str) -> EvalJob | None:
-        payload = self._fetch_payload("eval_jobs", "job_id", str(to_uuid(job_id)))
-        if payload is None:
-            return None
-        return EvalJob.model_validate(json.loads(payload))
-
-    def save_replay(self, replay: ReplayResult) -> None:
-        self._upsert(
-            "replays",
-            "replay_id",
-            str(replay.replay_id),
-            serialize_model(replay),
-            replay.started_at.isoformat(),
-        )
-
-    def get_replay(self, replay_id: UUID | str) -> ReplayResult | None:
-        payload = self._fetch_payload("replays", "replay_id", str(to_uuid(replay_id)))
-        if payload is None:
-            return None
-        return ReplayResult.model_validate(json.loads(payload))
-
     def save_artifact(self, artifact: ArtifactMetadata) -> None:
         self._upsert(
             "artifacts",
@@ -544,10 +485,7 @@ class StatePersistence:
             DELETE FROM trace_spans;
             DELETE FROM runs;
             DELETE FROM datasets;
-            DELETE FROM eval_jobs;
-            DELETE FROM replays;
             DELETE FROM artifacts;
-                DELETE FROM tasks;
             DELETE FROM tasks;
             """
         )
@@ -605,19 +543,6 @@ class StatePersistence:
             trace_spans[run_id] = self.list_trace_spans(run_id)
         datasets = {dataset.name: dataset for dataset in self.list_datasets()}
 
-        eval_jobs: dict[UUID, EvalJob] = {}
-        eval_job_payloads = self._fetch_payloads(
-            "SELECT payload FROM eval_jobs ORDER BY updated_at DESC"
-        )
-        for payload in eval_job_payloads:
-            job = EvalJob.model_validate(json.loads(payload))
-            eval_jobs[to_uuid(job.job_id)] = job
-
-        replays: dict[UUID, ReplayResult] = {}
-        for payload in self._fetch_payloads("SELECT payload FROM replays ORDER BY updated_at DESC"):
-            replay = ReplayResult.model_validate(json.loads(payload))
-            replays[to_uuid(replay.replay_id)] = replay
-
         artifacts: dict[UUID, ArtifactMetadata] = {}
         artifact_payloads = self._fetch_payloads(
             "SELECT payload FROM artifacts ORDER BY updated_at DESC"
@@ -631,8 +556,6 @@ class StatePersistence:
             "trajectory": trajectory,
             "trace_spans": trace_spans,
             "datasets": datasets,
-            "eval_jobs": eval_jobs,
-            "replays": replays,
             "artifacts": artifacts,
         }
 
@@ -646,8 +569,6 @@ class StatePersistence:
                 DELETE FROM trajectory;
                 DELETE FROM runs;
                 DELETE FROM datasets;
-                DELETE FROM eval_jobs;
-                DELETE FROM replays;
                 DELETE FROM artifacts;
                 """
             )

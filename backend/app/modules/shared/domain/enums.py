@@ -18,13 +18,6 @@ class StepType(str, Enum):
     MEMORY = "memory"
 
 
-class EvalStatus(str, Enum):
-    QUEUED = "queued"
-    RUNNING = "running"
-    DONE = "done"
-    FAILED = "failed"
-
-
 class ArtifactFormat(str, Enum):
     JSONL = "jsonl"
     PARQUET = "parquet"

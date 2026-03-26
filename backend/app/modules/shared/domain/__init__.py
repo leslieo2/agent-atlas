@@ -1,7 +1,6 @@
 from app.modules.shared.domain.enums import (
     AdapterKind,
     ArtifactFormat,
-    EvalStatus,
     RunStatus,
     StepType,
 )
@@ -9,7 +8,6 @@ from app.modules.shared.domain.enums import (
 __all__ = [
     "AdapterKind",
     "ArtifactFormat",
-    "EvalStatus",
     "RunStatus",
     "StepType",
 ]

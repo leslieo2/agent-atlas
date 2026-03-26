@@ -30,7 +30,7 @@ def live_openai_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(container.model_runtime, "runtime_mode", "live")
 
 
-def test_live_openai_run_eval_export_smoke(client, worker_drain, live_openai_runtime) -> None:
+def test_live_openai_run_export_smoke(client, worker_drain, live_openai_runtime) -> None:
     scope = uuid4().hex[:8]
     dataset_name = f"live-smoke-{scope}"
 
@@ -76,13 +76,6 @@ def test_live_openai_run_eval_export_smoke(client, worker_drain, live_openai_run
     trajectory_rows = trajectory.json()
     assert len(trajectory_rows) >= 1
     assert all(step["step_type"] == "llm" for step in trajectory_rows)
-
-    eval_job = client.post(
-        "/api/v1/eval-jobs",
-        json={"run_ids": [run_id], "dataset": dataset_name, "evaluators": ["rule"]},
-    )
-    assert eval_job.status_code == 400
-    assert eval_job.json()["detail"]["code"] == "unsupported_operation"
 
     artifact = client.post(
         "/api/v1/artifacts/export",

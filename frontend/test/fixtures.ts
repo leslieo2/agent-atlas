@@ -29,27 +29,6 @@ export interface TrajectoryStep {
   toolName?: string;
 }
 
-export interface EvalSample {
-  runId: string;
-  project: string;
-  dataset: string;
-  status: "pass" | "fail" | "running";
-  successRate: number;
-  toolSuccessRate: number;
-  latencyMs: number;
-  tokenUsage: number;
-  judgeScore: number;
-}
-
-export interface EvalResult {
-  sampleId: string;
-  runId: string;
-  input: string;
-  status: "pass" | "fail" | "running";
-  score: number;
-  reason?: string;
-}
-
 export const runRecords: RunRecord[] = [
   {
     runId: "run-001",
@@ -164,54 +143,5 @@ export const steps: TrajectoryStep[] = [
     latencyMs: 140,
     tokenUsage: 0,
     success: false
-  }
-];
-
-export const evalSamples: EvalSample[] = [
-  {
-    runId: "run-001",
-    project: "sales-assistant",
-    dataset: "crm-v2",
-    status: "pass",
-    successRate: 96,
-    toolSuccessRate: 88,
-    latencyMs: 1400,
-    tokenUsage: 1280,
-    judgeScore: 4.4
-  },
-  {
-    runId: "run-002",
-    project: "support-router",
-    dataset: "support-incidents",
-    status: "fail",
-    successRate: 61,
-    toolSuccessRate: 49,
-    latencyMs: 960,
-    tokenUsage: 910,
-    judgeScore: 2.8
-  },
-  {
-    runId: "run-003",
-    project: "policy-lab",
-    dataset: "policy-review",
-    status: "running",
-    successRate: 0,
-    toolSuccessRate: 0,
-    latencyMs: 0,
-    tokenUsage: 460,
-    judgeScore: 0
-  }
-];
-
-export const evalRows: EvalResult[] = [
-  { sampleId: "samp-1001", runId: "run-001", input: "Customer asked for a two-day shipping quote", status: "pass", score: 0.93 },
-  { sampleId: "samp-1002", runId: "run-001", input: "Can we upgrade carrier for urgent order?", status: "pass", score: 0.89 },
-  {
-    sampleId: "samp-1003",
-    runId: "run-001",
-    input: "Resend invoice details with previous order context",
-    status: "fail",
-    score: 0.51,
-    reason: "tool returned stale invoice number"
   }
 ];

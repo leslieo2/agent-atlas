@@ -3,9 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from app.bootstrap.container import get_container
 from app.infrastructure.adapters.traces import DefaultTraceProjector
-from app.modules.shared.domain.enums import AdapterKind, StepType
+from app.modules.shared.domain.enums import StepType
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
 
@@ -54,13 +53,3 @@ def test_adapter_manager_normalizes_trace_event():
     assert normalized["image_digest"] == "sha256:test"
     assert normalized["prompt_version"] == "v1"
     assert normalized["received_at"] == "2026-03-23T12:00:00"
-
-
-def test_adapter_manager_list_adapters():
-    adapters = get_container().adapter_queries.list_adapters()
-
-    kinds = [adapter.kind for adapter in adapters]
-    assert len(adapters) == 3
-    assert AdapterKind.OPENAI_AGENTS in kinds
-    assert AdapterKind.LANGCHAIN in kinds
-    assert AdapterKind.MCP in kinds

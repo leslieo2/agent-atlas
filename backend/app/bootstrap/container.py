@@ -15,26 +15,18 @@ from app.infrastructure.adapters.runner import (
 from app.infrastructure.adapters.tasks import StateTaskQueue
 from app.infrastructure.adapters.traces import DefaultTraceProjector
 from app.infrastructure.repositories import (
-    StateAdapterCatalog,
     StateAgentCatalog,
     StateArtifactRepository,
     StateDatasetRepository,
-    StateEvalJobRepository,
-    StateReplayRepository,
     StateRunRepository,
     StateSystemStatus,
     StateTraceRepository,
     StateTrajectoryRepository,
 )
-from app.modules.adapters.application.use_cases import AdapterQueries
 from app.modules.agents.application.use_cases import AgentQueries
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
-from app.modules.evals.application.execution import EvalJobRecorder, EvalJobRunner
-from app.modules.evals.application.use_cases import EvalJobCommands, EvalJobQueries
 from app.modules.health.application.use_cases import HealthQueries
-from app.modules.replays.application.execution import ReplayExecutor
-from app.modules.replays.application.use_cases import ReplayCommands, ReplayQueries
 from app.modules.runs.application.execution import RunExecutionService
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
 from app.modules.traces.application.use_cases import (
@@ -50,11 +42,8 @@ class AppContainer:
         self.trajectory_repository = StateTrajectoryRepository()
         self.trace_repository = StateTraceRepository()
         self.dataset_repository = StateDatasetRepository()
-        self.eval_job_repository = StateEvalJobRepository()
-        self.replay_repository = StateReplayRepository()
         self.artifact_repository = StateArtifactRepository()
         self.agent_catalog = StateAgentCatalog()
-        self.adapter_catalog = StateAdapterCatalog()
         self.system_status = StateSystemStatus()
         self.task_queue = StateTaskQueue()
         self.model_runtime = ModelRuntimeService(
@@ -93,33 +82,15 @@ class AppContainer:
             task_queue=self.task_queue,
             agent_catalog=self.agent_catalog,
         )
-        self.replay_queries = ReplayQueries(replay_repository=self.replay_repository)
-        self.replay_commands = ReplayCommands(
-            trajectory_repository=self.trajectory_repository,
-            run_repository=self.run_repository,
-            replay_repository=self.replay_repository,
-            replay_executor=ReplayExecutor(runner_registry=self.runner_registry),
-        )
-        self.eval_job_queries = EvalJobQueries(eval_job_repository=self.eval_job_repository)
-        eval_job_runner = EvalJobRunner(
-            recorder=EvalJobRecorder(eval_job_repository=self.eval_job_repository),
-        )
-        self.eval_job_commands = EvalJobCommands(
-            eval_job_repository=self.eval_job_repository,
-            task_queue=self.task_queue,
-            run_repository=self.run_repository,
-        )
         self.dataset_queries = DatasetQueries(dataset_repository=self.dataset_repository)
         self.dataset_commands = DatasetCommands(dataset_repository=self.dataset_repository)
         self.artifact_queries = ArtifactQueries(artifact_repository=self.artifact_repository)
         self.artifact_commands = ArtifactCommands(artifact_exporter=self.artifact_exporter)
         self.agent_queries = AgentQueries(agent_catalog=self.agent_catalog)
-        self.adapter_queries = AdapterQueries(adapter_catalog=self.adapter_catalog)
         self.health_queries = HealthQueries(system_status=self.system_status)
         self.app_worker = AppWorker(
             task_queue=self.task_queue,
             run_execution_service=run_execution_service,
-            eval_job_runner=eval_job_runner,
         )
 
 
@@ -134,22 +105,6 @@ def get_run_queries() -> RunQueries:
 
 def get_run_commands() -> RunCommands:
     return get_container().run_commands
-
-
-def get_replay_queries() -> ReplayQueries:
-    return get_container().replay_queries
-
-
-def get_replay_commands() -> ReplayCommands:
-    return get_container().replay_commands
-
-
-def get_eval_job_queries() -> EvalJobQueries:
-    return get_container().eval_job_queries
-
-
-def get_eval_job_commands() -> EvalJobCommands:
-    return get_container().eval_job_commands
 
 
 def get_dataset_queries() -> DatasetQueries:
@@ -174,10 +129,6 @@ def get_agent_queries() -> AgentQueries:
 
 def get_trace_commands() -> TraceCommands:
     return get_container().trace_commands
-
-
-def get_adapter_queries() -> AdapterQueries:
-    return get_container().adapter_queries
 
 
 def get_health_queries() -> HealthQueries:

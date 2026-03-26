@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Airplay, ClipboardList, Cpu, RefreshCcw } from "lucide-react";
+import { Airplay, Cpu } from "lucide-react";
 import type { ReactNode } from "react";
 import styles from "./WorkbenchShell.module.css";
 
@@ -13,20 +13,6 @@ const navItems = [
     description: "Search executions, inspect status, and launch new work.",
     icon: Airplay,
     match: (pathname: string) => pathname === "/runs" || pathname.startsWith("/runs/")
-  },
-  {
-    href: "/replay",
-    label: "Replay",
-    description: "Patch a single step and compare output diffs quickly.",
-    icon: RefreshCcw,
-    match: (pathname: string) => pathname === "/replay" || pathname.includes("/replay")
-  },
-  {
-    href: "/evals",
-    label: "Evals",
-    description: "Run datasets, compare samples, and drill into failures.",
-    icon: ClipboardList,
-    match: (pathname: string) => pathname.startsWith("/evals")
   },
   {
     href: "/playground",
@@ -44,9 +30,9 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
-          <span className={styles.eyebrow}>Observability and replay</span>
+          <span className={styles.eyebrow}>Execution workbench</span>
           <h1>Agent Flight Recorder</h1>
-          <p>Inspect runs, replay steps, benchmark datasets, and export trace artifacts from one place.</p>
+          <p>Discover agents, run them, inspect trajectories, and export trace artifacts from one place.</p>
         </div>
 
         <nav className={styles.nav} aria-label="Primary">

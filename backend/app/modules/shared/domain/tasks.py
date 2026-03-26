@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 
 class TaskType(str, Enum):
     RUN_EXECUTION = "run_execution"
-    EVAL_EXECUTION = "eval_execution"
 
 
 class TaskStatus(str, Enum):

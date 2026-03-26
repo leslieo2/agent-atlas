@@ -40,11 +40,9 @@ npm run verify         # lint + typecheck + test
 
 - Run Dashboard: filter/search run records, execute actions, and export placeholders.
 - Trajectory Viewer: step graph with React Flow and step detail list.
-- Step Replay: editable prompt/model/tool payload with Monaco diff.
-- Eval Bench: dataset-aware evaluation metrics and failure drill-down.
 - Playground: manual execution entrypoint with runtime outputs.
 
 ## PRD mapping
 
 This project scaffolds the workflow loop from the PRD:
-run → observe trajectory → replay step → evaluate dataset → export artifacts (UI placeholder).
+run → observe trajectory → export artifacts.

@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-from uuid import UUID
-
-from app.infrastructure.repositories.common import persistence, to_uuid
+from app.infrastructure.repositories.common import persistence
 from app.modules.datasets.domain.models import Dataset
-from app.modules.evals.domain.models import EvalJob
-from app.modules.replays.domain.models import ReplayResult
 
 
 class StateDatasetRepository:
@@ -18,25 +14,4 @@ class StateDatasetRepository:
     def save(self, dataset: Dataset) -> None:
         persistence.save_dataset(dataset)
 
-
-class StateEvalJobRepository:
-    def get(self, job_id: str | UUID) -> EvalJob | None:
-        return persistence.get_eval_job(to_uuid(job_id))
-
-    def save(self, job: EvalJob) -> None:
-        persistence.save_eval_job(job)
-
-
-class StateReplayRepository:
-    def get(self, replay_id: str | UUID) -> ReplayResult | None:
-        return persistence.get_replay(to_uuid(replay_id))
-
-    def save(self, replay: ReplayResult) -> None:
-        persistence.save_replay(replay)
-
-
-__all__ = [
-    "StateDatasetRepository",
-    "StateEvalJobRepository",
-    "StateReplayRepository",
-]
+__all__ = ["StateDatasetRepository"]

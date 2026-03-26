@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createReplay } from "@/src/entities/replay/api";
 import { createRun, listRuns } from "@/src/entities/run/api";
 import type { RunStatus } from "@/src/entities/run/model";
 
@@ -62,34 +61,6 @@ describe("api client", () => {
     );
   });
 
-  it("maps replay result from API payload", async () => {
-    fetchSpy.mockResolvedValueOnce(
-      jsonBody({
-        replay_id: "replay-001",
-        run_id: "run-001",
-        step_id: "step-1",
-        baseline_output: "old",
-        replay_output: "new",
-        diff: "diff",
-        updated_prompt: "patched",
-        model: "gpt-4.1-mini",
-        temperature: 0.0,
-        started_at: "2026-03-24T00:00:00Z"
-      })
-    );
-
-    const replay = await createReplay({
-      runId: "run-001",
-      stepId: "step-1",
-      editedPrompt: "patched",
-      model: "gpt-4.1-mini"
-    });
-
-    expect(replay.replayId).toBe("replay-001");
-    expect(replay.baselineOutput).toBe("old");
-    expect(replay.model).toBe("gpt-4.1-mini");
-  });
-
   it("builds payload for createRun and throws on API errors", async () => {
     fetchSpy.mockResolvedValueOnce(jsonBody("server_error", 500));
 
@@ -139,27 +110,4 @@ describe("api client", () => {
     });
   });
 
-  it("surfaces structured API error messages", async () => {
-    fetchSpy.mockResolvedValueOnce(
-      jsonBody(
-        {
-          detail: {
-            code: "model_not_found",
-            message: "model 'planner-v1' not found",
-            model: "planner-v1"
-          }
-        },
-        400
-      )
-    );
-
-    await expect(
-      createReplay({
-        runId: "run-001",
-        stepId: "step-1",
-        editedPrompt: "patched",
-        model: "planner-v1"
-      })
-    ).rejects.toThrow("model 'planner-v1' not found");
-  });
 });

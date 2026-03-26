@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Boxes, ClipboardList } from "lucide-react";
+import { ArrowUpRight, Boxes } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { getArtifactDownloadUrl } from "@/src/entities/artifact/api";
 import { useArtifactsQuery } from "@/src/entities/artifact/query";
@@ -85,9 +85,6 @@ export default function RunDashboardWidget() {
           </p>
         </div>
         <div className="toolbar">
-          <Button href="/evals" variant="secondary">
-            <ClipboardList size={14} /> Batch Eval
-          </Button>
           <Button href="/playground" variant="secondary">
             <Boxes size={14} /> Playground
           </Button>
@@ -131,7 +128,7 @@ export default function RunDashboardWidget() {
         <div className="surface-header">
           <div>
             <p className="surface-kicker">Runs</p>
-            <h3 className="panel-title">Select a run to inspect its trajectory, compare steps, or replay a failure</h3>
+            <h3 className="panel-title">Select a run to inspect its trajectory and execution details</h3>
           </div>
         </div>
 

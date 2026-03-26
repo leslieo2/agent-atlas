@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from app.infrastructure.repositories.common import ADAPTER_CATALOG, persistence, to_uuid
-from app.modules.adapters.domain.models import AdapterDescriptor
+from app.infrastructure.repositories.common import persistence, to_uuid
 from app.modules.artifacts.domain.models import ArtifactMetadata
 
 
@@ -17,10 +16,4 @@ class StateArtifactRepository:
     def save(self, artifact: ArtifactMetadata) -> None:
         persistence.save_artifact(artifact)
 
-
-class StateAdapterCatalog:
-    def list_adapters(self) -> list[AdapterDescriptor]:
-        return list(ADAPTER_CATALOG)
-
-
-__all__ = ["StateAdapterCatalog", "StateArtifactRepository"]
+__all__ = ["StateArtifactRepository"]
