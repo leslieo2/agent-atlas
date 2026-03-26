@@ -102,7 +102,6 @@ vi.mock("@/src/entities/dataset/api", () => ({
 }));
 
 vi.mock("@/src/entities/artifact/api", () => ({
-  listArtifacts: vi.fn(),
   exportArtifact: vi.fn(),
   getArtifactDownloadUrl: vi.fn(() => "http://127.0.0.1:8000/api/v1/artifacts/artifact-history-001")
 }));
@@ -113,20 +112,9 @@ describe("RunDashboard integration", () => {
   beforeEach(() => {
     (datasetApi.listDatasets as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
-    (artifactApi.listArtifacts as unknown as MockedApiFn).mockReset();
     (artifactApi.exportArtifact as unknown as MockedApiFn).mockReset();
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([{ name: "customer-live", rows: [] }]);
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(mockedRuns);
-    (artifactApi.listArtifacts as unknown as MockedApiFn).mockResolvedValue([
-      {
-        artifactId: "artifact-history-001",
-        format: "jsonl",
-        runIds: ["run-001"],
-        createdAt: "2026-03-23T11:00:00Z",
-        path: "/tmp/artifact-history.jsonl",
-        sizeBytes: 99
-      }
-    ]);
     (artifactApi.exportArtifact as unknown as MockedApiFn)
       .mockResolvedValueOnce({
         artifactId: "artifact-001",
@@ -156,38 +144,39 @@ describe("RunDashboard integration", () => {
     expect(screen.getByRole("link", { name: "New Run" })).toHaveAttribute("href", "/playground?dataset=customer-live");
   });
 
-  it("exports jsonl and parquet artifacts for the latest run", async () => {
+  it("exports jsonl and parquet artifacts for the filtered runs", async () => {
     renderWithQueryClient(<RunDashboardWidget />);
 
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Loaded 2 runs.")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Export JSONL" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export 2 runs as JSONL" }));
     await waitFor(() => {
       expect(artifactApi.exportArtifact).toHaveBeenNthCalledWith(1, {
-        runIds: ["run-001"],
+        runIds: ["run-001", "run-002"],
         format: "jsonl"
       });
     });
-    expect(await screen.findByText("Exported artifact-001 as JSONL (11 bytes)")).toBeInTheDocument();
+    expect(await screen.findByText("Exported 2 runs as JSONL.")).toBeInTheDocument();
+    expect(screen.getByText("11 bytes · current filter result")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download JSONL" })).toHaveAttribute(
+      "href",
+      "http://127.0.0.1:8000/api/v1/artifacts/artifact-history-001"
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "Export Parquet" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export 2 runs as Parquet" }));
     await waitFor(() => {
       expect(artifactApi.exportArtifact).toHaveBeenNthCalledWith(2, {
-        runIds: ["run-001"],
+        runIds: ["run-001", "run-002"],
         format: "parquet"
       });
     });
-    expect(await screen.findByText("Exported artifact-002 as PARQUET (21 bytes)")).toBeInTheDocument();
-  });
-
-  it("shows recent artifact history", async () => {
-    renderWithQueryClient(<RunDashboardWidget />);
-
-    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText("Recent exports with direct download links")).toBeInTheDocument();
-    expect(await screen.findByText("JSONL")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Download" })).toBeInTheDocument();
+    expect(await screen.findByText("Exported 2 runs as Parquet.")).toBeInTheDocument();
+    expect(screen.getByText("21 bytes · current filter result")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download Parquet" })).toHaveAttribute(
+      "href",
+      "http://127.0.0.1:8000/api/v1/artifacts/artifact-history-001"
+    );
   });
 
   it("links ad-hoc creation to Playground when no dataset exists", async () => {

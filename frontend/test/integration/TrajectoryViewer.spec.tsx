@@ -41,7 +41,8 @@ vi.mock("@/src/entities/trajectory/api", () => ({
 }));
 
 vi.mock("@/src/entities/artifact/api", () => ({
-  exportArtifact: vi.fn()
+  exportArtifact: vi.fn(),
+  getArtifactDownloadUrl: vi.fn(() => "http://127.0.0.1:8000/api/v1/artifacts/artifact-001")
 }));
 
 const mockedRuns = [
@@ -209,11 +210,16 @@ describe("TrajectoryViewer integration", () => {
   it("exports trace snapshot for selected run", async () => {
     renderWithQueryClient(<TrajectoryWorkspace />);
     expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
-    await screen.findByText("Export trace snapshot");
-    fireEvent.click(screen.getByRole("button", { name: "Export trace snapshot" }));
+    await screen.findByText("Export Run JSONL");
+    fireEvent.click(screen.getByRole("button", { name: "Export Run JSONL" }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Trace snapshot exported to/)).toBeInTheDocument();
+      expect(screen.getByText("Run exported as JSONL.")).toBeInTheDocument();
     });
+    expect(screen.getByText("Run run-curr · 12 bytes")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download JSONL" })).toHaveAttribute(
+      "href",
+      "http://127.0.0.1:8000/api/v1/artifacts/artifact-001"
+    );
   });
 });

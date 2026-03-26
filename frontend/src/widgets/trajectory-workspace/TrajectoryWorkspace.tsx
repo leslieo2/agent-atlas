@@ -1,11 +1,13 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { getArtifactDownloadUrl } from "@/src/entities/artifact/api";
 import { useExportArtifactMutation } from "@/src/entities/artifact/query";
 import { useRunsQuery } from "@/src/entities/run/query";
 import { trajectoryQueryOptions, useTrajectoryQuery } from "@/src/entities/trajectory/query";
+import { ArtifactExportFeedback } from "@/src/features/artifact-export/ArtifactExportFeedback";
 import { ComparePreviousRunAction } from "@/src/features/trajectory-compare/ComparePreviousRunAction";
 import { TrajectoryGraph } from "@/src/features/trajectory-graph/TrajectoryGraph";
 import { StepInspector } from "@/src/features/step-inspector/StepInspector";
@@ -23,6 +25,16 @@ import {
 type Props = {
   runId?: string;
 };
+
+type ExportFeedbackState =
+  | {
+      tone: "success" | "warn" | "error";
+      title: string;
+      detail?: string;
+      downloadHref?: string;
+      downloadLabel?: string;
+    }
+  | null;
 
 function hasSameExpandedState(
   current: Record<string, boolean>,
@@ -43,10 +55,10 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   const runsQuery = useRunsQuery();
   const exportArtifactMutation = useExportArtifactMutation();
   const [selectedRun, setSelectedRun] = useState(runId ?? "");
-  const [actionMessage, setActionMessage] = useState("");
   const [diffSummary, setDiffSummary] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [focusedStepId, setFocusedStepId] = useState("");
+  const [exportFeedback, setExportFeedback] = useState<ExportFeedbackState>(null);
   const runs = runsQuery.data ?? [];
   const trajectoryQuery = useTrajectoryQuery(selectedRun);
   const steps = trajectoryQuery.data ?? [];
@@ -64,8 +76,8 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   }, [runId, runs, selectedRun]);
 
   useEffect(() => {
-    setActionMessage("");
-  }, [selectedRun, trajectoryQuery.dataUpdatedAt, trajectoryQuery.errorUpdatedAt]);
+    setExportFeedback(null);
+  }, [selectedRun]);
 
   useEffect(() => {
     if (!steps.length) {
@@ -83,7 +95,7 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   const nodes = useMemo(() => buildTrajectoryNodes(steps, focusedStepId), [focusedStepId, steps]);
   const edges = useMemo(() => buildTrajectoryEdges(steps), [steps]);
   const metrics = useMemo(() => getTrajectoryMetrics(steps), [steps]);
-  const message = actionMessage || (
+  const message =
     runsQuery.isError
       ? "Failed to load runs."
       : trajectoryQuery.isPending
@@ -94,8 +106,7 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
             ? `Loaded ${steps.length} steps.`
             : selectedRun
               ? "No trajectory found."
-              : "Select a run to inspect."
-  );
+              : "Select a run to inspect.";
 
   const compareWithPreviousRun = async () => {
     const previousRun = findPreviousComparableRun(runs, selectedRunRecord);
@@ -112,6 +123,33 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   const toggleExpanded = (stepId: string) => {
     setFocusedStepId(stepId);
     setExpanded((previous) => ({ ...previous, [stepId]: !previous[stepId] }));
+  };
+
+  const exportSelectedRun = async () => {
+    if (!selectedRun) return;
+
+    setExportFeedback({
+      tone: "warn",
+      title: "Exporting this run as JSONL...",
+      detail: "Preparing artifact and download link."
+    });
+
+    try {
+      const artifact = await exportArtifactMutation.mutateAsync({ runIds: [selectedRun], format: "jsonl" });
+      setExportFeedback({
+        tone: "success",
+        title: "Run exported as JSONL.",
+        detail: `Run ${selectedRun.slice(0, 8)} · ${artifact.sizeBytes} bytes`,
+        downloadHref: getArtifactDownloadUrl(artifact.artifactId),
+        downloadLabel: "Download JSONL"
+      });
+    } catch (error) {
+      setExportFeedback({
+        tone: "error",
+        title: "JSONL export failed.",
+        detail: error instanceof Error ? error.message : "Try again."
+      });
+    }
   };
 
   return (
@@ -156,16 +194,12 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
                 </select>
               ) : null}
               <ComparePreviousRunAction onCompare={compareWithPreviousRun} />
-              <Button
-                variant="ghost"
-                onClick={async () => {
-                  if (!selectedRun) return;
-                  const artifact = await exportArtifactMutation.mutateAsync({ runIds: [selectedRun], format: "jsonl" });
-                  setActionMessage(`Trace snapshot exported to ${artifact.path}`);
-                }}
-              >
-                Export trace snapshot
-              </Button>
+              <div className="action-stack action-stack-right">
+                <Button variant="ghost" disabled={!selectedRun || exportArtifactMutation.isPending} onClick={exportSelectedRun}>
+                  <Download size={14} /> {exportArtifactMutation.isPending ? "Exporting..." : "Export Run JSONL"}
+                </Button>
+                {exportFeedback ? <ArtifactExportFeedback {...exportFeedback} /> : null}
+              </div>
             </div>
           </div>
 
