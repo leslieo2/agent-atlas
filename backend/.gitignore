@@ -8,6 +8,7 @@ coverage.xml
 .venv-uv/
 .uv_cache/
 agent_flight_recorder_backend.egg-info/
+.agent-atlas-local*.db
 coverage/
 htmlcov/
 data/
