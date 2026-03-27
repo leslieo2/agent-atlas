@@ -13,6 +13,7 @@ from app.core.errors import (
     RateLimitedError,
     UnsupportedAdapterError,
 )
+from app.infrastructure.adapters.framework_registry import FrameworkRegistry
 from app.modules.agents.domain.models import AgentBuildContext
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
@@ -178,11 +179,13 @@ class ModelRuntimeService:
         self,
         adapters: Mapping[AdapterKind, RuntimeAdapter] | None = None,
         published_adapter: PublishedAgentRuntimeAdapter | None = None,
+        framework_registry: FrameworkRegistry | None = None,
     ) -> None:
         self.api_key = settings.openai_api_key
         self.runtime_mode = settings.runtime_mode
         self.adapters = dict(adapters or self._default_adapters())
         self.published_adapter = published_adapter
+        self.framework_registry = framework_registry
 
     def _effective_runtime_mode(self) -> RuntimeMode:
         if self.runtime_mode == RuntimeMode.MOCK:
@@ -227,8 +230,6 @@ class ModelRuntimeService:
         try:
             if not self.api_key:
                 raise RuntimeError("OPENAI_API_KEY is not set")
-            if self.published_adapter is None:
-                raise RuntimeError("published runtime is not configured")
             context = AgentBuildContext(
                 run_id=run_id,
                 project=payload.project,
@@ -237,6 +238,14 @@ class ModelRuntimeService:
                 tags=payload.tags,
                 project_metadata=payload.project_metadata,
             )
+            if self.framework_registry is not None:
+                return self.framework_registry.execute_published(
+                    api_key=self.api_key,
+                    payload=payload,
+                    context=context,
+                )
+            if self.published_adapter is None:
+                raise RuntimeError("published runtime is not configured")
             return self.published_adapter.execute_published(
                 api_key=self.api_key,
                 payload=payload,

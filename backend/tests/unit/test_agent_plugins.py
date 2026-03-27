@@ -7,14 +7,21 @@ from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
 )
+from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
+from app.infrastructure.adapters.langchain import LangChainAgentContractValidator
 from app.infrastructure.adapters.openai_agents import (
     OpenAIAgentContractValidator,
 )
 from app.modules.agents.domain.models import (
+    AgentBuildContext,
     AgentManifest,
     AgentValidationStatus,
     DiscoveredAgent,
+    PublishedAgent,
 )
+from app.modules.runs.application.results import PublishedRunExecutionResult
+from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
+from app.modules.shared.domain.enums import AdapterKind
 
 
 def test_source_catalog_discovers_builtin_agent_plugins() -> None:
@@ -125,3 +132,134 @@ def test_discovery_marks_duplicate_agent_ids_invalid() -> None:
         any(issue.code == "duplicate_agent_id" for issue in agent.validation_issues)
         for agent in discovered
     )
+
+
+def test_framework_registry_dispatches_discovery_by_manifest_framework(monkeypatch) -> None:
+    module = SimpleNamespace(
+        AGENT_MANIFEST=AgentManifest(
+            agent_id="graph-bot",
+            name="Graph Bot",
+            description="LangGraph-backed agent",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=[],
+        )
+    )
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.framework_registry.import_module",
+        lambda module_name: (module if module_name == "app.agent_plugins.graph_bot" else None),
+    )
+
+    class OpenAIValidator:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def discover(self, source: AgentModuleSource) -> DiscoveredAgent:
+            self.calls += 1
+            raise AssertionError(f"unexpected dispatch for {source.module_name}")
+
+    class LangChainValidator:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def discover(self, source: AgentModuleSource) -> DiscoveredAgent:
+            self.calls.append(source.module_name)
+            return DiscoveredAgent(
+                manifest=module.AGENT_MANIFEST,
+                entrypoint=source.entrypoint,
+                validation_status=AgentValidationStatus.VALID,
+                validation_issues=[],
+            )
+
+    class StubLoader:
+        def build_agent(
+            self,
+            *,
+            published_agent: PublishedAgent,
+            context: AgentBuildContext,
+        ) -> object:
+            del published_agent, context
+            return object()
+
+    class StubRuntime:
+        def execute_published(
+            self,
+            *,
+            api_key,
+            payload: RunSpec,
+            context: AgentBuildContext,
+        ) -> PublishedRunExecutionResult:
+            del api_key, payload, context
+            return PublishedRunExecutionResult(
+                runtime_result=RuntimeExecutionResult(
+                    output="ok",
+                    latency_ms=1,
+                    token_usage=0,
+                    provider="stub",
+                )
+            )
+
+    openai_validator = OpenAIValidator()
+    langchain_validator = LangChainValidator()
+    registry = FrameworkRegistry(
+        plugins={
+            AdapterKind.OPENAI_AGENTS.value: FrameworkPlugin(
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                validator=openai_validator,
+                loader=StubLoader(),
+                runtime=StubRuntime(),
+            ),
+            AdapterKind.LANGCHAIN.value: FrameworkPlugin(
+                framework=AdapterKind.LANGCHAIN.value,
+                validator=langchain_validator,
+                loader=StubLoader(),
+                runtime=StubRuntime(),
+            ),
+        }
+    )
+
+    discovered = registry.discover(
+        AgentModuleSource(
+            module_name="app.agent_plugins.graph_bot",
+            entrypoint="app.agent_plugins.graph_bot:build_agent",
+        )
+    )
+
+    assert openai_validator.calls == 0
+    assert langchain_validator.calls == ["app.agent_plugins.graph_bot"]
+    assert discovered.framework == AdapterKind.LANGCHAIN.value
+
+
+def test_langchain_validator_accepts_invoke_based_runnable(monkeypatch) -> None:
+    validator = LangChainAgentContractValidator()
+
+    class RunnableGraph:
+        def invoke(self, payload: object) -> dict[str, str]:
+            del payload
+            return {"output": "graph response"}
+
+    module = SimpleNamespace(
+        AGENT_MANIFEST=AgentManifest(
+            agent_id="graph-bot",
+            name="Graph Bot",
+            description="LangGraph-backed agent",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=[],
+        ),
+        build_agent=lambda _context: RunnableGraph(),
+    )
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.langchain.catalog.import_module",
+        lambda module_name: (module if module_name == "app.agent_plugins.graph_bot" else None),
+    )
+
+    discovered = validator.discover(
+        AgentModuleSource(
+            module_name="app.agent_plugins.graph_bot",
+            entrypoint="app.agent_plugins.graph_bot:build_agent",
+        )
+    )
+
+    assert discovered.validation_status == AgentValidationStatus.VALID
+    assert discovered.framework == AdapterKind.LANGCHAIN.value

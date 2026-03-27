@@ -7,6 +7,12 @@ from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentSourceCatalog,
     StateRunnableAgentCatalog,
 )
+from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
+from app.infrastructure.adapters.langchain import (
+    LangChainAgentContractValidator,
+    PublishedLangChainAgentAdapter,
+    PublishedLangChainAgentLoader,
+)
 from app.infrastructure.adapters.openai_agents import (
     OpenAIAgentContractValidator,
     PublishedOpenAIAgentAdapter,
@@ -41,11 +47,10 @@ class InfrastructureBundle:
     published_agent_repository: StatePublishedAgentRepository
     system_status: StateSystemStatus
     agent_source_catalog: FilesystemAgentSourceCatalog
-    agent_validator: OpenAIAgentContractValidator
+    framework_registry: FrameworkRegistry
     agent_discovery: FilesystemAgentDiscovery
     runnable_agent_catalog: StateRunnableAgentCatalog
     task_queue: StateTaskQueue
-    published_agent_loader: PublishedOpenAIAgentLoader
     model_runtime: ModelRuntimeService
     trace_projector: TraceIngestProjector
     trajectory_step_projector: TraceEventTrajectoryProjector
@@ -62,19 +67,37 @@ def build_infrastructure() -> InfrastructureBundle:
     published_agent_repository = StatePublishedAgentRepository()
     system_status = StateSystemStatus()
     agent_source_catalog = FilesystemAgentSourceCatalog()
-    agent_validator = OpenAIAgentContractValidator()
+    openai_validator = OpenAIAgentContractValidator()
+    openai_loader = PublishedOpenAIAgentLoader(validator=openai_validator)
+    langchain_validator = LangChainAgentContractValidator()
+    langchain_loader = PublishedLangChainAgentLoader(validator=langchain_validator)
+    framework_registry = FrameworkRegistry(
+        plugins={
+            "openai-agents-sdk": FrameworkPlugin(
+                framework="openai-agents-sdk",
+                validator=openai_validator,
+                loader=openai_loader,
+                runtime=PublishedOpenAIAgentAdapter(agent_loader=openai_loader),
+            ),
+            "langchain": FrameworkPlugin(
+                framework="langchain",
+                validator=langchain_validator,
+                loader=langchain_loader,
+                runtime=PublishedLangChainAgentAdapter(agent_loader=langchain_loader),
+            ),
+        }
+    )
     agent_discovery = FilesystemAgentDiscovery(
         source_catalog=agent_source_catalog,
-        validator=agent_validator,
+        validator=framework_registry,
     )
     runnable_agent_catalog = StateRunnableAgentCatalog(
         discovery=agent_discovery,
         published_agents=published_agent_repository,
     )
     task_queue = StateTaskQueue()
-    published_agent_loader = PublishedOpenAIAgentLoader(validator=agent_validator)
     model_runtime = ModelRuntimeService(
-        published_adapter=PublishedOpenAIAgentAdapter(agent_loader=published_agent_loader)
+        framework_registry=framework_registry,
     )
     trace_projector = TraceIngestProjector()
     trajectory_step_projector = TraceEventTrajectoryProjector()
@@ -90,11 +113,10 @@ def build_infrastructure() -> InfrastructureBundle:
         published_agent_repository=published_agent_repository,
         system_status=system_status,
         agent_source_catalog=agent_source_catalog,
-        agent_validator=agent_validator,
+        framework_registry=framework_registry,
         agent_discovery=agent_discovery,
         runnable_agent_catalog=runnable_agent_catalog,
         task_queue=task_queue,
-        published_agent_loader=published_agent_loader,
         model_runtime=model_runtime,
         trace_projector=trace_projector,
         trajectory_step_projector=trajectory_step_projector,

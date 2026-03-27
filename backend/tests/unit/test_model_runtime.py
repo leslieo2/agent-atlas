@@ -12,8 +12,12 @@ from app.core.errors import (
     RateLimitedError,
     UnsupportedAdapterError,
 )
+from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
+from app.infrastructure.adapters.langchain.runtime import PublishedLangChainAgentAdapter
 from app.infrastructure.adapters.runtime import ModelRuntimeService
-from app.modules.runs.domain.models import RuntimeExecutionResult
+from app.modules.agents.domain.models import AgentBuildContext, AgentManifest, PublishedAgent
+from app.modules.runs.application.results import PublishedRunExecutionResult
+from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 from pydantic import SecretStr
 
@@ -309,3 +313,157 @@ def test_model_runtime_service_live_mode_without_key_raises():
             model="gpt-5.4-mini",
             prompt="Summarize the ticket.",
         )
+
+
+def test_model_runtime_service_dispatches_published_runs_through_framework_registry():
+    class StubValidator:
+        def discover(self, source):
+            raise AssertionError(f"unexpected discovery: {source}")
+
+    class StubLoader:
+        def build_agent(
+            self,
+            *,
+            published_agent: PublishedAgent,
+            context: AgentBuildContext,
+        ) -> object:
+            del published_agent, context
+            return object()
+
+    class LangChainRuntime:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def execute_published(
+            self,
+            *,
+            api_key: SecretStr | None,
+            payload: RunSpec,
+            context: AgentBuildContext,
+        ) -> PublishedRunExecutionResult:
+            assert api_key is not None
+            self.calls.append(payload.agent_id)
+            assert context.project == payload.project
+            return PublishedRunExecutionResult(
+                runtime_result=RuntimeExecutionResult(
+                    output="registry-dispatch",
+                    latency_ms=3,
+                    token_usage=5,
+                    provider="langchain",
+                    execution_backend="langgraph",
+                    resolved_model=payload.model,
+                )
+            )
+
+    runtime = LangChainRuntime()
+    registry = FrameworkRegistry(
+        plugins={
+            AdapterKind.LANGCHAIN.value: FrameworkPlugin(
+                framework=AdapterKind.LANGCHAIN.value,
+                validator=StubValidator(),
+                loader=StubLoader(),
+                runtime=runtime,
+            )
+        }
+    )
+    service = ModelRuntimeService(adapters={}, framework_registry=registry)
+    service.api_key = SecretStr("sk-test")
+    service.runtime_mode = RuntimeMode.LIVE
+    payload = RunSpec(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="graph-bot",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+        agent_type=AdapterKind.LANGCHAIN,
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        tags=["langchain"],
+        project_metadata={
+            "agent_snapshot": PublishedAgent(
+                manifest=AgentManifest(
+                    agent_id="graph-bot",
+                    name="Graph Bot",
+                    description="LangGraph-backed agent",
+                    framework=AdapterKind.LANGCHAIN.value,
+                    default_model="gpt-5.4-mini",
+                    tags=[],
+                ),
+                entrypoint="app.agent_plugins.graph_bot:build_agent",
+            ).to_snapshot()
+        },
+    )
+
+    result = service.execute_published("00000000-0000-0000-0000-000000000123", payload)
+
+    assert runtime.calls == ["graph-bot"]
+    assert result.runtime_result.execution_backend == "langgraph"
+    assert result.runtime_result.provider == "langchain"
+
+
+def test_published_langchain_agent_adapter_executes_invoke_graph():
+    class StubLoader:
+        def build_agent(
+            self,
+            *,
+            published_agent: PublishedAgent,
+            context: AgentBuildContext,
+        ) -> object:
+            del published_agent, context
+
+            class RunnableGraph:
+                def invoke(self, payload: object) -> dict[str, object]:
+                    assert isinstance(payload, dict)
+                    return {
+                        "output": "graph response",
+                        "usage": {"total_tokens": 21},
+                    }
+
+            return RunnableGraph()
+
+    adapter = PublishedLangChainAgentAdapter(agent_loader=StubLoader())
+    payload = RunSpec(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="graph-bot",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+        agent_type=AdapterKind.LANGCHAIN,
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        tags=["langchain"],
+        project_metadata={
+            "agent_snapshot": PublishedAgent(
+                manifest=AgentManifest(
+                    agent_id="graph-bot",
+                    name="Graph Bot",
+                    description="LangGraph-backed agent",
+                    framework=AdapterKind.LANGCHAIN.value,
+                    default_model="gpt-5.4-mini",
+                    tags=[],
+                ),
+                entrypoint="app.agent_plugins.graph_bot:build_agent",
+            ).to_snapshot()
+        },
+    )
+    context = AgentBuildContext(
+        run_id="00000000-0000-0000-0000-000000000111",
+        project="migration-check",
+        dataset="framework-ds",
+        prompt="Inspect the latest run.",
+        tags=["langchain"],
+        project_metadata=payload.project_metadata,
+    )
+
+    result = adapter.execute_published(
+        api_key=SecretStr("sk-test"),
+        payload=payload,
+        context=context,
+    )
+
+    assert result.runtime_result.output == "graph response"
+    assert result.runtime_result.provider == "langchain"
+    assert result.runtime_result.execution_backend == "langgraph"
+    assert result.runtime_result.token_usage == 21
+    assert len(result.trace_events) == 1
+    assert result.trace_events[0].step_type.value == "llm"
