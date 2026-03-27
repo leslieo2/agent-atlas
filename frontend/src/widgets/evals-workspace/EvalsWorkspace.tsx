@@ -97,7 +97,14 @@ export default function EvalsWorkspace({
   }, [agentId, agents]);
 
   useEffect(() => {
-    if (!dataset && datasets[0]) {
+    if (!datasets.length) {
+      if (dataset) {
+        setDataset("");
+      }
+      return;
+    }
+
+    if (!dataset || !datasets.some((item) => item.name === dataset)) {
       setDataset(datasets[0].name);
     }
   }, [dataset, datasets]);
@@ -168,6 +175,8 @@ export default function EvalsWorkspace({
       ? "Loading eval jobs..."
       : evalJobsQuery.isError
         ? "Eval workbench is temporarily unavailable."
+        : !datasets.length
+          ? "No datasets available. Open datasets workspace to import or create one."
         : evalJobs.length
           ? `Loaded ${evalJobs.length} eval jobs.`
           : "No eval jobs yet. Create the first dataset-driven batch run.");
@@ -204,6 +213,9 @@ export default function EvalsWorkspace({
             </p>
           </div>
           <div className="toolbar">
+            <Button href="/datasets" variant="secondary">
+              Open datasets workspace
+            </Button>
             {selectedJob ? (
               <Button href={`/evals?job=${selectedJob.evalJobId}`} variant="secondary">
                 Open selected eval
@@ -247,7 +259,7 @@ export default function EvalsWorkspace({
           </Field>
           <Field label="Dataset" htmlFor="eval-dataset">
             <select id="eval-dataset" value={dataset} onChange={(event) => setDataset(event.target.value)}>
-              <option value="">{datasets.length ? "Select a dataset" : "No datasets"}</option>
+              <option value="">{datasets.length ? "Select a dataset" : "No datasets. Open datasets workspace"}</option>
               {datasets.map((item) => (
                 <option key={item.name} value={item.name}>
                   {item.name}
@@ -276,6 +288,21 @@ export default function EvalsWorkspace({
               placeholder="nightly, smoke"
             />
           </Field>
+        </div>
+
+        {!datasets.length ? (
+          <Notice>
+            Dataset import now lives in the dedicated datasets workspace.{" "}
+            <Button href="/datasets" variant="ghost">
+              Open datasets workspace
+            </Button>
+          </Notice>
+        ) : null}
+
+        <div className={styles.formActions}>
+          <Button href="/datasets" variant="secondary">
+            Open datasets workspace
+          </Button>
         </div>
 
         <Notice>{overallMessage}</Notice>

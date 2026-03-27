@@ -47,9 +47,9 @@ dev:
 		'Starting backend API on http://127.0.0.1:8000' \
 		'Starting backend worker' \
 		'Starting frontend on http://127.0.0.1:3000'; \
-	AGENT_ATLAS_SEED_DEMO=true $(MAKE) -C backend run-api & \
+	$(MAKE) -C backend run-api & \
 	api_pid=$$!; \
-	AGENT_ATLAS_SEED_DEMO=true $(MAKE) -C backend run-worker & \
+	$(MAKE) -C backend run-worker & \
 	worker_pid=$$!; \
 	NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 npm --prefix frontend run dev -- --hostname 127.0.0.1 --port 3000 & \
 	frontend_pid=$$!; \

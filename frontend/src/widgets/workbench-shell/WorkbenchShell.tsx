@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Airplay, Cpu, Radar, Shapes } from "lucide-react";
+import { Airplay, Cpu, Database, Radar, Shapes } from "lucide-react";
 import type { ReactNode } from "react";
 import styles from "./WorkbenchShell.module.css";
 
@@ -28,6 +28,13 @@ const navItems = [
     description: "Launch dataset batches, review aggregate regressions, and inspect failing samples.",
     icon: Radar,
     match: (pathname: string) => pathname.startsWith("/evals")
+  },
+  {
+    href: "/datasets",
+    label: "Datasets",
+    description: "Import, inspect, and prepare datasets for evals and playground runs.",
+    icon: Database,
+    match: (pathname: string) => pathname.startsWith("/datasets")
   },
   {
     href: "/playground",

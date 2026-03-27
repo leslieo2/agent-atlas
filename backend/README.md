@@ -129,6 +129,9 @@ Current backend endpoints include:
 - Artifacts: `POST /api/v1/artifacts/export`, `GET /api/v1/artifacts/{artifact_id}`
 - Traces: `POST /api/v1/traces/ingest`
 
+Sample datasets for manual import live under `backend/datasets/`. The seeded `fulfillment_ops`
+dataset is also available as [`backend/datasets/fulfillment-eval-v1.jsonl`](/Users/leslie/PycharmProjects/agent-atlas/backend/datasets/fulfillment-eval-v1.jsonl) so you can upload it through the UI or load it into the database without relying on demo seeding.
+
 ## Verification
 
 Typical local verification:

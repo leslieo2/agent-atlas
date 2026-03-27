@@ -1,0 +1,145 @@
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 18px;
+}
+
+.managementGrid,
+.sideRail,
+.datasetList,
+.previewList {
+  display: grid;
+  gap: 14px;
+}
+
+.sectionBlock,
+.emptyState,
+.previewCard,
+.datasetRow {
+  border: 1px solid rgba(158, 189, 226, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sectionBlock,
+.emptyState,
+.previewCard {
+  padding: 16px;
+}
+
+.sectionHeading {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.sectionHeading h4,
+.previewHeading h4 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.uploadHint {
+  margin-top: 10px;
+}
+
+.datasetRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 16px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease,
+    background-color 160ms ease;
+}
+
+.datasetRow:hover {
+  transform: translateY(-1px);
+  border-color: rgba(117, 218, 255, 0.24);
+}
+
+.datasetRowActive {
+  border-color: var(--border-strong);
+  background: linear-gradient(180deg, rgba(117, 218, 255, 0.12), rgba(117, 218, 255, 0.04));
+}
+
+.datasetMeta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.datasetMeta strong {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.previewHeading {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.previewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.previewHeader strong {
+  font-size: 0.94rem;
+}
+
+.previewInput,
+.previewExpected {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border: 1px solid rgba(117, 218, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(117, 218, 255, 0.08);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+@media (max-width: 1100px) {
+  .workspaceGrid,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}

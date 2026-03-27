@@ -201,4 +201,17 @@ describe("Evals workspace", () => {
       "http://127.0.0.1:8000/api/v1/artifacts/artifact-001"
     );
   });
+
+  it("routes missing dataset states to the datasets workspace", async () => {
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([]);
+
+    renderWithQueryClient(<EvalsWorkspace initialAgentId="basic" />);
+
+    expect(await screen.findByText("Eval workbench")).toBeInTheDocument();
+    expect(
+      await screen.findByText("No datasets available. Open datasets workspace to import or create one.")
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Open datasets workspace" }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("No datasets. Open datasets workspace")).toBeInTheDocument();
+  });
 });

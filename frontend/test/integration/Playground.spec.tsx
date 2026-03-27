@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as agentApi from "@/src/entities/agent/api";
 import * as datasetApi from "@/src/entities/dataset/api";
-import * as evalApi from "@/src/entities/eval/api";
 import * as runApi from "@/src/entities/run/api";
 import * as traceApi from "@/src/entities/trace/api";
 import * as trajectoryApi from "@/src/entities/trajectory/api";
@@ -15,8 +14,7 @@ vi.mock("@/src/entities/agent/api", () => ({
 }));
 
 vi.mock("@/src/entities/dataset/api", () => ({
-  listDatasets: vi.fn(),
-  createDataset: vi.fn()
+  listDatasets: vi.fn()
 }));
 
 vi.mock("@/src/entities/run/api", () => ({
@@ -24,12 +22,6 @@ vi.mock("@/src/entities/run/api", () => ({
   createRun: vi.fn(),
   getRun: vi.fn(),
   terminateRun: vi.fn()
-}));
-
-vi.mock("@/src/entities/eval/api", () => ({
-  listEvalJobs: vi.fn(),
-  listEvalSamples: vi.fn(),
-  createEvalJob: vi.fn()
 }));
 
 vi.mock("@/src/entities/trajectory/api", () => ({
@@ -69,16 +61,12 @@ describe("Playground integration", () => {
   beforeEach(() => {
     (agentApi.listAgents as unknown as MockedApiFn).mockReset();
     (datasetApi.listDatasets as unknown as MockedApiFn).mockReset();
-    (datasetApi.createDataset as unknown as MockedApiFn).mockReset();
     (runApi.listRuns as unknown as MockedApiFn).mockReset();
     (runApi.createRun as unknown as MockedApiFn).mockReset();
     (runApi.getRun as unknown as MockedApiFn).mockReset();
     (runApi.terminateRun as unknown as MockedApiFn).mockReset();
     (traceApi.listRunTraces as unknown as MockedApiFn).mockReset();
     (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockReset();
-    (evalApi.listEvalJobs as unknown as MockedApiFn).mockReset();
-    (evalApi.listEvalSamples as unknown as MockedApiFn).mockReset();
-    (evalApi.createEvalJob as unknown as MockedApiFn).mockReset();
     (agentApi.listAgents as unknown as MockedApiFn).mockResolvedValue([
       {
         agentId: "basic",
@@ -99,8 +87,16 @@ describe("Playground integration", () => {
         tags: ["example", "support"]
       }
     ]);
-    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([{ name: "customer-live", rows: [] }]);
-    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({ name: "customer-live", rows: [] });
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([
+      {
+        name: "crm-v2",
+        rows: [{ sampleId: "sample-001", input: "Can you create a shipping itinerary?" }]
+      },
+      {
+        name: "support-incidents",
+        rows: [{ sampleId: "sample-002", input: "Summarize the priority tickets from the incident queue." }]
+      }
+    ]);
     (runApi.listRuns as unknown as MockedApiFn).mockResolvedValue(runs);
     (runApi.createRun as unknown as MockedApiFn).mockResolvedValue({
       ...runs[0],
@@ -162,26 +158,6 @@ describe("Playground integration", () => {
         success: true
       }
     ]);
-    (evalApi.listEvalJobs as unknown as MockedApiFn).mockResolvedValue([]);
-    (evalApi.listEvalSamples as unknown as MockedApiFn).mockResolvedValue([]);
-    (evalApi.createEvalJob as unknown as MockedApiFn).mockResolvedValue({
-      evalJobId: "eval-play-001",
-      agentId: "basic",
-      dataset: "customer-live",
-      project: "customer-live",
-      tags: ["playground"],
-      scoringMode: "exact_match" as const,
-      status: "queued" as const,
-      sampleCount: 1,
-      scoredCount: 0,
-      passedCount: 0,
-      failedCount: 0,
-      unscoredCount: 0,
-      runtimeErrorCount: 0,
-      passRate: 0,
-      failureDistribution: {},
-      createdAt: "2026-03-24T00:00:00Z"
-    });
   });
 
   it("creates a run and opens latest trace", async () => {
@@ -210,9 +186,40 @@ describe("Playground integration", () => {
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "customer-live" } });
+    fireEvent.click(screen.getByRole("button", { name: "Load sample prompt" }));
+    expect(screen.getByDisplayValue("Can you create a shipping itinerary?")).toBeInTheDocument();
+  });
+
+  it("attaches the selected dataset sample to the prompt", async () => {
+    renderWithQueryClient(<PlaygroundWorkspace initialDataset="crm-v2" />);
+
+    await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
+
+    await waitFor(() => expect(screen.getByLabelText("Dataset")).toHaveValue("crm-v2"));
     fireEvent.click(screen.getByRole("button", { name: "Attach dataset sample" }));
     expect(screen.getByDisplayValue("Can you create a shipping itinerary?")).toBeInTheDocument();
+  });
+
+  it("submits the attached dataset when launched from new run context", async () => {
+    renderWithQueryClient(<PlaygroundWorkspace initialDataset="crm-v2" />);
+
+    await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(runApi.listRuns).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByLabelText("Dataset")).toHaveValue("crm-v2"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Run now" }));
+
+    await waitFor(() =>
+      expect(runApi.createRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataset: "crm-v2",
+          agentId: "basic"
+        })
+      )
+    );
   });
 
   it("terminates the latest run", async () => {
@@ -290,13 +297,17 @@ describe("Playground integration", () => {
     expect(await screen.findByText("run not running or not found")).toBeInTheDocument();
   });
 
-  it("allows prompt-only execution when no dataset exists", async () => {
-    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([]);
-
+  it("stays focused on direct manual runs", async () => {
     renderWithQueryClient(<PlaygroundWorkspace />);
 
     await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText(/No dataset attached. Playground will run prompt-only until you select one./)).toBeInTheDocument();
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+    expect(
+      await screen.findByText(/Dataset-oriented flows live in Evals and Datasets. Playground stays focused on direct manual runs./)
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Dataset")).toBeInTheDocument();
+    expect(screen.getByText(/No dataset attached. Playground will run prompt-only until you select one./)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create eval job" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Run now" }));
 
@@ -313,7 +324,7 @@ describe("Playground integration", () => {
   it("hydrates rerun state from query-derived props", async () => {
     renderWithQueryClient(
       <PlaygroundWorkspace
-        initialDataset="customer-live"
+        initialDataset="crm-v2"
         initialAgentId="customer_service"
         initialPrompt="Retry the failed support run."
         initialTags={["rerun", "support"]}
@@ -325,115 +336,7 @@ describe("Playground integration", () => {
 
     expect(screen.getByDisplayValue("Retry the failed support run.")).toBeInTheDocument();
     expect(screen.getByDisplayValue("rerun, support")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("customer-live")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("crm-v2")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Customer Service (customer_service)")).toBeInTheDocument();
-  });
-
-  it("creates an eval job from the selected agent and dataset", async () => {
-    renderWithQueryClient(<PlaygroundWorkspace initialDataset="customer-live" initialAgentId="basic" />);
-
-    await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByRole("button", { name: "Create eval job" }));
-
-    await waitFor(() =>
-      expect(evalApi.createEvalJob).toHaveBeenCalledWith({
-        agentId: "basic",
-        dataset: "customer-live",
-        project: "customer-live",
-        tags: ["playground"],
-        scoringMode: "exact_match"
-      })
-    );
-
-    expect(await screen.findByText("Eval job eval-play-001 is queued.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open eval workspace" })).toHaveAttribute(
-      "href",
-      "/evals?job=eval-play-001"
-    );
-  });
-
-  it("creates a dataset inline and auto-selects it", async () => {
-    (datasetApi.listDatasets as unknown as MockedApiFn)
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([{ name: "returns-review", rows: [{ sampleId: "sample-1", input: "review order return" }] }]);
-    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({
-      name: "returns-review",
-      rows: [{ sampleId: "sample-1", input: "review order return" }]
-    });
-
-    renderWithQueryClient(<PlaygroundWorkspace />);
-
-    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
-
-    fireEvent.change(screen.getByLabelText("Dataset name"), { target: { value: "returns-review" } });
-    fireEvent.change(screen.getByLabelText("Sample input"), { target: { value: "review order return" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create dataset" }));
-
-    await waitFor(() =>
-      expect(datasetApi.createDataset).toHaveBeenCalledWith({
-        name: "returns-review",
-        rows: [
-          {
-            sampleId: "returns-review-sample-1",
-            input: "review order return",
-            expected: null,
-            tags: []
-          }
-        ]
-      })
-    );
-    expect(await screen.findByText("Selected dataset preview · 1 rows")).toBeInTheDocument();
-    expect(screen.getByText("sample-1 · review order return")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("returns-review")).toBeInTheDocument();
-  });
-
-  it("uploads dataset jsonl inline and auto-selects it", async () => {
-    (datasetApi.listDatasets as unknown as MockedApiFn)
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([
-        {
-          name: "support-batch",
-          rows: [
-            { sampleId: "support-1", input: "where is my refund?" },
-            { sampleId: "support-2", input: "cancel this order" }
-          ]
-        }
-      ]);
-    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({
-      name: "support-batch",
-      rows: [
-        { sampleId: "support-1", input: "where is my refund?" },
-        { sampleId: "support-2", input: "cancel this order" }
-      ]
-    });
-
-    renderWithQueryClient(<PlaygroundWorkspace />);
-
-    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
-
-    fireEvent.change(screen.getByLabelText("Dataset name"), { target: { value: "support-batch" } });
-    const file = new File(
-      ['{"sample_id":"support-1","input":"where is my refund?"}\n{"sample_id":"support-2","input":"cancel this order"}\n'],
-      "support-batch.jsonl",
-      { type: "application/json" }
-    );
-    fireEvent.change(screen.getByLabelText("Upload dataset JSONL"), {
-      target: { files: [file] }
-    });
-
-    await waitFor(() =>
-      expect(datasetApi.createDataset).toHaveBeenCalledWith({
-        name: "support-batch",
-        rows: [
-          { sampleId: "support-1", input: "where is my refund?", expected: null, tags: [] },
-          { sampleId: "support-2", input: "cancel this order", expected: null, tags: [] }
-        ]
-      })
-    );
-    expect(await screen.findByText("Selected dataset preview · 2 rows")).toBeInTheDocument();
-    expect(screen.getByText("support-1 · where is my refund?")).toBeInTheDocument();
-    expect(screen.getByText("support-2 · cancel this order")).toBeInTheDocument();
   });
 });

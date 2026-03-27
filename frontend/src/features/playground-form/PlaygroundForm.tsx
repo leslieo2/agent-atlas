@@ -1,6 +1,7 @@
 "use client";
 
 import type { AgentRecord } from "@/src/entities/agent/model";
+import type { Dataset } from "@/src/entities/dataset/model";
 import { Field } from "@/src/shared/ui/Field";
 
 type Props = {
@@ -8,7 +9,7 @@ type Props = {
   agentId: string;
   agents: AgentRecord[];
   dataset: string;
-  datasets: string[];
+  datasets: Dataset[];
   tagsText: string;
   onPromptChange: (value: string) => void;
   onAgentIdChange: (value: string) => void;
@@ -49,15 +50,11 @@ export function PlaygroundForm({
           </select>
         </Field>
         <Field label="Dataset" htmlFor="playground-dataset">
-          <select
-            id="playground-dataset"
-            value={dataset}
-            onChange={(event) => onDatasetChange(event.target.value)}
-          >
-            <option value="">{datasets.length ? "No dataset" : "No datasets available"}</option>
-            {datasets.map((name) => (
-              <option key={name} value={name}>
-                {name}
+          <select id="playground-dataset" value={dataset} onChange={(event) => onDatasetChange(event.target.value)}>
+            <option value="">No dataset attached</option>
+            {datasets.map((item) => (
+              <option key={item.name} value={item.name}>
+                {item.name}
               </option>
             ))}
           </select>
