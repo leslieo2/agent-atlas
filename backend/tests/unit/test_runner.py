@@ -95,7 +95,7 @@ def test_docker_runner_executes_inside_container_and_reads_result(
         request = json.loads((io_dir / "request.json").read_text(encoding="utf-8"))
         assert request == {
             "agent_type": "openai-agents-sdk",
-            "model": "gpt-4.1-mini",
+            "model": "gpt-5.4-mini",
             "prompt": "Summarize the ticket.",
         }
 
@@ -117,7 +117,7 @@ def test_docker_runner_executes_inside_container_and_reads_result(
     docker_runner = runner.DockerRunner()
     result = docker_runner.execute(
         AdapterKind.OPENAI_AGENTS,
-        model="gpt-4.1-mini",
+        model="gpt-5.4-mini",
         prompt="Summarize the ticket.",
     )
 
@@ -141,7 +141,7 @@ def test_docker_runner_raises_when_container_execution_fails(monkeypatch: pytest
     with pytest.raises(RuntimeError, match="docker run failed"):
         docker_runner.execute(
             AdapterKind.OPENAI_AGENTS,
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             prompt="Summarize the ticket.",
         )
 

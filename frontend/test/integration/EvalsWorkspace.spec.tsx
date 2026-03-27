@@ -45,7 +45,7 @@ describe("Evals workspace", () => {
         description: "Minimal smoke agent.",
         framework: "openai-agents-sdk",
         entrypoint: "app.agent_plugins.basic:build_agent",
-        defaultModel: "gpt-4.1-mini",
+        defaultModel: "gpt-5.4-mini",
         tags: ["example", "smoke"]
       }
     ]);

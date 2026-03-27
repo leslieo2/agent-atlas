@@ -24,7 +24,7 @@ def test_export_artifact_parquet_falls_back_when_optional_deps_missing(
             step_type=StepType.LLM,
             prompt="plan a trip",
             output="trip planned",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             latency_ms=9,
             token_usage=4,
             success=True,

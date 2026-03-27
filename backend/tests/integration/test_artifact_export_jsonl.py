@@ -21,10 +21,10 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
             project="policy-project",
             dataset="policy-dataset",
             agent_id="policy-agent",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             entrypoint="app.agent_plugins.policy:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
-            resolved_model="gpt-4.1-mini-2026-03-01",
+            resolved_model="gpt-5.4-mini-2026-03-01",
             project_metadata={
                 "agent_snapshot": {
                     "manifest": {
@@ -32,7 +32,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
                         "name": "Policy Agent",
                         "description": "Summarize policy artifacts.",
                         "framework": "openai-agents-sdk",
-                        "default_model": "gpt-4.1-mini",
+                        "default_model": "gpt-5.4-mini",
                         "tags": ["policy", "ops"],
                     },
                     "entrypoint": "app.agent_plugins.policy:build_agent",
@@ -49,7 +49,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
             step_type=StepType.LLM,
             prompt="plan a trip",
             output="trip planned",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             latency_ms=9,
             token_usage=4,
             success=True,
@@ -64,7 +64,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
             step_type=StepType.TOOL,
             prompt="call weather API",
             output='{"ok": true}',
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             latency_ms=5,
             token_usage=0,
             success=False,
@@ -95,11 +95,11 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
     assert rows[0]["format"] == "chat"
     assert rows[0]["agent_id"] == "policy-agent"
     assert rows[0]["entrypoint"] == "app.agent_plugins.policy:build_agent"
-    assert rows[0]["resolved_model"] == "gpt-4.1-mini-2026-03-01"
+    assert rows[0]["resolved_model"] == "gpt-5.4-mini-2026-03-01"
     assert rows[0]["project"] == "policy-project"
     assert rows[0]["published_agent"] == {
         "published_at": "2026-03-20T09:00:00Z",
-        "default_model": "gpt-4.1-mini",
+        "default_model": "gpt-5.4-mini",
         "tags": ["policy", "ops"],
     }
     assert rows[0]["messages"] == [
@@ -131,7 +131,7 @@ def test_list_artifacts_returns_recent_exports(client, tmp_path):
             status=RunStatus.SUCCEEDED,
             project="artifact-project",
             dataset="artifact-dataset",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
         )
     )
@@ -143,7 +143,7 @@ def test_list_artifacts_returns_recent_exports(client, tmp_path):
             step_type=StepType.LLM,
             prompt="summarize state",
             output="summary ready",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             latency_ms=8,
             token_usage=5,
             success=True,

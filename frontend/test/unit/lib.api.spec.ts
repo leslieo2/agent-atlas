@@ -33,7 +33,7 @@ describe("api client", () => {
           project: "sales-assistant",
           dataset: "crm-v2",
           agent_id: "customer_service",
-          model: "gpt-4.1-mini",
+          model: "gpt-5.4-mini",
           agent_type: "openai-agents-sdk",
           tags: ["agent-sdk"],
           created_at: "2026-03-24T00:00:00Z"
@@ -87,7 +87,7 @@ describe("api client", () => {
         project: "sales",
         dataset: null,
         agent_id: "basic",
-        model: "gpt-4.1-mini",
+        model: "gpt-5.4-mini",
         agent_type: "openai-agents-sdk",
         tags: [],
         created_at: "2026-03-24T00:00:00Z",

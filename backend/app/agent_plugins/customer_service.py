@@ -8,7 +8,7 @@ AGENT_MANIFEST = AgentManifest(
     agent_id="customer_service",
     name="Customer Service",
     description="Customer-support style agent that responds with policy-aware service guidance.",
-    default_model="gpt-4.1-mini",
+    default_model="gpt-5.4-mini",
     tags=["example", "support"],
 )
 

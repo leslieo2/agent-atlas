@@ -45,6 +45,30 @@ class RunFailureDetails:
     message: str
 
 
+def failure_from_trace_events(events: list[TraceIngestEvent]) -> RunFailureDetails | None:
+    for event in events:
+        success = event.output.get("success")
+        if success is not False:
+            continue
+
+        message = event.output.get("error") or event.output.get("output")
+        normalized_message = str(message).strip() if message is not None else ""
+        if not normalized_message:
+            normalized_message = "run execution failed"
+
+        raw_code = event.output.get("error_code")
+        if isinstance(raw_code, str) and raw_code.strip():
+            code = raw_code.strip()
+        elif event.step_type == StepType.TOOL:
+            code = "tool_execution"
+        else:
+            code = "run_execution_failed"
+
+        return RunFailureDetails(code=code, message=normalized_message)
+
+    return None
+
+
 def normalize_run_failure(exc: Exception) -> RunFailureDetails:
     if isinstance(exc, AppError):
         raw_code = exc.code
@@ -236,7 +260,13 @@ class RunExecutionService:
         try:
             result = self.published_runtime.execute_published(run_id, payload)
             self._update_run_execution_details(run_id, result.runtime_result)
-            self.recorder.record(run_id, self.projector.project_runtime_success(context, result))
+            record = self.projector.project_runtime_success(context, result)
+            self.recorder.record(run_id, record)
+            trace_failure = failure_from_trace_events(record.events)
+            if trace_failure is not None:
+                self._record_failure(run_id, trace_failure)
+                self._set_status(run_id, RunStatus.FAILED, reason=trace_failure.message)
+                return
             self._set_status(run_id, RunStatus.SUCCEEDED)
         except Exception as exc:
             failure = normalize_run_failure(exc)

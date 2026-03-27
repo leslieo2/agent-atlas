@@ -45,7 +45,7 @@ const runs = [
     project: "playground",
     dataset: "crm-v2",
     agentId: "customer_service",
-    model: "gpt-4.1-mini",
+    model: "gpt-5.4-mini",
     agentType: "openai-agents-sdk",
     tags: [],
     createdAt: "2026-03-24T00:00:00Z"
@@ -74,7 +74,7 @@ describe("Playground integration", () => {
         description: "Minimal smoke agent.",
         framework: "openai-agents-sdk",
         entrypoint: "app.agent_plugins.basic:build_agent",
-        defaultModel: "gpt-4.1-mini",
+        defaultModel: "gpt-5.4-mini",
         tags: ["example", "smoke"]
       },
       {
@@ -83,7 +83,7 @@ describe("Playground integration", () => {
         description: "Support agent.",
         framework: "openai-agents-sdk",
         entrypoint: "app.agent_plugins.customer_service:build_agent",
-        defaultModel: "gpt-4.1-mini",
+        defaultModel: "gpt-5.4-mini",
         tags: ["example", "support"]
       }
     ]);

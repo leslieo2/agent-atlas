@@ -81,7 +81,7 @@ def test_run_commands_can_force_success(monkeypatch, worker_drain):
                 latency_ms=1,
                 token_usage=2,
                 provider="mock",
-                resolved_model="gpt-4.1-mini",
+                resolved_model="gpt-5.4-mini",
             )
         ),
     )
@@ -118,7 +118,7 @@ def test_artifact_commands_jsonl_output(tmp_path):
             step_type=StepType.LLM,
             prompt="hello",
             output="world",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             temperature=0.0,
             latency_ms=10,
             token_usage=20,

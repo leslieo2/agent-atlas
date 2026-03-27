@@ -71,7 +71,7 @@ const mockedRuns = [
     project: "sales-assistant",
     dataset: "crm-v2",
     agentId: "customer_service",
-    model: "gpt-4.1-mini",
+    model: "gpt-5.4-mini",
     agentType: "openai-agents-sdk",
     tags: ["agent-sdk", "mcp"],
     createdAt: "2026-03-23T09:12:00Z"
@@ -86,7 +86,7 @@ const mockedRuns = [
     project: "support-router",
     dataset: "support-incidents",
     agentId: "",
-    model: "gpt-4.1-mini",
+    model: "gpt-5.4-mini",
     agentType: "langchain",
     tags: ["langchain"],
     createdAt: "2026-03-23T10:03:00Z"

@@ -36,7 +36,7 @@ def test_run_execution_projector_builds_success_trace_event():
         RunSpec(
             project="control-plane",
             dataset="crm-v2",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             input_summary="projector test",
             prompt="Explain the plan.",
@@ -80,7 +80,7 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
             input_summary="record metrics",
             project="control-plane",
             dataset="crm-v2",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.RUNNING,
         )
@@ -101,7 +101,7 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
         RunSpec(
             project="control-plane",
             dataset="crm-v2",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             input_summary="record metrics",
             prompt="Record this execution.",
@@ -154,7 +154,7 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
             input_summary="record tool metrics",
             project="control-plane",
             dataset="crm-v2",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.RUNNING,
         )
@@ -175,7 +175,7 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
         RunSpec(
             project="control-plane",
             dataset="crm-v2",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             input_summary="record tool metrics",
             prompt="Use the tool before answering.",
@@ -203,8 +203,8 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
                         run_id=run_id,
                         span_id=f"span-{run_id}-1",
                         step_type=StepType.LLM,
-                        name="gpt-4.1-mini",
-                        input={"prompt": "Use the tool before answering.", "model": "gpt-4.1-mini"},
+                        name="gpt-5.4-mini",
+                        input={"prompt": "Use the tool before answering.", "model": "gpt-5.4-mini"},
                         output={
                             "output": (
                                 'tool_call: lookup_shipping_window({"order_reference":"A-1024"})'
@@ -227,7 +227,7 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
                         span_id=f"span-{run_id}-3",
                         parent_span_id=f"span-{run_id}-2",
                         step_type=StepType.LLM,
-                        name="gpt-4.1-mini",
+                        name="gpt-5.4-mini",
                         input={
                             "prompt": (
                                 "Tool outputs:\n"
@@ -270,7 +270,7 @@ def test_run_execution_service_records_structured_failure_details():
             project="control-plane",
             dataset="crm-v2",
             agent_id="basic",
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             entrypoint="app.agent_plugins.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
@@ -303,7 +303,7 @@ def test_run_execution_service_records_structured_failure_details():
         project="control-plane",
         dataset="crm-v2",
         agent_id="basic",
-        model="gpt-4.1-mini",
+        model="gpt-5.4-mini",
         entrypoint="app.agent_plugins.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="record failure",
@@ -325,6 +325,141 @@ def test_run_execution_service_records_structured_failure_details():
     assert steps[0].output == "live execution failed: provider authentication failed"
 
 
+def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
+    run_id = uuid4()
+    run_repository = StateRunRepository()
+    trajectory_repository = StateTrajectoryRepository()
+    trace_repository = StateTraceRepository()
+
+    run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="record tool failure trace",
+            project="control-plane",
+            dataset="fulfillment-eval-v1",
+            agent_id="fulfillment_ops",
+            model="gpt-5.4-mini",
+            entrypoint="app.agent_plugins.fulfillment_ops:build_agent",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            status=RunStatus.QUEUED,
+        )
+    )
+
+    trace_ingestor = TraceCommands(
+        workflow=TraceIngestionWorkflow(
+            trace_projector=DefaultTraceProjector(),
+            trace_recorder=TraceRecorder(
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
+        )
+    )
+
+    class FailedToolPublishedRuntime:
+        def execute_published(self, *_args, **_kwargs):
+            return PublishedRunExecutionResult(
+                runtime_result=RuntimeExecutionResult(
+                    output="success",
+                    latency_ms=15,
+                    token_usage=18,
+                    provider="openai-agents-sdk",
+                    resolved_model="gpt-5.4-mini",
+                ),
+                trace_events=[
+                    TraceIngestEvent(
+                        run_id=run_id,
+                        span_id=f"span-{run_id}-1",
+                        step_type=StepType.LLM,
+                        name="gpt-5.4-mini",
+                        input={
+                            "prompt": (
+                                "Order ORD-ERR-100 is delayed. "
+                                "Check status and decide the next action."
+                            ),
+                            "model": "gpt-5.4-mini",
+                        },
+                        output={
+                            "output": 'tool_call: lookup_order_status({"order_id":"ORD-ERR-100"})',
+                            "success": True,
+                        },
+                        token_usage=8,
+                    ),
+                    TraceIngestEvent(
+                        run_id=run_id,
+                        span_id=f"span-{run_id}-2",
+                        parent_span_id=f"span-{run_id}-1",
+                        step_type=StepType.TOOL,
+                        name="lookup_order_status",
+                        input={"prompt": '{"order_id":"ORD-ERR-100"}'},
+                        output={
+                            "output": (
+                                "An error occurred while running the tool. Please try again. "
+                                "Error: tool backend unavailable for order 'ORD-ERR-100'"
+                            ),
+                            "success": False,
+                            "error": "tool backend unavailable for order 'ORD-ERR-100'",
+                        },
+                        tool_name="lookup_order_status",
+                    ),
+                    TraceIngestEvent(
+                        run_id=run_id,
+                        span_id=f"span-{run_id}-3",
+                        parent_span_id=f"span-{run_id}-2",
+                        step_type=StepType.LLM,
+                        name="gpt-5.4-mini",
+                        input={
+                            "prompt": (
+                                "Order ORD-ERR-100 is delayed. Check status and decide the next "
+                                "action.\n\nTool outputs:\nlookup_order_status: An error "
+                                "occurred while running the tool. Please try again. Error: tool "
+                                "backend unavailable for order 'ORD-ERR-100'"
+                            )
+                        },
+                        output={
+                            "output": "success",
+                            "success": False,
+                            "error": "tool backend unavailable for order 'ORD-ERR-100'",
+                        },
+                        token_usage=10,
+                    ),
+                ],
+            )
+
+    from app.modules.runs.application.execution import RunExecutionService
+
+    service = RunExecutionService(
+        run_repository=run_repository,
+        published_runtime=FailedToolPublishedRuntime(),
+        trace_ingestor=trace_ingestor,
+    )
+
+    payload = RunSpec(
+        project="control-plane",
+        dataset="fulfillment-eval-v1",
+        agent_id="fulfillment_ops",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.fulfillment_ops:build_agent",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        input_summary="record tool failure trace",
+        prompt="Order ORD-ERR-100 is delayed. Check status and decide the next action.",
+    )
+
+    service.execute_run(run_id, payload)
+
+    run = run_repository.get(run_id)
+    steps = trajectory_repository.list_for_run(run_id)
+
+    assert run is not None
+    assert run.status == RunStatus.FAILED
+    assert run.error_code == "tool_execution"
+    assert run.error_message == "tool backend unavailable for order 'ORD-ERR-100'"
+    assert run.termination_reason == "tool backend unavailable for order 'ORD-ERR-100'"
+    assert run.latency_ms == 15
+    assert run.token_cost == 18
+    assert run.tool_calls == 1
+    assert [step.success for step in steps] == [True, False, False]
+
+
 def test_run_execution_projector_handles_prompt_only_run():
     run_id = uuid4()
     context = RunExecutionContext.from_spec(
@@ -332,7 +467,7 @@ def test_run_execution_projector_handles_prompt_only_run():
         RunSpec(
             project="control-plane",
             dataset=None,
-            model="gpt-4.1-mini",
+            model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             input_summary="prompt only",
             prompt="Explain the plan.",
@@ -353,4 +488,4 @@ def test_run_execution_projector_handles_prompt_only_run():
     )
 
     assert record.events[0].input["prompt"] == "Explain the plan."
-    assert record.events[0].input["model"] == "gpt-4.1-mini"
+    assert record.events[0].input["model"] == "gpt-5.4-mini"

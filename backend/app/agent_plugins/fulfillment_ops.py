@@ -14,7 +14,7 @@ AGENT_MANIFEST = AgentManifest(
         "Order-fulfillment validation agent that uses multiple local tools to decide "
         "the next customer-facing action."
     ),
-    default_model="gpt-4.1-mini",
+    default_model="gpt-5-mini",
     tags=["example", "tools", "fulfillment"],
 )
 

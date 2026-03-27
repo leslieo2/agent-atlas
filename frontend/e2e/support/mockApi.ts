@@ -94,7 +94,7 @@ export const buildAgent = (overrides: Partial<ApiAgent> = {}): ApiAgent => ({
   description: "Minimal smoke agent.",
   framework: "openai-agents-sdk",
   entrypoint: "app.agent_plugins.basic:build_agent",
-  default_model: "gpt-4.1-mini",
+  default_model: "gpt-5.4-mini",
   tags: ["example", "smoke"],
   ...overrides
 });
@@ -114,7 +114,7 @@ export const buildRun = (overrides: Partial<ApiRun> = {}): ApiRun => ({
   tool_calls: 5,
   project: "sales-assistant",
   dataset: "crm-v2",
-  model: "gpt-4.1-mini",
+  model: "gpt-5.4-mini",
   agent_type: "openai-agents-sdk",
   tags: ["agent-sdk", "mcp"],
   created_at: "2026-03-23T09:12:00Z",

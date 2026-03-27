@@ -307,7 +307,7 @@ Example successful run response:
   "status": "queued",
   "project": "support-workbench",
   "dataset": "support-inbox-v1",
-  "model": "gpt-4.1-mini"
+  "model": "gpt-5.4-mini"
 }
 ```
 

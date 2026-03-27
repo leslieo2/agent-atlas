@@ -8,7 +8,7 @@ AGENT_MANIFEST = AgentManifest(
     agent_id="tools",
     name="Tools",
     description="Example agent with local function tools for exercising plugin tool execution.",
-    default_model="gpt-4.1-mini",
+    default_model="gpt-5.4-mini",
     tags=["example", "tools"],
 )
 

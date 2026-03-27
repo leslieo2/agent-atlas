@@ -75,7 +75,7 @@ def test_create_run_and_get_by_id(client):
             "name": "Basic",
             "description": "Minimal plugin agent for smoke testing the SDK execution path.",
             "framework": "openai-agents-sdk",
-            "default_model": "gpt-4.1-mini",
+            "default_model": "gpt-5.4-mini",
             "tags": ["example", "smoke"],
         },
         "entrypoint": "app.agent_plugins.basic:build_agent",
@@ -122,7 +122,7 @@ def test_terminate_running_run_in_memory(client):
         project="tmp-project",
         dataset="tmp-ds",
         agent_id="basic",
-        model="gpt-4.1-mini",
+        model="gpt-5.4-mini",
         agent_type="openai-agents-sdk",
         status=RunStatus.RUNNING,
     )
@@ -165,7 +165,7 @@ def test_list_runs_accepts_naive_and_offset_datetime_filters(client):
         project="timezone-project",
         dataset="timezone-ds",
         agent_id="basic",
-        model="gpt-4.1-mini",
+        model="gpt-5.4-mini",
         agent_type="openai-agents-sdk",
         created_at=datetime(2026, 3, 25, 9, 0, tzinfo=UTC),
     )
@@ -175,7 +175,7 @@ def test_list_runs_accepts_naive_and_offset_datetime_filters(client):
         project="timezone-project",
         dataset="timezone-ds",
         agent_id="basic",
-        model="gpt-4.1-mini",
+        model="gpt-5.4-mini",
         agent_type="openai-agents-sdk",
         created_at=datetime(2026, 3, 25, 11, 0, tzinfo=UTC),
     )

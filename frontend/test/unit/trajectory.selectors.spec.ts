@@ -53,7 +53,7 @@ const steps = [
     stepType: "llm" as const,
     prompt: "respond",
     output: "done",
-    model: "gpt-4.1-mini",
+    model: "gpt-5.4-mini",
     temperature: 0.2,
     latencyMs: 12,
     tokenUsage: 22,
@@ -90,7 +90,7 @@ describe("trajectory workspace selectors", () => {
       project: "support",
       dataset: "tickets-v1",
       agentId: "customer_service",
-      model: "gpt-4.1-mini",
+      model: "gpt-5.4-mini",
       agentType: "openai-agents-sdk" as const,
       tags: [],
       createdAt: "2026-03-25T10:00:00Z"
@@ -146,7 +146,7 @@ describe("trajectory workspace selectors", () => {
       project: "support",
       dataset: "tickets-v1",
       agentId: "customer_service",
-      model: "gpt-4.1-mini",
+      model: "gpt-5.4-mini",
       agentType: "openai-agents-sdk" as const,
       tags: [],
       createdAt: "2026-03-25T10:00:00Z"

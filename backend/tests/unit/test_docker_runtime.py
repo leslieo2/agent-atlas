@@ -18,7 +18,7 @@ def test_docker_runtime_reads_request_and_writes_result(
         json.dumps(
             {
                 "agent_type": "openai-agents-sdk",
-                "model": "gpt-4.1-mini",
+                "model": "gpt-5.4-mini",
                 "prompt": "Summarize the ticket.",
             }
         ),
@@ -27,7 +27,7 @@ def test_docker_runtime_reads_request_and_writes_result(
 
     def fake_execute(agent_type: object, model: str, prompt: str) -> RuntimeExecutionResult:
         assert str(agent_type) == "AdapterKind.OPENAI_AGENTS"
-        assert model == "gpt-4.1-mini"
+        assert model == "gpt-5.4-mini"
         assert prompt == "Summarize the ticket."
         return RuntimeExecutionResult(
             output="container output",

@@ -28,7 +28,7 @@ def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client, worker
                 latency_ms=1,
                 token_usage=1,
                 provider="mock",
-                resolved_model="gpt-4.1-mini",
+                resolved_model="gpt-5.4-mini",
             )
         ),
     )
@@ -81,15 +81,15 @@ def test_runs_api_persists_tool_steps_from_runtime_trace_events(monkeypatch, cli
                 latency_ms=4,
                 token_usage=19,
                 provider="openai-agents-sdk",
-                resolved_model="gpt-4.1-mini",
+                resolved_model="gpt-5.4-mini",
             ),
             trace_events=[
                 TraceIngestEvent(
                     run_id=run_id,
                     span_id=f"span-{run_id}-1",
                     step_type=StepType.LLM,
-                    name="gpt-4.1-mini",
-                    input={"prompt": payload.prompt, "model": "gpt-4.1-mini"},
+                    name="gpt-5.4-mini",
+                    input={"prompt": payload.prompt, "model": "gpt-5.4-mini"},
                     output={
                         "output": (
                             'tool_call: lookup_shipping_window({"order_reference":"A-1024"})'
@@ -112,7 +112,7 @@ def test_runs_api_persists_tool_steps_from_runtime_trace_events(monkeypatch, cli
                     span_id=f"span-{run_id}-3",
                     parent_span_id=f"span-{run_id}-2",
                     step_type=StepType.LLM,
-                    name="gpt-4.1-mini",
+                    name="gpt-5.4-mini",
                     input={
                         "prompt": (
                             f"{payload.prompt}\n\nTool outputs:\n"
@@ -168,15 +168,15 @@ def test_runs_api_persists_multi_tool_trajectory_for_fulfillment_ops(
                 latency_ms=6,
                 token_usage=33,
                 provider="openai-agents-sdk",
-                resolved_model="gpt-4.1-mini",
+                resolved_model="gpt-5.4-mini",
             ),
             trace_events=[
                 TraceIngestEvent(
                     run_id=run_id,
                     span_id=f"span-{run_id}-1",
                     step_type=StepType.LLM,
-                    name="gpt-4.1-mini",
-                    input={"prompt": payload.prompt, "model": "gpt-4.1-mini"},
+                    name="gpt-5.4-mini",
+                    input={"prompt": payload.prompt, "model": "gpt-5.4-mini"},
                     output={
                         "output": (
                             'tool_call: lookup_order_status({"order_id":"ORD-1002"})\n'
@@ -218,7 +218,7 @@ def test_runs_api_persists_multi_tool_trajectory_for_fulfillment_ops(
                     span_id=f"span-{run_id}-4",
                     parent_span_id=f"span-{run_id}-3",
                     step_type=StepType.LLM,
-                    name="gpt-4.1-mini",
+                    name="gpt-5.4-mini",
                     input={
                         "prompt": (
                             f"{payload.prompt}\n\nTool outputs:\n"
@@ -356,6 +356,109 @@ def test_runs_api_maps_fulfillment_tool_failures_to_tool_execution(
         "error_message": "tool backend unavailable for order 'ORD-ERR-100'",
         "termination_reason": "tool backend unavailable for order 'ORD-ERR-100'",
     }
+
+
+def test_runs_api_marks_failed_trace_events_as_tool_execution(monkeypatch, client, worker_drain):
+    container = get_container()
+
+    def execute_published(run_id, payload):
+        return PublishedRunExecutionResult(
+            runtime_result=RuntimeExecutionResult(
+                output="success",
+                latency_ms=5,
+                token_usage=14,
+                provider="openai-agents-sdk",
+                resolved_model="gpt-5.4-mini",
+            ),
+            trace_events=[
+                TraceIngestEvent(
+                    run_id=run_id,
+                    span_id=f"span-{run_id}-1",
+                    step_type=StepType.LLM,
+                    name="gpt-5.4-mini",
+                    input={"prompt": payload.prompt, "model": "gpt-5.4-mini"},
+                    output={
+                        "output": 'tool_call: lookup_order_status({"order_id":"ORD-ERR-100"})',
+                        "success": True,
+                    },
+                    token_usage=6,
+                ),
+                TraceIngestEvent(
+                    run_id=run_id,
+                    span_id=f"span-{run_id}-2",
+                    parent_span_id=f"span-{run_id}-1",
+                    step_type=StepType.TOOL,
+                    name="lookup_order_status",
+                    input={"prompt": '{"order_id":"ORD-ERR-100"}'},
+                    output={
+                        "output": (
+                            "An error occurred while running the tool. Please try again. "
+                            "Error: tool backend unavailable for order 'ORD-ERR-100'"
+                        ),
+                        "success": False,
+                        "error": "tool backend unavailable for order 'ORD-ERR-100'",
+                    },
+                    tool_name="lookup_order_status",
+                ),
+                TraceIngestEvent(
+                    run_id=run_id,
+                    span_id=f"span-{run_id}-3",
+                    parent_span_id=f"span-{run_id}-2",
+                    step_type=StepType.LLM,
+                    name="gpt-5.4-mini",
+                    input={
+                        "prompt": (
+                            f"{payload.prompt}\n\nTool outputs:\nlookup_order_status: An error "
+                            "occurred while running the tool. Please try again. Error: tool "
+                            "backend unavailable for order 'ORD-ERR-100'"
+                        )
+                    },
+                    output={
+                        "output": "success",
+                        "success": False,
+                        "error": "tool backend unavailable for order 'ORD-ERR-100'",
+                    },
+                    token_usage=8,
+                ),
+            ],
+        )
+
+    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "project": "integration-fulfillment-trace-failure",
+            "dataset": "fulfillment-eval-v1",
+            "agent_id": "fulfillment_ops",
+            "input_summary": "tool execution failure from trace events",
+            "prompt": "Order ORD-ERR-100 is delayed. Check status and decide the next action.",
+            "tags": ["integration", "fulfillment", "runtime-error"],
+        },
+    )
+    assert response.status_code == 201
+
+    run_id = response.json()["run_id"]
+    assert worker_drain() >= 1
+
+    run_state = client.get(f"/api/v1/runs/{run_id}")
+    assert run_state.status_code == 200
+    assert run_state.json() == {
+        **run_state.json(),
+        "run_id": run_id,
+        "status": "failed",
+        "entrypoint": "app.agent_plugins.fulfillment_ops:build_agent",
+        "execution_backend": None,
+        "container_image": None,
+        "resolved_model": "gpt-5.4-mini",
+        "error_code": "tool_execution",
+        "error_message": "tool backend unavailable for order 'ORD-ERR-100'",
+        "termination_reason": "tool backend unavailable for order 'ORD-ERR-100'",
+    }
+
+    trajectory = client.get(f"/api/v1/runs/{run_id}/trajectory")
+    assert trajectory.status_code == 200
+    assert [step["success"] for step in trajectory.json()] == [True, False, False]
 
 
 def test_trace_ingest_and_normalize_endpoints(client):
@@ -519,7 +622,7 @@ def test_published_invalid_agent_disappears_from_runnable_catalog(monkeypatch, c
                     agent_id="basic",
                     name="Basic",
                     description="Minimal plugin agent for smoke testing the SDK execution path.",
-                    default_model="gpt-4.1-mini",
+                    default_model="gpt-5.4-mini",
                     tags=["example", "smoke"],
                 ),
                 entrypoint="app.agent_plugins.basic:build_agent",
@@ -549,7 +652,7 @@ def test_published_invalid_agent_disappears_from_runnable_catalog(monkeypatch, c
     )
     assert payload["framework"] == "openai-agents-sdk"
     assert payload["entrypoint"] == "app.agent_plugins.basic:build_agent"
-    assert payload["default_model"] == "gpt-4.1-mini"
+    assert payload["default_model"] == "gpt-5.4-mini"
     assert payload["tags"] == ["example", "smoke"]
     assert payload["publish_state"] == "published"
     assert payload["validation_status"] == "invalid"

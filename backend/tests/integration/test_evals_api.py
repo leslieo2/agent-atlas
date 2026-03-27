@@ -32,7 +32,7 @@ def test_eval_jobs_api_fans_out_child_runs_and_aggregates_results(
                 latency_ms=3,
                 token_usage=5,
                 provider="mock",
-                resolved_model="gpt-4.1-mini",
+                resolved_model="gpt-5.4-mini",
             )
         )
 
@@ -130,7 +130,7 @@ def test_eval_jobs_api_supports_contains_scoring(monkeypatch, client, worker_dra
                 latency_ms=2,
                 token_usage=4,
                 provider="mock",
-                resolved_model="gpt-4.1-mini",
+                resolved_model="gpt-5.4-mini",
             )
         ),
     )

@@ -39,7 +39,7 @@ export const runRecords: RunRecord[] = [
     toolCalls: 5,
     project: "sales-assistant",
     dataset: "crm-v2",
-    model: "gpt-4.1-mini",
+    model: "gpt-5.4-mini",
     tags: ["agent-sdk", "mcp"],
     createdAt: "2026-03-23T09:12:00Z"
   },
@@ -78,7 +78,7 @@ export const runRecords: RunRecord[] = [
     toolCalls: 0,
     project: "benchmarking",
     dataset: "shopping-bench",
-    model: "gpt-4.1-mini",
+    model: "gpt-5.4-mini",
     tags: ["agent-sdk"],
     createdAt: "2026-03-24T04:10:00Z"
   }

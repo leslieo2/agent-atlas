@@ -25,7 +25,7 @@ test("playground can create an eval job and open eval workspace details", async 
         description: "Minimal smoke agent.",
         framework: "openai-agents-sdk",
         entrypoint: "app.agent_plugins.basic:build_agent",
-        default_model: "gpt-4.1-mini",
+        default_model: "gpt-5.4-mini",
         tags: ["example", "smoke"]
       }
     ],

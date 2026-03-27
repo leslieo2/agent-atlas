@@ -17,7 +17,7 @@ def test_end_to_end_workbench_flow(monkeypatch, client, worker_drain):
                 latency_ms=1,
                 token_usage=2,
                 provider="mock",
-                resolved_model="gpt-4.1-mini",
+                resolved_model="gpt-5.4-mini",
             )
         ),
     )
@@ -84,7 +84,7 @@ def test_end_to_end_eval_flow_supports_failure_triage_and_export(monkeypatch, cl
                 latency_ms=1,
                 token_usage=2,
                 provider="mock",
-                resolved_model="gpt-4.1-mini",
+                resolved_model="gpt-5.4-mini",
             )
         )
 
