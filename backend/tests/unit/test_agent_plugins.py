@@ -21,6 +21,7 @@ def test_source_catalog_discovers_builtin_agent_plugins() -> None:
     assert {source.module_name for source in sources} >= {
         "app.agent_plugins.basic",
         "app.agent_plugins.customer_service",
+        "app.agent_plugins.fulfillment_ops",
         "app.agent_plugins.tools",
     }
 

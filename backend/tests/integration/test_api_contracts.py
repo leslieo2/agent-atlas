@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from app.agent_plugins.fulfillment_ops import ToolBackendError
 from app.bootstrap.container import get_container
 from app.core.errors import ProviderAuthError
 from app.modules.agents.domain.models import (
@@ -155,6 +156,125 @@ def test_runs_api_persists_tool_steps_from_runtime_trace_events(monkeypatch, cli
     assert run_state.json()["tool_calls"] == 1
 
 
+def test_runs_api_persists_multi_tool_trajectory_for_fulfillment_ops(
+    monkeypatch, client, worker_drain
+):
+    container = get_container()
+
+    def execute_published(run_id, payload):
+        return PublishedRunExecutionResult(
+            runtime_result=RuntimeExecutionResult(
+                output="resolved: reship_order",
+                latency_ms=6,
+                token_usage=33,
+                provider="openai-agents-sdk",
+                resolved_model="gpt-4.1-mini",
+            ),
+            trace_events=[
+                TraceIngestEvent(
+                    run_id=run_id,
+                    span_id=f"span-{run_id}-1",
+                    step_type=StepType.LLM,
+                    name="gpt-4.1-mini",
+                    input={"prompt": payload.prompt, "model": "gpt-4.1-mini"},
+                    output={
+                        "output": (
+                            'tool_call: lookup_order_status({"order_id":"ORD-1002"})\n'
+                            'tool_call: lookup_inventory({"sku":"SKU-ALPHA"})'
+                        )
+                    },
+                    token_usage=11,
+                ),
+                TraceIngestEvent(
+                    run_id=run_id,
+                    span_id=f"span-{run_id}-2",
+                    parent_span_id=f"span-{run_id}-1",
+                    step_type=StepType.TOOL,
+                    name="lookup_order_status",
+                    input={"prompt": '{"order_id":"ORD-1002"}'},
+                    output={
+                        "output": (
+                            "order_id=ORD-1002; status=lost_in_transit; shipment_state=exception; "
+                            "sku=SKU-ALPHA; issue_type=lost_package; priority=priority; "
+                            "reship_allowed=yes"
+                        )
+                    },
+                    tool_name="lookup_order_status",
+                ),
+                TraceIngestEvent(
+                    run_id=run_id,
+                    span_id=f"span-{run_id}-3",
+                    parent_span_id=f"span-{run_id}-2",
+                    step_type=StepType.TOOL,
+                    name="lookup_inventory",
+                    input={"prompt": '{"sku":"SKU-ALPHA"}'},
+                    output={
+                        "output": "sku=SKU-ALPHA; stock_state=in_stock; replacement_available=yes"
+                    },
+                    tool_name="lookup_inventory",
+                ),
+                TraceIngestEvent(
+                    run_id=run_id,
+                    span_id=f"span-{run_id}-4",
+                    parent_span_id=f"span-{run_id}-3",
+                    step_type=StepType.LLM,
+                    name="gpt-4.1-mini",
+                    input={
+                        "prompt": (
+                            f"{payload.prompt}\n\nTool outputs:\n"
+                            "lookup_order_status: order_id=ORD-1002; status=lost_in_transit; "
+                            "shipment_state=exception; sku=SKU-ALPHA; issue_type=lost_package; "
+                            "priority=priority; reship_allowed=yes\n"
+                            "lookup_inventory: sku=SKU-ALPHA; stock_state=in_stock; "
+                            "replacement_available=yes"
+                        )
+                    },
+                    output={"output": "resolved: reship_order"},
+                    token_usage=22,
+                ),
+            ],
+        )
+
+    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "project": "integration-fulfillment",
+            "dataset": "fulfillment-eval-v1",
+            "agent_id": "fulfillment_ops",
+            "input_summary": "fulfillment multi-tool trace",
+            "prompt": (
+                "Order ORD-1002 is missing in transit. "
+                "Check inventory and decide the next action."
+            ),
+            "tags": ["integration", "fulfillment"],
+        },
+    )
+    assert response.status_code == 201
+
+    run_id = response.json()["run_id"]
+    assert worker_drain() >= 1
+
+    trajectory = client.get(f"/api/v1/runs/{run_id}/trajectory")
+    assert trajectory.status_code == 200
+    payload = trajectory.json()
+
+    assert [step["step_type"] for step in payload] == ["llm", "tool", "tool", "llm"]
+    assert [step["tool_name"] for step in payload if step["step_type"] == "tool"] == [
+        "lookup_order_status",
+        "lookup_inventory",
+    ]
+    assert payload[1]["parent_step_id"] == payload[0]["id"]
+    assert payload[2]["parent_step_id"] == payload[1]["id"]
+    assert payload[3]["parent_step_id"] == payload[2]["id"]
+
+    run_state = client.get(f"/api/v1/runs/{run_id}")
+    assert run_state.status_code == 200
+    assert run_state.json()["tool_calls"] == 2
+    assert run_state.json()["entrypoint"] == "app.agent_plugins.fulfillment_ops:build_agent"
+
+
 def test_runs_api_exposes_structured_failure_details(monkeypatch, client, worker_drain):
     container = get_container()
 
@@ -193,6 +313,48 @@ def test_runs_api_exposes_structured_failure_details(monkeypatch, client, worker
         "error_code": "provider_call",
         "error_message": "provider authentication failed",
         "termination_reason": "provider authentication failed",
+    }
+
+
+def test_runs_api_maps_fulfillment_tool_failures_to_tool_execution(
+    monkeypatch, client, worker_drain
+):
+    container = get_container()
+
+    def execute_published(*_args, **_kwargs):
+        raise ToolBackendError("tool backend unavailable for order 'ORD-ERR-100'")
+
+    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "project": "integration-fulfillment-failure",
+            "dataset": "fulfillment-eval-v1",
+            "agent_id": "fulfillment_ops",
+            "input_summary": "tool execution failure",
+            "prompt": "Order ORD-ERR-100 is delayed. Check status and decide the next action.",
+            "tags": ["integration", "fulfillment", "runtime-error"],
+        },
+    )
+    assert response.status_code == 201
+
+    run_id = response.json()["run_id"]
+    assert worker_drain() >= 1
+
+    run_state = client.get(f"/api/v1/runs/{run_id}")
+    assert run_state.status_code == 200
+    assert run_state.json() == {
+        **run_state.json(),
+        "run_id": run_id,
+        "status": "failed",
+        "entrypoint": "app.agent_plugins.fulfillment_ops:build_agent",
+        "execution_backend": None,
+        "container_image": None,
+        "resolved_model": None,
+        "error_code": "tool_execution",
+        "error_message": "tool backend unavailable for order 'ORD-ERR-100'",
+        "termination_reason": "tool backend unavailable for order 'ORD-ERR-100'",
     }
 
 
@@ -243,6 +405,7 @@ def test_agents_list_available_published_agents(client):
     assert {agent["agent_id"] for agent in response.json()} == {
         "basic",
         "customer_service",
+        "fulfillment_ops",
         "tools",
     }
 

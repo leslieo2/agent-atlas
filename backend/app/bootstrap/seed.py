@@ -15,7 +15,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
     if container.dataset_queries.list():
         return
 
-    for agent_id in ("basic", "customer_service", "tools"):
+    for agent_id in ("basic", "customer_service", "tools", "fulfillment_ops"):
         with suppress(AgentValidationFailedError):
             container.agent_publication_commands.publish(agent_id)
 
@@ -86,6 +86,21 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             tags=["example", "tools"],
             project_metadata=_agent_snapshot("tools"),
         ),
+        RunRecord(
+            run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
+            input_summary="Investigate a delayed order and decide next action",
+            status=RunStatus.SUCCEEDED,
+            latency_ms=1180,
+            token_cost=740,
+            tool_calls=2,
+            project="fulfillment-ops",
+            dataset="fulfillment-eval-v1",
+            agent_id="fulfillment_ops",
+            model="gpt-4.1-mini",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            tags=["example", "tools", "fulfillment"],
+            project_metadata=_agent_snapshot("fulfillment_ops"),
+        ),
     ]
     seeded_steps = {
         UUID("a6f3f2a1-1111-4f8d-9999-111111111111"): [
@@ -147,6 +162,73 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
                 tool_name="pricing_service",
             ),
         ],
+        UUID("a6f3f2a1-5555-4f8d-9999-111111111111"): [
+            TrajectoryStep(
+                id="seed-step-fulfillment-001",
+                run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
+                step_type=StepType.LLM,
+                parent_step_id=None,
+                prompt="Order ORD-1002 is missing. Decide the next action.",
+                output='tool_call: lookup_order_status({"order_id":"ORD-1002"})',
+                model="gpt-4.1-mini",
+                temperature=0.0,
+                latency_ms=180,
+                token_usage=96,
+                success=True,
+            ),
+            TrajectoryStep(
+                id="seed-step-fulfillment-002",
+                run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
+                step_type=StepType.TOOL,
+                parent_step_id="seed-step-fulfillment-001",
+                prompt='{"order_id":"ORD-1002"}',
+                output=(
+                    "order_id=ORD-1002; status=lost_in_transit; shipment_state=exception; "
+                    "sku=SKU-ALPHA; issue_type=lost_package; priority=priority; "
+                    "reship_allowed=yes"
+                ),
+                model="n/a",
+                temperature=0.0,
+                latency_ms=120,
+                token_usage=0,
+                success=True,
+                tool_name="lookup_order_status",
+            ),
+            TrajectoryStep(
+                id="seed-step-fulfillment-003",
+                run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
+                step_type=StepType.TOOL,
+                parent_step_id="seed-step-fulfillment-002",
+                prompt='{"sku":"SKU-ALPHA"}',
+                output="sku=SKU-ALPHA; stock_state=in_stock; replacement_available=yes",
+                model="n/a",
+                temperature=0.0,
+                latency_ms=90,
+                token_usage=0,
+                success=True,
+                tool_name="lookup_inventory",
+            ),
+            TrajectoryStep(
+                id="seed-step-fulfillment-004",
+                run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
+                step_type=StepType.LLM,
+                parent_step_id="seed-step-fulfillment-003",
+                prompt=(
+                    "Order ORD-1002 is missing. Decide the next action.\n\nTool outputs:\n"
+                    "lookup_order_status: order_id=ORD-1002; status=lost_in_transit; "
+                    "shipment_state=exception; sku=SKU-ALPHA; issue_type=lost_package; "
+                    "priority=priority; reship_allowed=yes\n"
+                    "lookup_inventory: sku=SKU-ALPHA; stock_state=in_stock; "
+                    "replacement_available=yes"
+                ),
+                output="resolved: reship_order",
+                model="gpt-4.1-mini",
+                temperature=0.0,
+                latency_ms=260,
+                token_usage=118,
+                success=True,
+            ),
+        ],
     }
 
     datasets = [
@@ -165,6 +247,50 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             rows=[
                 DatasetSample(sample_id="sample-101", input="Customer reported stale invoice"),
                 DatasetSample(sample_id="sample-102", input="Account locked after 2 failed logins"),
+            ],
+        ),
+        Dataset(
+            name="fulfillment-eval-v1",
+            rows=[
+                DatasetSample(
+                    sample_id="fulfillment-001",
+                    input=(
+                        "Order ORD-1001 has not arrived. "
+                        "Check status and decide the next action."
+                    ),
+                    expected="resolved: wait_for_delivery",
+                    tags=["fulfillment", "shipping-window"],
+                ),
+                DatasetSample(
+                    sample_id="fulfillment-002",
+                    input=(
+                        "Order ORD-1002 is missing in transit. "
+                        "Check inventory and decide the next action."
+                    ),
+                    expected="resolved: reship_order",
+                    tags=["fulfillment", "replacement"],
+                ),
+                DatasetSample(
+                    sample_id="fulfillment-003",
+                    input="Order ORD-1003 is stuck before shipment. Decide the next action.",
+                    expected="resolved: escalate_to_human",
+                    tags=["fulfillment", "blocked"],
+                ),
+                DatasetSample(
+                    sample_id="fulfillment-004",
+                    input=(
+                        "Order ORD-1004 was delivered but the customer disputes receipt. "
+                        "Decide the next action."
+                    ),
+                    expected="resolved: escalate_to_human",
+                    tags=["fulfillment", "delivered-dispute"],
+                ),
+                DatasetSample(
+                    sample_id="fulfillment-err-001",
+                    input="Order ORD-ERR-100 is delayed. Check status and decide the next action.",
+                    expected=None,
+                    tags=["fulfillment", "runtime-error"],
+                ),
             ],
         ),
     ]
