@@ -3,23 +3,23 @@ from __future__ import annotations
 from functools import lru_cache
 
 from app.bootstrap.worker import AppWorker
-from app.infrastructure.adapters.agents import (
+from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
-    OpenAIAgentContractValidator,
-    PublishedOpenAIAgentLoader,
     StateRunnableAgentCatalog,
 )
 from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
 from app.infrastructure.adapters.evals import RunnableAgentLookupAdapter, StateEvalRunGateway
-from app.infrastructure.adapters.model_runtime import (
-    ModelRuntimeService,
+from app.infrastructure.adapters.openai_agents import (
+    OpenAIAgentContractValidator,
     PublishedOpenAIAgentAdapter,
+    PublishedOpenAIAgentLoader,
 )
 from app.infrastructure.adapters.runner import (
     FallbackRunnerAdapter,
     StaticRunnerRegistry,
 )
+from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.tasks import StateTaskQueue
 from app.infrastructure.adapters.traces import DefaultTraceProjector
 from app.infrastructure.repositories import (

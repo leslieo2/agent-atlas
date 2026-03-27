@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from app.core.config import RunnerMode, RuntimeMode
 from app.infrastructure.adapters import runner
-from app.infrastructure.adapters.model_runtime import ModelRuntimeService
+from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.shared.domain.enums import AdapterKind
 from pydantic import SecretStr
 

@@ -4,7 +4,7 @@ import hashlib
 import json
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -27,7 +27,7 @@ class AgentManifest(BaseModel):
     agent_id: str
     name: str
     description: str
-    framework: Literal["openai-agents-sdk"] = "openai-agents-sdk"
+    framework: str = "openai-agents-sdk"
     default_model: str
     tags: list[str] = Field(default_factory=list)
 

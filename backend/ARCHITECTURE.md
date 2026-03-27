@@ -112,6 +112,17 @@ Responsibilities:
 
 Infrastructure may depend on module ports and domain models. The reverse must not happen.
 
+Adapter organization follows the same rule:
+
+- keep SDK-agnostic outbound adapters at `app/infrastructure/adapters/`
+- keep framework- or vendor-specific implementations in nested packages such as
+  `app/infrastructure/adapters/openai_agents/` or `app/infrastructure/adapters/langchain/`
+- do not mix generic orchestration code with SDK object validation, SDK response parsing, or
+  provider-specific runtime setup in the same file
+
+This keeps the hexagonal boundary explicit: application code talks to ports, infrastructure wires
+generic adapter services, and framework packages stay replaceable.
+
 ### 5. Composition root
 
 Location: `app/bootstrap/container.py`

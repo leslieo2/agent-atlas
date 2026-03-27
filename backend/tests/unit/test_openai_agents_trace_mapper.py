@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from uuid import UUID
 
-from app.infrastructure.adapters.openai_agents_trace_mapper import (
+from app.infrastructure.adapters.openai_agents.trace_mapper import (
     build_trace_events_from_agent_run,
 )
 from app.modules.shared.domain.enums import StepType

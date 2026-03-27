@@ -12,7 +12,7 @@ from app.core.errors import (
     RateLimitedError,
     UnsupportedAdapterError,
 )
-from app.infrastructure.adapters.model_runtime import ModelRuntimeService
+from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 from pydantic import SecretStr

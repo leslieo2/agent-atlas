@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from app.core.config import RunnerMode, settings
-from app.infrastructure.adapters.model_runtime import ModelRuntimeService
+from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 

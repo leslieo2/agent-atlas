@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from app.infrastructure.adapters.agents import (
+from app.infrastructure.adapters.agent_catalog import (
     AgentModuleSource,
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
+)
+from app.infrastructure.adapters.openai_agents import (
     OpenAIAgentContractValidator,
 )
 from app.modules.agents.domain.models import (
@@ -31,7 +33,7 @@ def test_validator_reports_missing_manifest(monkeypatch) -> None:
     module = SimpleNamespace(build_agent=lambda _context: object())
 
     monkeypatch.setattr(
-        "app.infrastructure.adapters.agents.import_module",
+        "app.infrastructure.adapters.openai_agents.catalog.import_module",
         lambda module_name: (
             module if module_name == "app.agent_plugins.fake_missing_manifest" else None
         ),
@@ -67,7 +69,7 @@ def test_validator_reports_missing_build_agent(monkeypatch) -> None:
     )
 
     monkeypatch.setattr(
-        "app.infrastructure.adapters.agents.import_module",
+        "app.infrastructure.adapters.openai_agents.catalog.import_module",
         lambda module_name: (
             module if module_name == "app.agent_plugins.fake_missing_build" else None
         ),

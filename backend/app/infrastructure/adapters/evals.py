@@ -36,6 +36,17 @@ def _merge_tags(primary: list[str], secondary: list[str]) -> list[str]:
     return ordered
 
 
+def _adapter_kind_for_framework(framework: str) -> AdapterKind:
+    normalized = framework.strip().lower()
+    if normalized == AdapterKind.OPENAI_AGENTS.value:
+        return AdapterKind.OPENAI_AGENTS
+    if normalized == AdapterKind.LANGCHAIN.value:
+        return AdapterKind.LANGCHAIN
+    if normalized == AdapterKind.MCP.value:
+        return AdapterKind.MCP
+    raise ValueError(f"unsupported published agent framework '{framework}'")
+
+
 class RunnableAgentLookupAdapter:
     def __init__(self, agent_catalog: RunnableAgentCatalogPort) -> None:
         self.agent_catalog = agent_catalog
@@ -68,7 +79,7 @@ class StateEvalRunGateway:
             agent_id=job.agent_id,
             model=agent.default_model,
             entrypoint=agent.entrypoint,
-            agent_type=AdapterKind.OPENAI_AGENTS,
+            agent_type=_adapter_kind_for_framework(agent.framework),
             input_summary=sample.input,
             prompt=sample.input,
             tags=_merge_tags(job.tags, sample.tags),

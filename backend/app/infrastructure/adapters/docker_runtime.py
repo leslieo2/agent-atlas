@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from app.infrastructure.adapters.model_runtime import ModelRuntimeService
+from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.shared.domain.enums import AdapterKind
 
 
