@@ -8,7 +8,7 @@ import {
   mockEvals
 } from "./support/mockApi";
 
-test("playground can create an eval job and open eval workspace details", async ({ page }) => {
+test("evals workspace can create an eval job and open eval details", async ({ page }) => {
   const exportCalls: Array<{ format: string; runIds: string[] }> = [];
   let evalJobs = [
     buildEvalJob({
@@ -108,14 +108,14 @@ test("playground can create an eval job and open eval workspace details", async 
     });
   });
 
-  await page.goto("/playground?agent=basic&dataset=crm-v2");
-  await expect(page.getByRole("heading", { name: "Playground", exact: true })).toBeVisible();
+  await page.goto("/evals?agent=basic&dataset=crm-v2");
+  await expect(page.getByRole("heading", { name: "Eval workbench" })).toBeVisible();
 
   await expect(page.getByRole("button", { name: "Create eval job" })).toBeEnabled();
   await page.getByRole("button", { name: "Create eval job" }).click();
-  await expect(page.getByText("Eval job eval-002 is queued.")).toBeVisible();
+  await expect(page.getByText("Created eval job eval-002.")).toBeVisible();
 
-  await page.getByRole("link", { name: "Open eval workspace" }).click();
+  await page.getByRole("link", { name: "Open selected eval" }).click();
   await expect(page).toHaveURL(/\/evals\?job=eval-002/);
   await expect(page.getByRole("heading", { name: "Eval workbench" })).toBeVisible();
   await expect(page.getByText("No sample results yet for this eval job.")).toBeVisible();
