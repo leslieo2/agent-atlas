@@ -25,7 +25,6 @@ def live_openai_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     api_key = _require_live_openai_env()
     container = get_container()
     monkeypatch.setattr(settings, "runtime_mode", "live")
-    monkeypatch.setattr(settings, "runner_mode", "local")
     monkeypatch.setattr(container.model_runtime, "api_key", SecretStr(api_key))
     monkeypatch.setattr(container.model_runtime, "runtime_mode", "live")
 

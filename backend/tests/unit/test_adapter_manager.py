@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from app.infrastructure.adapters.traces import DefaultTraceProjector
+from app.infrastructure.adapters.trace_projection import TraceIngestProjector
 from app.modules.shared.domain.enums import StepType
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
@@ -39,7 +39,7 @@ def test_adapter_manager_normalizes_trace_event():
         received_at=datetime(2026, 3, 23, 12, 0, 0),
     )
 
-    normalized = DefaultTraceProjector().normalize(event=ingest_event, span=span)
+    normalized = TraceIngestProjector().normalize(event=ingest_event, span=span)
 
     assert normalized["run_id"] == str(run_id)
     assert normalized["span_id"] == "span-test"

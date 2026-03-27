@@ -3,10 +3,11 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.infrastructure.repositories.common import persistence
+from app.modules.shared.application.ports import TaskQueuePort
 from app.modules.shared.domain.tasks import QueuedTask
 
 
-class StateTaskQueue:
+class StateTaskQueue(TaskQueuePort):
     def enqueue(self, task: QueuedTask) -> None:
         persistence.enqueue_task(task)
 

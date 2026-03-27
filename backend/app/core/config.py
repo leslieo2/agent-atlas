@@ -12,13 +12,6 @@ class RuntimeMode(StrEnum):
     MOCK = "mock"
 
 
-class RunnerMode(StrEnum):
-    AUTO = "auto"
-    LOCAL = "local"
-    DOCKER = "docker"
-    MOCK = "mock"
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="AGENT_ATLAS_",
@@ -36,10 +29,6 @@ class Settings(BaseSettings):
             "Execution mode: auto|live|mock. " "auto falls back to mock when OPENAI key missing."
         ),
     )
-    runner_mode: RunnerMode = Field(
-        default=RunnerMode.AUTO,
-        description="Execution runner mode: auto|local|docker|mock.",
-    )
     openai_api_key: SecretStr | None = Field(
         default=None,
         validation_alias=AliasChoices("AGENT_ATLAS_OPENAI_API_KEY", "OPENAI_API_KEY"),
@@ -52,10 +41,6 @@ class Settings(BaseSettings):
             "Whether demo runs/datasets should be seeded on startup. "
             "Defaults to disabled in live mode and enabled otherwise."
         ),
-    )
-    runner_image: str = Field(
-        default="agent-atlas-backend:latest",
-        description="Docker image used for isolated run execution.",
     )
     database_url: str | None = Field(
         default=None,
@@ -88,11 +73,6 @@ class Settings(BaseSettings):
         if self.seed_demo is not None:
             return self.seed_demo
         return self.runtime_mode != RuntimeMode.LIVE
-
-    def should_allow_mock_fallback(self, api_key: SecretStr | None = None) -> bool:
-        if self.runner_mode == RunnerMode.MOCK:
-            return True
-        return self.effective_runtime_mode(api_key) != RuntimeMode.LIVE
 
 
 settings = Settings()

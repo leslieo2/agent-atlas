@@ -7,9 +7,9 @@ from app.core.errors import AppError
 from app.modules.runs.application.ports import (
     PublishedRunRuntimePort,
     RunRepository,
-    TraceIngestionPort,
 )
 from app.modules.runs.application.results import PublishedRunExecutionResult
+from app.modules.runs.application.telemetry import RunTelemetryIngestionService
 from app.modules.runs.domain.models import ExecutionMetrics, RunSpec, RuntimeExecutionResult
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus, StepType
@@ -218,14 +218,14 @@ class ExecutionRecorder:
     def __init__(
         self,
         run_repository: RunRepository,
-        trace_ingestor: TraceIngestionPort,
+        telemetry_ingestor: RunTelemetryIngestionService,
     ) -> None:
         self.run_repository = run_repository
-        self.trace_ingestor = trace_ingestor
+        self.telemetry_ingestor = telemetry_ingestor
 
     def record(self, run_id: UUID, record: ProjectedExecutionRecord) -> None:
         for event in record.events:
-            self.trace_ingestor.ingest(event)
+            self.telemetry_ingestor.ingest(event)
 
         run = self.run_repository.get(run_id)
         if not run:
@@ -239,7 +239,7 @@ class RunExecutionService:
         self,
         run_repository: RunRepository,
         published_runtime: PublishedRunRuntimePort,
-        trace_ingestor: TraceIngestionPort,
+        telemetry_ingestor: RunTelemetryIngestionService,
         projector: RunExecutionProjector | None = None,
         recorder: ExecutionRecorder | None = None,
     ) -> None:
@@ -248,7 +248,7 @@ class RunExecutionService:
         self.projector = projector or RunExecutionProjector()
         self.recorder = recorder or ExecutionRecorder(
             run_repository=run_repository,
-            trace_ingestor=trace_ingestor,
+            telemetry_ingestor=telemetry_ingestor,
         )
 
     def execute_run(self, run_id: UUID, payload: RunSpec) -> None:

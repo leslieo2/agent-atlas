@@ -1,7 +1,7 @@
-import type { TraceSpanResponse } from "@/src/shared/api/contract";
+import type { RunTraceSpanResponse } from "@/src/shared/api/contract";
 import type { TraceSpan } from "./model";
 
-export function mapTraceSpan(span: TraceSpanResponse): TraceSpan {
+export function mapTraceSpan(span: RunTraceSpanResponse): TraceSpan {
   return {
     runId: span.run_id,
     spanId: span.span_id,

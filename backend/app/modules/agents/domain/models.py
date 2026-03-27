@@ -9,6 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.modules.shared.domain.enums import AdapterKind
+
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
@@ -21,6 +23,17 @@ def compute_source_fingerprint(manifest: AgentManifest, entrypoint: str) -> str:
     }
     serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def adapter_kind_for_framework(framework: str) -> AdapterKind:
+    normalized = framework.strip().lower()
+    if normalized == AdapterKind.OPENAI_AGENTS.value:
+        return AdapterKind.OPENAI_AGENTS
+    if normalized == AdapterKind.LANGCHAIN.value:
+        return AdapterKind.LANGCHAIN
+    if normalized == AdapterKind.MCP.value:
+        return AdapterKind.MCP
+    raise ValueError(f"unsupported published agent framework '{framework}'")
 
 
 class AgentManifest(BaseModel):
@@ -86,6 +99,9 @@ class PublishedAgent(BaseModel):
     def tags(self) -> list[str]:
         return list(self.manifest.tags)
 
+    def adapter_kind(self) -> AdapterKind:
+        return adapter_kind_for_framework(self.framework)
+
     def effective_source_fingerprint(self) -> str:
         if self.source_fingerprint:
             return self.source_fingerprint
@@ -128,6 +144,9 @@ class DiscoveredAgent(BaseModel):
     @property
     def tags(self) -> list[str]:
         return list(self.manifest.tags)
+
+    def adapter_kind(self) -> AdapterKind:
+        return adapter_kind_for_framework(self.framework)
 
     def with_publish_state(self, publish_state: AgentPublishState) -> DiscoveredAgent:
         return self.model_copy(update={"publish_state": publish_state})

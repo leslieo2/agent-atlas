@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.modules.runs.domain.models import RunCreateInput, RunRecord, TrajectoryStep
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
+from app.modules.traces.domain.models import TraceSpan
 
 
 class RunCreateRequest(BaseModel):
@@ -80,3 +81,22 @@ class TrajectoryStepResponse(BaseModel):
     @classmethod
     def from_domain(cls, step: TrajectoryStep) -> TrajectoryStepResponse:
         return cls.model_validate(step.model_dump())
+
+
+class RunTraceSpanResponse(BaseModel):
+    run_id: UUID
+    span_id: str
+    parent_span_id: str | None
+    step_type: StepType
+    input: dict[str, object]
+    output: dict[str, object]
+    tool_name: str | None = None
+    latency_ms: int
+    token_usage: int
+    image_digest: str | None = None
+    prompt_version: str | None = None
+    received_at: datetime
+
+    @classmethod
+    def from_domain(cls, span: TraceSpan) -> RunTraceSpanResponse:
+        return cls.model_validate(span.model_dump())

@@ -4,7 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from app.bootstrap.container import get_container
-from app.infrastructure.adapters.traces import DefaultTraceProjector
+from app.infrastructure.adapters.trace_projection import TraceIngestProjector
 from app.modules.artifacts.domain.models import ArtifactExportRequest
 from app.modules.datasets.domain.models import DatasetCreate
 from app.modules.runs.application.results import PublishedRunExecutionResult
@@ -33,7 +33,7 @@ def test_dataset_service_create_and_get():
 
 
 def test_adapter_normalize_span_payload():
-    normalizer = DefaultTraceProjector()
+    normalizer = TraceIngestProjector()
     run_id = uuid4()
     event = TraceIngestEvent(
         run_id=run_id,

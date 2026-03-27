@@ -9,11 +9,10 @@ from app.modules.runs.application.ports import (
     RunRepository,
     TrajectoryRepository,
 )
-from app.modules.runs.domain.models import RunCreateInput, RunRecord, RunSpec, TrajectoryStep
+from app.modules.runs.application.services import RunSubmissionService
+from app.modules.runs.domain.models import RunCreateInput, RunRecord, TrajectoryStep
 from app.modules.runs.domain.policies import RunAggregate
-from app.modules.shared.application.ports import TaskQueuePort
-from app.modules.shared.domain.enums import AdapterKind, RunStatus
-from app.modules.shared.domain.tasks import QueuedTask, TaskType
+from app.modules.shared.domain.enums import RunStatus
 from app.modules.traces.application.ports import TraceRepository
 from app.modules.traces.domain.models import TraceSpan
 
@@ -87,46 +86,19 @@ class RunCommands:
     def __init__(
         self,
         run_repository: RunRepository,
-        task_queue: TaskQueuePort,
         agent_catalog: RunnableAgentCatalogPort,
+        submission_service: RunSubmissionService,
     ) -> None:
         self.run_repository = run_repository
-        self.task_queue = task_queue
         self.agent_catalog = agent_catalog
+        self.submission_service = submission_service
 
     def create_run(self, payload: RunCreateInput) -> RunRecord:
         agent = self.agent_catalog.get_agent(payload.agent_id)
         if agent is None:
             raise AgentNotPublishedError(payload.agent_id)
 
-        spec = RunSpec(
-            project=payload.project,
-            dataset=payload.dataset,
-            eval_job_id=payload.eval_job_id,
-            dataset_sample_id=payload.dataset_sample_id,
-            agent_id=payload.agent_id,
-            model=agent.default_model,
-            entrypoint=agent.entrypoint,
-            agent_type=AdapterKind.OPENAI_AGENTS,
-            input_summary=payload.input_summary,
-            prompt=payload.prompt,
-            tags=payload.tags,
-            project_metadata={
-                **payload.project_metadata,
-                "agent_snapshot": agent.to_snapshot(),
-            },
-        )
-
-        run = RunAggregate.create(spec)
-        self.run_repository.save(run)
-        self.task_queue.enqueue(
-            QueuedTask(
-                task_type=TaskType.RUN_EXECUTION,
-                target_id=run.run_id,
-                payload=spec.model_dump(mode="json"),
-            )
-        )
-        return run
+        return self.submission_service.submit(payload, agent)
 
     def terminate(self, run_id: str | UUID, reason: str = "terminated by user") -> RunRecord | None:
         run = self.run_repository.get(run_id)

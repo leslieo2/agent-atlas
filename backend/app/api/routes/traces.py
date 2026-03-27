@@ -4,7 +4,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from app.bootstrap.container import get_trace_commands
+from app.bootstrap.container import get_run_telemetry_ingestor, get_trace_commands
+from app.modules.runs.application.telemetry import RunTelemetryIngestionService
 from app.modules.traces.api.schemas import TraceIngestEvent
 from app.modules.traces.application.use_cases import TraceCommands
 
@@ -22,7 +23,7 @@ def normalize(
 @router.post("/ingest", status_code=201)
 def ingest(
     payload: TraceIngestEvent,
-    commands: Annotated[TraceCommands, Depends(get_trace_commands)],
+    ingestor: Annotated[RunTelemetryIngestionService, Depends(get_run_telemetry_ingestor)],
 ):
-    event = commands.ingest(payload.to_domain())
+    event = ingestor.ingest(payload.to_domain())
     return {"status": "ok", "span_id": event.span_id}

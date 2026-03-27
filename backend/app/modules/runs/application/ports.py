@@ -7,10 +7,8 @@ from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import (
     RunRecord,
     RunSpec,
-    RuntimeExecutionResult,
     TrajectoryStep,
 )
-from app.modules.shared.domain.enums import AdapterKind
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
 
@@ -28,17 +26,12 @@ class TrajectoryRepository(Protocol):
     def append(self, step: TrajectoryStep) -> None: ...
 
 
-class RunnerPort(Protocol):
-    def execute(
+class TrajectoryStepProjectorPort(Protocol):
+    def project(
         self,
-        agent_type: AdapterKind,
-        model: str,
-        prompt: str,
-    ) -> RuntimeExecutionResult: ...
-
-
-class RunnerRegistryPort(Protocol):
-    def get_runner(self, agent_type: AdapterKind) -> RunnerPort: ...
+        event: TraceIngestEvent,
+        span: TraceSpan | None = None,
+    ) -> TrajectoryStep: ...
 
 
 class PublishedRunRuntimePort(Protocol):

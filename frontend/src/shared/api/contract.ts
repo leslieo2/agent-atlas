@@ -145,6 +145,20 @@ export interface RunResponse {
   "termination_reason"?: string | null;
 }
 export type RunStatus = "queued" | "running" | "succeeded" | "failed" | "terminated";
+export interface RunTraceSpanResponse {
+  "run_id": string;
+  "span_id": string;
+  "parent_span_id": string | null;
+  "step_type": StepType;
+  "input": Record<string, unknown>;
+  "output": Record<string, unknown>;
+  "tool_name"?: string | null;
+  "latency_ms": number;
+  "token_usage": number;
+  "image_digest"?: string | null;
+  "prompt_version"?: string | null;
+  "received_at": string;
+}
 export type SampleJudgement = "passed" | "failed" | "unscored" | "runtime_error";
 export type ScoringMode = "exact_match" | "contains";
 export type StepType = "llm" | "tool" | "planner" | "memory";
@@ -167,20 +181,6 @@ export interface TraceIngestEvent {
   "token_usage"?: number;
   "image_digest"?: string | null;
   "prompt_version"?: string | null;
-}
-export interface TraceSpanResponse {
-  "run_id": string;
-  "span_id": string;
-  "parent_span_id": string | null;
-  "step_type": StepType;
-  "input": Record<string, unknown>;
-  "output": Record<string, unknown>;
-  "tool_name"?: string | null;
-  "latency_ms": number;
-  "token_usage": number;
-  "image_digest"?: string | null;
-  "prompt_version"?: string | null;
-  "received_at": string;
 }
 export interface TrajectoryStepResponse {
   "id": string;

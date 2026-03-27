@@ -10,12 +10,12 @@ from app.core.errors import AppError
 from app.modules.runs.api.schemas import (
     RunCreateRequest,
     RunResponse,
+    RunTraceSpanResponse,
     TerminateRunResponse,
     TrajectoryStepResponse,
 )
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
 from app.modules.shared.domain.enums import RunStatus
-from app.modules.traces.api.schemas import TraceSpanResponse
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -97,10 +97,10 @@ def get_trajectory(
     return [TrajectoryStepResponse.from_domain(step) for step in trajectory]
 
 
-@router.get("/{run_id}/traces", response_model=list[TraceSpanResponse])
+@router.get("/{run_id}/traces", response_model=list[RunTraceSpanResponse])
 def get_trace(
     run_id: str,
     queries: Annotated[RunQueries, Depends(get_run_queries)],
-) -> list[TraceSpanResponse]:
+) -> list[RunTraceSpanResponse]:
     traces = queries.get_traces(run_id)
-    return [TraceSpanResponse.from_domain(trace) for trace in traces]
+    return [RunTraceSpanResponse.from_domain(trace) for trace in traces]

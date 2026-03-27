@@ -3,7 +3,8 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.core.errors import ProviderAuthError
-from app.infrastructure.adapters.traces import DefaultTraceProjector
+from app.infrastructure.adapters.trace_projection import TraceIngestProjector
+from app.infrastructure.adapters.trajectory_projection import TraceEventTrajectoryProjector
 from app.infrastructure.repositories import (
     StateRunRepository,
     StateTraceRepository,
@@ -15,6 +16,10 @@ from app.modules.runs.application.execution import (
     RunExecutionProjector,
 )
 from app.modules.runs.application.results import PublishedRunExecutionResult
+from app.modules.runs.application.telemetry import (
+    RunTelemetryIngestionService,
+    TrajectoryRecorder,
+)
 from app.modules.runs.domain.models import (
     RunRecord,
     RunSpec,
@@ -27,6 +32,24 @@ from app.modules.traces.application.use_cases import (
     TraceRecorder,
 )
 from app.modules.traces.domain.models import TraceIngestEvent
+
+
+def _build_telemetry_ingestor(
+    trace_repository: StateTraceRepository,
+    trajectory_repository: StateTrajectoryRepository,
+) -> RunTelemetryIngestionService:
+    return RunTelemetryIngestionService(
+        trace_ingestor=TraceCommands(
+            workflow=TraceIngestionWorkflow(
+                trace_projector=TraceIngestProjector(),
+                trace_recorder=TraceRecorder(trace_repository=trace_repository),
+            )
+        ),
+        trajectory_recorder=TrajectoryRecorder(
+            trajectory_repository=trajectory_repository,
+            step_projector=TraceEventTrajectoryProjector(),
+        ),
+    )
 
 
 def test_run_execution_projector_builds_success_trace_event():
@@ -86,16 +109,6 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
         )
     )
 
-    trace_ingestor = TraceCommands(
-        workflow=TraceIngestionWorkflow(
-            trace_projector=DefaultTraceProjector(),
-            trace_recorder=TraceRecorder(
-                trace_repository=trace_repository,
-                trajectory_repository=trajectory_repository,
-            ),
-        )
-    )
-
     context = RunExecutionContext.from_spec(
         run_id,
         RunSpec(
@@ -110,7 +123,10 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     projector = RunExecutionProjector()
     recorder = ExecutionRecorder(
         run_repository=run_repository,
-        trace_ingestor=trace_ingestor,
+        telemetry_ingestor=_build_telemetry_ingestor(
+            trace_repository=trace_repository,
+            trajectory_repository=trajectory_repository,
+        ),
     )
 
     recorder.record(
@@ -160,16 +176,6 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
         )
     )
 
-    trace_ingestor = TraceCommands(
-        workflow=TraceIngestionWorkflow(
-            trace_projector=DefaultTraceProjector(),
-            trace_recorder=TraceRecorder(
-                trace_repository=trace_repository,
-                trajectory_repository=trajectory_repository,
-            ),
-        )
-    )
-
     context = RunExecutionContext.from_spec(
         run_id,
         RunSpec(
@@ -184,7 +190,10 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
     projector = RunExecutionProjector()
     recorder = ExecutionRecorder(
         run_repository=run_repository,
-        trace_ingestor=trace_ingestor,
+        telemetry_ingestor=_build_telemetry_ingestor(
+            trace_repository=trace_repository,
+            trajectory_repository=trajectory_repository,
+        ),
     )
 
     recorder.record(
@@ -277,16 +286,6 @@ def test_run_execution_service_records_structured_failure_details():
         )
     )
 
-    trace_ingestor = TraceCommands(
-        workflow=TraceIngestionWorkflow(
-            trace_projector=DefaultTraceProjector(),
-            trace_recorder=TraceRecorder(
-                trace_repository=trace_repository,
-                trajectory_repository=trajectory_repository,
-            ),
-        )
-    )
-
     class ExplodingPublishedRuntime:
         def execute_published(self, *_args, **_kwargs):
             raise ProviderAuthError("provider authentication failed")
@@ -296,7 +295,10 @@ def test_run_execution_service_records_structured_failure_details():
     service = RunExecutionService(
         run_repository=run_repository,
         published_runtime=ExplodingPublishedRuntime(),
-        trace_ingestor=trace_ingestor,
+        telemetry_ingestor=_build_telemetry_ingestor(
+            trace_repository=trace_repository,
+            trajectory_repository=trajectory_repository,
+        ),
     )
 
     payload = RunSpec(
@@ -342,16 +344,6 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
             entrypoint="app.agent_plugins.fulfillment_ops:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
-        )
-    )
-
-    trace_ingestor = TraceCommands(
-        workflow=TraceIngestionWorkflow(
-            trace_projector=DefaultTraceProjector(),
-            trace_recorder=TraceRecorder(
-                trace_repository=trace_repository,
-                trajectory_repository=trajectory_repository,
-            ),
         )
     )
 
@@ -430,7 +422,10 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
     service = RunExecutionService(
         run_repository=run_repository,
         published_runtime=FailedToolPublishedRuntime(),
-        trace_ingestor=trace_ingestor,
+        telemetry_ingestor=_build_telemetry_ingestor(
+            trace_repository=trace_repository,
+            trajectory_repository=trajectory_repository,
+        ),
     )
 
     payload = RunSpec(

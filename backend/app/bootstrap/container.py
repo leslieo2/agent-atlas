@@ -1,38 +1,17 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
-from app.bootstrap.worker import AppWorker
-from app.infrastructure.adapters.agent_catalog import (
-    FilesystemAgentDiscovery,
-    FilesystemAgentSourceCatalog,
-    StateRunnableAgentCatalog,
-)
-from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
-from app.infrastructure.adapters.evals import RunnableAgentLookupAdapter, StateEvalRunGateway
-from app.infrastructure.adapters.openai_agents import (
-    OpenAIAgentContractValidator,
-    PublishedOpenAIAgentAdapter,
-    PublishedOpenAIAgentLoader,
-)
-from app.infrastructure.adapters.runner import (
-    FallbackRunnerAdapter,
-    StaticRunnerRegistry,
-)
-from app.infrastructure.adapters.runtime import ModelRuntimeService
-from app.infrastructure.adapters.tasks import StateTaskQueue
-from app.infrastructure.adapters.traces import DefaultTraceProjector
-from app.infrastructure.repositories import (
-    StateArtifactRepository,
-    StateDatasetRepository,
-    StateEvalJobRepository,
-    StateEvalSampleResultRepository,
-    StatePublishedAgentRepository,
-    StateRunRepository,
-    StateSystemStatus,
-    StateTraceRepository,
-    StateTrajectoryRepository,
-)
+from app.bootstrap.wiring.agents import build_agent_module
+from app.bootstrap.wiring.artifacts import build_artifact_module
+from app.bootstrap.wiring.datasets import build_dataset_module
+from app.bootstrap.wiring.evals import build_eval_module
+from app.bootstrap.wiring.health import build_health_module
+from app.bootstrap.wiring.infrastructure import build_infrastructure
+from app.bootstrap.wiring.runs import build_run_module
+from app.bootstrap.wiring.traces import build_trace_module
+from app.bootstrap.wiring.worker import build_worker_bundle
 from app.modules.agents.application.use_cases import (
     AgentCatalogQueries,
     AgentDiscoveryQueries,
@@ -40,132 +19,127 @@ from app.modules.agents.application.use_cases import (
 )
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
-from app.modules.evals.application.execution import (
-    EvalAggregationService,
-    EvalExecutionService,
-)
 from app.modules.evals.application.use_cases import EvalJobCommands, EvalJobQueries
 from app.modules.health.application.use_cases import HealthQueries
-from app.modules.runs.application.execution import RunExecutionService
+from app.modules.runs.application.telemetry import RunTelemetryIngestionService
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
-from app.modules.traces.application.use_cases import (
-    TraceCommands,
-    TraceIngestionWorkflow,
-    TraceRecorder,
-)
+from app.modules.traces.application.use_cases import TraceCommands
+
+if TYPE_CHECKING:
+    from app.bootstrap.worker import AppWorker
+    from app.infrastructure.adapters.agent_catalog import (
+        FilesystemAgentDiscovery,
+        FilesystemAgentSourceCatalog,
+        StateRunnableAgentCatalog,
+    )
+    from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
+    from app.infrastructure.adapters.evals import RunnableAgentLookupAdapter, StateEvalRunGateway
+    from app.infrastructure.adapters.openai_agents import (
+        OpenAIAgentContractValidator,
+        PublishedOpenAIAgentLoader,
+    )
+    from app.infrastructure.adapters.runtime import ModelRuntimeService
+    from app.infrastructure.adapters.task_queue import StateTaskQueue
+    from app.infrastructure.adapters.trace_projection import TraceIngestProjector
+    from app.infrastructure.adapters.trajectory_projection import TraceEventTrajectoryProjector
+    from app.infrastructure.repositories import (
+        StateArtifactRepository,
+        StateDatasetRepository,
+        StateEvalJobRepository,
+        StateEvalSampleResultRepository,
+        StatePublishedAgentRepository,
+        StateRunRepository,
+        StateSystemStatus,
+        StateTraceRepository,
+        StateTrajectoryRepository,
+    )
+    from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
+    from app.modules.evals.application.execution import (
+        EvalAggregationService,
+        EvalExecutionService,
+    )
+    from app.modules.runs.application.execution import RunExecutionService
+    from app.modules.runs.application.services import RunSubmissionService
+    from app.modules.traces.application.use_cases import (
+        TraceIngestionWorkflow,
+    )
+
+
+def _bind_bundle(target: object, bundle: object) -> None:
+    for name, value in vars(bundle).items():
+        setattr(target, name, value)
 
 
 class AppContainer:
+    run_repository: StateRunRepository
+    trajectory_repository: StateTrajectoryRepository
+    trace_repository: StateTraceRepository
+    dataset_repository: StateDatasetRepository
+    eval_job_repository: StateEvalJobRepository
+    eval_sample_result_repository: StateEvalSampleResultRepository
+    artifact_repository: StateArtifactRepository
+    published_agent_repository: StatePublishedAgentRepository
+    system_status: StateSystemStatus
+    agent_source_catalog: FilesystemAgentSourceCatalog
+    agent_validator: OpenAIAgentContractValidator
+    agent_discovery: FilesystemAgentDiscovery
+    runnable_agent_catalog: StateRunnableAgentCatalog
+    task_queue: StateTaskQueue
+    published_agent_loader: PublishedOpenAIAgentLoader
+    model_runtime: ModelRuntimeService
+    trace_projector: TraceIngestProjector
+    trajectory_step_projector: TraceEventTrajectoryProjector
+    agent_lookup: RunnableAgentLookupAdapter
+    agent_catalog_queries: AgentCatalogQueries
+    agent_discovery_queries: AgentDiscoveryQueries
+    agent_publication_commands: AgentPublicationCommands
+    trace_workflow: TraceIngestionWorkflow
+    trace_commands: TraceCommands
+    dataset_queries: DatasetQueries
+    dataset_commands: DatasetCommands
+    run_submission: RunSubmissionService
+    telemetry_ingestor: RunTelemetryIngestionService
+    run_queries: RunQueries
+    run_commands: RunCommands
+    run_execution_service: RunExecutionService
+    eval_run_gateway: StateEvalRunGateway
+    eval_queries: EvalJobQueries
+    eval_commands: EvalJobCommands
+    eval_execution_service: EvalExecutionService
+    eval_aggregation_service: EvalAggregationService
+    artifact_exporter: ArtifactExporterAdapter
+    artifact_queries: ArtifactQueries
+    artifact_commands: ArtifactCommands
+    health_queries: HealthQueries
+    app_worker: AppWorker
+
     def __init__(self) -> None:
-        self.run_repository = StateRunRepository()
-        self.trajectory_repository = StateTrajectoryRepository()
-        self.trace_repository = StateTraceRepository()
-        self.dataset_repository = StateDatasetRepository()
-        self.eval_job_repository = StateEvalJobRepository()
-        self.eval_sample_result_repository = StateEvalSampleResultRepository()
-        self.artifact_repository = StateArtifactRepository()
-        self.agent_source_catalog = FilesystemAgentSourceCatalog()
-        self.agent_validator = OpenAIAgentContractValidator()
-        self.agent_discovery = FilesystemAgentDiscovery(
-            source_catalog=self.agent_source_catalog,
-            validator=self.agent_validator,
-        )
-        self.published_agent_repository = StatePublishedAgentRepository()
-        self.runnable_agent_catalog = StateRunnableAgentCatalog(
-            discovery=self.agent_discovery,
-            published_agents=self.published_agent_repository,
-        )
-        self.system_status = StateSystemStatus()
-        self.task_queue = StateTaskQueue()
-        self.published_agent_loader = PublishedOpenAIAgentLoader(validator=self.agent_validator)
-        self.model_runtime = ModelRuntimeService(
-            published_adapter=PublishedOpenAIAgentAdapter(agent_loader=self.published_agent_loader)
-        )
-        self.runner = FallbackRunnerAdapter(runtime_service=self.model_runtime)
-        self.runner_registry = StaticRunnerRegistry(default_runner=self.runner)
-        self.trace_projector = DefaultTraceProjector()
-        self.trace_workflow = TraceIngestionWorkflow(
-            trace_projector=self.trace_projector,
-            trace_recorder=TraceRecorder(
-                trace_repository=self.trace_repository,
-                trajectory_repository=self.trajectory_repository,
-            ),
-        )
-        self.trace_commands = TraceCommands(workflow=self.trace_workflow)
-        self.agent_lookup = RunnableAgentLookupAdapter(agent_catalog=self.runnable_agent_catalog)
-        self.eval_run_gateway = StateEvalRunGateway(
-            run_repository=self.run_repository,
-            trajectory_repository=self.trajectory_repository,
-            task_queue=self.task_queue,
-            agent_catalog=self.runnable_agent_catalog,
-        )
-        self.artifact_exporter = ArtifactExporterAdapter(
-            trajectory_repository=self.trajectory_repository,
-            artifact_repository=self.artifact_repository,
-            run_repository=self.run_repository,
-        )
+        infrastructure = build_infrastructure()
+        _bind_bundle(self, infrastructure)
 
-        run_execution_service = RunExecutionService(
-            run_repository=self.run_repository,
-            published_runtime=self.model_runtime,
-            trace_ingestor=self.trace_commands,
-        )
+        agents = build_agent_module(infrastructure)
+        _bind_bundle(self, agents)
 
-        self.run_queries = RunQueries(
-            run_repository=self.run_repository,
-            trajectory_repository=self.trajectory_repository,
-            trace_repository=self.trace_repository,
-        )
-        self.run_commands = RunCommands(
-            run_repository=self.run_repository,
-            task_queue=self.task_queue,
-            agent_catalog=self.runnable_agent_catalog,
-        )
-        self.dataset_queries = DatasetQueries(dataset_repository=self.dataset_repository)
-        self.dataset_commands = DatasetCommands(dataset_repository=self.dataset_repository)
-        self.eval_queries = EvalJobQueries(
-            eval_job_repository=self.eval_job_repository,
-            sample_result_repository=self.eval_sample_result_repository,
-        )
-        self.eval_commands = EvalJobCommands(
-            eval_job_repository=self.eval_job_repository,
-            dataset_source=self.dataset_repository,
-            agent_lookup=self.agent_lookup,
-            task_queue=self.task_queue,
-        )
-        self.eval_execution_service = EvalExecutionService(
-            eval_job_repository=self.eval_job_repository,
-            dataset_source=self.dataset_repository,
-            eval_run_gateway=self.eval_run_gateway,
-            task_queue=self.task_queue,
-        )
-        self.eval_aggregation_service = EvalAggregationService(
-            eval_job_repository=self.eval_job_repository,
-            sample_result_repository=self.eval_sample_result_repository,
-            dataset_source=self.dataset_repository,
-            eval_run_gateway=self.eval_run_gateway,
-            task_queue=self.task_queue,
-        )
-        self.artifact_queries = ArtifactQueries(artifact_repository=self.artifact_repository)
-        self.artifact_commands = ArtifactCommands(artifact_exporter=self.artifact_exporter)
-        self.agent_catalog_queries = AgentCatalogQueries(
-            runnable_catalog=self.runnable_agent_catalog
-        )
-        self.agent_discovery_queries = AgentDiscoveryQueries(
-            discovery=self.agent_discovery,
-            published_agents=self.published_agent_repository,
-        )
-        self.agent_publication_commands = AgentPublicationCommands(
-            discovery=self.agent_discovery,
-            published_agents=self.published_agent_repository,
-        )
-        self.health_queries = HealthQueries(system_status=self.system_status)
-        self.app_worker = AppWorker(
-            task_queue=self.task_queue,
-            run_execution_service=run_execution_service,
-            eval_execution_service=self.eval_execution_service,
-            eval_aggregation_service=self.eval_aggregation_service,
-        )
+        traces = build_trace_module(infrastructure)
+        _bind_bundle(self, traces)
+
+        datasets = build_dataset_module(infrastructure)
+        _bind_bundle(self, datasets)
+
+        runs = build_run_module(infrastructure, traces)
+        _bind_bundle(self, runs)
+
+        evals = build_eval_module(infrastructure, agents, runs)
+        _bind_bundle(self, evals)
+
+        artifacts = build_artifact_module(infrastructure)
+        _bind_bundle(self, artifacts)
+
+        health = build_health_module(infrastructure)
+        _bind_bundle(self, health)
+
+        worker = build_worker_bundle(infrastructure, runs, evals)
+        _bind_bundle(self, worker)
 
 
 @lru_cache
@@ -219,6 +193,10 @@ def get_agent_publication_commands() -> AgentPublicationCommands:
 
 def get_trace_commands() -> TraceCommands:
     return get_container().trace_commands
+
+
+def get_run_telemetry_ingestor() -> RunTelemetryIngestionService:
+    return get_container().telemetry_ingestor
 
 
 def get_health_queries() -> HealthQueries:
