@@ -36,7 +36,11 @@ def test_eval_jobs_api_fans_out_child_runs_and_aggregates_results(
             )
         )
 
-    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+    monkeypatch.setattr(
+        container.infrastructure.model_runtime,
+        "execute_published",
+        execute_published,
+    )
 
     dataset_response = client.post(
         "/api/v1/datasets",
@@ -122,7 +126,7 @@ def test_eval_jobs_api_supports_contains_scoring(monkeypatch, client, worker_dra
     container = get_container()
 
     monkeypatch.setattr(
-        container.model_runtime,
+        container.infrastructure.model_runtime,
         "execute_published",
         lambda _run_id, payload: PublishedRunExecutionResult(
             runtime_result=RuntimeExecutionResult(

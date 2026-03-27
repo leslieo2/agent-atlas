@@ -54,7 +54,7 @@ def wait_until() -> Callable[[Callable[[], bool], float, float], None]:
 @pytest.fixture
 def worker_drain() -> Callable[[int], int]:
     def _worker_drain(limit: int = 10) -> int:
-        worker = get_container().app_worker
+        worker = get_container().worker.app_worker
         processed = 0
         for _ in range(limit):
             if not worker.run_once("test-worker", lease_seconds=30):

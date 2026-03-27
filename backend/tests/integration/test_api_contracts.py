@@ -20,7 +20,7 @@ from app.modules.traces.domain.models import TraceIngestEvent
 def test_runs_api_create_list_and_trajectory_filters(monkeypatch, client, worker_drain):
     container = get_container()
     monkeypatch.setattr(
-        container.model_runtime,
+        container.infrastructure.model_runtime,
         "execute_published",
         lambda *_args, **_kwargs: PublishedRunExecutionResult(
             runtime_result=RuntimeExecutionResult(
@@ -125,7 +125,11 @@ def test_runs_api_persists_tool_steps_from_runtime_trace_events(monkeypatch, cli
             ],
         )
 
-    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+    monkeypatch.setattr(
+        container.infrastructure.model_runtime,
+        "execute_published",
+        execute_published,
+    )
 
     response = client.post(
         "/api/v1/runs",
@@ -235,7 +239,11 @@ def test_runs_api_persists_multi_tool_trajectory_for_fulfillment_ops(
             ],
         )
 
-    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+    monkeypatch.setattr(
+        container.infrastructure.model_runtime,
+        "execute_published",
+        execute_published,
+    )
 
     response = client.post(
         "/api/v1/runs",
@@ -281,7 +289,11 @@ def test_runs_api_exposes_structured_failure_details(monkeypatch, client, worker
     def execute_published(*_args, **_kwargs):
         raise ProviderAuthError("provider authentication failed")
 
-    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+    monkeypatch.setattr(
+        container.infrastructure.model_runtime,
+        "execute_published",
+        execute_published,
+    )
 
     response = client.post(
         "/api/v1/runs",
@@ -324,7 +336,11 @@ def test_runs_api_maps_fulfillment_tool_failures_to_tool_execution(
     def execute_published(*_args, **_kwargs):
         raise ToolBackendError("tool backend unavailable for order 'ORD-ERR-100'")
 
-    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+    monkeypatch.setattr(
+        container.infrastructure.model_runtime,
+        "execute_published",
+        execute_published,
+    )
 
     response = client.post(
         "/api/v1/runs",
@@ -423,7 +439,11 @@ def test_runs_api_marks_failed_trace_events_as_tool_execution(monkeypatch, clien
             ],
         )
 
-    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+    monkeypatch.setattr(
+        container.infrastructure.model_runtime,
+        "execute_published",
+        execute_published,
+    )
 
     response = client.post(
         "/api/v1/runs",
@@ -515,7 +535,7 @@ def test_agents_list_available_published_agents(client):
 
 def test_agents_discovered_publish_and_unpublish_flow(client):
     container = get_container()
-    assert container.agent_publication_commands.unpublish("tools") is True
+    assert container.agents.agent_publication_commands.unpublish("tools") is True
 
     discovered = client.get("/api/v1/agents/discovered")
     assert discovered.status_code == 200
@@ -548,7 +568,7 @@ def test_discovered_agents_flag_published_drift(monkeypatch, client):
     container = get_container()
 
     monkeypatch.setattr(
-        container.agent_discovery,
+        container.infrastructure.agent_discovery,
         "list_agents",
         lambda: [
             DiscoveredAgent(
@@ -588,7 +608,7 @@ def test_discovered_agents_flag_published_drift(monkeypatch, client):
 
 def test_runs_reject_unpublished_agent(client):
     container = get_container()
-    assert container.agent_publication_commands.unpublish("basic") is True
+    assert container.agents.agent_publication_commands.unpublish("basic") is True
 
     response = client.post(
         "/api/v1/runs",
@@ -614,7 +634,7 @@ def test_published_invalid_agent_disappears_from_runnable_catalog(monkeypatch, c
     container = get_container()
 
     monkeypatch.setattr(
-        container.agent_discovery,
+        container.infrastructure.agent_discovery,
         "list_agents",
         lambda: [
             DiscoveredAgent(

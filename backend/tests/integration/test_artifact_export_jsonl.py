@@ -13,7 +13,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
     container = get_container()
     run_id = UUID("22222222-2222-2222-2222-222222222222")
 
-    container.run_repository.save(
+    container.infrastructure.run_repository.save(
         RunRecord(
             run_id=run_id,
             input_summary="policy snapshot",
@@ -42,7 +42,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
         )
     )
 
-    container.trajectory_repository.append(
+    container.infrastructure.trajectory_repository.append(
         TrajectoryStep(
             id="step-1",
             run_id=run_id,
@@ -57,7 +57,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
         )
     )
 
-    container.trajectory_repository.append(
+    container.infrastructure.trajectory_repository.append(
         TrajectoryStep(
             id="step-2",
             run_id=run_id,
@@ -73,7 +73,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
         )
     )
 
-    container.artifact_exporter.output_dir = Path(tmp_path)
+    container.artifacts.artifact_exporter.output_dir = Path(tmp_path)
 
     response = client.post(
         "/api/v1/artifacts/export",
@@ -124,7 +124,7 @@ def test_list_artifacts_returns_recent_exports(client, tmp_path):
     container = get_container()
     run_id = UUID("33333333-3333-3333-3333-333333333333")
 
-    container.run_repository.save(
+    container.infrastructure.run_repository.save(
         RunRecord(
             run_id=run_id,
             input_summary="artifact listing",
@@ -136,7 +136,7 @@ def test_list_artifacts_returns_recent_exports(client, tmp_path):
         )
     )
 
-    container.trajectory_repository.append(
+    container.infrastructure.trajectory_repository.append(
         TrajectoryStep(
             id="step-artifact",
             run_id=run_id,
@@ -151,7 +151,7 @@ def test_list_artifacts_returns_recent_exports(client, tmp_path):
         )
     )
 
-    container.artifact_exporter.output_dir = Path(tmp_path)
+    container.artifacts.artifact_exporter.output_dir = Path(tmp_path)
 
     response = client.post(
         "/api/v1/artifacts/export",

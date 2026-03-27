@@ -1,8 +1,17 @@
 from __future__ import annotations
 
-from app.bootstrap.bundles import ArtifactModuleBundle, InfrastructureBundle
+from dataclasses import dataclass
+
+from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
+
+
+@dataclass(frozen=True)
+class ArtifactModuleBundle:
+    artifact_exporter: ArtifactExporterAdapter
+    artifact_queries: ArtifactQueries
+    artifact_commands: ArtifactCommands
 
 
 def build_artifact_module(infra: InfrastructureBundle) -> ArtifactModuleBundle:

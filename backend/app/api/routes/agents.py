@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.bootstrap.container import (
+from app.bootstrap.providers.agents import (
     get_agent_catalog_queries,
     get_agent_discovery_queries,
     get_agent_publication_commands,

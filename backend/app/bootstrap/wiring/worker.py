@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from app.bootstrap.bundles import (
-    EvalModuleBundle,
-    InfrastructureBundle,
-    RunModuleBundle,
-    WorkerBundle,
-)
+from dataclasses import dataclass
+
+from app.bootstrap.wiring.evals import EvalModuleBundle
+from app.bootstrap.wiring.infrastructure import InfrastructureBundle
+from app.bootstrap.wiring.runs import RunModuleBundle
 from app.bootstrap.worker import AppWorker
+
+
+@dataclass(frozen=True)
+class WorkerBundle:
+    app_worker: AppWorker
 
 
 def build_worker_bundle(

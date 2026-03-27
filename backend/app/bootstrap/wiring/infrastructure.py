@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from app.bootstrap.bundles import InfrastructureBundle
+from dataclasses import dataclass
+
 from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
@@ -26,6 +27,28 @@ from app.infrastructure.repositories import (
     StateTraceRepository,
     StateTrajectoryRepository,
 )
+
+
+@dataclass(frozen=True)
+class InfrastructureBundle:
+    run_repository: StateRunRepository
+    trajectory_repository: StateTrajectoryRepository
+    trace_repository: StateTraceRepository
+    dataset_repository: StateDatasetRepository
+    eval_job_repository: StateEvalJobRepository
+    eval_sample_result_repository: StateEvalSampleResultRepository
+    artifact_repository: StateArtifactRepository
+    published_agent_repository: StatePublishedAgentRepository
+    system_status: StateSystemStatus
+    agent_source_catalog: FilesystemAgentSourceCatalog
+    agent_validator: OpenAIAgentContractValidator
+    agent_discovery: FilesystemAgentDiscovery
+    runnable_agent_catalog: StateRunnableAgentCatalog
+    task_queue: StateTaskQueue
+    published_agent_loader: PublishedOpenAIAgentLoader
+    model_runtime: ModelRuntimeService
+    trace_projector: TraceIngestProjector
+    trajectory_step_projector: TraceEventTrajectoryProjector
 
 
 def build_infrastructure() -> InfrastructureBundle:

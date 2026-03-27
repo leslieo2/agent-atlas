@@ -9,7 +9,7 @@ from app.modules.runs.domain.models import RuntimeExecutionResult
 def test_end_to_end_workbench_flow(monkeypatch, client, worker_drain):
     container = get_container()
     monkeypatch.setattr(
-        container.model_runtime,
+        container.infrastructure.model_runtime,
         "execute_published",
         lambda *_args, **_kwargs: PublishedRunExecutionResult(
             runtime_result=RuntimeExecutionResult(
@@ -88,7 +88,11 @@ def test_end_to_end_eval_flow_supports_failure_triage_and_export(monkeypatch, cl
             )
         )
 
-    monkeypatch.setattr(container.model_runtime, "execute_published", execute_published)
+    monkeypatch.setattr(
+        container.infrastructure.model_runtime,
+        "execute_published",
+        execute_published,
+    )
 
     dataset = client.post(
         "/api/v1/datasets",

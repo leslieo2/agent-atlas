@@ -1,11 +1,19 @@
 from __future__ import annotations
 
-from app.bootstrap.bundles import InfrastructureBundle, TraceModuleBundle
+from dataclasses import dataclass
+
+from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.modules.traces.application.use_cases import (
     TraceCommands,
     TraceIngestionWorkflow,
     TraceRecorder,
 )
+
+
+@dataclass(frozen=True)
+class TraceModuleBundle:
+    trace_workflow: TraceIngestionWorkflow
+    trace_commands: TraceCommands
 
 
 def build_trace_module(infra: InfrastructureBundle) -> TraceModuleBundle:

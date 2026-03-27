@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.bootstrap.container import get_eval_commands, get_eval_queries
+from app.bootstrap.providers.evals import get_eval_commands, get_eval_queries
 from app.core.errors import AppError
 from app.modules.evals.api.schemas import (
     EvalJobCreateRequest,

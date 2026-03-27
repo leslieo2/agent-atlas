@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.bootstrap.container import get_run_commands, get_run_queries
+from app.bootstrap.providers.runs import get_run_commands, get_run_queries
 from app.core.errors import AppError
 from app.modules.runs.api.schemas import (
     RunCreateRequest,

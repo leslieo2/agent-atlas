@@ -17,7 +17,7 @@ Primary locations:
 - `app/infrastructure/adapters/`: non-persistence infrastructure adapters
 - `app/bootstrap/container.py`: composition root entrypoint
 - `app/bootstrap/wiring/`: object graph assembly helpers
-- `app/bootstrap/bundles.py`: internal wiring bundle shapes
+- `app/bootstrap/providers/`: FastAPI dependency providers
 
 The core dependency direction is:
 
@@ -172,26 +172,28 @@ Primary locations:
 
 - `app/bootstrap/container.py`
 - `app/bootstrap/wiring/`
-- `app/bootstrap/bundles.py`
+- `app/bootstrap/providers/`
 
 Responsibilities:
 
 - keep the top-level composition root small and readable
 - instantiate repositories and adapters through wiring helpers
-- wire implementations into application services
-- expose dependency providers for FastAPI
+- hold module-level bundles instead of a flat global object registry
+- expose dependency providers for FastAPI through thin provider modules
 - assemble the worker object graph
 
 `container.py` remains the only public composition root. The lower-level assembly details live in
-`bootstrap/wiring/`, which groups object graph construction by concern:
+`bootstrap/wiring/`, which groups object graph construction by concern and keeps each module's
+bundle type next to its builder:
 
 - `infrastructure.py`: repositories and low-level adapters
 - `agents.py`, `traces.py`, `datasets.py`, `runs.py`, `evals.py`, `artifacts.py`, `health.py`:
   feature wiring
 - `worker.py`: worker wiring
 
-`bootstrap/bundles.py` holds internal dataclasses used to pass assembled groups between wiring
-steps.
+`bootstrap/providers/` contains thin dependency-provider functions such as
+`get_container().runs.run_queries`, so route imports do not need to point back into
+`container.py`.
 
 ## Feature Modules
 
@@ -405,6 +407,7 @@ The intended architecture is reinforced by three mechanisms:
 
 - repository rules in `AGENTS.md`
 - dependency wiring in `app/bootstrap/container.py`
+- dependency providers in `app/bootstrap/providers/`
 - architecture tests in `tests/unit/test_architecture_layers.py` and
   `tests/unit/test_trace_workflow_and_architecture.py`
 

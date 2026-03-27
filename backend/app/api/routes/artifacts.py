@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
-from app.bootstrap.container import get_artifact_commands, get_artifact_queries
+from app.bootstrap.providers.artifacts import get_artifact_commands, get_artifact_queries
 from app.modules.artifacts.api.schemas import ArtifactExportRequest, ArtifactMetadataResponse
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 

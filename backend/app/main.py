@@ -14,7 +14,7 @@ from app.api.routes import (
     run_router,
     trace_router,
 )
-from app.bootstrap.container import get_health_queries
+from app.bootstrap.providers.health import get_health_queries
 from app.bootstrap.seed import seed_demo_state
 from app.core.config import settings
 from app.modules.health.application.use_cases import HealthQueries

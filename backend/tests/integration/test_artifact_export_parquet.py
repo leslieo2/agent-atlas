@@ -17,7 +17,7 @@ def test_export_artifact_parquet_falls_back_when_optional_deps_missing(
 ):
     container = get_container()
     run_id = UUID("11111111-1111-1111-1111-111111111111")
-    container.trajectory_repository.append(
+    container.infrastructure.trajectory_repository.append(
         TrajectoryStep(
             id="step-1",
             run_id=run_id,
@@ -40,7 +40,7 @@ def test_export_artifact_parquet_falls_back_when_optional_deps_missing(
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    container.artifact_exporter.output_dir = Path(tmp_path)
+    container.artifacts.artifact_exporter.output_dir = Path(tmp_path)
 
     response = client.post(
         "/api/v1/artifacts/export",

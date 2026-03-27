@@ -12,15 +12,15 @@ from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 
 def seed_demo_state(container: AppContainer | None = None) -> None:
     container = container or get_container()
-    if container.dataset_queries.list():
+    if container.datasets.dataset_queries.list():
         return
 
     for agent_id in ("basic", "customer_service", "tools", "fulfillment_ops"):
         with suppress(AgentValidationFailedError):
-            container.agent_publication_commands.publish(agent_id)
+            container.agents.agent_publication_commands.publish(agent_id)
 
     def _agent_snapshot(agent_id: str) -> dict[str, object]:
-        published = container.published_agent_repository.get_agent(agent_id)
+        published = container.infrastructure.published_agent_repository.get_agent(agent_id)
         if published is None:
             return {}
         return {"agent_snapshot": published.to_snapshot()}
@@ -296,9 +296,9 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
     ]
 
     for run in seeded_runs:
-        container.run_repository.save(run)
+        container.infrastructure.run_repository.save(run)
     for steps in seeded_steps.values():
         for step in steps:
-            container.trajectory_repository.append(step)
+            container.infrastructure.trajectory_repository.append(step)
     for dataset in datasets:
-        container.dataset_repository.save(dataset)
+        container.infrastructure.dataset_repository.save(dataset)

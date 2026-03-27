@@ -126,7 +126,7 @@ def test_terminate_running_run_in_memory(client):
         agent_type="openai-agents-sdk",
         status=RunStatus.RUNNING,
     )
-    container.run_repository.save(run)
+    container.infrastructure.run_repository.save(run)
 
     terminated = client.post(f"/api/v1/runs/{run.run_id}/terminate")
     assert terminated.status_code == 200
@@ -179,8 +179,8 @@ def test_list_runs_accepts_naive_and_offset_datetime_filters(client):
         agent_type="openai-agents-sdk",
         created_at=datetime(2026, 3, 25, 11, 0, tzinfo=UTC),
     )
-    container.run_repository.save(earlier_run)
-    container.run_repository.save(later_run)
+    container.infrastructure.run_repository.save(earlier_run)
+    container.infrastructure.run_repository.save(later_run)
 
     naive_response = client.get(
         "/api/v1/runs",

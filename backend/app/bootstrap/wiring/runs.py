@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from app.bootstrap.bundles import InfrastructureBundle, RunModuleBundle, TraceModuleBundle
+from dataclasses import dataclass
+
+from app.bootstrap.wiring.infrastructure import InfrastructureBundle
+from app.bootstrap.wiring.traces import TraceModuleBundle
 from app.modules.runs.application.execution import RunExecutionService
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.application.telemetry import (
@@ -8,6 +11,15 @@ from app.modules.runs.application.telemetry import (
     TrajectoryRecorder,
 )
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
+
+
+@dataclass(frozen=True)
+class RunModuleBundle:
+    run_submission: RunSubmissionService
+    telemetry_ingestor: RunTelemetryIngestionService
+    run_queries: RunQueries
+    run_commands: RunCommands
+    run_execution_service: RunExecutionService
 
 
 def build_run_module(

@@ -1,17 +1,25 @@
 from __future__ import annotations
 
-from app.bootstrap.bundles import (
-    AgentModuleBundle,
-    EvalModuleBundle,
-    InfrastructureBundle,
-    RunModuleBundle,
-)
+from dataclasses import dataclass
+
+from app.bootstrap.wiring.agents import AgentModuleBundle
+from app.bootstrap.wiring.infrastructure import InfrastructureBundle
+from app.bootstrap.wiring.runs import RunModuleBundle
 from app.infrastructure.adapters.evals import StateEvalRunGateway
 from app.modules.evals.application.execution import (
     EvalAggregationService,
     EvalExecutionService,
 )
 from app.modules.evals.application.use_cases import EvalJobCommands, EvalJobQueries
+
+
+@dataclass(frozen=True)
+class EvalModuleBundle:
+    eval_run_gateway: StateEvalRunGateway
+    eval_queries: EvalJobQueries
+    eval_commands: EvalJobCommands
+    eval_execution_service: EvalExecutionService
+    eval_aggregation_service: EvalAggregationService
 
 
 def build_eval_module(

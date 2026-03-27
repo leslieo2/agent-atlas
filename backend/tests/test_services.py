@@ -27,9 +27,9 @@ def test_dataset_service_create_and_get():
         name="test-ds",
         rows=[],
     )
-    created = container.dataset_commands.create(payload)
+    created = container.datasets.dataset_commands.create(payload)
     assert created.name == "test-ds"
-    assert container.dataset_queries.get("test-ds") == created
+    assert container.datasets.dataset_queries.get("test-ds") == created
 
 
 def test_adapter_normalize_span_payload():
@@ -71,9 +71,9 @@ def test_adapter_normalize_span_payload():
 
 def test_run_commands_can_force_success(monkeypatch, worker_drain):
     container = get_container()
-    container.agent_publication_commands.publish("basic")
+    container.agents.agent_publication_commands.publish("basic")
     monkeypatch.setattr(
-        container.model_runtime,
+        container.infrastructure.model_runtime,
         "execute_published",
         lambda *_args, **_kwargs: PublishedRunExecutionResult(
             runtime_result=RuntimeExecutionResult(
@@ -94,24 +94,24 @@ def test_run_commands_can_force_success(monkeypatch, worker_drain):
         tags=["ci"],
         project_metadata={},
     )
-    run = container.run_commands.create_run(payload)
+    run = container.runs.run_commands.create_run(payload)
 
     assert worker_drain() >= 1
 
-    trajectory = container.run_queries.get_trajectory(run.run_id)
-    traces = container.run_queries.get_traces(run.run_id)
+    trajectory = container.runs.run_queries.get_trajectory(run.run_id)
+    traces = container.runs.run_queries.get_traces(run.run_id)
 
     assert len(trajectory) == 1
     assert len(traces) == 1
     assert [step.id for step in trajectory] == [span.span_id for span in traces]
-    assert container.run_queries.get_run(run.run_id).status == RunStatus.SUCCEEDED
-    assert container.run_queries.get_run(run.run_id).agent_id == "basic"
+    assert container.runs.run_queries.get_run(run.run_id).status == RunStatus.SUCCEEDED
+    assert container.runs.run_queries.get_run(run.run_id).agent_id == "basic"
 
 
 def test_artifact_commands_jsonl_output(tmp_path):
     container = get_container()
     run_id = uuid4()
-    container.trajectory_repository.append(
+    container.infrastructure.trajectory_repository.append(
         TrajectoryStep(
             id="step-1",
             run_id=run_id,
@@ -126,9 +126,9 @@ def test_artifact_commands_jsonl_output(tmp_path):
         )
     )
 
-    container.artifact_exporter.output_dir = Path(tmp_path)
+    container.artifacts.artifact_exporter.output_dir = Path(tmp_path)
     request = ArtifactExportRequest(run_ids=[run_id], format=ArtifactFormat.JSONL)
-    artifact = container.artifact_commands.export(request)
+    artifact = container.artifacts.artifact_commands.export(request)
 
     path = Path(artifact.path)
     assert path.exists()

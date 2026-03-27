@@ -1,12 +1,22 @@
 from __future__ import annotations
 
-from app.bootstrap.bundles import AgentModuleBundle, InfrastructureBundle
+from dataclasses import dataclass
+
+from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.infrastructure.adapters.evals import RunnableAgentLookupAdapter
 from app.modules.agents.application.use_cases import (
     AgentCatalogQueries,
     AgentDiscoveryQueries,
     AgentPublicationCommands,
 )
+
+
+@dataclass(frozen=True)
+class AgentModuleBundle:
+    agent_lookup: RunnableAgentLookupAdapter
+    agent_catalog_queries: AgentCatalogQueries
+    agent_discovery_queries: AgentDiscoveryQueries
+    agent_publication_commands: AgentPublicationCommands
 
 
 def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
