@@ -6,9 +6,8 @@ from uuid import UUID
 
 from app.core.errors import AgentNotPublishedError
 from app.modules.agents.application.ports import RunnableAgentCatalogPort
-from app.modules.datasets.domain.models import DatasetSample
 from app.modules.evals.application.ports import EvalRunGatewayPort
-from app.modules.evals.domain.models import EvalJobRecord, EvalRunState
+from app.modules.evals.domain.models import EvalDatasetSample, EvalJobRecord, EvalRunState
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord, TrajectoryStep
 
@@ -45,7 +44,7 @@ class StateEvalRunGateway(EvalRunGatewayPort):
         self.agent_catalog = agent_catalog
         self.run_submission = run_submission
 
-    def create_eval_run(self, job: EvalJobRecord, sample: DatasetSample) -> UUID:
+    def create_eval_run(self, job: EvalJobRecord, sample: EvalDatasetSample) -> UUID:
         agent = self.agent_catalog.get_agent(job.agent_id)
         if agent is None:
             raise AgentNotPublishedError(job.agent_id)

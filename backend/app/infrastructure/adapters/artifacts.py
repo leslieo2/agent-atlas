@@ -5,7 +5,7 @@ import os
 import warnings
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 from pydantic import ValidationError
@@ -16,9 +16,68 @@ from app.modules.artifacts.application.ports import (
     RunLookupSource,
     TrajectoryExportSource,
 )
-from app.modules.artifacts.domain.models import ArtifactExportRequest, ArtifactMetadata
+from app.modules.artifacts.domain.models import (
+    ArtifactExportRequest,
+    ArtifactMetadata,
+    ArtifactRunView,
+    ArtifactTrajectoryStepView,
+)
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
 from app.modules.shared.domain.enums import ArtifactFormat
+
+
+class _RunReader(Protocol):
+    def get(self, run_id: str | UUID) -> RunRecord | None: ...
+
+
+class _TrajectoryReader(Protocol):
+    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStep]: ...
+
+
+class RunArtifactExportSourceAdapter(RunLookupSource):
+    def __init__(self, run_repository: _RunReader) -> None:
+        self.run_repository = run_repository
+
+    def get(self, run_id: str | UUID) -> ArtifactRunView | None:
+        run = self.run_repository.get(run_id)
+        if run is None:
+            return None
+
+        return ArtifactRunView(
+            run_id=run.run_id,
+            project=run.project,
+            dataset=run.dataset,
+            agent_id=run.agent_id,
+            entrypoint=run.entrypoint,
+            resolved_model=run.resolved_model,
+            agent_type=run.agent_type,
+            project_metadata=run.project_metadata,
+        )
+
+
+class TrajectoryArtifactExportSourceAdapter(TrajectoryExportSource):
+    def __init__(self, trajectory_repository: _TrajectoryReader) -> None:
+        self.trajectory_repository = trajectory_repository
+
+    def list_for_run(self, run_id: str | UUID) -> list[ArtifactTrajectoryStepView]:
+        return [
+            ArtifactTrajectoryStepView(
+                id=step.id,
+                run_id=step.run_id,
+                step_type=step.step_type,
+                parent_step_id=step.parent_step_id,
+                prompt=step.prompt,
+                output=step.output,
+                model=step.model,
+                temperature=step.temperature,
+                latency_ms=step.latency_ms,
+                token_usage=step.token_usage,
+                success=step.success,
+                tool_name=step.tool_name,
+                started_at=step.started_at,
+            )
+            for step in self.trajectory_repository.list_for_run(run_id)
+        ]
 
 
 class ArtifactExporterAdapter:
@@ -109,9 +168,9 @@ class ArtifactExporterAdapter:
 
     def _build_record(
         self,
-        run: RunRecord | None,
+        run: ArtifactRunView | None,
         split: str,
-        step: TrajectoryStep,
+        step: ArtifactTrajectoryStepView,
     ) -> dict[str, Any]:
         system_message = None
         if run:
@@ -163,7 +222,7 @@ class ArtifactExporterAdapter:
         }
 
     @staticmethod
-    def _published_agent_summary(run: RunRecord | None) -> dict[str, Any] | None:
+    def _published_agent_summary(run: ArtifactRunView | None) -> dict[str, Any] | None:
         if run is None:
             return None
 

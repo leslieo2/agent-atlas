@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This backend is a FastAPI service rooted in `app/`. Feature code lives under `app/modules/<feature>/` and is split into `api`, `application`, and `domain` layers. Shared wiring and cross-cutting concerns live in `app/api`, `app/bootstrap`, `app/core`, `app/db`, and `app/infrastructure`. Tests live in `tests/` and follow backend features rather than frontend-style colocated specs. Keep generated artifacts such as `.venv/`, `.uv_cache/`, and `coverage.xml` out of commits.
+This backend is a FastAPI service rooted in `app/`. Feature code lives under `app/modules/<feature>/` and is split into `contracts`, `application`, and `domain` layers. Shared wiring and cross-cutting concerns live in `app/api`, `app/bootstrap`, `app/core`, `app/db`, and `app/infrastructure`. Tests live in `tests/` and follow backend features rather than frontend-style colocated specs. Keep generated artifacts such as `.venv/`, `.uv_cache/`, and `coverage.xml` out of commits.
 
 ## Build, Test, and Development Commands
 Run commands from `backend/`.

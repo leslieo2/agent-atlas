@@ -15,12 +15,12 @@ def test_domain_layers_do_not_import_upward_dependencies() -> None:
             "app.db",
             "app.infrastructure",
         ),
-        forbidden_module_layers=("api", "application"),
+        forbidden_module_layers=("contracts", "application"),
     )
     assert violations == []
 
 
-def test_application_layers_do_not_import_api_or_infrastructure_details() -> None:
+def test_application_layers_do_not_import_contract_or_infrastructure_details() -> None:
     violations = _collect_layer_violations(
         base_dir=Path("app/modules"),
         source_layer="application",
@@ -31,8 +31,29 @@ def test_application_layers_do_not_import_api_or_infrastructure_details() -> Non
             "app.db",
             "app.infrastructure",
         ),
-        forbidden_module_layers=("api",),
+        forbidden_module_layers=("contracts",),
     )
+    assert violations == []
+
+
+def test_contract_layers_do_not_import_framework_or_infrastructure_details() -> None:
+    violations = _collect_layer_violations(
+        base_dir=Path("app/modules"),
+        source_layer="contracts",
+        forbidden_prefixes=(
+            "fastapi",
+            "app.api",
+            "app.bootstrap",
+            "app.db",
+            "app.infrastructure",
+        ),
+        forbidden_module_layers=(),
+    )
+    assert violations == []
+
+
+def test_domain_layers_do_not_import_other_feature_domains() -> None:
+    violations = _collect_cross_feature_domain_imports(base_dir=Path("app/modules"))
     assert violations == []
 
 
@@ -77,6 +98,40 @@ def _collect_shared_feature_violations(*, base_dir: Path) -> list[str]:
         for name, lineno in _iter_imports(tree):
             if not name.startswith("app.modules.") or name.startswith("app.modules.shared."):
                 continue
+            violations.append(f"{path}:{lineno}:{name}")
+
+    return violations
+
+
+def _collect_cross_feature_domain_imports(*, base_dir: Path) -> list[str]:
+    violations: list[str] = []
+
+    for path in sorted(base_dir.rglob("*.py")):
+        if _module_layer(path) != "domain":
+            continue
+
+        parts = path.parts
+        try:
+            current_feature = parts[parts.index("modules") + 1]
+        except (ValueError, IndexError):
+            continue
+
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for name, lineno in _iter_imports(tree):
+            if not name.startswith("app.modules."):
+                continue
+
+            imported_parts = name.split(".")
+            if len(imported_parts) < 4:
+                continue
+
+            imported_feature = imported_parts[2]
+            imported_layer = imported_parts[3]
+            if imported_layer != "domain":
+                continue
+            if imported_feature in {current_feature, "shared"}:
+                continue
+
             violations.append(f"{path}:{lineno}:{name}")
 
     return violations

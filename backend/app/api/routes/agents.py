@@ -10,15 +10,15 @@ from app.bootstrap.providers.agents import (
     get_agent_publication_commands,
 )
 from app.core.errors import AppError
-from app.modules.agents.api.schemas import (
-    AgentDescriptorResponse,
-    AgentPublicationResponse,
-    DiscoveredAgentResponse,
-)
 from app.modules.agents.application.use_cases import (
     AgentCatalogQueries,
     AgentDiscoveryQueries,
     AgentPublicationCommands,
+)
+from app.modules.agents.contracts.schemas import (
+    AgentDescriptorResponse,
+    AgentPublicationResponse,
+    DiscoveredAgentResponse,
 )
 
 router = APIRouter(prefix="/agents", tags=["agents"])

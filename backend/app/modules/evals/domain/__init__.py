@@ -1,4 +1,6 @@
 from app.modules.evals.domain.models import (
+    EvalDataset,
+    EvalDatasetSample,
     EvalJobCreateInput,
     EvalJobRecord,
     EvalJobStatus,
@@ -9,6 +11,8 @@ from app.modules.evals.domain.models import (
 )
 
 __all__ = [
+    "EvalDataset",
+    "EvalDatasetSample",
     "EvalJobCreateInput",
     "EvalJobRecord",
     "EvalJobStatus",

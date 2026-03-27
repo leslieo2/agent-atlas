@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from app.bootstrap.wiring.agents import AgentModuleBundle
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.bootstrap.wiring.runs import RunModuleBundle
-from app.infrastructure.adapters.evals import StateEvalRunGateway
+from app.infrastructure.adapters.evals import EvalDatasetSourceAdapter, StateEvalRunGateway
 from app.modules.evals.application.execution import (
     EvalAggregationService,
     EvalExecutionService,
@@ -27,6 +27,7 @@ def build_eval_module(
     agents: AgentModuleBundle,
     runs: RunModuleBundle,
 ) -> EvalModuleBundle:
+    eval_dataset_source = EvalDatasetSourceAdapter(dataset_repository=infra.dataset_repository)
     eval_run_gateway = StateEvalRunGateway(
         run_repository=infra.run_repository,
         trajectory_repository=infra.trajectory_repository,
@@ -39,20 +40,20 @@ def build_eval_module(
     )
     eval_commands = EvalJobCommands(
         eval_job_repository=infra.eval_job_repository,
-        dataset_source=infra.dataset_repository,
+        dataset_source=eval_dataset_source,
         agent_lookup=agents.agent_lookup,
         task_queue=infra.task_queue,
     )
     eval_execution_service = EvalExecutionService(
         eval_job_repository=infra.eval_job_repository,
-        dataset_source=infra.dataset_repository,
+        dataset_source=eval_dataset_source,
         eval_run_gateway=eval_run_gateway,
         task_queue=infra.task_queue,
     )
     eval_aggregation_service = EvalAggregationService(
         eval_job_repository=infra.eval_job_repository,
         sample_result_repository=infra.eval_sample_result_repository,
-        dataset_source=infra.dataset_repository,
+        dataset_source=eval_dataset_source,
         eval_run_gateway=eval_run_gateway,
         task_queue=infra.task_queue,
     )

@@ -1,4 +1,4 @@
-from app.modules.runs.api.schemas import (
+from app.modules.runs.contracts.schemas import (
     RunCreateRequest,
     RunResponse,
     RunTraceSpanResponse,

@@ -56,7 +56,7 @@ class EvalJobCommands:
         if not self.agent_lookup.exists(payload.agent_id):
             raise AgentNotPublishedError(payload.agent_id)
 
-        job = EvalJobAggregate.create(payload, sample_count=len(dataset.rows))
+        job = EvalJobAggregate.create(payload, sample_count=len(dataset.samples))
         self.eval_job_repository.save(job)
         self.task_queue.enqueue(
             QueuedTask(

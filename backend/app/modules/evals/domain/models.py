@@ -61,6 +61,18 @@ class EvalJobRecord(BaseModel):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class EvalDatasetSample(BaseModel):
+    sample_id: str
+    input: str
+    expected: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+
+class EvalDataset(BaseModel):
+    name: str
+    samples: list[EvalDatasetSample] = Field(default_factory=list)
+
+
 class EvalSampleResult(BaseModel):
     eval_job_id: UUID
     dataset_sample_id: str

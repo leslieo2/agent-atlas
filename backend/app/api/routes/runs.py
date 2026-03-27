@@ -7,14 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.bootstrap.providers.runs import get_run_commands, get_run_queries
 from app.core.errors import AppError
-from app.modules.runs.api.schemas import (
+from app.modules.runs.application.use_cases import RunCommands, RunQueries
+from app.modules.runs.contracts.schemas import (
     RunCreateRequest,
     RunResponse,
     RunTraceSpanResponse,
     TerminateRunResponse,
     TrajectoryStepResponse,
 )
-from app.modules.runs.application.use_cases import RunCommands, RunQueries
 from app.modules.shared.domain.enums import RunStatus
 
 router = APIRouter(prefix="/runs", tags=["runs"])

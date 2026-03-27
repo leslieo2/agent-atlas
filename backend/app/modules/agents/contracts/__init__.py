@@ -1,4 +1,4 @@
-from app.modules.agents.api.schemas import (
+from app.modules.agents.contracts.schemas import (
     AgentDescriptorResponse,
     AgentPublicationResponse,
     DiscoveredAgentResponse,

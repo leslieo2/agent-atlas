@@ -31,7 +31,7 @@ HTTP/API -> application -> domain
 More concretely:
 
 ```text
-app/api/routes -> app/modules/*/(api, application, domain)
+app/api/routes -> app/modules/*/(contracts, application, domain)
 app/bootstrap/container -> app/bootstrap/wiring/* -> app/modules/* + app/infrastructure/*
 app/infrastructure/* -> app/modules/* application ports and domain models
 ```
@@ -66,13 +66,29 @@ Responsibilities:
 - parse request parameters and bodies
 - map errors to HTTP responses
 - call application use cases
-- map domain objects to API responses
+- map domain objects to transport contracts
 
 Non-responsibilities:
 
 - business policy
 - persistence logic
 - runtime integration details
+
+### 1a. Contracts layer
+
+Location: `app/modules/<feature>/contracts/`
+
+Responsibilities:
+
+- define feature-local request and response schemas
+- map domain objects into HTTP-safe payloads
+- convert inbound payloads into application or domain inputs
+
+Non-responsibilities:
+
+- declaring FastAPI routes
+- performing dependency injection
+- importing infrastructure or storage details
 
 ### 2. Application layer
 
@@ -257,7 +273,8 @@ Owns:
 - eval job lifecycle
 - eval execution workflow
 - eval aggregation and scoring
-- contracts for fanning out runs and reading run outcomes
+- eval-owned sample contracts for scoring and run fan-out
+- contracts for reading run outcomes
 
 Examples:
 
@@ -272,7 +289,7 @@ Owns:
 
 - export use cases
 - artifact metadata
-- the read contracts required to export runs and trajectories
+- artifacts-owned export views for runs and trajectories
 
 Examples:
 
@@ -304,6 +321,10 @@ Do not turn `shared` into a generic dumping ground.
 ## Port Ownership Rules
 
 A port should be owned by the module that defines the use case needing it.
+
+When a feature needs data from another feature, prefer a feature-owned read view or collaboration
+contract over directly reusing the other feature's domain models. This keeps collaboration explicit
+without pretending the modules are hard-isolated bounded contexts.
 
 Examples:
 
@@ -428,7 +449,7 @@ When adding a new backend capability:
 1. Create or extend a feature module under `app/modules/`.
 2. Put domain models and rules in `domain/`.
 3. Put use cases and required ports in `application/`.
-4. Put HTTP schemas in `api/` if the feature is exposed over HTTP.
+4. Put HTTP request/response schemas in `contracts/` if the feature is exposed over HTTP.
 5. Put persistence implementations in `app/infrastructure/repositories/`.
 6. Put non-persistence infrastructure implementations in `app/infrastructure/adapters/`.
 7. Wire everything in `app/bootstrap/container.py`.

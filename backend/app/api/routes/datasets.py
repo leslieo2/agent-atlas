@@ -5,8 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from app.bootstrap.providers.datasets import get_dataset_commands, get_dataset_queries
-from app.modules.datasets.api.schemas import DatasetCreate, DatasetResponse
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
+from app.modules.datasets.contracts.schemas import DatasetCreate, DatasetResponse
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 

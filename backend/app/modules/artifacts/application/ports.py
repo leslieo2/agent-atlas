@@ -3,8 +3,12 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.artifacts.domain.models import ArtifactExportRequest, ArtifactMetadata
-from app.modules.runs.domain.models import RunRecord, TrajectoryStep
+from app.modules.artifacts.domain.models import (
+    ArtifactExportRequest,
+    ArtifactMetadata,
+    ArtifactRunView,
+    ArtifactTrajectoryStepView,
+)
 
 
 class ArtifactRepository(Protocol):
@@ -20,8 +24,8 @@ class ArtifactExportPort(Protocol):
 
 
 class TrajectoryExportSource(Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStep]: ...
+    def list_for_run(self, run_id: str | UUID) -> list[ArtifactTrajectoryStepView]: ...
 
 
 class RunLookupSource(Protocol):
-    def get(self, run_id: str | UUID) -> RunRecord | None: ...
+    def get(self, run_id: str | UUID) -> ArtifactRunView | None: ...

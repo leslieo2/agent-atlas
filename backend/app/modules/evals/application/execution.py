@@ -53,7 +53,7 @@ class EvalExecutionService:
             job = EvalJobAggregate.load(job).mark_running()
             self.eval_job_repository.save(job)
 
-        for sample in dataset.rows:
+        for sample in dataset.samples:
             self.eval_run_gateway.create_eval_run(job, sample)
 
         self.task_queue.enqueue(
@@ -94,7 +94,7 @@ class EvalAggregationService:
             return
 
         runs = self.eval_run_gateway.list_eval_runs(eval_job_id)
-        if len(runs) < len(dataset.rows) or any(
+        if len(runs) < len(dataset.samples) or any(
             run.status in {RunStatus.QUEUED, RunStatus.RUNNING} for run in runs
         ):
             self.task_queue.enqueue(
@@ -109,7 +109,7 @@ class EvalAggregationService:
         run_by_sample = {run.dataset_sample_id: run for run in runs}
         self.sample_result_repository.delete_for_job(eval_job_id)
         results = []
-        for sample in dataset.rows:
+        for sample in dataset.samples:
             run = run_by_sample.get(sample.sample_id)
             if run is None:
                 continue

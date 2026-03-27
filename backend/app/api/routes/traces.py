@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends
 from app.bootstrap.providers.runs import get_run_telemetry_ingestor
 from app.bootstrap.providers.traces import get_trace_commands
 from app.modules.runs.application.telemetry import RunTelemetryIngestionService
-from app.modules.traces.api.schemas import TraceIngestEvent
 from app.modules.traces.application.use_cases import TraceCommands
+from app.modules.traces.contracts.schemas import TraceIngestEvent
 
 router = APIRouter(prefix="/traces", tags=["traces"])
 

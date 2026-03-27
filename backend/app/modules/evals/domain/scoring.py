@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from app.modules.datasets.domain.models import DatasetSample
 from app.modules.evals.domain.models import (
+    EvalDatasetSample,
     EvalRunState,
     EvalSampleResult,
     SampleJudgement,
@@ -13,7 +13,7 @@ from app.modules.shared.domain.enums import RunStatus
 
 
 def evaluate_sample(
-    sample: DatasetSample,
+    sample: EvalDatasetSample,
     run: EvalRunState,
     scoring_mode: ScoringMode,
     *,

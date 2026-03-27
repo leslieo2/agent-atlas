@@ -1,4 +1,4 @@
-from app.modules.evals.api.schemas import (
+from app.modules.evals.contracts.schemas import (
     EvalJobCreateRequest,
     EvalJobResponse,
     EvalSampleResultResponse,

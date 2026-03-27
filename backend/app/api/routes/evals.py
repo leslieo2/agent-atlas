@@ -6,12 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.bootstrap.providers.evals import get_eval_commands, get_eval_queries
 from app.core.errors import AppError
-from app.modules.evals.api.schemas import (
+from app.modules.evals.application.use_cases import EvalJobCommands, EvalJobQueries
+from app.modules.evals.contracts.schemas import (
     EvalJobCreateRequest,
     EvalJobResponse,
     EvalSampleResultResponse,
 )
-from app.modules.evals.application.use_cases import EvalJobCommands, EvalJobQueries
 
 router = APIRouter(prefix="/eval-jobs", tags=["eval-jobs"])
 
