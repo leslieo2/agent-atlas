@@ -1,0 +1,122 @@
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.4fr);
+  gap: 18px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.jobList {
+  display: grid;
+  gap: 10px;
+}
+
+.jobRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease,
+    background-color 160ms ease;
+}
+
+.jobRow:hover {
+  transform: translateY(-1px);
+  border-color: rgba(117, 218, 255, 0.24);
+}
+
+.jobRowActive {
+  border-color: var(--border-strong);
+  background: linear-gradient(180deg, rgba(117, 218, 255, 0.12), rgba(117, 218, 255, 0.04));
+}
+
+.jobMeta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.failureActions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.failureCodes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.failureCode {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(158, 189, 226, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.selectionSummary {
+  margin: 0 0 16px;
+  color: var(--text-faint);
+  font-size: 0.86rem;
+}
+
+.samplesTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.samplesTable th,
+.samplesTable td {
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(158, 189, 226, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.samplesTable th {
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.selectorCell {
+  width: 4.5rem;
+}
+
+.selectorCell input {
+  accent-color: var(--accent);
+}
+
+.sampleDetail {
+  display: grid;
+  gap: 6px;
+  max-width: 24rem;
+}
+
+@media (max-width: 1100px) {
+  .workspaceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}

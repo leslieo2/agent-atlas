@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Airplay, Cpu, Shapes } from "lucide-react";
+import { Airplay, Cpu, Radar, Shapes } from "lucide-react";
 import type { ReactNode } from "react";
 import styles from "./WorkbenchShell.module.css";
 
@@ -21,6 +21,13 @@ const navItems = [
     description: "Discover plugins, publish runnable snapshots, and inspect validation state.",
     icon: Shapes,
     match: (pathname: string) => pathname.startsWith("/agents")
+  },
+  {
+    href: "/evals",
+    label: "Evals",
+    description: "Launch dataset batches, review aggregate regressions, and inspect failing samples.",
+    icon: Radar,
+    match: (pathname: string) => pathname.startsWith("/evals")
   },
   {
     href: "/playground",

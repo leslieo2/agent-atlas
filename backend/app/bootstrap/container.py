@@ -11,6 +11,7 @@ from app.infrastructure.adapters.agents import (
     StateRunnableAgentCatalog,
 )
 from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
+from app.infrastructure.adapters.evals import RunnableAgentLookupAdapter, StateEvalRunGateway
 from app.infrastructure.adapters.model_runtime import (
     ModelRuntimeService,
     PublishedOpenAIAgentAdapter,
@@ -24,6 +25,8 @@ from app.infrastructure.adapters.traces import DefaultTraceProjector
 from app.infrastructure.repositories import (
     StateArtifactRepository,
     StateDatasetRepository,
+    StateEvalJobRepository,
+    StateEvalSampleResultRepository,
     StatePublishedAgentRepository,
     StateRunRepository,
     StateSystemStatus,
@@ -37,6 +40,11 @@ from app.modules.agents.application.use_cases import (
 )
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
+from app.modules.evals.application.execution import (
+    EvalAggregationService,
+    EvalExecutionService,
+)
+from app.modules.evals.application.use_cases import EvalJobCommands, EvalJobQueries
 from app.modules.health.application.use_cases import HealthQueries
 from app.modules.runs.application.execution import RunExecutionService
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
@@ -53,6 +61,8 @@ class AppContainer:
         self.trajectory_repository = StateTrajectoryRepository()
         self.trace_repository = StateTraceRepository()
         self.dataset_repository = StateDatasetRepository()
+        self.eval_job_repository = StateEvalJobRepository()
+        self.eval_sample_result_repository = StateEvalSampleResultRepository()
         self.artifact_repository = StateArtifactRepository()
         self.agent_source_catalog = FilesystemAgentSourceCatalog()
         self.agent_validator = OpenAIAgentContractValidator()
@@ -82,6 +92,13 @@ class AppContainer:
             ),
         )
         self.trace_commands = TraceCommands(workflow=self.trace_workflow)
+        self.agent_lookup = RunnableAgentLookupAdapter(agent_catalog=self.runnable_agent_catalog)
+        self.eval_run_gateway = StateEvalRunGateway(
+            run_repository=self.run_repository,
+            trajectory_repository=self.trajectory_repository,
+            task_queue=self.task_queue,
+            agent_catalog=self.runnable_agent_catalog,
+        )
         self.artifact_exporter = ArtifactExporterAdapter(
             trajectory_repository=self.trajectory_repository,
             artifact_repository=self.artifact_repository,
@@ -106,6 +123,29 @@ class AppContainer:
         )
         self.dataset_queries = DatasetQueries(dataset_repository=self.dataset_repository)
         self.dataset_commands = DatasetCommands(dataset_repository=self.dataset_repository)
+        self.eval_queries = EvalJobQueries(
+            eval_job_repository=self.eval_job_repository,
+            sample_result_repository=self.eval_sample_result_repository,
+        )
+        self.eval_commands = EvalJobCommands(
+            eval_job_repository=self.eval_job_repository,
+            dataset_source=self.dataset_repository,
+            agent_lookup=self.agent_lookup,
+            task_queue=self.task_queue,
+        )
+        self.eval_execution_service = EvalExecutionService(
+            eval_job_repository=self.eval_job_repository,
+            dataset_source=self.dataset_repository,
+            eval_run_gateway=self.eval_run_gateway,
+            task_queue=self.task_queue,
+        )
+        self.eval_aggregation_service = EvalAggregationService(
+            eval_job_repository=self.eval_job_repository,
+            sample_result_repository=self.eval_sample_result_repository,
+            dataset_source=self.dataset_repository,
+            eval_run_gateway=self.eval_run_gateway,
+            task_queue=self.task_queue,
+        )
         self.artifact_queries = ArtifactQueries(artifact_repository=self.artifact_repository)
         self.artifact_commands = ArtifactCommands(artifact_exporter=self.artifact_exporter)
         self.agent_catalog_queries = AgentCatalogQueries(
@@ -123,6 +163,8 @@ class AppContainer:
         self.app_worker = AppWorker(
             task_queue=self.task_queue,
             run_execution_service=run_execution_service,
+            eval_execution_service=self.eval_execution_service,
+            eval_aggregation_service=self.eval_aggregation_service,
         )
 
 
@@ -145,6 +187,14 @@ def get_dataset_queries() -> DatasetQueries:
 
 def get_dataset_commands() -> DatasetCommands:
     return get_container().dataset_commands
+
+
+def get_eval_queries() -> EvalJobQueries:
+    return get_container().eval_queries
+
+
+def get_eval_commands() -> EvalJobCommands:
+    return get_container().eval_commands
 
 
 def get_artifact_queries() -> ArtifactQueries:

@@ -107,6 +107,7 @@ describe("Agents workspace", () => {
     expect(await screen.findByText("Published agent with local changes.")).toBeInTheDocument();
     expect(await screen.findByText("Draft tool agent.")).toBeInTheDocument();
     expect(await screen.findByText("entrypoint validation failed")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Run eval/i })[0]).toHaveAttribute("href", "/evals?agent=basic");
     expect(screen.getByText("Published with draft changes")).toBeInTheDocument();
     expect(screen.getByText("Current repository code differs from the published snapshot.")).toBeInTheDocument();
 

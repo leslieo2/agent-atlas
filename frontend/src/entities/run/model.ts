@@ -11,6 +11,8 @@ export interface RunRecord {
   toolCalls: number;
   project: string;
   dataset: string | null;
+  evalJobId?: string | null;
+  datasetSampleId?: string | null;
   agentId: string;
   model: string;
   entrypoint?: string | null;
@@ -46,6 +48,8 @@ export interface CreateRunInput {
   prompt: string;
   tags?: string[];
   projectMetadata?: Record<string, unknown>;
+  evalJobId?: string | null;
+  datasetSampleId?: string | null;
 }
 
 export interface TerminateRunResult {

@@ -15,6 +15,8 @@ class RunAggregate:
             status=RunStatus.QUEUED,
             project=spec.project,
             dataset=spec.dataset,
+            eval_job_id=spec.eval_job_id,
+            dataset_sample_id=spec.dataset_sample_id,
             agent_id=spec.agent_id,
             model=spec.model,
             entrypoint=spec.entrypoint,

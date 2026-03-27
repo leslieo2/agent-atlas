@@ -155,6 +155,11 @@ function AgentCard({
           </Button>
         ) : null}
         {isPublished && isValid ? (
+          <Button href={`/evals?agent=${encodeURIComponent(agent.agentId)}`} variant="secondary">
+            Run eval <ArrowUpRight size={14} />
+          </Button>
+        ) : null}
+        {isPublished && isValid ? (
           <Button href={`/playground?agent=${encodeURIComponent(agent.agentId)}`} variant="ghost">
             Open in Playground <ArrowUpRight size={14} />
           </Button>

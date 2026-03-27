@@ -64,6 +64,46 @@ export interface DiscoveredAgentResponse {
   "last_validated_at": string;
   "has_unpublished_changes": boolean;
 }
+export interface EvalJobCreateRequest {
+  "agent_id": string;
+  "dataset": string;
+  "project": string;
+  "tags"?: Array<string>;
+  "scoring_mode"?: ScoringMode;
+}
+export interface EvalJobResponse {
+  "eval_job_id": string;
+  "agent_id": string;
+  "dataset": string;
+  "project": string;
+  "tags": Array<string>;
+  "scoring_mode": ScoringMode;
+  "status": EvalJobStatus;
+  "sample_count": number;
+  "scored_count": number;
+  "passed_count": number;
+  "failed_count": number;
+  "unscored_count": number;
+  "runtime_error_count": number;
+  "pass_rate": number;
+  "failure_distribution": Record<string, number>;
+  "error_code"?: string | null;
+  "error_message"?: string | null;
+  "created_at": string;
+}
+export type EvalJobStatus = "queued" | "running" | "completed" | "failed";
+export interface EvalSampleResultResponse {
+  "eval_job_id": string;
+  "dataset_sample_id": string;
+  "run_id": string;
+  "judgement": SampleJudgement;
+  "input": string;
+  "expected"?: string | null;
+  "actual"?: string | null;
+  "failure_reason"?: string | null;
+  "error_code"?: string | null;
+  "tags": Array<string>;
+}
 export interface HTTPValidationError {
   "detail"?: Array<ValidationError>;
 }
@@ -75,6 +115,8 @@ export interface RunCreateRequest {
   "prompt": string;
   "tags"?: Array<string>;
   "project_metadata"?: Record<string, unknown>;
+  "eval_job_id"?: string | null;
+  "dataset_sample_id"?: string | null;
 }
 export interface RunResponse {
   "run_id": string;
@@ -85,6 +127,8 @@ export interface RunResponse {
   "tool_calls": number;
   "project": string;
   "dataset"?: string | null;
+  "eval_job_id"?: string | null;
+  "dataset_sample_id"?: string | null;
   "agent_id": string;
   "model": string;
   "entrypoint"?: string | null;
@@ -101,6 +145,8 @@ export interface RunResponse {
   "termination_reason"?: string | null;
 }
 export type RunStatus = "queued" | "running" | "succeeded" | "failed" | "terminated";
+export type SampleJudgement = "passed" | "failed" | "unscored" | "runtime_error";
+export type ScoringMode = "exact_match" | "contains";
 export type StepType = "llm" | "tool" | "planner" | "memory";
 export interface TerminateRunResponse {
   "run_id": string;

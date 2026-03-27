@@ -47,7 +47,17 @@ class RunFailureDetails:
 
 def normalize_run_failure(exc: Exception) -> RunFailureDetails:
     if isinstance(exc, AppError):
-        return RunFailureDetails(code=exc.code, message=exc.message)
+        raw_code = exc.code
+        normalized_code = "runner_bootstrap"
+        if raw_code == "agent_load_failed":
+            normalized_code = "agent_load"
+        elif raw_code in {"provider_auth_error", "rate_limited"}:
+            normalized_code = "provider_call"
+        elif raw_code == "provider_timeout":
+            normalized_code = "timeout_or_termination"
+        elif "tool" in raw_code:
+            normalized_code = "tool_execution"
+        return RunFailureDetails(code=normalized_code, message=exc.message)
 
     message = str(exc).strip() or "run execution failed"
     return RunFailureDetails(code="run_execution_failed", message=message)

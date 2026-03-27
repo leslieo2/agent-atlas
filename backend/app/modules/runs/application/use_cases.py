@@ -102,6 +102,8 @@ class RunCommands:
         spec = RunSpec(
             project=payload.project,
             dataset=payload.dataset,
+            eval_job_id=payload.eval_job_id,
+            dataset_sample_id=payload.dataset_sample_id,
             agent_id=payload.agent_id,
             model=agent.default_model,
             entrypoint=agent.entrypoint,

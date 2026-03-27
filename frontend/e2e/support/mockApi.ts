@@ -49,6 +49,38 @@ export type ApiTrajectoryStep = {
   tool_name?: string | null;
 };
 
+export type ApiEvalJob = {
+  eval_job_id: string;
+  agent_id: string;
+  dataset: string;
+  project: string;
+  tags: string[];
+  scoring_mode: "exact_match" | "contains";
+  status: "queued" | "running" | "completed" | "failed";
+  sample_count: number;
+  scored_count: number;
+  passed_count: number;
+  failed_count: number;
+  unscored_count: number;
+  runtime_error_count: number;
+  pass_rate: number;
+  failure_distribution: Record<string, number>;
+  created_at: string;
+};
+
+export type ApiEvalSample = {
+  eval_job_id: string;
+  dataset_sample_id: string;
+  run_id: string;
+  judgement: "passed" | "failed" | "unscored" | "runtime_error";
+  input: string;
+  expected?: string | null;
+  actual?: string | null;
+  failure_reason?: string | null;
+  error_code?: string | null;
+  tags: string[];
+};
+
 const json = async (route: Route, body: unknown, status = 200) =>
   route.fulfill({
     status,
@@ -102,6 +134,40 @@ export const buildTrajectoryStep = (
   latency_ms: 10,
   token_usage: 5,
   success: true,
+  ...overrides
+});
+
+export const buildEvalJob = (overrides: Partial<ApiEvalJob> = {}): ApiEvalJob => ({
+  eval_job_id: "eval-001",
+  agent_id: "basic",
+  dataset: "crm-v2",
+  project: "nightly-regression",
+  tags: ["nightly"],
+  scoring_mode: "exact_match",
+  status: "completed",
+  sample_count: 4,
+  scored_count: 3,
+  passed_count: 1,
+  failed_count: 1,
+  unscored_count: 1,
+  runtime_error_count: 1,
+  pass_rate: 33.33,
+  failure_distribution: { mismatch: 1, provider_call: 1 },
+  created_at: "2026-03-24T00:00:00Z",
+  ...overrides
+});
+
+export const buildEvalSample = (overrides: Partial<ApiEvalSample> = {}): ApiEvalSample => ({
+  eval_job_id: "eval-001",
+  dataset_sample_id: "sample-runtime",
+  run_id: "run-002",
+  judgement: "runtime_error",
+  input: "runtime",
+  expected: "runtime",
+  actual: "live execution failed",
+  failure_reason: "provider authentication failed",
+  error_code: "provider_call",
+  tags: [],
   ...overrides
 });
 
@@ -174,4 +240,27 @@ export async function mockArtifactExport(
   artifact: { artifact_id: string; path: string; size_bytes: number }
 ) {
   await page.route("**/api/v1/artifacts/export", async (route) => json(route, artifact));
+}
+
+export async function mockEvals(
+  page: Page,
+  handlers: {
+    list: () => ApiEvalJob[];
+    create?: () => ApiEvalJob;
+    samples?: (evalJobId: string) => ApiEvalSample[];
+  }
+) {
+  await page.route("**/api/v1/eval-jobs", async (route) => {
+    if (route.request().method() === "POST" && handlers.create) {
+      return json(route, handlers.create(), 201);
+    }
+    return json(route, handlers.list());
+  });
+
+  await page.route("**/api/v1/eval-jobs/*/samples", async (route) => {
+    const url = new URL(route.request().url());
+    const parts = url.pathname.split("/");
+    const evalJobId = parts[parts.length - 2] ?? "";
+    return json(route, handlers.samples?.(evalJobId) ?? []);
+  });
 }

@@ -17,6 +17,8 @@ class RunCreateRequest(BaseModel):
     prompt: str
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, object] = Field(default_factory=dict)
+    eval_job_id: UUID | None = None
+    dataset_sample_id: str | None = None
 
     def to_domain(self) -> RunCreateInput:
         return RunCreateInput.model_validate(self.model_dump())
@@ -31,6 +33,8 @@ class RunResponse(BaseModel):
     tool_calls: int
     project: str
     dataset: str | None = None
+    eval_job_id: UUID | None = None
+    dataset_sample_id: str | None = None
     agent_id: str
     model: str
     entrypoint: str | None = None

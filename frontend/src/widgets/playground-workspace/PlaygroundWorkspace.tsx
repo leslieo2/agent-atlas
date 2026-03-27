@@ -6,6 +6,7 @@ import { useAgentsQuery } from "@/src/entities/agent/query";
 import type { DatasetRow } from "@/src/entities/dataset/model";
 import { parseDatasetJsonl } from "@/src/entities/dataset/parser";
 import { useCreateDatasetMutation, useDatasetsQuery } from "@/src/entities/dataset/query";
+import { useCreateEvalJobMutation } from "@/src/entities/eval/query";
 import { useRunsQuery } from "@/src/entities/run/query";
 import { DatasetUpload } from "@/src/features/dataset-upload/DatasetUpload";
 import { ManualRunActions } from "@/src/features/manual-run/ManualRunActions";
@@ -96,6 +97,7 @@ export default function PlaygroundWorkspace({
   const agentsQuery = useAgentsQuery();
   const datasetsQuery = useDatasetsQuery();
   const createDatasetMutation = useCreateDatasetMutation();
+  const createEvalJobMutation = useCreateEvalJobMutation();
   const runsQuery = useRunsQuery();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [prompt, setPrompt] = useState(initialPrompt);
@@ -109,6 +111,8 @@ export default function PlaygroundWorkspace({
   const [expectedOutput, setExpectedOutput] = useState("");
   const [sampleTagsText, setSampleTagsText] = useState("");
   const [datasetFeedback, setDatasetFeedback] = useState("");
+  const [evalFeedback, setEvalFeedback] = useState("");
+  const [latestEvalJobId, setLatestEvalJobId] = useState("");
   const agents = useMemo(() => agentsQuery.data ?? [], [agentsQuery.data]);
   const datasets = useMemo(() => datasetsQuery.data ?? [], [datasetsQuery.data]);
   const datasetNames = useMemo(() => datasets.map((item) => item.name), [datasets]);
@@ -204,6 +208,23 @@ export default function PlaygroundWorkspace({
     }
   };
 
+  const handleCreateEvalJob = async () => {
+    if (!selectedAgent || !dataset) {
+      setEvalFeedback("Select both a published agent and a dataset before creating an eval.");
+      return;
+    }
+
+    const created = await createEvalJobMutation.mutateAsync({
+      agentId: selectedAgent.agentId,
+      dataset,
+      project: dataset,
+      tags: ["playground"],
+      scoringMode: "exact_match"
+    });
+    setLatestEvalJobId(created.evalJobId);
+    setEvalFeedback(`Eval job ${created.evalJobId} is queued.`);
+  };
+
   return (
     <section className="page-stack">
       <header className="page-header">
@@ -241,6 +262,13 @@ export default function PlaygroundWorkspace({
             >
               Attach dataset sample
             </Button>
+            <Button
+              variant="secondary"
+              onClick={handleCreateEvalJob}
+              disabled={!selectedAgent || !dataset || createEvalJobMutation.isPending}
+            >
+              {createEvalJobMutation.isPending ? "Creating eval..." : "Create eval job"}
+            </Button>
             {latestRunId ? (
               <Button href={`/runs/${latestRunId}`}>
                 Open run workspace <ArrowUpRight size={14} />
@@ -256,8 +284,17 @@ export default function PlaygroundWorkspace({
         <MetricCard label="Default model" value={selectedAgent?.defaultModel ?? "-"} />
         <MetricCard label="Dataset" value={dataset || "-"} />
         <MetricCard label="Latest run" value={latestRunId || "-"} />
+        <MetricCard label="Latest eval" value={latestEvalJobId || "-"} />
         <MetricCard label="Tags" value={runTags.join(", ") || "-"} />
       </div>
+
+      {evalFeedback ? (
+        <Notice>
+          {evalFeedback}
+          {latestEvalJobId ? " " : ""}
+          {latestEvalJobId ? <Button href={`/evals?job=${latestEvalJobId}`} variant="ghost">Open eval workspace</Button> : null}
+        </Notice>
+      ) : null}
 
       <div className="workspace-grid workspace-grid-wide">
         <Panel tone="strong">

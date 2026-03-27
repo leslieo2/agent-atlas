@@ -5,6 +5,10 @@ import time
 from uuid import uuid4
 
 from app.core.config import settings
+from app.modules.evals.application.execution import (
+    EvalAggregationService,
+    EvalExecutionService,
+)
 from app.modules.runs.application.execution import RunExecutionService
 from app.modules.runs.domain.models import RunSpec
 from app.modules.shared.application.ports import TaskQueuePort
@@ -16,9 +20,13 @@ class AppWorker:
         self,
         task_queue: TaskQueuePort,
         run_execution_service: RunExecutionService,
+        eval_execution_service: EvalExecutionService,
+        eval_aggregation_service: EvalAggregationService,
     ) -> None:
         self.task_queue = task_queue
         self.run_execution_service = run_execution_service
+        self.eval_execution_service = eval_execution_service
+        self.eval_aggregation_service = eval_aggregation_service
 
     def run_once(self, worker_name: str, lease_seconds: int) -> bool:
         task = self.task_queue.claim_next(worker_name, lease_seconds)
@@ -67,6 +75,12 @@ class AppWorker:
                 task.target_id,
                 RunSpec.model_validate(task.payload),
             )
+            return
+        if task.task_type == TaskType.EVAL_EXECUTION:
+            self.eval_execution_service.execute_job(task.target_id)
+            return
+        if task.task_type == TaskType.EVAL_AGGREGATION:
+            self.eval_aggregation_service.refresh_job(task.target_id)
             return
 
         raise ValueError(f"unsupported task_type={task.task_type.value}")

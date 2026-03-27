@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRun, getRun, listRuns, terminateRun } from "./api";
 import type { CreateRunInput, RunListFilters } from "./model";
 
-const runsQueryRoot = ["runs"] as const;
+export const runsQueryRoot = ["runs"] as const;
 
 type NormalizedRunFilters = {
   status: RunListFilters["status"] | null;

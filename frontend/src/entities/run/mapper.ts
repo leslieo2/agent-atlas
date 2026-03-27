@@ -11,6 +11,8 @@ export function mapRun(run: ApiRunRecord): RunRecord {
     toolCalls: run.tool_calls,
     project: run.project,
     dataset: run.dataset ?? null,
+    evalJobId: run.eval_job_id ?? null,
+    datasetSampleId: run.dataset_sample_id ?? null,
     agentId: run.agent_id,
     model: run.model,
     entrypoint: run.entrypoint ?? null,

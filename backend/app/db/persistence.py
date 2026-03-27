@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.artifacts.domain.models import ArtifactMetadata
 from app.modules.datasets.domain.models import Dataset
+from app.modules.evals.domain.models import EvalJobRecord, EvalSampleResult
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
 from app.modules.shared.domain.tasks import QueuedTask, TaskStatus
 from app.modules.traces.domain.models import TraceSpan
@@ -24,6 +25,13 @@ _PAYLOAD_STATEMENTS: dict[tuple[str, str], tuple[str, str]] = {
     ): (
         "INSERT OR REPLACE INTO runs (run_id, payload, updated_at) VALUES (?, ?, ?)",
         "SELECT payload FROM runs WHERE run_id = ?",
+    ),
+    (
+        "eval_jobs",
+        "eval_job_id",
+    ): (
+        "INSERT OR REPLACE INTO eval_jobs (eval_job_id, payload, updated_at) VALUES (?, ?, ?)",
+        "SELECT payload FROM eval_jobs WHERE eval_job_id = ?",
     ),
     (
         "datasets",
@@ -129,6 +137,19 @@ class StatePersistence:
                     payload TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS eval_jobs (
+                    eval_job_id TEXT PRIMARY KEY,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS eval_sample_results (
+                    eval_job_id TEXT NOT NULL,
+                    dataset_sample_id TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (eval_job_id, dataset_sample_id),
+                    FOREIGN KEY (eval_job_id) REFERENCES eval_jobs(eval_job_id) ON DELETE CASCADE
+                );
                 CREATE TABLE IF NOT EXISTS artifacts (
                     artifact_id TEXT PRIMARY KEY,
                     payload TEXT NOT NULL,
@@ -155,7 +176,46 @@ class StatePersistence:
                 );
                 """
             )
+            self._ensure_eval_table_schema()
             self.conn.commit()
+
+    def _ensure_eval_table_schema(self) -> None:
+        if not self.conn:
+            return
+
+        expected_columns = {
+            "eval_jobs": {"eval_job_id", "payload", "updated_at"},
+            "eval_sample_results": {
+                "eval_job_id",
+                "dataset_sample_id",
+                "payload",
+                "updated_at",
+            },
+        }
+
+        for table_name, required_columns in expected_columns.items():
+            rows = self.conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+            existing_columns = {str(row["name"]) for row in rows}
+            if rows and not required_columns.issubset(existing_columns):
+                self.conn.execute(f"DROP TABLE IF EXISTS {table_name}")
+
+        self.conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS eval_jobs (
+                eval_job_id TEXT PRIMARY KEY,
+                payload TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS eval_sample_results (
+                eval_job_id TEXT NOT NULL,
+                dataset_sample_id TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (eval_job_id, dataset_sample_id),
+                FOREIGN KEY (eval_job_id) REFERENCES eval_jobs(eval_job_id) ON DELETE CASCADE
+            );
+            """
+        )
 
     def _upsert(self, table: str, key_col: str, key_value: str, payload: str, ts: str) -> None:
         if not self.conn:
@@ -412,6 +472,69 @@ class StatePersistence:
         payloads = self._fetch_payloads("SELECT payload FROM datasets ORDER BY updated_at DESC")
         return [Dataset.model_validate(json.loads(payload)) for payload in payloads]
 
+    def save_eval_job(self, job: EvalJobRecord) -> None:
+        self._upsert(
+            "eval_jobs",
+            "eval_job_id",
+            str(job.eval_job_id),
+            serialize_model(job),
+            datetime.now(UTC).isoformat(),
+        )
+
+    def get_eval_job(self, eval_job_id: UUID | str) -> EvalJobRecord | None:
+        payload = self._fetch_payload("eval_jobs", "eval_job_id", str(to_uuid(eval_job_id)))
+        if payload is None:
+            return None
+        return EvalJobRecord.model_validate(json.loads(payload))
+
+    def list_eval_jobs(self) -> list[EvalJobRecord]:
+        payloads = self._fetch_payloads("SELECT payload FROM eval_jobs ORDER BY updated_at DESC")
+        return [EvalJobRecord.model_validate(json.loads(payload)) for payload in payloads]
+
+    def save_eval_sample_result(self, result: EvalSampleResult) -> None:
+        if not self.conn:
+            return
+        with self._lock:
+            self.conn.execute(
+                """
+                INSERT INTO eval_sample_results (
+                    eval_job_id, dataset_sample_id, payload, updated_at
+                )
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(eval_job_id, dataset_sample_id) DO UPDATE SET
+                    payload = excluded.payload,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    str(result.eval_job_id),
+                    result.dataset_sample_id,
+                    serialize_model(result),
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
+            self.conn.commit()
+
+    def list_eval_sample_results(self, eval_job_id: UUID | str) -> list[EvalSampleResult]:
+        payloads = self._fetch_payloads(
+            """
+            SELECT payload FROM eval_sample_results
+            WHERE eval_job_id = ?
+            ORDER BY dataset_sample_id ASC
+            """,
+            (str(to_uuid(eval_job_id)),),
+        )
+        return [EvalSampleResult.model_validate(json.loads(payload)) for payload in payloads]
+
+    def delete_eval_sample_results(self, eval_job_id: UUID | str) -> None:
+        if not self.conn:
+            return
+        with self._lock:
+            self.conn.execute(
+                "DELETE FROM eval_sample_results WHERE eval_job_id = ?",
+                (str(to_uuid(eval_job_id)),),
+            )
+            self.conn.commit()
+
     def save_artifact(self, artifact: ArtifactMetadata) -> None:
         self._upsert(
             "artifacts",
@@ -533,6 +656,8 @@ class StatePersistence:
             DELETE FROM trace_spans;
             DELETE FROM runs;
             DELETE FROM datasets;
+            DELETE FROM eval_sample_results;
+            DELETE FROM eval_jobs;
             DELETE FROM artifacts;
             DELETE FROM published_agents;
             DELETE FROM tasks;
@@ -618,6 +743,8 @@ class StatePersistence:
                 DELETE FROM trajectory;
                 DELETE FROM runs;
                 DELETE FROM datasets;
+                DELETE FROM eval_sample_results;
+                DELETE FROM eval_jobs;
                 DELETE FROM artifacts;
                 DELETE FROM published_agents;
                 """

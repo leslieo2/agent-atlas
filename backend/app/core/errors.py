@@ -76,3 +76,12 @@ class AgentLoadFailedError(AppError):
 class UnsupportedOperationError(AppError, ValueError):
     code = "unsupported_operation"
     status_code = 400
+
+
+class DatasetNotFoundError(AppError, ValueError):
+    code = "dataset_not_found"
+    status_code = 404
+
+    def __init__(self, dataset: str) -> None:
+        self.dataset = dataset
+        super().__init__(f"dataset '{dataset}' was not found", dataset=dataset)

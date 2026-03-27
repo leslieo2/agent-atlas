@@ -29,7 +29,9 @@ export async function createRun(payload: CreateRunInput) {
     input_summary: payload.inputSummary,
     prompt: payload.prompt,
     tags: payload.tags ?? [],
-    project_metadata: payload.projectMetadata ?? {}
+    project_metadata: payload.projectMetadata ?? {},
+    eval_job_id: payload.evalJobId ?? null,
+    dataset_sample_id: payload.datasetSampleId ?? null
   };
 
   return mapRun(

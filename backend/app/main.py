@@ -10,6 +10,7 @@ from app.api.routes import (
     agent_router,
     artifact_router,
     dataset_router,
+    eval_router,
     run_router,
     trace_router,
 )
@@ -49,5 +50,6 @@ def health(queries: Annotated[HealthQueries, Depends(get_health_queries)]):
 app.include_router(run_router, prefix=settings.api_prefix)
 app.include_router(agent_router, prefix=settings.api_prefix)
 app.include_router(dataset_router, prefix=settings.api_prefix)
+app.include_router(eval_router, prefix=settings.api_prefix)
 app.include_router(artifact_router, prefix=settings.api_prefix)
 app.include_router(trace_router, prefix=settings.api_prefix)

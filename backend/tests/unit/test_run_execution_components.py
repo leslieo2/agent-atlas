@@ -318,7 +318,7 @@ def test_run_execution_service_records_structured_failure_details():
     assert run is not None
     assert run.status == RunStatus.FAILED
     assert run.entrypoint == "app.agent_plugins.basic:build_agent"
-    assert run.error_code == "provider_auth_error"
+    assert run.error_code == "provider_call"
     assert run.error_message == "provider authentication failed"
     assert run.termination_reason == "provider authentication failed"
     assert len(steps) == 1

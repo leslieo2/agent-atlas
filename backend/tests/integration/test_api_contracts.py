@@ -190,7 +190,7 @@ def test_runs_api_exposes_structured_failure_details(monkeypatch, client, worker
         "execution_backend": None,
         "container_image": None,
         "resolved_model": None,
-        "error_code": "provider_auth_error",
+        "error_code": "provider_call",
         "error_message": "provider authentication failed",
         "termination_reason": "provider authentication failed",
     }

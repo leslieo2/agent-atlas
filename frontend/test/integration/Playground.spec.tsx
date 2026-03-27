@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as agentApi from "@/src/entities/agent/api";
 import * as datasetApi from "@/src/entities/dataset/api";
+import * as evalApi from "@/src/entities/eval/api";
 import * as runApi from "@/src/entities/run/api";
 import * as traceApi from "@/src/entities/trace/api";
 import * as trajectoryApi from "@/src/entities/trajectory/api";
@@ -23,6 +24,12 @@ vi.mock("@/src/entities/run/api", () => ({
   createRun: vi.fn(),
   getRun: vi.fn(),
   terminateRun: vi.fn()
+}));
+
+vi.mock("@/src/entities/eval/api", () => ({
+  listEvalJobs: vi.fn(),
+  listEvalSamples: vi.fn(),
+  createEvalJob: vi.fn()
 }));
 
 vi.mock("@/src/entities/trajectory/api", () => ({
@@ -69,6 +76,9 @@ describe("Playground integration", () => {
     (runApi.terminateRun as unknown as MockedApiFn).mockReset();
     (traceApi.listRunTraces as unknown as MockedApiFn).mockReset();
     (trajectoryApi.getTrajectory as unknown as MockedApiFn).mockReset();
+    (evalApi.listEvalJobs as unknown as MockedApiFn).mockReset();
+    (evalApi.listEvalSamples as unknown as MockedApiFn).mockReset();
+    (evalApi.createEvalJob as unknown as MockedApiFn).mockReset();
     (agentApi.listAgents as unknown as MockedApiFn).mockResolvedValue([
       {
         agentId: "basic",
@@ -152,6 +162,26 @@ describe("Playground integration", () => {
         success: true
       }
     ]);
+    (evalApi.listEvalJobs as unknown as MockedApiFn).mockResolvedValue([]);
+    (evalApi.listEvalSamples as unknown as MockedApiFn).mockResolvedValue([]);
+    (evalApi.createEvalJob as unknown as MockedApiFn).mockResolvedValue({
+      evalJobId: "eval-play-001",
+      agentId: "basic",
+      dataset: "customer-live",
+      project: "customer-live",
+      tags: ["playground"],
+      scoringMode: "exact_match" as const,
+      status: "queued" as const,
+      sampleCount: 1,
+      scoredCount: 0,
+      passedCount: 0,
+      failedCount: 0,
+      unscoredCount: 0,
+      runtimeErrorCount: 0,
+      passRate: 0,
+      failureDistribution: {},
+      createdAt: "2026-03-24T00:00:00Z"
+    });
   });
 
   it("creates a run and opens latest trace", async () => {
@@ -297,6 +327,31 @@ describe("Playground integration", () => {
     expect(screen.getByDisplayValue("rerun, support")).toBeInTheDocument();
     expect(screen.getByDisplayValue("customer-live")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Customer Service (customer_service)")).toBeInTheDocument();
+  });
+
+  it("creates an eval job from the selected agent and dataset", async () => {
+    renderWithQueryClient(<PlaygroundWorkspace initialDataset="customer-live" initialAgentId="basic" />);
+
+    await waitFor(() => expect(agentApi.listAgents).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Create eval job" }));
+
+    await waitFor(() =>
+      expect(evalApi.createEvalJob).toHaveBeenCalledWith({
+        agentId: "basic",
+        dataset: "customer-live",
+        project: "customer-live",
+        tags: ["playground"],
+        scoringMode: "exact_match"
+      })
+    );
+
+    expect(await screen.findByText("Eval job eval-play-001 is queued.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open eval workspace" })).toHaveAttribute(
+      "href",
+      "/evals?job=eval-play-001"
+    );
   });
 
   it("creates a dataset inline and auto-selects it", async () => {
