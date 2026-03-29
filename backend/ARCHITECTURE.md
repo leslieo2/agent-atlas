@@ -48,7 +48,8 @@ This architecture is optimized for the current and next-stage product shape:
 - a single control-plane backend
 - clear feature ownership
 - low ceremony for a small team
-- explicit boundaries for agents, runs, traces, evals, datasets, and exports
+- explicit boundaries for agents, datasets, evals, exports, and the supporting run or trace data
+  plane beneath them
 - the ability to swap runtime, runner, queue, and observability implementations without moving
   business logic out of modules
 - a clean split between Atlas-owned control-plane state and external observability backends such as
@@ -229,8 +230,12 @@ Owns:
 - runtime execution workflow
 - runner-facing execution control contracts
 - run-owned execution telemetry read models such as trajectory
-- run-scoped query aggregation, including trace lookup for run detail views
 - execution provenance such as backend, artifact, and failure metadata
+
+Product note:
+
+- runs are supporting execution records for eval and export workflows, not the primary product
+  center
 
 Examples:
 
@@ -246,8 +251,8 @@ Owns:
 
 - trace ingestion workflow
 - trace normalization contracts
-- trace span persistence contracts
 - collaboration contracts for trace projection and raw trace retrieval
+- the Atlas-facing boundary for observability pointers and Phoenix handoff
 
 Examples:
 
@@ -255,8 +260,8 @@ Examples:
 - `TraceRepository`
 - `TraceIngestionPort`
 
-When Phoenix integration lands, the module should still own the feature-level contracts. Phoenix
-clients themselves remain in infrastructure adapters.
+Traces are important as supporting evidence and telemetry plumbing, but Atlas should not grow a
+first-class trace product on top of them. Phoenix clients remain in infrastructure adapters.
 
 ### `agents`
 
@@ -284,6 +289,7 @@ Owns:
 - eval aggregation and scoring
 - eval-owned sample contracts for scoring and run fan-out
 - contracts for reading run outcomes and comparison summaries
+- curation-oriented views that help decide what to export
 
 Examples:
 
@@ -299,7 +305,7 @@ Owns:
 - export use cases
 - artifact metadata
 - artifacts-owned export views for runs and trajectories
-- future RL-ready export contracts
+- RL-ready export contracts
 
 Examples:
 
@@ -310,7 +316,7 @@ Examples:
 
 ### `datasets`
 
-Owns dataset CRUD and related application logic.
+Owns dataset CRUD, sample identity, slice metadata, and related application logic.
 
 ### `health`
 
@@ -357,10 +363,11 @@ For upcoming work:
 Atlas remains the source of truth for:
 
 - published agents
+- dataset identity and samples
+- eval jobs and sample outcomes
 - run state and lifecycle
-- dataset and eval job linkage
 - artifact metadata
-- export provenance
+- export provenance and export eligibility
 
 External systems such as Phoenix may become the preferred backend for:
 
@@ -368,9 +375,11 @@ External systems such as Phoenix may become the preferred backend for:
 - deep trace exploration
 - experiment-oriented observability
 - prompt and evaluation inspection workflows
+- playground and interactive debugging workflows
 
 That split must be enforced through infrastructure adapters. Feature modules should not know vendor
-query details, and Atlas should not keep a second product-level raw trace store beside Phoenix.
+query details, and Atlas should not keep a second product-level trace browser or experiment
+workbench beside Phoenix.
 
 ## Data and Control Flow
 
@@ -387,10 +396,9 @@ POST /runs
   -> RunExecutionService.execute_run
   -> PublishedRunRuntimePort.execute_published(...)
   -> RunTelemetryIngestionService.ingest(...)
-  -> TraceIngestionPort.ingest(...)
-  -> TraceRepository.append
   -> TrajectoryStepProjectorPort.project(...)
   -> TrajectoryRepository.append(...)
+  -> TraceExporterPort.export(...) -> Phoenix
   -> RunRepository.save(updated status/metrics)
 ```
 
@@ -425,8 +433,8 @@ POST /runs
   -> worker or runner adapter executes selected artifact/image
   -> telemetry export adapter emits spans via OTel/OpenInference
   -> Phoenix stores raw spans
-  -> Atlas persists run status, provenance, and export metadata
-  -> Atlas returns run detail through stable REST contracts
+  -> Atlas persists run status, trajectory projection, provenance, and export metadata
+  -> Atlas returns stable control-plane contracts for eval and export workflows
 ```
 
 ## Current Infrastructure Notes
@@ -495,9 +503,12 @@ Avoid these patterns:
 - putting every reusable protocol into `runs`
 - adding broad "shared services" abstractions without a concrete cross-feature need
 - letting frontend-facing route code know about vendor trace backends directly
+- turning supporting run or trace plumbing into the main product abstraction when the user value is
+  really in datasets, evals, curation, and exports
 
 ## Scope Note
 
 This document describes the current codebase and the extension rules for the next stage. It does
-not imply that Phoenix, Docker runners, or artifact-backed publication are already implemented. It
-documents where those integrations should live once the code is added.
+not imply that every target surface reduction has already shipped. Some legacy workbench UX still
+exists in the codebase, but the architecture direction is to keep Atlas centered on RL data control
+while Phoenix owns observability-heavy workflows.

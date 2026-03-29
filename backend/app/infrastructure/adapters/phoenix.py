@@ -50,14 +50,16 @@ def _normalize_base_url(base_url: str | None) -> str | None:
 def build_phoenix_project_url(
     *,
     base_url: str | None,
-    project_name: str,
+    project_id: str | None,
     eval_job_id: str | UUID | None = None,
     run_id: str | UUID | None = None,
 ) -> str | None:
     normalized_base_url = _normalize_base_url(base_url)
     if not normalized_base_url:
         return None
-    path = f"{normalized_base_url}/projects/{quote(project_name, safe='')}"
+    if not project_id:
+        return normalized_base_url
+    path = f"{normalized_base_url}/projects/{quote(project_id, safe='')}"
     params: dict[str, str] = {}
     if eval_job_id is not None:
         params["eval_job_id"] = str(eval_job_id)
@@ -71,13 +73,13 @@ def build_phoenix_project_url(
 def build_phoenix_trace_url(
     *,
     base_url: str | None,
-    project_name: str,
+    project_id: str | None,
     trace_id: str | None,
 ) -> str | None:
     normalized_base_url = _normalize_base_url(base_url)
-    if not normalized_base_url or not trace_id:
+    if not normalized_base_url or not project_id or not trace_id:
         return None
-    project_path = quote(project_name, safe="")
+    project_path = quote(project_id, safe="")
     trace_path = quote(trace_id, safe="")
     return f"{normalized_base_url}/projects/{project_path}/traces/{trace_path}"
 
@@ -101,6 +103,7 @@ class PhoenixTraceExporter:
         api_key: str | None = None,
     ) -> None:
         from opentelemetry import trace
+        from phoenix.client import Client
         from phoenix.otel import register
 
         register(
@@ -115,6 +118,8 @@ class PhoenixTraceExporter:
         self.tracer = trace.get_tracer("agent_atlas.phoenix")
         self.base_url = _normalize_base_url(base_url)
         self.project_name = project_name
+        self.project_id: str | None = None
+        self.client = Client(base_url=base_url, api_key=api_key) if base_url else None
 
     def export(
         self,
@@ -155,17 +160,18 @@ class PhoenixTraceExporter:
                 trace_id = f"{otel_span.get_span_context().trace_id:032x}"
 
         first_event = events[0]
+        project_id = self._resolve_project_id()
         return ObservabilityMetadata(
             backend="phoenix",
             trace_id=trace_id,
             trace_url=build_phoenix_trace_url(
                 base_url=self.base_url,
-                project_name=self.project_name,
+                project_id=project_id,
                 trace_id=trace_id,
             ),
             project_url=build_phoenix_project_url(
                 base_url=self.base_url,
-                project_name=self.project_name,
+                project_id=project_id,
                 eval_job_id=first_event.metadata.eval_job_id if first_event.metadata else None,
                 run_id=first_event.run_id,
             ),
@@ -205,6 +211,18 @@ class PhoenixTraceExporter:
             "atlas.output_json": _safe_json_dumps(event.output),
             "atlas.received_at": span.received_at.isoformat(),
         }
+
+    def _resolve_project_id(self) -> str | None:
+        if self.project_id:
+            return self.project_id
+        if self.client is None:
+            return None
+        try:
+            project = self.client.projects.get(project_name=self.project_name)
+        except Exception:
+            return None
+        self.project_id = _extract_project_id(project)
+        return self.project_id
 
 
 class PhoenixTraceBackend:
@@ -300,3 +318,11 @@ class PhoenixTraceBackend:
             "end_time": getattr(raw_span, "end_time", None),
             "attributes": getattr(raw_span, "attributes", None) or {},
         }
+
+
+def _extract_project_id(project: object) -> str | None:
+    if isinstance(project, dict):
+        project_id = project.get("id")
+        return str(project_id) if project_id else None
+    project_id = getattr(project, "id", None)
+    return str(project_id) if project_id else None

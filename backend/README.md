@@ -6,8 +6,9 @@ datasets and eval jobs, and produces export artifacts.
 
 Strategically, the backend is moving toward a split where:
 
-- Atlas remains the source of truth for control-plane state and provenance
-- Phoenix is the required backend for raw trace and evaluation observability
+- Atlas remains the source of truth for published agents, datasets, eval jobs, provenance, and
+  exports
+- Phoenix is the required backend for raw trace inspection and experiment-heavy debugging workflows
 - immutable artifacts or images and runner orchestration become the execution handoff
 - RL integration starts with offline export contracts
 
@@ -19,9 +20,9 @@ working directly on the backend service.
 Today:
 
 - repository-local agent discovery and publication
-- run creation, lifecycle tracking, and execution dispatch
+- run creation, lifecycle tracking, and execution dispatch as supporting infrastructure
 - background job processing through the worker
-- trajectory and trace ingestion and normalization
+- trajectory and trace ingestion and normalization behind backend-owned ports
 - dataset CRUD
 - eval job fan-out and aggregation
 - artifact export metadata and download flow
@@ -29,11 +30,18 @@ Today:
 
 Directionally, the backend will also own:
 
-- framework-aware agent integration contracts
-- artifact or image provenance attached to published agents and runs
+- stronger dataset and sample identity for RL data workflows
+- artifact or image provenance attached to published agents and exports
 - runner backend selection and execution control
-- Phoenix-backed trace and eval integration behind backend-owned ports
-- RL-ready export contracts
+- Phoenix-backed trace integration behind backend-owned ports and deep links
+- RL-ready export contracts and curation-oriented filtering
+
+The backend should not become the primary place for:
+
+- raw trace browsing UX
+- prompt and evaluator management
+- manual-run-first workflows
+- experiment analysis features that Phoenix already owns
 
 ## Architecture
 
@@ -85,6 +93,8 @@ Planned runtime direction:
 - runner orchestration is added behind infrastructure ports
 - raw trace and evaluation observability run through Phoenix without making Phoenix the control
   plane
+- eval jobs, datasets, and exports become the primary product loop while runs remain supporting
+  execution records
 
 ## Dependency Management
 
@@ -198,6 +208,11 @@ Current backend endpoints include:
 - Traces:
   - `POST /api/v1/traces/normalize`
   - `POST /api/v1/traces/ingest`
+
+Product note:
+
+- `runs` and `traces` remain important backend objects, but they are supporting APIs for eval,
+  provenance, and export workflows rather than the center of the product experience
 
 Sample datasets for manual import live under `backend/datasets/`. The seeded `fulfillment_ops`
 dataset is also available as

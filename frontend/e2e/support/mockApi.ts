@@ -12,11 +12,19 @@ export type ApiAgent = {
 
 export type ApiDataset = {
   name: string;
+  description?: string | null;
+  source?: string | null;
+  version?: string | null;
+  created_at?: string;
   rows: Array<{
     sample_id: string;
     input: string;
     expected?: string | null;
     tags?: string[];
+    slice?: string | null;
+    source?: string | null;
+    metadata?: Record<string, unknown> | null;
+    export_eligible?: boolean | null;
   }>;
 };
 
@@ -65,6 +73,10 @@ export type ApiEvalJob = {
   runtime_error_count: number;
   pass_rate: number;
   failure_distribution: Record<string, number>;
+  observability?: {
+    backend: string;
+    project_url?: string | null;
+  } | null;
   created_at: string;
 };
 
@@ -78,7 +90,19 @@ export type ApiEvalSample = {
   actual?: string | null;
   failure_reason?: string | null;
   error_code?: string | null;
+  error_message?: string | null;
   tags: string[];
+  slice?: string | null;
+  source?: string | null;
+  export_eligible?: boolean | null;
+  curation_status?: "include" | "exclude" | "review";
+  curation_note?: string | null;
+  artifact_ref?: string | null;
+  image_ref?: string | null;
+  runner_backend?: string | null;
+  latency_ms?: number | null;
+  tool_calls?: number | null;
+  phoenix_trace_url?: string | null;
 };
 
 const json = async (route: Route, body: unknown, status = 200) =>
@@ -101,6 +125,10 @@ export const buildAgent = (overrides: Partial<ApiAgent> = {}): ApiAgent => ({
 
 export const buildDataset = (overrides: Partial<ApiDataset> = {}): ApiDataset => ({
   name: "crm-v2",
+  description: null,
+  source: null,
+  version: null,
+  created_at: "2026-03-24T00:00:00Z",
   rows: [{ sample_id: "sample-001", input: "Can you create a shipping itinerary?" }],
   ...overrides
 });
@@ -153,6 +181,7 @@ export const buildEvalJob = (overrides: Partial<ApiEvalJob> = {}): ApiEvalJob =>
   runtime_error_count: 1,
   pass_rate: 33.33,
   failure_distribution: { mismatch: 1, provider_call: 1 },
+  observability: null,
   created_at: "2026-03-24T00:00:00Z",
   ...overrides
 });
@@ -168,6 +197,8 @@ export const buildEvalSample = (overrides: Partial<ApiEvalSample> = {}): ApiEval
   failure_reason: "provider authentication failed",
   error_code: "provider_call",
   tags: [],
+  curation_status: "review",
+  export_eligible: true,
   ...overrides
 });
 

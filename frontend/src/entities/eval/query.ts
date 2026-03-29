@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createEvalJob, listEvalJobs, listEvalSamples } from "./api";
-import { runsQueryRoot } from "@/src/entities/run/query";
-import type { CreateEvalJobInput } from "./model";
+import { compareEvalJobs, createEvalJob, listEvalJobs, listEvalSamples, patchEvalSample } from "./api";
+import type { CreateEvalJobInput, EvalSamplePatchInput } from "./model";
 
 export const evalJobsQueryRoot = ["eval-jobs"] as const;
 
@@ -20,12 +19,24 @@ export function evalSamplesQueryOptions(evalJobId: string) {
   };
 }
 
+export function evalCompareQueryOptions(baselineEvalJobId: string, candidateEvalJobId: string) {
+  return {
+    queryKey: [...evalJobsQueryRoot, "compare", baselineEvalJobId, candidateEvalJobId] as const,
+    queryFn: () => compareEvalJobs(baselineEvalJobId, candidateEvalJobId),
+    enabled: Boolean(baselineEvalJobId && candidateEvalJobId)
+  };
+}
+
 export function useEvalJobsQuery() {
   return useQuery(evalJobsQueryOptions());
 }
 
 export function useEvalSamplesQuery(evalJobId: string) {
   return useQuery(evalSamplesQueryOptions(evalJobId));
+}
+
+export function useEvalCompareQuery(baselineEvalJobId: string, candidateEvalJobId: string) {
+  return useQuery(evalCompareQueryOptions(baselineEvalJobId, candidateEvalJobId));
 }
 
 export function useCreateEvalJobMutation() {
@@ -35,7 +46,20 @@ export function useCreateEvalJobMutation() {
     mutationFn: (payload: CreateEvalJobInput) => createEvalJob(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: evalJobsQueryRoot });
-      void queryClient.invalidateQueries({ queryKey: runsQueryRoot });
+    }
+  });
+}
+
+export function usePatchEvalSampleMutation(evalJobId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ datasetSampleId, payload }: { datasetSampleId: string; payload: EvalSamplePatchInput }) =>
+      patchEvalSample(evalJobId, datasetSampleId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...evalJobsQueryRoot, evalJobId, "samples"] });
+      void queryClient.invalidateQueries({ queryKey: [...evalJobsQueryRoot, "compare"] });
+      void queryClient.invalidateQueries({ queryKey: ["exports"] });
     }
   });
 }

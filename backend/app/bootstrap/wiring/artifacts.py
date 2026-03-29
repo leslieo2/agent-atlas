@@ -3,11 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
-from app.infrastructure.adapters.artifacts import (
-    ArtifactExporterAdapter,
-    RunArtifactExportSourceAdapter,
-    TrajectoryArtifactExportSourceAdapter,
-)
+from app.infrastructure.adapters.artifacts import ArtifactExporterAdapter
 from app.modules.artifacts.application.use_cases import ArtifactCommands, ArtifactQueries
 
 
@@ -19,14 +15,10 @@ class ArtifactModuleBundle:
 
 
 def build_artifact_module(infra: InfrastructureBundle) -> ArtifactModuleBundle:
-    trajectory_export_source = TrajectoryArtifactExportSourceAdapter(
-        trajectory_repository=infra.trajectory_repository
-    )
-    run_export_source = RunArtifactExportSourceAdapter(run_repository=infra.run_repository)
     artifact_exporter = ArtifactExporterAdapter(
-        trajectory_repository=trajectory_export_source,
         artifact_repository=infra.artifact_repository,
-        run_repository=run_export_source,
+        eval_job_repository=infra.eval_job_repository,
+        sample_result_repository=infra.eval_sample_result_repository,
     )
     artifact_queries = ArtifactQueries(artifact_repository=infra.artifact_repository)
     artifact_commands = ArtifactCommands(artifact_exporter=artifact_exporter)

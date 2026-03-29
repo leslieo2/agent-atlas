@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from app.core.config import TraceBackendMode, settings
 from app.infrastructure.adapters.agent_catalog import (
@@ -61,11 +62,10 @@ def _require_phoenix_configuration() -> tuple[str, str]:
             "Phoenix-backed raw tracing is required. Configure "
             f"{missing_fields} before starting Agent Atlas."
         )
-    phoenix_base_url = settings.phoenix_base_url
-    phoenix_otlp_endpoint = settings.phoenix_otlp_endpoint
-    assert phoenix_base_url is not None
-    assert phoenix_otlp_endpoint is not None
-    return phoenix_base_url, phoenix_otlp_endpoint
+    return (
+        cast("str", settings.phoenix_base_url),
+        cast("str", settings.phoenix_otlp_endpoint),
+    )
 
 
 @dataclass(frozen=True)

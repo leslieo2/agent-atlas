@@ -3,45 +3,38 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Airplay, Cpu, Database, Radar, Shapes } from "lucide-react";
+import { Database, Download, Radar, Shapes } from "lucide-react";
 import type { ReactNode } from "react";
 import styles from "./WorkbenchShell.module.css";
 
 const navItems = [
   {
-    href: "/runs",
-    label: "Runs",
-    description: "Search executions, inspect status, and launch new work.",
-    icon: Airplay,
-    match: (pathname: string) => pathname === "/runs" || pathname.startsWith("/runs/")
-  },
-  {
     href: "/agents",
     label: "Agents",
-    description: "Discover plugins, publish runnable snapshots, and inspect validation state.",
+    description: "Discover agents, publish governed snapshots, and inspect provenance.",
     icon: Shapes,
     match: (pathname: string) => pathname.startsWith("/agents")
   },
   {
-    href: "/evals",
-    label: "Evals",
-    description: "Launch dataset batches, review aggregate regressions, and inspect failing samples.",
-    icon: Radar,
-    match: (pathname: string) => pathname.startsWith("/evals")
-  },
-  {
     href: "/datasets",
     label: "Datasets",
-    description: "Import, inspect, and prepare datasets for evals and playground runs.",
+    description: "Manage RL data assets, slices, tags, and sample-level export eligibility.",
     icon: Database,
     match: (pathname: string) => pathname.startsWith("/datasets")
   },
   {
-    href: "/playground",
-    label: "Playground",
-    description: "Trigger manual runs and open fresh traces.",
-    icon: Cpu,
-    match: (pathname: string) => pathname.startsWith("/playground")
+    href: "/evals",
+    label: "Evals",
+    description: "Run batch evals, compare baseline vs candidate, and curate sample results.",
+    icon: Radar,
+    match: (pathname: string) => pathname.startsWith("/evals")
+  },
+  {
+    href: "/exports",
+    label: "Exports",
+    description: "Build RL-ready export files from curated eval results and compare slices.",
+    icon: Download,
+    match: (pathname: string) => pathname.startsWith("/exports")
   }
 ] as const;
 
@@ -64,7 +57,7 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
           </div>
           <h1>Agent Atlas</h1>
           <p>
-            Operate discovery, execution, trajectory review, and artifact export from a single local-first workspace.
+            Govern published agents, curate dataset-driven eval results, and ship RL-ready exports.
           </p>
         </div>
 

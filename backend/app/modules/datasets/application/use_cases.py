@@ -20,6 +20,12 @@ class DatasetCommands:
         self.dataset_repository = dataset_repository
 
     def create(self, payload: DatasetCreate) -> Dataset:
-        dataset = Dataset(name=payload.name, rows=payload.rows)
+        dataset = Dataset(
+            name=payload.name,
+            description=payload.description,
+            source=payload.source,
+            version=payload.version,
+            rows=payload.rows,
+        )
         self.dataset_repository.save(dataset)
         return dataset

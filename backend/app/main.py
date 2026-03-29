@@ -8,11 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
     agent_router,
-    artifact_router,
     dataset_router,
     eval_router,
-    run_router,
-    trace_router,
+    export_router,
 )
 from app.bootstrap.providers.health import get_health_queries
 from app.bootstrap.seed import seed_demo_state
@@ -47,9 +45,7 @@ def health(queries: Annotated[HealthQueries, Depends(get_health_queries)]):
     return queries.get_health()
 
 
-app.include_router(run_router, prefix=settings.api_prefix)
 app.include_router(agent_router, prefix=settings.api_prefix)
 app.include_router(dataset_router, prefix=settings.api_prefix)
 app.include_router(eval_router, prefix=settings.api_prefix)
-app.include_router(artifact_router, prefix=settings.api_prefix)
-app.include_router(trace_router, prefix=settings.api_prefix)
+app.include_router(export_router, prefix=settings.api_prefix)

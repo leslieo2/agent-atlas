@@ -28,6 +28,10 @@ class EvalDatasetSourceAdapter(DatasetSourcePort):
                     input=sample.input,
                     expected=sample.expected,
                     tags=sample.tags,
+                    slice=sample.slice,
+                    source=sample.source,
+                    metadata=sample.metadata,
+                    export_eligible=sample.export_eligible,
                 )
                 for sample in dataset.rows
             ],

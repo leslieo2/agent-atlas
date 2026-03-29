@@ -21,6 +21,9 @@ class StateEvalSampleResultRepository:
     def list_for_job(self, eval_job_id: str | UUID) -> list[EvalSampleResult]:
         return persistence.list_eval_sample_results(to_uuid(eval_job_id))
 
+    def get(self, eval_job_id: str | UUID, dataset_sample_id: str) -> EvalSampleResult | None:
+        return persistence.get_eval_sample_result(to_uuid(eval_job_id), dataset_sample_id)
+
     def save(self, result: EvalSampleResult) -> None:
         persistence.save_eval_sample_result(result)
 

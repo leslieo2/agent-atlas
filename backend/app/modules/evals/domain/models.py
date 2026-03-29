@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -31,6 +32,21 @@ class SampleJudgement(str, Enum):
     FAILED = "failed"
     UNSCORED = "unscored"
     RUNTIME_ERROR = "runtime_error"
+
+
+class CurationStatus(str, Enum):
+    INCLUDE = "include"
+    EXCLUDE = "exclude"
+    REVIEW = "review"
+
+
+class CompareOutcome(str, Enum):
+    IMPROVED = "improved"
+    REGRESSED = "regressed"
+    UNCHANGED_PASS = "unchanged_pass"  # nosec B105 - compare label, not a credential
+    UNCHANGED_FAIL = "unchanged_fail"
+    CANDIDATE_ONLY = "candidate_only"
+    BASELINE_ONLY = "baseline_only"
 
 
 class EvalJobCreateInput(BaseModel):
@@ -68,6 +84,10 @@ class EvalDatasetSample(BaseModel):
     input: str
     expected: str | None = None
     tags: list[str] = Field(default_factory=list)
+    slice: str | None = None
+    source: str | None = None
+    metadata: dict[str, Any] | None = None
+    export_eligible: bool | None = None
 
 
 class EvalDataset(BaseModel):
@@ -85,8 +105,55 @@ class EvalSampleResult(BaseModel):
     actual: str | None = None
     failure_reason: str | None = None
     error_code: str | None = None
+    error_message: str | None = None
     trace_url: str | None = None
     tags: list[str] = Field(default_factory=list)
+    slice: str | None = None
+    source: str | None = None
+    metadata: dict[str, Any] | None = None
+    export_eligible: bool | None = None
+    curation_status: CurationStatus = CurationStatus.REVIEW
+    curation_note: str | None = None
+    published_agent_snapshot: dict[str, Any] | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    runner_backend: str | None = None
+    framework: str | None = None
+    latency_ms: int | None = None
+    tool_calls: int | None = None
+    prompt_version: str | None = None
+    image_digest: str | None = None
+
+
+class EvalSamplePatchInput(BaseModel):
+    curation_status: CurationStatus | None = None
+    curation_note: str | None = None
+    export_eligible: bool | None = None
+
+
+class CandidateRunSummary(BaseModel):
+    run_id: UUID
+    actual: str | None = None
+    trace_url: str | None = None
+
+
+class EvalCompareSample(BaseModel):
+    dataset_sample_id: str
+    baseline_judgement: SampleJudgement | None = None
+    candidate_judgement: SampleJudgement | None = None
+    compare_outcome: CompareOutcome
+    error_code: str | None = None
+    slice: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    candidate_run_summary: CandidateRunSummary | None = None
+
+
+class EvalCompareResult(BaseModel):
+    baseline_eval_job_id: UUID
+    candidate_eval_job_id: UUID
+    dataset: str
+    distribution: dict[str, int] = Field(default_factory=dict)
+    samples: list[EvalCompareSample] = Field(default_factory=list)
 
 
 class EvalRunState(BaseModel):
@@ -98,3 +165,10 @@ class EvalRunState(BaseModel):
     error_message: str | None = None
     termination_reason: str | None = None
     trace_url: str | None = None
+    published_agent_snapshot: dict[str, Any] | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    runner_backend: str | None = None
+    framework: str | None = None
+    latency_ms: int | None = None
+    tool_calls: int | None = None

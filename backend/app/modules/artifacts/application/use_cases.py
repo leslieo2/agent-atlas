@@ -10,10 +10,10 @@ class ArtifactQueries:
     def __init__(self, artifact_repository: ArtifactRepository) -> None:
         self.artifact_repository = artifact_repository
 
-    def get_artifact(self, artifact_id: str | UUID) -> ArtifactMetadata | None:
+    def get_export(self, artifact_id: str | UUID) -> ArtifactMetadata | None:
         return self.artifact_repository.get(artifact_id)
 
-    def list_artifacts(self) -> list[ArtifactMetadata]:
+    def list_exports(self) -> list[ArtifactMetadata]:
         return self.artifact_repository.list()
 
 

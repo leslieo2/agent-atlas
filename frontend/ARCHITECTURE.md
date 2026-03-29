@@ -20,6 +20,8 @@ External backend rule:
 
 - observability or evaluation vendors such as Phoenix stay behind backend-owned APIs, summaries, and deep links
 - frontend entities should not call vendor APIs directly
+- first-class Atlas workspaces should converge on `Agents`, `Datasets`, `Evals`, and `Exports`
+- runs, tracing, and manual execution are supporting drill-downs, not the target product center
 
 ## Current Conventions
 
@@ -46,4 +48,8 @@ External backend rule:
 - Keep page-level orchestration local to widgets.
 - Use TanStack Query for server state, cache keys, mutations, and invalidation across workspaces.
 - Keep the backend as the integration boundary for external observability and eval systems.
+- Prefer Phoenix deep links over rebuilding trace, prompt, evaluator, or experiment tooling in the
+  frontend.
+- Treat legacy workbench surfaces such as standalone runs or playground flows as transitional, not
+  as the long-term information architecture.
 - Do not introduce a separate global client store unless state starts crossing multiple workspaces in ways React Query cannot model cleanly.

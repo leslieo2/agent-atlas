@@ -214,11 +214,6 @@ function AgentCard({
             Run eval <ArrowUpRight size={14} />
           </Button>
         ) : null}
-        {isPublished && isValid ? (
-          <Button href={`/playground?agent=${encodeURIComponent(agent.agentId)}`} variant="ghost">
-            Open in Playground <ArrowUpRight size={14} />
-          </Button>
-        ) : null}
       </div>
     </article>
   );
@@ -243,7 +238,7 @@ export default function AgentsWorkspace() {
     () => [
       {
         title: "Ready",
-        description: "Valid published agents exposed to Playground and run creation.",
+        description: "Valid published agents ready to generate RL evaluation data.",
         items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "ready")
       },
       {
@@ -253,7 +248,7 @@ export default function AgentsWorkspace() {
       },
       {
         title: "Draft",
-        description: "Valid repository plugins that are not yet exposed.",
+        description: "Valid repository plugins that are not yet published for eval orchestration.",
         items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "draft")
       },
       {
@@ -279,7 +274,7 @@ export default function AgentsWorkspace() {
           <h2 className="section-title">Agents</h2>
           <p className="kicker">
             Discover repository-local plugins, publish framework-aware runnable snapshots, and keep invalid agents out
-            of Playground.
+            of the RL data pipeline.
           </p>
           <div className="page-tag-list">
             <span className="page-tag">
@@ -300,7 +295,7 @@ export default function AgentsWorkspace() {
               {groups[0].items.length} ready / {groups[1].items.length} drifted / {groups[2].items.length} staged
             </span>
             <p className="page-info-detail">
-              Re-publish drifted agents to refresh the runnable snapshot without expanding release scope.
+              Re-publish drifted agents to refresh the snapshot that feeds future eval jobs and exports.
             </p>
           </div>
         </div>

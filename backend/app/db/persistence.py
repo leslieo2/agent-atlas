@@ -525,6 +525,23 @@ class StatePersistence:
         )
         return [EvalSampleResult.model_validate(json.loads(payload)) for payload in payloads]
 
+    def get_eval_sample_result(
+        self,
+        eval_job_id: UUID | str,
+        dataset_sample_id: str,
+    ) -> EvalSampleResult | None:
+        payloads = self._fetch_payloads(
+            """
+            SELECT payload FROM eval_sample_results
+            WHERE eval_job_id = ? AND dataset_sample_id = ?
+            LIMIT 1
+            """,
+            (str(to_uuid(eval_job_id)), dataset_sample_id),
+        )
+        if not payloads:
+            return None
+        return EvalSampleResult.model_validate(json.loads(payloads[0]))
+
     def delete_eval_sample_results(self, eval_job_id: UUID | str) -> None:
         if not self.conn:
             return

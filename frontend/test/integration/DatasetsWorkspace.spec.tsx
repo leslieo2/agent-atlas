@@ -20,140 +20,102 @@ describe("Datasets workspace", () => {
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([
       {
         name: "crm-v2",
+        description: "Support escalation data",
+        source: "customer-support-regression",
+        version: "2026-03-rl-v2",
+        createdAt: "2026-03-24T00:00:00Z",
         rows: [
-          { sampleId: "sample-1", input: "where is my order?", expected: "status lookup", tags: ["shipping"] },
-          { sampleId: "sample-2", input: "cancel my order", expected: null, tags: [] }
+          {
+            sampleId: "sample-1",
+            input: "where is my order?",
+            expected: "status lookup",
+            tags: ["shipping"],
+            slice: "shipping",
+            source: "crm",
+            metadata: null,
+            exportEligible: true
+          },
+          {
+            sampleId: "sample-2",
+            input: "cancel my order",
+            expected: null,
+            tags: ["returns"],
+            slice: "returns",
+            source: "crm",
+            metadata: null,
+            exportEligible: false
+          }
         ]
       }
     ]);
     (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({
-      name: "crm-v2",
-      rows: []
-    });
-  });
-
-  it("loads the existing dataset catalog and preview", async () => {
-    renderWithQueryClient(<DatasetsWorkspace />);
-
-    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
-
-    expect(await screen.findByText("Datasets workspace")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /crm-v2/i })).toBeInTheDocument();
-    expect(screen.getByText("where is my order?")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open in evals" })).toHaveAttribute("href", "/evals?dataset=crm-v2");
-    expect(screen.getByRole("link", { name: "Open in playground" })).toHaveAttribute(
-      "href",
-      "/playground?dataset=crm-v2"
-    );
-  });
-
-  it("uploads jsonl and refreshes the dataset list", async () => {
-    (datasetApi.listDatasets as unknown as MockedApiFn)
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([
-        {
-          name: "support-batch",
-          rows: [
-            { sampleId: "support-1", input: "where is my refund?", expected: null, tags: [] },
-            { sampleId: "support-2", input: "cancel this order", expected: null, tags: [] }
-          ]
-        }
-      ]);
-    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({
-      name: "support-batch",
-      rows: [
-        { sampleId: "support-1", input: "where is my refund?", expected: null, tags: [] },
-        { sampleId: "support-2", input: "cancel this order", expected: null, tags: [] }
-      ]
-    });
-
-    renderWithQueryClient(<DatasetsWorkspace />);
-
-    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
-
-    fireEvent.change(screen.getByLabelText("Dataset name"), { target: { value: "support-batch" } });
-    const file = new File(
-      ['{"sample_id":"support-1","input":"where is my refund?"}\n{"sample_id":"support-2","input":"cancel this order"}\n'],
-      "support-batch.jsonl",
-      { type: "application/json" }
-    );
-    fireEvent.change(screen.getByLabelText("Upload dataset JSONL"), {
-      target: { files: [file] }
-    });
-
-    await waitFor(() =>
-      expect(datasetApi.createDataset).toHaveBeenCalledWith({
-        name: "support-batch",
-        rows: [
-          { sampleId: "support-1", input: "where is my refund?", expected: null, tags: [] },
-          { sampleId: "support-2", input: "cancel this order", expected: null, tags: [] }
-        ]
-      })
-    );
-
-    expect(await screen.findByText(/Imported dataset support-batch with 2 samples\./)).toBeInTheDocument();
-    expect(screen.getByText("where is my refund?")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open imported dataset in evals" })).toHaveAttribute(
-      "href",
-      "/evals?dataset=support-batch"
-    );
-  });
-
-  it("creates a manual single-sample dataset and selects it", async () => {
-    (datasetApi.listDatasets as unknown as MockedApiFn)
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([
-        {
-          name: "returns-review",
-          rows: [
-            {
-              sampleId: "returns-review-sample-1",
-              input: "review order return",
-              expected: null,
-              tags: []
-            }
-          ]
-        }
-      ]);
-    (datasetApi.createDataset as unknown as MockedApiFn).mockResolvedValue({
       name: "returns-review",
+      description: "High-value failures",
+      source: "support_ticket_backfill",
+      version: "2026-03-rl-v1",
+      createdAt: "2026-03-25T00:00:00Z",
       rows: [
         {
           sampleId: "returns-review-sample-1",
           input: "review order return",
           expected: null,
-          tags: []
+          tags: ["returns"],
+          slice: "hard-cases",
+          source: "support_ticket_backfill",
+          metadata: null,
+          exportEligible: true
         }
       ]
     });
+  });
 
+  it("loads dataset assets, filters rows, and creates a new dataset with metadata", async () => {
     renderWithQueryClient(<DatasetsWorkspace />);
 
-    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole("heading", { name: "Datasets" })).toBeInTheDocument();
+    await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalled());
+    expect(await screen.findByText("where is my order?")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open in evals" })).toHaveAttribute("href", "/evals?dataset=crm-v2");
+
+    fireEvent.change(screen.getByLabelText("Slice filter"), { target: { value: "returns" } });
+    expect(screen.getByText("cancel my order")).toBeInTheDocument();
+    expect(screen.queryByText("where is my order?")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Dataset name"), { target: { value: "returns-review" } });
-    fireEvent.change(screen.getByLabelText("Sample input"), { target: { value: "review order return" } });
+    fireEvent.change(screen.getByLabelText("Version"), { target: { value: "2026-03-rl-v1" } });
+    fireEvent.change(screen.getByLabelText("Source"), { target: { value: "support_ticket_backfill" } });
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "High-value failures" } });
+    fireEvent.change(screen.getByLabelText("Input"), { target: { value: "review order return" } });
+    fireEvent.change(screen.getByLabelText("Tags"), { target: { value: "returns" } });
+    fireEvent.change(screen.getByLabelText("Slice"), { target: { value: "hard-cases" } });
+    fireEvent.change(screen.getByLabelText("Row source"), { target: { value: "support_ticket_backfill" } });
     fireEvent.click(screen.getByRole("button", { name: "Create dataset" }));
 
     await waitFor(() =>
       expect(datasetApi.createDataset).toHaveBeenCalledWith({
         name: "returns-review",
+        description: "High-value failures",
+        source: "support_ticket_backfill",
+        version: "2026-03-rl-v1",
         rows: [
           {
             sampleId: "returns-review-sample-1",
             input: "review order return",
             expected: null,
-            tags: []
+            tags: ["returns"],
+            slice: "hard-cases",
+            source: "support_ticket_backfill",
+            metadata: null,
+            exportEligible: true
           }
         ]
       })
     );
 
     expect(await screen.findByText(/Created dataset returns-review with 1 sample\./)).toBeInTheDocument();
-    expect(screen.getByText("review order return")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open imported dataset in playground" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open imported dataset in evals" })).toHaveAttribute(
       "href",
-      "/playground?dataset=returns-review"
+      "/evals?dataset=returns-review"
     );
   });
 });

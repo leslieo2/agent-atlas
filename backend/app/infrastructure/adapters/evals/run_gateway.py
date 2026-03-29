@@ -88,6 +88,19 @@ class StateEvalRunGateway(EvalRunGatewayPort):
                     error_message=run.error_message,
                     termination_reason=run.termination_reason,
                     trace_url=run.observability.trace_url if run.observability else None,
+                    published_agent_snapshot=(
+                        run.provenance.published_agent_snapshot if run.provenance else None
+                    ),
+                    artifact_ref=(
+                        run.provenance.artifact_ref if run.provenance else run.artifact_ref
+                    ),
+                    image_ref=run.provenance.image_ref if run.provenance else run.image_ref,
+                    runner_backend=(
+                        run.provenance.runner_backend if run.provenance else run.runner_backend
+                    ),
+                    framework=run.provenance.framework if run.provenance else None,
+                    latency_ms=run.latency_ms,
+                    tool_calls=run.tool_calls,
                 )
             )
         return states

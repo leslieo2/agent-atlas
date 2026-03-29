@@ -1,15 +1,15 @@
 # Agent Atlas
 
-Agent Atlas is a self-hosted control plane for turning repository-local agents into governed
-runtime assets and RL-ready execution data.
+Agent Atlas is a self-hosted control plane for turning published agents and datasets into governed
+RL-ready execution data.
 
 It combines:
 
-- a FastAPI backend that owns discovery, publication, run control, datasets, eval linkage,
-  provenance, and export contracts
-- a Next.js frontend that exposes the operator-facing control plane
-- an external-observability-first direction where Phoenix is the required backend for raw traces,
-  prompt and experiment workflows, and evaluation-oriented debugging
+- a FastAPI backend that owns agent publication, dataset identity, eval orchestration, provenance,
+  and export contracts
+- a Next.js frontend that exposes the operator-facing RL data control plane
+- a Phoenix-first debugging model where raw traces, prompts, playground flows, and experiment
+  analysis live outside Atlas
 
 ## What Is In This Repository
 
@@ -24,36 +24,43 @@ It combines:
 What exists today:
 
 - repository-local agent discovery and publish / unpublish workflow
-- worker-backed manual run execution
-- run inspection through dashboard, trajectory viewer, and trace endpoints
+- worker-backed execution and run lifecycle tracking
 - dataset management and dataset-driven eval jobs
 - artifact export for downstream analysis
+- legacy run, trajectory, and playground surfaces from the earlier workbench story
 
 What is directional, not yet shipped:
 
 - immutable artifact or image-backed publication
-- Docker or Kubernetes runner orchestration
-- Phoenix-backed trace and eval storage
-- RL-ready export contracts beyond the current artifact schema
+- richer curation-first export contracts for RL workflows
+- product-level removal of Atlas surfaces that overlap with Phoenix
+- Docker or remote runner orchestration beyond the current local-first path
 
 ## Product Direction
 
-Agent Atlas is not trying to become another hosted observability product.
+Agent Atlas is not trying to become another hosted observability or experimentation product.
 
 The product boundary is:
 
-- Agent Atlas owns repository-local discovery, publish policy, run control, provenance, and export
-  semantics
-- Phoenix is the required external backend for raw trace observability and evaluation workflows
+- Agent Atlas owns published agent governance, datasets, eval jobs, provenance, curation, and
+  export semantics
+- Phoenix owns raw traces, playground, prompts, evaluators, and experiment analysis
 - RL integration starts with offline export first, not direct training orchestration
+
+The target first-class Atlas surfaces are:
+
+- `Agents`
+- `Datasets`
+- `Evals`
+- `Exports`
 
 This means the long-term shape is:
 
 - repo-local discovery and validation
-- framework-aware publication
-- artifact and image provenance
-- runner orchestration
-- Phoenix-first observability and eval integration
+- governed publication with artifact, image, and runner provenance
+- dataset and sample identity for RL data production
+- eval-driven batch execution and comparison
+- Phoenix-linked debugging instead of Atlas-native trace tooling
 - RL-ready offline export
 
 ## Architecture At A Glance
@@ -63,12 +70,13 @@ This means the long-term shape is:
   wiring happens in `backend/app/bootstrap/container.py`.
 - Frontend: a layered Next.js App Router app. Route entrypoints live in `frontend/app`, while
   product code follows `app -> widgets -> features -> entities -> shared` in `frontend/src`.
-- External backend direction: raw tracing and evaluation observability are intended to move behind
-  infrastructure adapters so Atlas stays the control plane while Phoenix remains the required
-  backend.
+- External backend direction: Atlas keeps control-plane truth while Phoenix remains the required
+  analysis plane for raw traces and experiment-heavy debugging workflows.
 
 Use the subsystem docs for the full architecture rules:
 
+- [prd.md](prd.md)
+- [roadmap.md](roadmap.md)
 - [backend/README.md](backend/README.md)
 - [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
 - [backend/AGENTS.md](backend/AGENTS.md)

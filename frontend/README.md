@@ -1,7 +1,7 @@
 # Agent Atlas Frontend
 
-The frontend is the operator interface for Agent Atlas. It provides the browser UI for repository-
-local agent control, run operations, trajectory inspection, eval workflows, and export actions.
+The frontend is the operator interface for Agent Atlas. It provides the browser UI for published
+agent governance, dataset management, eval workflows, and export actions.
 
 The frontend is intentionally a control-plane UI, not a direct vendor console for tracing or
 experimentation. When external observability backends such as Phoenix are integrated, the frontend
@@ -14,12 +14,16 @@ working directly on the frontend application.
 ## What This App Owns
 
 - Agents workspace and publication-oriented interaction flows
-- run dashboard and run-level interaction flows
-- trajectory viewing and step inspection
-- Playground and operator-facing execution surfaces
 - datasets and eval workspaces
+- export-oriented interaction flows
 - client-side data fetching, mapping, and caching for control-plane views
 - frontend architecture and design system rules for the UI layer
+
+Supporting, but not long-term primary, surfaces:
+
+- run-level drill-downs under eval workflows
+- trajectory summaries and Phoenix links for debugging
+- legacy workbench routes that still exist while the IA is being simplified
 
 ## Architecture
 
@@ -66,19 +70,25 @@ starting the dev server.
 ## Implemented Workbench Surfaces
 
 - Agents: discover, validate, publish, and inspect repository-local agent plugins
-- Runs: browse, filter, search, and act on run records
-- Trajectory Viewer: inspect step graphs and step-level details
-- Playground: trigger manual execution flows and inspect outputs
 - Datasets: upload and manage sample sets
 - Evals: create eval jobs and inspect result summaries and failures
+- Export actions: download offline artifacts from run and eval workflows
+
+Legacy surfaces still present in the codebase but being downscoped:
+
+- Runs
+- Trajectory Viewer
+- Playground
 
 ## Product Direction
 
 The frontend should evolve in a way that reinforces Atlas as the control plane:
 
+- center the IA on `Agents`, `Datasets`, `Evals`, and `Exports`
 - show framework, publication, build, runner, and provenance state inside Atlas
 - keep raw-trace and experiment-heavy flows Phoenix-backed through Atlas-owned APIs or deep links
 - avoid rebuilding a complete observability product inside the frontend
+- avoid growing manual-run or playground surfaces as first-class product workflows
 - preserve explicit snake_case-to-camelCase payload mapping when backend contracts expand
 
 ## Developer Commands

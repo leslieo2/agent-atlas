@@ -1,11 +1,15 @@
 from app.modules.evals.contracts.schemas import (
+    EvalCompareResponse,
     EvalJobCreateRequest,
     EvalJobResponse,
-    EvalSampleResultResponse,
+    EvalSampleDetailResponse,
+    EvalSamplePatchRequest,
 )
 
 __all__ = [
+    "EvalCompareResponse",
     "EvalJobCreateRequest",
     "EvalJobResponse",
-    "EvalSampleResultResponse",
+    "EvalSampleDetailResponse",
+    "EvalSamplePatchRequest",
 ]

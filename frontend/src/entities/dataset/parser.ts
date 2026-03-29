@@ -19,6 +19,10 @@ export function parseDatasetJsonl(content: string): DatasetRow[] {
         input?: unknown;
         expected?: unknown;
         tags?: unknown;
+        slice?: unknown;
+        source?: unknown;
+        metadata?: unknown;
+        export_eligible?: unknown;
       };
 
       const input = typeof parsed.input === "string" ? parsed.input.trim() : "";
@@ -35,7 +39,14 @@ export function parseDatasetJsonl(content: string): DatasetRow[] {
         sampleId,
         input,
         expected: typeof parsed.expected === "string" ? parsed.expected : null,
-        tags: normalizeDatasetTags(parsed.tags)
+        tags: normalizeDatasetTags(parsed.tags),
+        slice: typeof parsed.slice === "string" ? parsed.slice : null,
+        source: typeof parsed.source === "string" ? parsed.source : null,
+        metadata:
+          parsed.metadata && typeof parsed.metadata === "object" && !Array.isArray(parsed.metadata)
+            ? (parsed.metadata as Record<string, unknown>)
+            : null,
+        exportEligible: typeof parsed.export_eligible === "boolean" ? parsed.export_eligible : null
       };
     });
 }

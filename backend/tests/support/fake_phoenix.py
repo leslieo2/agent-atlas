@@ -26,6 +26,7 @@ class FakePhoenixTraceExporter:
         self.repository = repository or StateTraceRepository()
         self.base_url = base_url.rstrip("/") if base_url else None
         self.project_name = project_name
+        self.project_id = f"project-{project_name}"
 
     def export(
         self,
@@ -43,12 +44,12 @@ class FakePhoenixTraceExporter:
             trace_id=trace_id,
             trace_url=build_phoenix_trace_url(
                 base_url=self.base_url,
-                project_name=self.project_name,
+                project_id=self.project_id,
                 trace_id=trace_id,
             ),
             project_url=build_phoenix_project_url(
                 base_url=self.base_url,
-                project_name=self.project_name,
+                project_id=self.project_id,
                 eval_job_id=first_event.metadata.eval_job_id if first_event.metadata else None,
                 run_id=first_event.run_id,
             ),

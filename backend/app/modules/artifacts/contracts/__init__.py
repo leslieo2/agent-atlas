@@ -1,3 +1,3 @@
-from app.modules.artifacts.contracts.schemas import ArtifactExportRequest, ArtifactMetadataResponse
+from app.modules.artifacts.contracts.schemas import ExportCreateRequest, ExportMetadataResponse
 
-__all__ = ["ArtifactExportRequest", "ArtifactMetadataResponse"]
+__all__ = ["ExportCreateRequest", "ExportMetadataResponse"]

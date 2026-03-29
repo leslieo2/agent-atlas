@@ -1,6 +1,6 @@
 .workspaceGrid {
   display: grid;
-  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(320px, 0.9fr) minmax(320px, 1.1fr);
   gap: 18px;
 }
 
@@ -8,13 +8,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-}
-
-.formActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
 }
 
 .jobList {
@@ -56,32 +49,20 @@
   gap: 8px;
 }
 
-.failureActions {
+.compareSummary {
   display: grid;
-  gap: 10px;
-  justify-items: end;
-}
-
-.failureCodes {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
-  margin-bottom: 18px;
+  margin: 18px 0;
 }
 
-.failureCode {
+.compareCard {
   display: grid;
   gap: 8px;
   padding: 12px 14px;
   border: 1px solid rgba(158, 189, 226, 0.12);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.02);
-}
-
-.selectionSummary {
-  margin: 0 0 16px;
-  color: var(--text-faint);
-  font-size: 0.86rem;
 }
 
 .samplesTable {
@@ -104,25 +85,30 @@
   text-transform: uppercase;
 }
 
-.selectorCell {
-  width: 4.5rem;
-}
-
-.selectorCell input {
-  accent-color: var(--accent);
-}
-
 .sampleDetail {
   display: grid;
   gap: 6px;
   max-width: 24rem;
 }
 
-@media (max-width: 1100px) {
-  .workspaceGrid {
-    grid-template-columns: 1fr;
-  }
+.statusStack {
+  display: grid;
+  gap: 8px;
+}
 
+.curationActions {
+  display: grid;
+  gap: 10px;
+}
+
+.actionButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .workspaceGrid,
   .formGrid {
     grid-template-columns: 1fr;
   }

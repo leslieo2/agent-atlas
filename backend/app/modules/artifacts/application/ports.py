@@ -6,8 +6,6 @@ from uuid import UUID
 from app.modules.artifacts.domain.models import (
     ArtifactExportRequest,
     ArtifactMetadata,
-    ArtifactRunView,
-    ArtifactTrajectoryStepView,
 )
 
 
@@ -21,11 +19,3 @@ class ArtifactRepository(Protocol):
 
 class ArtifactExportPort(Protocol):
     def export(self, payload: ArtifactExportRequest) -> ArtifactMetadata: ...
-
-
-class TrajectoryExportSource(Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[ArtifactTrajectoryStepView]: ...
-
-
-class RunLookupSource(Protocol):
-    def get(self, run_id: str | UUID) -> ArtifactRunView | None: ...

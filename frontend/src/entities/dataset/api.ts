@@ -10,11 +10,18 @@ export async function listDatasets() {
 export async function createDataset(payload: CreateDatasetInput) {
   const body: DatasetCreate = {
     name: payload.name,
+    description: payload.description ?? null,
+    source: payload.source ?? null,
+    version: payload.version ?? null,
     rows: payload.rows.map((row) => ({
       sample_id: row.sampleId,
       input: row.input,
       expected: row.expected ?? null,
-      tags: row.tags ?? []
+      tags: row.tags ?? [],
+      slice: row.slice ?? null,
+      source: row.source ?? null,
+      metadata: row.metadata ?? null,
+      export_eligible: row.exportEligible ?? null
     }))
   };
 

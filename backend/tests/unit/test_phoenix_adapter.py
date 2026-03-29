@@ -26,21 +26,30 @@ class _RunRepository:
 def test_build_phoenix_urls():
     project_url = build_phoenix_project_url(
         base_url="http://phoenix.local:6006/",
-        project_name="atlas-control-plane",
+        project_id="UHJvamVjdDoy",
         eval_job_id="job-123",
         run_id="run-456",
     )
     trace_url = build_phoenix_trace_url(
         base_url="http://phoenix.local:6006/",
-        project_name="atlas-control-plane",
+        project_id="UHJvamVjdDoy",
         trace_id="abc123",
     )
 
     assert project_url == (
-        "http://phoenix.local:6006/projects/atlas-control-plane?"
-        "eval_job_id=job-123&run_id=run-456"
+        "http://phoenix.local:6006/projects/UHJvamVjdDoy?" "eval_job_id=job-123&run_id=run-456"
     )
-    assert trace_url == "http://phoenix.local:6006/projects/atlas-control-plane/traces/abc123"
+    assert trace_url == "http://phoenix.local:6006/projects/UHJvamVjdDoy/traces/abc123"
+
+
+def test_build_phoenix_project_url_falls_back_to_home_without_project_id():
+    project_url = build_phoenix_project_url(
+        base_url="http://phoenix.local:6006/",
+        project_id=None,
+        eval_job_id="job-123",
+    )
+
+    assert project_url == "http://phoenix.local:6006"
 
 
 def test_phoenix_trace_backend_filters_and_maps_run_spans():
