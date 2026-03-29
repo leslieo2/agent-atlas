@@ -83,6 +83,7 @@ Install these before working in the repository:
 - Python 3.12
 - [`uv`](https://docs.astral.sh/uv/) for backend environment and dependency management
 - Node.js and `npm` for the frontend
+- Docker if you want `make dev` to launch the local Phoenix server for you
 
 ## Quick Start
 
@@ -97,15 +98,18 @@ make dev
 
 This starts the local stack with the default ports:
 
+- Phoenix: `http://127.0.0.1:6006`
 - backend API: `http://127.0.0.1:8000`
 - frontend: `http://127.0.0.1:3000`
 
 Stop all three development processes together with `Ctrl-C`.
+`make dev` starts Phoenix through Docker, so make sure Docker Desktop or the Docker daemon is running first.
 
 ## Local Development Workflow
 
 `make dev` starts:
 
+- the local Phoenix server
 - the backend API server
 - the backend worker process
 - the frontend development server
@@ -131,7 +135,7 @@ make ci
 What they do:
 
 - `make install`: install backend and frontend dependencies
-- `make dev`: start backend API, backend worker, and frontend dev server together
+- `make dev`: start Phoenix, backend API, backend worker, and frontend dev server together
 - `make lint`: run backend and frontend lint checks
 - `make typecheck`: run backend mypy and frontend TypeScript checks
 - `make test`: run backend pytest and frontend Vitest suites
