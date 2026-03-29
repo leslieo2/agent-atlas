@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowUpRight, Download, Radar } from "lucide-react";
+import { ArrowUpRight, Download, Radar, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAgentsQuery } from "@/src/entities/agent/query";
 import { useDatasetsQuery } from "@/src/entities/dataset/query";
 import { getExportDownloadUrl } from "@/src/entities/export/api";
 import { useCreateExportMutation } from "@/src/entities/export/query";
-import type { EvalJobRecord, EvalSampleRecord } from "@/src/entities/eval/model";
+import type { EvalCompareSampleRecord, EvalJobRecord, EvalSampleRecord } from "@/src/entities/eval/model";
 import {
   useCreateEvalJobMutation,
   useEvalCompareQuery,
@@ -14,12 +14,7 @@ import {
   useEvalSamplesQuery,
   usePatchEvalSampleMutation
 } from "@/src/entities/eval/query";
-import type {
-  CompareOutcome,
-  CurationStatus,
-  SampleJudgement,
-  ScoringMode
-} from "@/src/shared/api/contract";
+import type { CompareOutcome, CurationStatus, SampleJudgement, ScoringMode } from "@/src/shared/api/contract";
 import { Button } from "@/src/shared/ui/Button";
 import { Field } from "@/src/shared/ui/Field";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
@@ -72,16 +67,6 @@ function toneForCompare(outcome: CompareOutcome) {
   return "warn";
 }
 
-function curationTone(status: CurationStatus) {
-  if (status === "include") {
-    return "success";
-  }
-  if (status === "exclude") {
-    return "error";
-  }
-  return "warn";
-}
-
 function buildCompareLookup(
   compareSamples: Array<{
     datasetSampleId: string;
@@ -89,6 +74,10 @@ function buildCompareLookup(
   }>
 ) {
   return new Map(compareSamples.map((sample) => [sample.datasetSampleId, sample.compareOutcome]));
+}
+
+function buildCompareSampleLookup(compareSamples: EvalCompareSampleRecord[]) {
+  return new Map(compareSamples.map((sample) => [sample.datasetSampleId, sample]));
 }
 
 function matchesSampleFilters({
@@ -139,6 +128,47 @@ function jobTitle(job: EvalJobRecord) {
   return `${job.agentId} on ${job.dataset}`;
 }
 
+function formatTimestamp(value: string) {
+  return new Date(value).toLocaleString("en", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function buildActiveFilters(filters: {
+  judgementFilter: string;
+  errorCodeFilter: string;
+  sliceFilter: string;
+  tagFilter: string;
+  curationFilter: string;
+  compareOutcomeFilter: string;
+}) {
+  return [
+    filters.judgementFilter ? `Judgement: ${filters.judgementFilter}` : null,
+    filters.errorCodeFilter ? `Error: ${filters.errorCodeFilter}` : null,
+    filters.sliceFilter ? `Slice: ${filters.sliceFilter}` : null,
+    filters.tagFilter ? `Tag: ${filters.tagFilter}` : null,
+    filters.curationFilter ? `Curation: ${filters.curationFilter}` : null,
+    filters.compareOutcomeFilter ? `Compare: ${filters.compareOutcomeFilter}` : null
+  ].filter((value): value is string => Boolean(value));
+}
+
+function exportReady(sample: EvalSampleRecord) {
+  return sample.exportEligible !== false && sample.curationStatus !== "exclude";
+}
+
+function compareCardTone(outcome: string) {
+  if (outcome === "improved" || outcome === "unchanged_pass") {
+    return "success";
+  }
+  if (outcome === "regressed" || outcome === "baseline_only") {
+    return "error";
+  }
+  return "warn";
+}
+
 export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "", initialJobId = "" }: Props) {
   const agentsQuery = useAgentsQuery();
   const datasetsQuery = useDatasetsQuery();
@@ -172,10 +202,9 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
   const patchSampleMutation = usePatchEvalSampleMutation(selectedJob?.evalJobId ?? "");
   const compareQuery = useEvalCompareQuery(baselineEvalJobId, selectedJob?.evalJobId ?? "");
   const samples = useMemo(() => samplesQuery.data ?? [], [samplesQuery.data]);
-  const compareLookup = useMemo(
-    () => buildCompareLookup(compareQuery.data?.samples ?? []),
-    [compareQuery.data?.samples]
-  );
+  const compareSamples = useMemo(() => compareQuery.data?.samples ?? [], [compareQuery.data?.samples]);
+  const compareLookup = useMemo(() => buildCompareLookup(compareSamples), [compareSamples]);
+  const compareSampleLookup = useMemo(() => buildCompareSampleLookup(compareSamples), [compareSamples]);
 
   const sliceOptions = useMemo(() => uniqueStrings(samples.map((sample) => sample.slice)), [samples]);
   const tagOptions = useMemo(() => uniqueStrings(samples.flatMap((sample) => sample.tags)), [samples]);
@@ -194,7 +223,16 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
           compareOutcomeFilter
         })
       ),
-    [samples, judgementFilter, errorCodeFilter, sliceFilter, tagFilter, curationFilter, compareLookup, compareOutcomeFilter]
+    [
+      samples,
+      judgementFilter,
+      errorCodeFilter,
+      sliceFilter,
+      tagFilter,
+      curationFilter,
+      compareLookup,
+      compareOutcomeFilter
+    ]
   );
   const baselineOptions = useMemo(
     () =>
@@ -202,6 +240,32 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
         (job) => selectedJob && job.dataset === selectedJob.dataset && job.evalJobId !== selectedJob.evalJobId
       ),
     [evalJobs, selectedJob]
+  );
+  const selectedBaselineJob = useMemo(
+    () => baselineOptions.find((job) => job.evalJobId === baselineEvalJobId) ?? null,
+    [baselineEvalJobId, baselineOptions]
+  );
+  const reviewCount = useMemo(() => samples.filter((sample) => sample.curationStatus === "review").length, [samples]);
+  const exportReadyCount = useMemo(() => samples.filter((sample) => exportReady(sample)).length, [samples]);
+  const filteredReviewCount = useMemo(
+    () => filteredSamples.filter((sample) => sample.curationStatus === "review").length,
+    [filteredSamples]
+  );
+  const filteredExportReadyCount = useMemo(
+    () => filteredSamples.filter((sample) => exportReady(sample)).length,
+    [filteredSamples]
+  );
+  const activeFilters = useMemo(
+    () =>
+      buildActiveFilters({
+        judgementFilter,
+        errorCodeFilter,
+        sliceFilter,
+        tagFilter,
+        curationFilter,
+        compareOutcomeFilter
+      }),
+    [judgementFilter, errorCodeFilter, sliceFilter, tagFilter, curationFilter, compareOutcomeFilter]
   );
 
   useEffect(() => {
@@ -256,6 +320,15 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
     });
     setSelectedJobId(created.evalJobId);
     setActionMessage(`Created eval job ${created.evalJobId}.`);
+  };
+
+  const handleResetFilters = () => {
+    setJudgementFilter("");
+    setErrorCodeFilter("");
+    setSliceFilter("");
+    setTagFilter("");
+    setCurationFilter("");
+    setCompareOutcomeFilter("");
   };
 
   const handlePatchSample = async (
@@ -363,10 +436,9 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
 
       <div className="summary-strip">
         <MetricCard label="Pass rate" value={selectedJob ? `${selectedJob.passRate.toFixed(2)}%` : "-"} />
-        <MetricCard label="Passed" value={selectedJob?.passedCount ?? 0} />
-        <MetricCard label="Failed" value={selectedJob?.failedCount ?? 0} />
-        <MetricCard label="Runtime errors" value={selectedJob?.runtimeErrorCount ?? 0} />
-        <MetricCard label="Samples" value={selectedJob?.sampleCount ?? 0} />
+        <MetricCard label="Review queue" value={reviewCount} />
+        <MetricCard label="Export ready" value={exportReadyCount} />
+        <MetricCard label="Rows in view" value={`${filteredSamples.length}/${samples.length || 0}`} />
       </div>
 
       {overallMessage ? <Notice>{overallMessage}</Notice> : null}
@@ -453,7 +525,10 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
                 >
                   <div>
                     <strong>{jobTitle(job)}</strong>
-                    <p className="muted-note">{job.project}</p>
+                    <p className={styles.jobSubline}>
+                      <span>{formatTimestamp(job.createdAt)}</span>
+                      <span>{job.evalJobId}</span>
+                    </p>
                   </div>
                   <div className={styles.jobMeta}>
                     <StatusPill tone={toneForStatus(job.status)}>{job.status}</StatusPill>
@@ -476,30 +551,61 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
               sample set.
             </p>
           </div>
-          <div className="toolbar">
-            {selectedJob ? (
+          <div className={styles.exportActions}>
+            <div className="toolbar">
+              {selectedJob ? (
+                <Button
+                  href={`/exports?eval=${encodeURIComponent(selectedJob.evalJobId)}${
+                    baselineEvalJobId
+                      ? `&baseline=${encodeURIComponent(baselineEvalJobId)}&candidate=${encodeURIComponent(selectedJob.evalJobId)}`
+                      : ""
+                  }`}
+                  variant="secondary"
+                >
+                  Open exports <ArrowUpRight size={14} />
+                </Button>
+              ) : null}
               <Button
-                href={`/exports?eval=${encodeURIComponent(selectedJob.evalJobId)}${
-                  baselineEvalJobId
-                    ? `&baseline=${encodeURIComponent(baselineEvalJobId)}&candidate=${encodeURIComponent(selectedJob.evalJobId)}`
-                    : ""
-                }`}
                 variant="secondary"
+                onClick={() => handleExportFiltered("jsonl")}
+                disabled={!selectedJob || createExportMutation.isPending}
               >
-                Open exports <ArrowUpRight size={14} />
+                <Download size={14} /> Export JSONL
               </Button>
-            ) : null}
-            <Button
-              variant="secondary"
-              onClick={() => handleExportFiltered("jsonl")}
-              disabled={!selectedJob || createExportMutation.isPending}
-            >
-              <Download size={14} /> Export JSONL
-            </Button>
-            <Button onClick={() => handleExportFiltered("parquet")} disabled={!selectedJob || createExportMutation.isPending}>
-              <Download size={14} /> Export Parquet
-            </Button>
+              <Button
+                onClick={() => handleExportFiltered("parquet")}
+                disabled={!selectedJob || createExportMutation.isPending}
+              >
+                <Download size={14} /> Export Parquet
+              </Button>
+            </div>
+            <p className={styles.exportHint}>Exports use the current filters, curation state, and compare mode.</p>
           </div>
+        </div>
+
+        <div className={styles.workflowLine}>
+          <span>
+            Candidate <strong>{selectedJob ? jobTitle(selectedJob) : "none selected"}</strong>
+          </span>
+          <span>
+            Baseline <strong>{selectedBaselineJob ? jobTitle(selectedBaselineJob) : "off"}</strong>
+          </span>
+          <span>
+            Queue <strong>{filteredReviewCount}</strong> review
+          </span>
+          <span>
+            Export <strong>{filteredExportReadyCount}</strong> ready
+          </span>
+        </div>
+
+        <div className={styles.filterHeader}>
+          <div>
+            <h4 className={styles.filterTitle}>Review filters</h4>
+            <p className="muted-note">Narrow the review queue before exporting.</p>
+          </div>
+          <Button variant="ghost" onClick={handleResetFilters} disabled={!activeFilters.length}>
+            <RotateCcw size={14} /> Reset filters
+          </Button>
         </div>
 
         <div className={styles.formGrid}>
@@ -532,7 +638,11 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
             </select>
           </Field>
           <Field label="Error code" htmlFor="eval-filter-error">
-            <select id="eval-filter-error" value={errorCodeFilter} onChange={(event) => setErrorCodeFilter(event.target.value)}>
+            <select
+              id="eval-filter-error"
+              value={errorCodeFilter}
+              onChange={(event) => setErrorCodeFilter(event.target.value)}
+            >
               <option value="">All error codes</option>
               {errorCodeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -562,7 +672,11 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
             </select>
           </Field>
           <Field label="Curation" htmlFor="eval-filter-curation">
-            <select id="eval-filter-curation" value={curationFilter} onChange={(event) => setCurationFilter(event.target.value)}>
+            <select
+              id="eval-filter-curation"
+              value={curationFilter}
+              onChange={(event) => setCurationFilter(event.target.value)}
+            >
               <option value="">All curation states</option>
               <option value="include">include</option>
               <option value="review">review</option>
@@ -587,10 +701,20 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
           </Field>
         </div>
 
+        {activeFilters.length ? (
+          <div className={styles.filterChipList}>
+            {activeFilters.map((filter) => (
+              <span key={filter} className={styles.filterChip}>
+                {filter}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
         {baselineEvalJobId && compareQuery.data ? (
           <div className={styles.compareSummary}>
             {Object.entries(compareQuery.data.distribution).map(([outcome, count]) => (
-              <div key={outcome} className={styles.compareCard}>
+              <div key={outcome} className={styles.compareCard} data-tone={compareCardTone(outcome)}>
                 <span className="muted-note">{outcome}</span>
                 <strong>{count}</strong>
               </div>
@@ -625,6 +749,7 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
             <tbody>
               {filteredSamples.map((sample) => {
                 const compareOutcome = compareLookup.get(sample.datasetSampleId) ?? null;
+                const compareSample = compareSampleLookup.get(sample.datasetSampleId) ?? null;
                 return (
                   <tr key={`${sample.evalJobId}-${sample.datasetSampleId}`}>
                     <td>
@@ -639,20 +764,39 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
                     <td>
                       <div className={styles.statusStack}>
                         <StatusPill tone={toneForJudgement(sample.judgement)}>{sample.judgement}</StatusPill>
-                        <StatusPill tone={curationTone(sample.curationStatus)}>{sample.curationStatus}</StatusPill>
+                        <span className="muted-note">{sample.curationStatus}</span>
                       </div>
                     </td>
                     <td>
-                      {compareOutcome ? (
-                        <StatusPill tone={toneForCompare(compareOutcome)}>{compareOutcome}</StatusPill>
-                      ) : (
-                        <span className="muted-note">Not compared</span>
-                      )}
+                      <div className={styles.compareDetail}>
+                        {compareOutcome ? (
+                          <StatusPill tone={toneForCompare(compareOutcome)}>{compareOutcome}</StatusPill>
+                        ) : (
+                          <span className="muted-note">Not compared</span>
+                        )}
+                        {compareSample ? (
+                          <span className="muted-note">
+                            {(compareSample.baselineJudgement ?? "none") +
+                              " -> " +
+                              (compareSample.candidateJudgement ?? "none")}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td>
-                      <div className={styles.sampleDetail}>
-                        <span>{sample.errorCode || sample.failureReason || "-"}</span>
-                        <span className="muted-note">{sample.actual || sample.errorMessage || "No model output."}</span>
+                      <div className={styles.responseStack}>
+                        <div className={styles.detailGroup}>
+                          <span className={styles.detailLabel}>Expected</span>
+                          <span className="muted-note">{sample.expected || "No expected output."}</span>
+                        </div>
+                        <div className={styles.detailGroup}>
+                          <span className={styles.detailLabel}>
+                            {sample.errorCode || sample.errorMessage ? "Failure" : "Actual"}
+                          </span>
+                          <span className="muted-note">
+                            {sample.actual || sample.errorMessage || "No model output."}
+                          </span>
+                        </div>
                         {sample.tags.length ? <span className="muted-note">{sample.tags.join(", ")}</span> : null}
                         {sample.phoenixTraceUrl ? (
                           <Button href={sample.phoenixTraceUrl} variant="ghost" target="_blank" rel="noreferrer">
@@ -665,37 +809,37 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
                       <div className={styles.sampleDetail}>
                         <span className="muted-note">{sample.runnerBackend || "runner unknown"}</span>
                         <span className="muted-note mono">{sample.artifactRef || sample.imageRef || "-"}</span>
-                        <span className="muted-note">
-                          {sample.toolCalls ?? 0} tool calls · {sample.latencyMs ?? 0} ms
-                        </span>
                       </div>
                     </td>
                     <td>
                       <div className={styles.curationActions}>
                         <div className={styles.actionButtons}>
                           <Button
-                            variant="ghost"
+                            className={styles.compactActionButton}
+                            variant={sample.curationStatus === "include" ? "primary" : "ghost"}
                             onClick={() => void handlePatchSample(sample, { curationStatus: "include" })}
                             disabled={patchSampleMutation.isPending}
                           >
                             Include
                           </Button>
                           <Button
-                            variant="ghost"
+                            className={styles.compactActionButton}
+                            variant={sample.curationStatus === "review" ? "primary" : "ghost"}
                             onClick={() => void handlePatchSample(sample, { curationStatus: "review" })}
                             disabled={patchSampleMutation.isPending}
                           >
                             Review
                           </Button>
                           <Button
-                            variant="ghost"
+                            className={styles.compactActionButton}
+                            variant={sample.curationStatus === "exclude" ? "primary" : "ghost"}
                             onClick={() => void handlePatchSample(sample, { curationStatus: "exclude" })}
                             disabled={patchSampleMutation.isPending}
                           >
                             Exclude
                           </Button>
                         </div>
-                        <label className="muted-note">
+                        <label className={styles.eligibilityToggle}>
                           <input
                             type="checkbox"
                             checked={sample.exportEligible !== false}
@@ -716,7 +860,14 @@ export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "
               {!filteredSamples.length ? (
                 <tr>
                   <td colSpan={6}>
-                    <Notice>No samples match the current filters.</Notice>
+                    <Notice>
+                      No samples match the current filters.{" "}
+                      {activeFilters.length ? (
+                        <Button variant="ghost" onClick={handleResetFilters}>
+                          Reset filters
+                        </Button>
+                      ) : null}
+                    </Notice>
                   </td>
                 </tr>
               ) : null}

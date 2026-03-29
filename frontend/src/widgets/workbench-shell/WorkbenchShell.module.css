@@ -132,6 +132,8 @@
 
 .sidebarFooter {
   margin-top: auto;
+  display: grid;
+  gap: 12px;
 }
 
 .focusCard {
@@ -161,6 +163,27 @@
   margin: 0;
   color: var(--text-muted);
   font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.boundaryNote {
+  display: grid;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.boundaryLabel {
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.boundaryNote p {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.8rem;
   line-height: 1.55;
 }
 

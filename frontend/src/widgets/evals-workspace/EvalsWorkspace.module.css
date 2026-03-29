@@ -46,7 +46,17 @@
 .jobMeta {
   display: grid;
   justify-items: end;
-  gap: 8px;
+  gap: 6px;
+}
+
+.jobSubline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 6px 0 0;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .compareSummary {
@@ -65,9 +75,25 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+.compareCard[data-tone="success"] {
+  border-color: rgba(121, 236, 180, 0.2);
+  background: linear-gradient(180deg, rgba(121, 236, 180, 0.08), rgba(255, 255, 255, 0.02));
+}
+
+.compareCard[data-tone="error"] {
+  border-color: rgba(255, 135, 144, 0.2);
+  background: linear-gradient(180deg, rgba(255, 135, 144, 0.08), rgba(255, 255, 255, 0.02));
+}
+
+.compareCard[data-tone="warn"] {
+  border-color: rgba(244, 202, 114, 0.2);
+  background: linear-gradient(180deg, rgba(244, 202, 114, 0.08), rgba(255, 255, 255, 0.02));
+}
+
 .samplesTable {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .samplesTable th,
@@ -89,6 +115,34 @@
   display: grid;
   gap: 6px;
   max-width: 24rem;
+  min-width: 0;
+}
+
+.compareDetail,
+.responseStack {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.detailGroup {
+  display: grid;
+  gap: 4px;
+}
+
+.detailLabel {
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sampleDetail :global(.mono),
+.compareDetail :global(.mono),
+.responseStack :global(.mono) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .statusStack {
@@ -98,18 +152,118 @@
 
 .curationActions {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .actionButtons {
   display: flex;
   flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.compactActionButton {
+  padding: 8px 12px;
+  font-size: 0.84rem;
+}
+
+.eligibilityToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.workflowLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(158, 189, 226, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.workflowLine strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.filterHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.filterTitle {
+  margin: 0 0 6px;
+  font-size: 0.96rem;
+  letter-spacing: -0.03em;
+}
+
+.filterChipList {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  margin: 0 0 16px;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.filterChip {
+  border: 1px solid rgba(117, 218, 255, 0.16);
+  background: rgba(117, 218, 255, 0.08);
+  color: var(--text-muted);
+}
+
+.exportActions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.exportHint {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: right;
 }
 
 @media (max-width: 1100px) {
   .workspaceGrid,
   .formGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 920px) {
+  .filterHeader {
+    display: grid;
+  }
+
+  .exportActions {
+    justify-items: stretch;
+  }
+
+  .exportHint {
+    text-align: left;
   }
 }

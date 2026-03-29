@@ -11,28 +11,28 @@ const navItems = [
   {
     href: "/agents",
     label: "Agents",
-    description: "Discover agents, publish governed snapshots, and inspect provenance.",
+    description: "Publish governed snapshots that are safe to send into eval collection.",
     icon: Shapes,
     match: (pathname: string) => pathname.startsWith("/agents")
   },
   {
     href: "/datasets",
     label: "Datasets",
-    description: "Manage RL data assets, slices, tags, and sample-level export eligibility.",
+    description: "Control dataset slices, provenance, and export eligibility before eval.",
     icon: Database,
     match: (pathname: string) => pathname.startsWith("/datasets")
   },
   {
     href: "/evals",
     label: "Evals",
-    description: "Run batch evals, compare baseline vs candidate, and curate sample results.",
+    description: "Batch candidate agents, compare against baselines, and curate sample rows.",
     icon: Radar,
     match: (pathname: string) => pathname.startsWith("/evals")
   },
   {
     href: "/exports",
     label: "Exports",
-    description: "Build RL-ready export files from curated eval results and compare slices.",
+    description: "Package curated eval rows into offline RL handoff files.",
     icon: Download,
     match: (pathname: string) => pathname.startsWith("/exports")
   }
@@ -53,12 +53,10 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
         <div className={styles.brand}>
           <div className={styles.brandRow}>
             <span className={styles.brandBadge}>AA</span>
-            <span className={styles.eyebrow}>Execution atlas</span>
+            <span className={styles.eyebrow}>RL data control plane</span>
           </div>
           <h1>Agent Atlas</h1>
-          <p>
-            Govern published agents, curate dataset-driven eval results, and ship RL-ready exports.
-          </p>
+          <p>Operate the agent-to-export pipeline in Atlas. Keep trace-level debugging in Phoenix.</p>
         </div>
 
         <motion.nav
@@ -93,6 +91,12 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
             <span className={styles.focusLabel}>Current workspace</span>
             <strong>{activeItem.label}</strong>
             <p>{activeItem.description}</p>
+          </div>
+          <div className={styles.boundaryNote}>
+            <span className={styles.boundaryLabel}>Product boundary</span>
+            <p>
+              Atlas owns publishing, datasets, eval curation, and exports. Phoenix remains the debugging destination.
+            </p>
           </div>
         </div>
       </motion.aside>

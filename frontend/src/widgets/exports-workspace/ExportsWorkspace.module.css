@@ -10,6 +10,93 @@
   gap: 14px;
 }
 
+.sectionStack {
+  display: grid;
+  gap: 14px;
+}
+
+.sectionBlock {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(158, 189, 226, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sectionHeading {
+  display: grid;
+  gap: 6px;
+}
+
+.sectionHeading h4 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+}
+
+.filterHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.filterSummary,
+.historyFilterList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filterChip,
+.historyFilter {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.filterChip,
+.historyFilter {
+  border: 1px solid rgba(117, 218, 255, 0.16);
+  background: rgba(117, 218, 255, 0.08);
+  color: var(--text-muted);
+}
+.handoffLine,
+.actionNote {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.handoffLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(158, 189, 226, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.handoffLine strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
 .historyTable {
   width: 100%;
   border-collapse: collapse;
@@ -39,5 +126,11 @@
   .workspaceGrid,
   .formGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 920px) {
+  .filterHeader {
+    display: grid;
   }
 }

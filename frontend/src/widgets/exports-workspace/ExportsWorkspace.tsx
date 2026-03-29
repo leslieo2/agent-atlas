@@ -1,14 +1,14 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getExportDownloadUrl } from "@/src/entities/export/api";
 import { useCreateExportMutation, useExportsQuery } from "@/src/entities/export/query";
 import { useEvalJobsQuery, useEvalSamplesQuery } from "@/src/entities/eval/query";
+import type { EvalSampleRecord } from "@/src/entities/eval/model";
 import type { CompareOutcome, CurationStatus, SampleJudgement } from "@/src/shared/api/contract";
 import { Button } from "@/src/shared/ui/Button";
 import { Field } from "@/src/shared/ui/Field";
-import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
 import { TableShell } from "@/src/shared/ui/TableShell";
@@ -22,6 +22,116 @@ type Props = {
 
 function uniqueStrings(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort();
+}
+
+function formatTimestamp(value: string) {
+  return new Date(value).toLocaleString("en", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "0 B";
+  }
+
+  if (value < 1024) {
+    return `${value} B`;
+  }
+
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function buildActiveFilters(filters: {
+  judgementFilter: string;
+  errorCodeFilter: string;
+  sliceFilter: string;
+  tagFilter: string;
+  compareOutcomeFilter: string;
+  curationFilter: string;
+  exportEligibleOnly: boolean;
+}) {
+  return [
+    filters.judgementFilter ? `Judgement: ${filters.judgementFilter}` : null,
+    filters.errorCodeFilter ? `Error: ${filters.errorCodeFilter}` : null,
+    filters.sliceFilter ? `Slice: ${filters.sliceFilter}` : null,
+    filters.tagFilter ? `Tag: ${filters.tagFilter}` : null,
+    filters.compareOutcomeFilter ? `Compare: ${filters.compareOutcomeFilter}` : null,
+    filters.curationFilter ? `Curation: ${filters.curationFilter}` : null,
+    filters.exportEligibleOnly ? null : "Eligibility: include ineligible rows"
+  ].filter((value): value is string => Boolean(value));
+}
+
+function matchesPreviewFilters({
+  sample,
+  judgementFilter,
+  errorCodeFilter,
+  sliceFilter,
+  tagFilter,
+  compareOutcomeFilter,
+  curationFilter,
+  exportEligibleOnly
+}: {
+  sample: EvalSampleRecord;
+  judgementFilter: string;
+  errorCodeFilter: string;
+  sliceFilter: string;
+  tagFilter: string;
+  compareOutcomeFilter: string;
+  curationFilter: string;
+  exportEligibleOnly: boolean;
+}) {
+  if (judgementFilter && sample.judgement !== judgementFilter) {
+    return false;
+  }
+  if (errorCodeFilter && sample.errorCode !== errorCodeFilter) {
+    return false;
+  }
+  if (sliceFilter && sample.slice !== sliceFilter) {
+    return false;
+  }
+  if (tagFilter && !sample.tags.includes(tagFilter)) {
+    return false;
+  }
+  if (compareOutcomeFilter && sample.compareOutcome !== compareOutcomeFilter) {
+    return false;
+  }
+  if (curationFilter && sample.curationStatus !== curationFilter) {
+    return false;
+  }
+  if (exportEligibleOnly && sample.exportEligible === false) {
+    return false;
+  }
+  return true;
+}
+
+function formatFilterSummaryValue(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.length ? value.join(", ") : "none";
+  }
+  if (typeof value === "boolean") {
+    return value ? "yes" : "no";
+  }
+  if (value == null || value === "") {
+    return "none";
+  }
+  return String(value);
+}
+
+function summarizeFilterSummary(filtersSummary: Record<string, unknown>) {
+  const entries = Object.entries(filtersSummary);
+  if (!entries.length) {
+    return ["Default export rules"];
+  }
+
+  return entries.map(([key, value]) => `${key}: ${formatFilterSummaryValue(value)}`);
 }
 
 export default function ExportsWorkspace({
@@ -45,6 +155,7 @@ export default function ExportsWorkspace({
   const [exportEligibleOnly, setExportEligibleOnly] = useState(true);
   const [format, setFormat] = useState<"jsonl" | "parquet">("jsonl");
   const [actionMessage, setActionMessage] = useState("");
+  const [latestExportId, setLatestExportId] = useState<string | null>(null);
 
   const evalJobs = useMemo(() => evalJobsQuery.data ?? [], [evalJobsQuery.data]);
   const selectedSourceEvalId = candidateEvalJobId || evalJobId;
@@ -57,6 +168,48 @@ export default function ExportsWorkspace({
   const errorCodeOptions = useMemo(() => uniqueStrings(samples.map((sample) => sample.errorCode)), [samples]);
   const sliceOptions = useMemo(() => uniqueStrings(samples.map((sample) => sample.slice)), [samples]);
   const tagOptions = useMemo(() => uniqueStrings(samples.flatMap((sample) => sample.tags)), [samples]);
+  const previewRows = useMemo(
+    () =>
+      samples.filter((sample) =>
+        matchesPreviewFilters({
+          sample,
+          judgementFilter,
+          errorCodeFilter,
+          sliceFilter,
+          tagFilter,
+          compareOutcomeFilter,
+          curationFilter,
+          exportEligibleOnly
+        })
+      ),
+    [
+      samples,
+      judgementFilter,
+      errorCodeFilter,
+      sliceFilter,
+      tagFilter,
+      compareOutcomeFilter,
+      curationFilter,
+      exportEligibleOnly
+    ]
+  );
+  const previewReviewCount = useMemo(
+    () => previewRows.filter((sample) => sample.curationStatus === "review").length,
+    [previewRows]
+  );
+  const activeFilters = useMemo(
+    () =>
+      buildActiveFilters({
+        judgementFilter,
+        errorCodeFilter,
+        sliceFilter,
+        tagFilter,
+        compareOutcomeFilter,
+        curationFilter,
+        exportEligibleOnly
+      }),
+    [judgementFilter, errorCodeFilter, sliceFilter, tagFilter, compareOutcomeFilter, curationFilter, exportEligibleOnly]
+  );
   const baselineOptions = useMemo(
     () =>
       sourceEvalJob
@@ -103,7 +256,18 @@ export default function ExportsWorkspace({
       format
     });
 
+    setLatestExportId(exported.exportId);
     setActionMessage(`Created export ${exported.exportId}.`);
+  };
+
+  const handleResetFilters = () => {
+    setJudgementFilter("");
+    setErrorCodeFilter("");
+    setSliceFilter("");
+    setTagFilter("");
+    setCompareOutcomeFilter("");
+    setCurationFilter("");
+    setExportEligibleOnly(true);
   };
 
   return (
@@ -131,7 +295,9 @@ export default function ExportsWorkspace({
         <div className="page-info-grid">
           <div className="page-info-item">
             <span className="page-info-label">Current source</span>
-            <span className="page-info-value">{sourceEvalJob ? `${sourceEvalJob.agentId} on ${sourceEvalJob.dataset}` : "Waiting for selection"}</span>
+            <span className="page-info-value">
+              {sourceEvalJob ? `${sourceEvalJob.agentId} on ${sourceEvalJob.dataset}` : "Waiting for selection"}
+            </span>
             <p className="page-info-detail">
               {candidateEvalJobId
                 ? "Compare-aware export mode is active."
@@ -141,14 +307,16 @@ export default function ExportsWorkspace({
         </div>
       </header>
 
-      <div className="summary-strip">
-        <MetricCard label="History" value={(exportsQuery.data ?? []).length} />
-        <MetricCard label="Rows in source" value={samples.length} />
-        <MetricCard label="Candidate mode" value={candidateEvalJobId ? "yes" : "no"} />
-        <MetricCard label="Format" value={format.toUpperCase()} />
-      </div>
-
-      {actionMessage ? <Notice>{actionMessage}</Notice> : null}
+      {actionMessage ? (
+        <Notice>
+          {actionMessage}{" "}
+          {latestExportId ? (
+            <Button href={getExportDownloadUrl(latestExportId)} variant="ghost">
+              Download export
+            </Button>
+          ) : null}
+        </Notice>
+      ) : null}
 
       <div className={styles.workspaceGrid}>
         <Panel tone="strong">
@@ -162,149 +330,214 @@ export default function ExportsWorkspace({
             </div>
           </div>
 
-          <div className={styles.formGrid}>
-            <Field label="Eval job" htmlFor="export-eval">
-              <select id="export-eval" value={evalJobId} onChange={(event) => setEvalJobId(event.target.value)}>
-                <option value="">Select an eval job</option>
-                {evalJobs.map((job) => (
-                  <option key={job.evalJobId} value={job.evalJobId}>
-                    {job.agentId} · {job.dataset}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          <div className={styles.sectionStack}>
+            <div className={styles.sectionBlock}>
+              <div className={styles.sectionHeading}>
+                <h4>Source selection</h4>
+                <p className="muted-note">
+                  Choose one eval for direct export, or switch into candidate-plus-baseline compare mode.
+                </p>
+              </div>
 
-            <Field label="Candidate eval" htmlFor="export-candidate">
-              <select
-                id="export-candidate"
-                value={candidateEvalJobId}
-                onChange={(event) => setCandidateEvalJobId(event.target.value)}
-              >
-                <option value="">No candidate compare</option>
-                {evalJobs.map((job) => (
-                  <option key={job.evalJobId} value={job.evalJobId}>
-                    {job.agentId} · {job.dataset}
-                  </option>
-                ))}
-              </select>
-            </Field>
+              <div className={styles.formGrid}>
+                <Field label="Eval job" htmlFor="export-eval">
+                  <select id="export-eval" value={evalJobId} onChange={(event) => setEvalJobId(event.target.value)}>
+                    <option value="">Select an eval job</option>
+                    {evalJobs.map((job) => (
+                      <option key={job.evalJobId} value={job.evalJobId}>
+                        {job.agentId} · {job.dataset}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-            <Field label="Baseline eval" htmlFor="export-baseline">
-              <select
-                id="export-baseline"
-                value={baselineEvalJobId}
-                onChange={(event) => setBaselineEvalJobId(event.target.value)}
-                disabled={!candidateEvalJobId && !evalJobId}
-              >
-                <option value="">No baseline compare</option>
-                {baselineOptions.map((job) => (
-                  <option key={job.evalJobId} value={job.evalJobId}>
-                    {job.agentId} · {job.createdAt}
-                  </option>
-                ))}
-              </select>
-            </Field>
+                <Field label="Candidate eval" htmlFor="export-candidate">
+                  <select
+                    id="export-candidate"
+                    value={candidateEvalJobId}
+                    onChange={(event) => setCandidateEvalJobId(event.target.value)}
+                  >
+                    <option value="">No candidate compare</option>
+                    {evalJobs.map((job) => (
+                      <option key={job.evalJobId} value={job.evalJobId}>
+                        {job.agentId} · {job.dataset}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-            <Field label="Format" htmlFor="export-format">
-              <select id="export-format" value={format} onChange={(event) => setFormat(event.target.value as "jsonl" | "parquet")}>
-                <option value="jsonl">jsonl</option>
-                <option value="parquet">parquet</option>
-              </select>
-            </Field>
+                <Field label="Baseline eval" htmlFor="export-baseline">
+                  <select
+                    id="export-baseline"
+                    value={baselineEvalJobId}
+                    onChange={(event) => setBaselineEvalJobId(event.target.value)}
+                    disabled={!candidateEvalJobId && !evalJobId}
+                  >
+                    <option value="">No baseline compare</option>
+                    {baselineOptions.map((job) => (
+                      <option key={job.evalJobId} value={job.evalJobId}>
+                        {job.agentId} · {job.createdAt}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-            <Field label="Judgement" htmlFor="export-judgement">
-              <select
-                id="export-judgement"
-                value={judgementFilter}
-                onChange={(event) => setJudgementFilter(event.target.value)}
-              >
-                <option value="">All judgements</option>
-                <option value="passed">passed</option>
-                <option value="failed">failed</option>
-                <option value="runtime_error">runtime_error</option>
-                <option value="unscored">unscored</option>
-              </select>
-            </Field>
+                <Field label="Format" htmlFor="export-format">
+                  <select
+                    id="export-format"
+                    value={format}
+                    onChange={(event) => setFormat(event.target.value as "jsonl" | "parquet")}
+                  >
+                    <option value="jsonl">jsonl</option>
+                    <option value="parquet">parquet</option>
+                  </select>
+                </Field>
+              </div>
+            </div>
 
-            <Field label="Error code" htmlFor="export-error">
-              <select id="export-error" value={errorCodeFilter} onChange={(event) => setErrorCodeFilter(event.target.value)}>
-                <option value="">All error codes</option>
-                {errorCodeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <div className={styles.sectionBlock}>
+              <div className={styles.filterHeader}>
+                <div className={styles.sectionHeading}>
+                  <h4>Row filters</h4>
+                  <p className="muted-note">Narrow the export set before creating the offline handoff.</p>
+                </div>
+                <Button variant="ghost" onClick={handleResetFilters} disabled={!activeFilters.length}>
+                  <RotateCcw size={14} /> Reset filters
+                </Button>
+              </div>
 
-            <Field label="Slice" htmlFor="export-slice">
-              <select id="export-slice" value={sliceFilter} onChange={(event) => setSliceFilter(event.target.value)}>
-                <option value="">All slices</option>
-                {sliceOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
+              {activeFilters.length ? (
+                <div className={styles.filterSummary}>
+                  {activeFilters.map((filter) => (
+                    <span key={filter} className={styles.filterChip}>
+                      {filter}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
 
-            <Field label="Tag" htmlFor="export-tag">
-              <select id="export-tag" value={tagFilter} onChange={(event) => setTagFilter(event.target.value)}>
-                <option value="">All tags</option>
-                {tagOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
+              <div className={styles.formGrid}>
+                <Field label="Judgement" htmlFor="export-judgement">
+                  <select
+                    id="export-judgement"
+                    value={judgementFilter}
+                    onChange={(event) => setJudgementFilter(event.target.value)}
+                  >
+                    <option value="">All judgements</option>
+                    <option value="passed">passed</option>
+                    <option value="failed">failed</option>
+                    <option value="runtime_error">runtime_error</option>
+                    <option value="unscored">unscored</option>
+                  </select>
+                </Field>
 
-            <Field label="Compare outcome" htmlFor="export-compare">
-              <select
-                id="export-compare"
-                value={compareOutcomeFilter}
-                onChange={(event) => setCompareOutcomeFilter(event.target.value)}
-              >
-                <option value="">All compare outcomes</option>
-                <option value="improved">improved</option>
-                <option value="regressed">regressed</option>
-                <option value="unchanged_pass">unchanged_pass</option>
-                <option value="unchanged_fail">unchanged_fail</option>
-                <option value="candidate_only">candidate_only</option>
-                <option value="baseline_only">baseline_only</option>
-              </select>
-            </Field>
+                <Field label="Error code" htmlFor="export-error">
+                  <select
+                    id="export-error"
+                    value={errorCodeFilter}
+                    onChange={(event) => setErrorCodeFilter(event.target.value)}
+                  >
+                    <option value="">All error codes</option>
+                    {errorCodeOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-            <Field label="Curation status" htmlFor="export-curation">
-              <select
-                id="export-curation"
-                value={curationFilter}
-                onChange={(event) => setCurationFilter(event.target.value)}
-              >
-                <option value="">All curation states</option>
-                <option value="include">include</option>
-                <option value="review">review</option>
-                <option value="exclude">exclude</option>
-              </select>
-            </Field>
+                <Field label="Slice" htmlFor="export-slice">
+                  <select
+                    id="export-slice"
+                    value={sliceFilter}
+                    onChange={(event) => setSliceFilter(event.target.value)}
+                  >
+                    <option value="">All slices</option>
+                    {sliceOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-            <Field label="Eligibility" htmlFor="export-eligible">
-              <label className="muted-note" htmlFor="export-eligible">
-                <input
-                  id="export-eligible"
-                  type="checkbox"
-                  checked={exportEligibleOnly}
-                  onChange={(event) => setExportEligibleOnly(event.target.checked)}
-                />{" "}
-                only include export-eligible samples
-              </label>
-            </Field>
+                <Field label="Tag" htmlFor="export-tag">
+                  <select id="export-tag" value={tagFilter} onChange={(event) => setTagFilter(event.target.value)}>
+                    <option value="">All tags</option>
+                    {tagOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Compare outcome" htmlFor="export-compare">
+                  <select
+                    id="export-compare"
+                    value={compareOutcomeFilter}
+                    onChange={(event) => setCompareOutcomeFilter(event.target.value)}
+                    disabled={!candidateEvalJobId || !baselineEvalJobId}
+                  >
+                    <option value="">All compare outcomes</option>
+                    <option value="improved">improved</option>
+                    <option value="regressed">regressed</option>
+                    <option value="unchanged_pass">unchanged_pass</option>
+                    <option value="unchanged_fail">unchanged_fail</option>
+                    <option value="candidate_only">candidate_only</option>
+                    <option value="baseline_only">baseline_only</option>
+                  </select>
+                </Field>
+
+                <Field label="Curation status" htmlFor="export-curation">
+                  <select
+                    id="export-curation"
+                    value={curationFilter}
+                    onChange={(event) => setCurationFilter(event.target.value)}
+                  >
+                    <option value="">All curation states</option>
+                    <option value="include">include</option>
+                    <option value="review">review</option>
+                    <option value="exclude">exclude</option>
+                  </select>
+                </Field>
+
+                <Field label="Eligibility" htmlFor="export-eligible">
+                  <label className="muted-note" htmlFor="export-eligible">
+                    <input
+                      id="export-eligible"
+                      type="checkbox"
+                      checked={exportEligibleOnly}
+                      onChange={(event) => setExportEligibleOnly(event.target.checked)}
+                    />{" "}
+                    only include export-eligible samples
+                  </label>
+                </Field>
+              </div>
+            </div>
           </div>
 
-          <div className="toolbar">
+          <div className={styles.handoffLine}>
+            <span>
+              Mode <strong>{candidateEvalJobId ? "compare" : "single eval"}</strong>
+            </span>
+            <span>
+              Source{" "}
+              <strong>{sourceEvalJob ? `${sourceEvalJob.agentId} on ${sourceEvalJob.dataset}` : "not selected"}</strong>
+            </span>
+            <span>
+              Preview <strong>{previewRows.length}</strong> of {samples.length || 0}
+            </span>
+            <span>
+              Review <strong>{previewReviewCount}</strong> rows
+            </span>
+          </div>
+
+          <div className={styles.actionRow}>
             <Button onClick={handleCreateExport} disabled={createExportMutation.isPending}>
               <Download size={14} /> {createExportMutation.isPending ? "Creating..." : "Create export"}
             </Button>
+            <p className={styles.actionNote}>The export uses the current source selection and row filters.</p>
           </div>
         </Panel>
 
@@ -313,7 +546,9 @@ export default function ExportsWorkspace({
             <div>
               <p className="surface-kicker">Export history</p>
               <h3 className="panel-title">Previously generated offline files</h3>
-              <p className="muted-note">Each export records the source eval and the filter summary used to produce it.</p>
+              <p className="muted-note">
+                Each export records the source eval and the filter summary used to produce it.
+              </p>
             </div>
           </div>
 
@@ -337,7 +572,8 @@ export default function ExportsWorkspace({
                     <td>
                       <div className={styles.historyMeta}>
                         <strong className="mono">{record.exportId}</strong>
-                        <span className="muted-note">{record.createdAt}</span>
+                        <span className="muted-note">{formatTimestamp(record.createdAt)}</span>
+                        <span className="muted-note">{formatBytes(record.sizeBytes)}</span>
                       </div>
                     </td>
                     <td>
@@ -358,7 +594,13 @@ export default function ExportsWorkspace({
                       </div>
                     </td>
                     <td>
-                      <pre className="muted-note mono">{JSON.stringify(record.filtersSummary, null, 2)}</pre>
+                      <div className={styles.historyFilterList}>
+                        {summarizeFilterSummary(record.filtersSummary).map((summary) => (
+                          <span key={`${record.exportId}-${summary}`} className={styles.historyFilter}>
+                            {summary}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td>
                       <Button href={getExportDownloadUrl(record.exportId)} variant="ghost">
