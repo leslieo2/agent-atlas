@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import (
+    ResolvedRunArtifact,
     RunRecord,
     RunSpec,
     TrajectoryStep,
@@ -44,3 +45,11 @@ class PublishedRunRuntimePort(Protocol):
 
 class TraceIngestionPort(Protocol):
     def ingest(self, event: TraceIngestEvent) -> TraceSpan: ...
+
+
+class ArtifactResolverPort(Protocol):
+    def resolve(self, payload: RunSpec) -> ResolvedRunArtifact: ...
+
+
+class RunnerPort(Protocol):
+    def execute(self, run_id: UUID, payload: RunSpec) -> PublishedRunExecutionResult: ...

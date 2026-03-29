@@ -40,7 +40,7 @@ def build_run_module(
     run_queries = RunQueries(
         run_repository=infra.run_repository,
         trajectory_repository=infra.trajectory_repository,
-        trace_repository=infra.trace_repository,
+        trace_backend=infra.trace_backend,
     )
     run_commands = RunCommands(
         run_repository=infra.run_repository,
@@ -49,7 +49,7 @@ def build_run_module(
     )
     run_execution_service = RunExecutionService(
         run_repository=infra.run_repository,
-        published_runtime=infra.model_runtime,
+        runner=infra.runner,
         telemetry_ingestor=telemetry_ingestor,
     )
 

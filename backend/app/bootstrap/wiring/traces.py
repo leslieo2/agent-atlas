@@ -19,7 +19,7 @@ class TraceModuleBundle:
 def build_trace_module(infra: InfrastructureBundle) -> TraceModuleBundle:
     trace_workflow = TraceIngestionWorkflow(
         trace_projector=infra.trace_projector,
-        trace_recorder=TraceRecorder(trace_repository=infra.trace_repository),
+        trace_recorder=TraceRecorder(trace_backend=infra.trace_backend),
     )
     trace_commands = TraceCommands(workflow=trace_workflow)
 

@@ -7,6 +7,7 @@ from uuid import UUID
 from app.bootstrap.container import get_container
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
+from app.modules.shared.domain.models import ProvenanceMetadata, build_source_artifact_ref
 
 
 def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
@@ -25,8 +26,9 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
             entrypoint="app.agent_plugins.policy:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             resolved_model="gpt-5.4-mini-2026-03-01",
-            project_metadata={
-                "agent_snapshot": {
+            provenance=ProvenanceMetadata(
+                framework="openai-agents-sdk",
+                published_agent_snapshot={
                     "manifest": {
                         "agent_id": "policy-agent",
                         "name": "Policy Agent",
@@ -37,8 +39,10 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
                     },
                     "entrypoint": "app.agent_plugins.policy:build_agent",
                     "published_at": "2026-03-20T09:00:00Z",
-                }
-            },
+                },
+                artifact_ref=build_source_artifact_ref("policy-agent", "policy-fingerprint"),
+                trace_backend="atlas-state",
+            ),
         )
     )
 
@@ -97,6 +101,9 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
     assert rows[0]["entrypoint"] == "app.agent_plugins.policy:build_agent"
     assert rows[0]["resolved_model"] == "gpt-5.4-mini-2026-03-01"
     assert rows[0]["project"] == "policy-project"
+    assert rows[0]["published_agent_snapshot"]["manifest"]["framework"] == "openai-agents-sdk"
+    assert rows[0]["artifact_ref"] == "source://policy-agent@policy-fingerprint"
+    assert rows[0]["trace_backend"] == "atlas-state"
     assert rows[0]["published_agent"] == {
         "published_at": "2026-03-20T09:00:00Z",
         "default_model": "gpt-5.4-mini",

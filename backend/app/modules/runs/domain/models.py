@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
+from app.modules.shared.domain.models import ProvenanceMetadata
 
 
 class RunSpec(BaseModel):
@@ -22,6 +23,7 @@ class RunSpec(BaseModel):
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     eval_job_id: UUID | None = None
     dataset_sample_id: str | None = None
+    provenance: ProvenanceMetadata | None = None
 
 
 class RunCreateInput(BaseModel):
@@ -52,6 +54,14 @@ class RuntimeExecutionResult(BaseModel):
     resolved_model: str | None = None
 
 
+class ResolvedRunArtifact(BaseModel):
+    framework: str | None = None
+    entrypoint: str | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    published_agent_snapshot: dict[str, Any]
+
+
 def utc_now() -> datetime:
     return datetime.now(UTC)
 
@@ -77,6 +87,7 @@ class RunRecord(BaseModel):
     artifact_ref: str | None = None
     execution_backend: str | None = None
     container_image: str | None = None
+    provenance: ProvenanceMetadata | None = None
     resolved_model: str | None = None
     error_code: str | None = None
     error_message: str | None = None

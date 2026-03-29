@@ -1,4 +1,5 @@
 import type { AdapterKind, RunStatus as ApiRunStatus } from "@/src/shared/api/contract";
+import type { ProvenanceRecord } from "@/src/shared/api/provenance";
 
 export type RunStatus = ApiRunStatus;
 
@@ -23,6 +24,7 @@ export interface RunRecord {
   artifactRef?: string | null;
   executionBackend?: string | null;
   containerImage?: string | null;
+  provenance?: ProvenanceRecord | null;
   resolvedModel?: string | null;
   errorCode?: string | null;
   errorMessage?: string | null;

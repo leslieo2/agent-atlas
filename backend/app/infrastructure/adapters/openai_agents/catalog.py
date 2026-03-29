@@ -7,10 +7,10 @@ from uuid import UUID
 from pydantic import ValidationError
 
 from app.core.errors import AgentLoadFailedError
-from app.infrastructure.adapters.agent_catalog import AgentModuleSource
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentManifest,
+    AgentModuleSource,
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,

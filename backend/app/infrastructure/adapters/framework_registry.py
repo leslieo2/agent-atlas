@@ -8,10 +8,10 @@ from typing import Any, Protocol
 from pydantic import SecretStr
 
 from app.core.errors import AgentLoadFailedError
-from app.infrastructure.adapters.agent_catalog import AgentModuleSource
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentManifest,
+    AgentModuleSource,
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,
@@ -76,9 +76,8 @@ class FrameworkRegistry:
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult:
         try:
-            published_agent = PublishedAgent.model_validate(
-                payload.project_metadata.get("agent_snapshot")
-            )
+            snapshot = payload.provenance.published_agent_snapshot if payload.provenance else None
+            published_agent = PublishedAgent.model_validate(snapshot)
         except Exception as exc:
             raise AgentLoadFailedError(
                 "run payload is missing a valid published agent snapshot",

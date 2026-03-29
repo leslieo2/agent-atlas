@@ -4,6 +4,7 @@ import ast
 from pathlib import Path
 from uuid import uuid4
 
+from app.infrastructure.adapters.trace_backend import AtlasStateTraceBackend
 from app.infrastructure.adapters.trace_projection import TraceIngestProjector
 from app.infrastructure.repositories import StateTraceRepository
 from app.modules.shared.domain.enums import StepType
@@ -15,7 +16,7 @@ def test_trace_ingestion_workflow_projects_and_persists_span():
     repository = StateTraceRepository()
     workflow = TraceIngestionWorkflow(
         trace_projector=TraceIngestProjector(),
-        trace_recorder=TraceRecorder(trace_repository=repository),
+        trace_recorder=TraceRecorder(trace_backend=AtlasStateTraceBackend(repository)),
     )
     run_id = uuid4()
     event = TraceIngestEvent(

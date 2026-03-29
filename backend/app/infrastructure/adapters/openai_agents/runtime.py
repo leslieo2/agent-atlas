@@ -183,7 +183,7 @@ class PublishedOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
 
     @staticmethod
     def _published_agent_from_payload(payload: RunSpec) -> PublishedAgent:
-        snapshot = payload.project_metadata.get("agent_snapshot")
+        snapshot = payload.provenance.published_agent_snapshot if payload.provenance else None
         try:
             return PublishedAgent.model_validate(snapshot)
         except Exception as exc:

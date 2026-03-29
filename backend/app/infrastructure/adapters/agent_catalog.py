@@ -1,23 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from importlib import import_module
 from pkgutil import iter_modules
 from typing import Protocol
 
 from app.modules.agents.application.ports import PublishedAgentRepositoryPort
 from app.modules.agents.domain.models import (
+    AgentModuleSource,
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,
     PublishedAgent,
 )
-
-
-@dataclass(frozen=True)
-class AgentModuleSource:
-    module_name: str
-    entrypoint: str
 
 
 class AgentSourceCatalog(Protocol):

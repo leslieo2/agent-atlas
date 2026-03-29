@@ -11,6 +11,7 @@ from app.modules.agents.domain.models import (
     DiscoveredAgent,
     PublishedAgent,
 )
+from app.modules.shared.domain.models import ProvenanceMetadata
 
 
 class AgentDescriptorResponse(BaseModel):
@@ -22,6 +23,7 @@ class AgentDescriptorResponse(BaseModel):
     default_model: str
     tags: list[str]
     published_at: datetime
+    provenance: ProvenanceMetadata | None = None
 
     @classmethod
     def from_domain(cls, agent: PublishedAgent) -> AgentDescriptorResponse:
@@ -34,6 +36,7 @@ class AgentDescriptorResponse(BaseModel):
             default_model=agent.default_model,
             tags=agent.tags,
             published_at=agent.published_at,
+            provenance=agent.provenance,
         )
 
 
@@ -60,6 +63,7 @@ class DiscoveredAgentResponse(BaseModel):
     published_at: datetime | None = None
     last_validated_at: datetime
     has_unpublished_changes: bool
+    provenance: ProvenanceMetadata | None = None
 
     @classmethod
     def from_domain(cls, agent: DiscoveredAgent) -> DiscoveredAgentResponse:
@@ -79,6 +83,7 @@ class DiscoveredAgentResponse(BaseModel):
             published_at=agent.published_at,
             last_validated_at=agent.last_validated_at,
             has_unpublished_changes=agent.has_unpublished_changes,
+            provenance=agent.provenance,
         )
 
 

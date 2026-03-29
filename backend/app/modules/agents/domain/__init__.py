@@ -1,6 +1,7 @@
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentManifest,
+    AgentModuleSource,
     AgentPublishState,
     AgentValidationIssue,
     AgentValidationStatus,
@@ -12,6 +13,7 @@ from app.modules.agents.domain.models import (
 __all__ = [
     "AgentBuildContext",
     "AgentManifest",
+    "AgentModuleSource",
     "AgentPublishState",
     "AgentValidationIssue",
     "AgentValidationStatus",

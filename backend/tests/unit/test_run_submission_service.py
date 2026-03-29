@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -56,12 +57,16 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
+    agent.provenance = SourceArtifactBuilder().build(agent)
 
     run = service.submit(payload, agent)
 
     assert run.agent_type == AdapterKind.LANGCHAIN
     assert run.model == "gpt-5.4-mini"
-    assert run.project_metadata["agent_snapshot"]["manifest"]["framework"] == "langchain"
+    assert run.provenance is not None
+    assert run.provenance.framework == "langchain"
+    assert run.provenance.published_agent_snapshot is not None
+    assert run.provenance.published_agent_snapshot["manifest"]["framework"] == "langchain"
     assert repository.saved == [run]
     assert len(task_queue.enqueued) == 1
     task = task_queue.enqueued[0]
@@ -69,3 +74,4 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert task.target_id == run.run_id
     assert task.payload["agent_type"] == AdapterKind.LANGCHAIN.value
     assert task.payload["entrypoint"] == "app.agent_plugins.triage_bot:build_agent"
+    assert task.payload["provenance"]["framework"] == "langchain"

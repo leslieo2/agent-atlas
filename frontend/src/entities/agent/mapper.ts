@@ -3,6 +3,7 @@ import type {
   DiscoveredAgentResponse,
   AgentValidationIssueResponse
 } from "@/src/shared/api/contract";
+import { mapProvenance } from "@/src/shared/api/provenance";
 import type { AgentRecord, AgentValidationIssueRecord, DiscoveredAgentRecord } from "./model";
 
 function mapAgentIssue(issue: AgentValidationIssueResponse): AgentValidationIssueRecord {
@@ -21,7 +22,8 @@ export function mapAgent(agent: AgentDescriptorResponse): AgentRecord {
     entrypoint: agent.entrypoint,
     defaultModel: agent.default_model,
     tags: agent.tags,
-    publishedAt: agent.published_at
+    publishedAt: agent.published_at,
+    provenance: mapProvenance(agent.provenance)
   };
 }
 
@@ -39,6 +41,7 @@ export function mapDiscoveredAgent(agent: DiscoveredAgentResponse): DiscoveredAg
     validationIssues: agent.validation_issues.map(mapAgentIssue),
     publishedAt: agent.published_at ?? undefined,
     lastValidatedAt: agent.last_validated_at,
-    hasUnpublishedChanges: agent.has_unpublished_changes
+    hasUnpublishedChanges: agent.has_unpublished_changes,
+    provenance: mapProvenance(agent.provenance)
   };
 }

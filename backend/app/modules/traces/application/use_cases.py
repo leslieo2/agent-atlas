@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from app.modules.traces.application.ports import (
+    TraceBackendPort,
     TraceProjectorPort,
-    TraceRepository,
 )
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
@@ -10,12 +10,12 @@ from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 class TraceRecorder:
     def __init__(
         self,
-        trace_repository: TraceRepository,
+        trace_backend: TraceBackendPort,
     ) -> None:
-        self.trace_repository = trace_repository
+        self.trace_backend = trace_backend
 
     def record(self, span: TraceSpan) -> TraceSpan:
-        self.trace_repository.append(span)
+        self.trace_backend.append(span)
         return span
 
 

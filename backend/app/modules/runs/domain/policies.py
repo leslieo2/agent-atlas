@@ -26,6 +26,8 @@ class RunAggregate:
                 **spec.project_metadata,
                 "prompt": spec.prompt,
             },
+            artifact_ref=spec.provenance.artifact_ref if spec.provenance else None,
+            provenance=spec.provenance.model_copy(deep=True) if spec.provenance else None,
         )
 
     @classmethod
@@ -71,6 +73,8 @@ class RunAggregate:
     ) -> RunRecord:
         self.run.execution_backend = execution_backend
         self.run.container_image = container_image
+        if self.run.provenance is not None:
+            self.run.provenance.image_ref = container_image
         self.run.error_code = None
         self.run.error_message = None
         if self.run.status != RunStatus.TERMINATED:
@@ -93,4 +97,6 @@ class RunAggregate:
         self.run.status = RunStatus.TERMINATED
         self.run.termination_reason = reason
         self.run.artifact_ref = None
+        if self.run.provenance is not None:
+            self.run.provenance.artifact_ref = None
         return self.run

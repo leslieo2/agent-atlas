@@ -19,11 +19,11 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
         with suppress(AgentValidationFailedError):
             container.agents.agent_publication_commands.publish(agent_id)
 
-    def _agent_snapshot(agent_id: str) -> dict[str, object]:
+    def _agent_provenance(agent_id: str):
         published = container.infrastructure.published_agent_repository.get_agent(agent_id)
         if published is None:
-            return {}
-        return {"agent_snapshot": published.to_snapshot()}
+            return None
+        return published.provenance.model_copy(deep=True) if published.provenance else None
 
     seeded_runs = [
         RunRecord(
@@ -39,7 +39,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["example", "support"],
-            project_metadata=_agent_snapshot("customer_service"),
+            provenance=_agent_provenance("customer_service"),
         ),
         RunRecord(
             run_id=UUID("a6f3f2a1-2222-4f8d-9999-111111111111"),
@@ -54,7 +54,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             model="gpt-5-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["example", "support"],
-            project_metadata=_agent_snapshot("customer_service"),
+            provenance=_agent_provenance("customer_service"),
         ),
         RunRecord(
             run_id=UUID("a6f3f2a1-3333-4f8d-9999-111111111111"),
@@ -69,7 +69,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             model="gpt-4.1",
             agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["example", "smoke"],
-            project_metadata=_agent_snapshot("basic"),
+            provenance=_agent_provenance("basic"),
         ),
         RunRecord(
             run_id=UUID("a6f3f2a1-4444-4f8d-9999-111111111111"),
@@ -84,7 +84,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["example", "tools"],
-            project_metadata=_agent_snapshot("tools"),
+            provenance=_agent_provenance("tools"),
         ),
         RunRecord(
             run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
@@ -99,7 +99,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             model="gpt-5.4-mini",
             agent_type=AdapterKind.OPENAI_AGENTS,
             tags=["example", "tools", "fulfillment"],
-            project_metadata=_agent_snapshot("fulfillment_ops"),
+            provenance=_agent_provenance("fulfillment_ops"),
         ),
     ]
     seeded_steps = {

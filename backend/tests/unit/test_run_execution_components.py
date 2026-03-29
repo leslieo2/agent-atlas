@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.core.errors import ProviderAuthError
+from app.infrastructure.adapters.trace_backend import AtlasStateTraceBackend
 from app.infrastructure.adapters.trace_projection import TraceIngestProjector
 from app.infrastructure.adapters.trajectory_projection import TraceEventTrajectoryProjector
 from app.infrastructure.repositories import (
@@ -42,7 +43,9 @@ def _build_telemetry_ingestor(
         trace_ingestor=TraceCommands(
             workflow=TraceIngestionWorkflow(
                 trace_projector=TraceIngestProjector(),
-                trace_recorder=TraceRecorder(trace_repository=trace_repository),
+                trace_recorder=TraceRecorder(
+                    trace_backend=AtlasStateTraceBackend(trace_repository),
+                ),
             )
         ),
         trajectory_recorder=TrajectoryRecorder(
@@ -287,14 +290,14 @@ def test_run_execution_service_records_structured_failure_details():
     )
 
     class ExplodingPublishedRuntime:
-        def execute_published(self, *_args, **_kwargs):
+        def execute(self, *_args, **_kwargs):
             raise ProviderAuthError("provider authentication failed")
 
     from app.modules.runs.application.execution import RunExecutionService
 
     service = RunExecutionService(
         run_repository=run_repository,
-        published_runtime=ExplodingPublishedRuntime(),
+        runner=ExplodingPublishedRuntime(),
         telemetry_ingestor=_build_telemetry_ingestor(
             trace_repository=trace_repository,
             trajectory_repository=trajectory_repository,
@@ -348,7 +351,7 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
     )
 
     class FailedToolPublishedRuntime:
-        def execute_published(self, *_args, **_kwargs):
+        def execute(self, *_args, **_kwargs):
             return PublishedRunExecutionResult(
                 runtime_result=RuntimeExecutionResult(
                     output="success",
@@ -421,7 +424,7 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
 
     service = RunExecutionService(
         run_repository=run_repository,
-        published_runtime=FailedToolPublishedRuntime(),
+        runner=FailedToolPublishedRuntime(),
         telemetry_ingestor=_build_telemetry_ingestor(
             trace_repository=trace_repository,
             trajectory_repository=trajectory_repository,

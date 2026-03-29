@@ -29,6 +29,7 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     agent_publication_commands = AgentPublicationCommands(
         discovery=infra.agent_discovery,
         published_agents=infra.published_agent_repository,
+        artifact_builder=infra.artifact_builder,
     )
 
     return AgentModuleBundle(

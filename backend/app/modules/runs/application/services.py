@@ -18,6 +18,10 @@ class RunSubmissionService:
         self.task_queue = task_queue
 
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
+        provenance = agent.provenance.model_copy(deep=True) if agent.provenance else None
+        if provenance is not None:
+            provenance.eval_job_id = payload.eval_job_id
+            provenance.dataset_sample_id = payload.dataset_sample_id
         spec = RunSpec(
             project=payload.project,
             dataset=payload.dataset,
@@ -30,10 +34,8 @@ class RunSubmissionService:
             input_summary=payload.input_summary,
             prompt=payload.prompt,
             tags=list(payload.tags),
-            project_metadata={
-                **payload.project_metadata,
-                "agent_snapshot": agent.to_snapshot(),
-            },
+            project_metadata=dict(payload.project_metadata),
+            provenance=provenance,
         )
         run = RunAggregate.create(spec)
         self.run_repository.save(run)

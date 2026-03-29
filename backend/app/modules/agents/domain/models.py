@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
@@ -10,6 +11,13 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import AdapterKind
+from app.modules.shared.domain.models import ProvenanceMetadata
+
+
+@dataclass(frozen=True)
+class AgentModuleSource:
+    module_name: str
+    entrypoint: str
 
 
 def utc_now() -> datetime:
@@ -74,6 +82,7 @@ class PublishedAgent(BaseModel):
     entrypoint: str
     published_at: datetime = Field(default_factory=utc_now)
     source_fingerprint: str = ""
+    provenance: ProvenanceMetadata | None = None
 
     @property
     def agent_id(self) -> str:
@@ -108,7 +117,7 @@ class PublishedAgent(BaseModel):
         return compute_source_fingerprint(self.manifest, self.entrypoint)
 
     def to_snapshot(self) -> dict[str, Any]:
-        return self.model_dump(mode="json", exclude={"source_fingerprint"})
+        return self.model_dump(mode="json", exclude={"source_fingerprint", "provenance"})
 
 
 class DiscoveredAgent(BaseModel):
@@ -120,6 +129,7 @@ class DiscoveredAgent(BaseModel):
     published_at: datetime | None = None
     last_validated_at: datetime = Field(default_factory=utc_now)
     has_unpublished_changes: bool = False
+    provenance: ProvenanceMetadata | None = None
 
     @property
     def agent_id(self) -> str:
@@ -161,6 +171,7 @@ class DiscoveredAgent(BaseModel):
                     "publish_state": AgentPublishState.DRAFT,
                     "published_at": None,
                     "has_unpublished_changes": False,
+                    "provenance": None,
                 }
             )
         return self.model_copy(
@@ -170,6 +181,7 @@ class DiscoveredAgent(BaseModel):
                 "has_unpublished_changes": (
                     self.source_fingerprint() != published_agent.effective_source_fingerprint()
                 ),
+                "provenance": published_agent.provenance,
             }
         )
 

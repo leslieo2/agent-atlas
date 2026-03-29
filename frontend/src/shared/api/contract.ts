@@ -11,6 +11,7 @@ export interface AgentDescriptorResponse {
   "default_model": string;
   "tags": Array<string>;
   "published_at": string;
+  "provenance"?: ProvenanceMetadata | null;
 }
 export interface AgentPublicationResponse {
   "agent_id": string;
@@ -63,6 +64,7 @@ export interface DiscoveredAgentResponse {
   "published_at"?: string | null;
   "last_validated_at": string;
   "has_unpublished_changes": boolean;
+  "provenance"?: ProvenanceMetadata | null;
 }
 export interface EvalJobCreateRequest {
   "agent_id": string;
@@ -107,6 +109,16 @@ export interface EvalSampleResultResponse {
 export interface HTTPValidationError {
   "detail"?: Array<ValidationError>;
 }
+export interface ProvenanceMetadata {
+  "framework"?: string | null;
+  "published_agent_snapshot"?: Record<string, unknown> | null;
+  "artifact_ref"?: string | null;
+  "image_ref"?: string | null;
+  "runner_backend"?: string | null;
+  "trace_backend"?: string | null;
+  "eval_job_id"?: string | null;
+  "dataset_sample_id"?: string | null;
+}
 export interface RunCreateRequest {
   "project": string;
   "dataset"?: string | null;
@@ -139,6 +151,7 @@ export interface RunResponse {
   "artifact_ref"?: string | null;
   "execution_backend"?: string | null;
   "container_image"?: string | null;
+  "provenance"?: ProvenanceMetadata | null;
   "resolved_model"?: string | null;
   "error_code"?: string | null;
   "error_message"?: string | null;

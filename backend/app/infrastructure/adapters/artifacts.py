@@ -52,6 +52,7 @@ class RunArtifactExportSourceAdapter(RunLookupSource):
             resolved_model=run.resolved_model,
             agent_type=run.agent_type,
             project_metadata=run.project_metadata,
+            provenance=run.provenance,
         )
 
 
@@ -189,8 +190,23 @@ class ArtifactExporterAdapter:
             "agent_id": run.agent_id if run else None,
             "entrypoint": run.entrypoint if run else None,
             "resolved_model": run.resolved_model if run else None,
+            "published_agent_snapshot": run.provenance.published_agent_snapshot
+            if run and run.provenance
+            else None,
             "published_agent": published_agent,
             "agent_type": run.agent_type.value if run else None,
+            "artifact_ref": run.provenance.artifact_ref if run and run.provenance else None,
+            "image_ref": run.provenance.image_ref if run and run.provenance else None,
+            "trace_backend": run.provenance.trace_backend if run and run.provenance else None,
+            "runner_backend": run.provenance.runner_backend if run and run.provenance else None,
+            "eval_job_id": (
+                str(run.provenance.eval_job_id)
+                if run and run.provenance and run.provenance.eval_job_id
+                else None
+            ),
+            "dataset_sample_id": run.provenance.dataset_sample_id
+            if run and run.provenance
+            else None,
             "step_id": step.id,
             "span_id": step.id,
             "parent_step_id": step.parent_step_id,
@@ -223,10 +239,10 @@ class ArtifactExporterAdapter:
 
     @staticmethod
     def _published_agent_summary(run: ArtifactRunView | None) -> dict[str, Any] | None:
-        if run is None:
+        if run is None or run.provenance is None:
             return None
 
-        raw_snapshot = run.project_metadata.get("agent_snapshot")
+        raw_snapshot = run.provenance.published_agent_snapshot
         if not isinstance(raw_snapshot, dict):
             return None
 

@@ -1,3 +1,5 @@
+import type { ProvenanceRecord } from "@/src/shared/api/provenance";
+
 export type AgentPublishState = "draft" | "published";
 export type AgentValidationStatus = "valid" | "invalid";
 
@@ -10,6 +12,7 @@ export interface AgentRecord {
   defaultModel: string;
   tags: string[];
   publishedAt?: string;
+  provenance?: ProvenanceRecord | null;
 }
 
 export interface AgentValidationIssueRecord {
@@ -24,4 +27,5 @@ export interface DiscoveredAgentRecord extends AgentRecord {
   publishedAt?: string;
   lastValidatedAt: string;
   hasUnpublishedChanges: boolean;
+  provenance?: ProvenanceRecord | null;
 }

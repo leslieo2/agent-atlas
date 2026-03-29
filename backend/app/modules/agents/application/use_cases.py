@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.core.errors import AgentValidationFailedError
 from app.modules.agents.application.ports import (
     AgentSourceDiscoveryPort,
+    ArtifactBuilderPort,
     PublishedAgentRepositoryPort,
     RunnableAgentCatalogPort,
 )
@@ -44,9 +45,11 @@ class AgentPublicationCommands:
         self,
         discovery: AgentSourceDiscoveryPort,
         published_agents: PublishedAgentRepositoryPort,
+        artifact_builder: ArtifactBuilderPort,
     ) -> None:
         self.discovery = discovery
         self.published_agents = published_agents
+        self.artifact_builder = artifact_builder
 
     def publish(self, agent_id: str) -> PublishedAgent:
         discovered = self._get_discovered_agent(agent_id)
@@ -57,6 +60,7 @@ class AgentPublicationCommands:
             raise AgentValidationFailedError(agent_id=agent_id, message=issue_summary)
 
         published = discovered.to_published()
+        published.provenance = self.artifact_builder.build(published)
         self.published_agents.save_agent(published)
         return published
 

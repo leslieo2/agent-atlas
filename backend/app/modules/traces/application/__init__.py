@@ -1,4 +1,4 @@
-from app.modules.traces.application.ports import TraceProjectorPort, TraceRepository
+from app.modules.traces.application.ports import TraceBackendPort, TraceProjectorPort
 from app.modules.traces.application.use_cases import (
     TraceCommands,
     TraceIngestionWorkflow,
@@ -6,9 +6,9 @@ from app.modules.traces.application.use_cases import (
 )
 
 __all__ = [
+    "TraceBackendPort",
     "TraceCommands",
     "TraceIngestionWorkflow",
     "TraceProjectorPort",
     "TraceRecorder",
-    "TraceRepository",
 ]

@@ -13,7 +13,7 @@ from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord, TrajectoryStep
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus
-from app.modules.traces.application.ports import TraceRepository
+from app.modules.traces.application.ports import TraceBackendPort
 from app.modules.traces.domain.models import TraceSpan
 
 
@@ -22,11 +22,11 @@ class RunQueries:
         self,
         run_repository: RunRepository,
         trajectory_repository: TrajectoryRepository,
-        trace_repository: TraceRepository,
+        trace_backend: TraceBackendPort,
     ) -> None:
         self.run_repository = run_repository
         self.trajectory_repository = trajectory_repository
-        self.trace_repository = trace_repository
+        self.trace_backend = trace_backend
 
     def list_runs(
         self,
@@ -79,7 +79,7 @@ class RunQueries:
         return self.trajectory_repository.list_for_run(run_id)
 
     def get_traces(self, run_id: str | UUID) -> list[TraceSpan]:
-        return self.trace_repository.list_for_run(run_id)
+        return self.trace_backend.list_for_run(run_id)
 
 
 class RunCommands:

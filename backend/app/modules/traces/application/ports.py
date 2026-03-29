@@ -6,10 +6,12 @@ from uuid import UUID
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
 
-class TraceRepository(Protocol):
+class TraceBackendPort(Protocol):
     def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]: ...
 
     def append(self, span: TraceSpan) -> None: ...
+
+    def backend_name(self) -> str: ...
 
 
 class TraceProjectorPort(Protocol):
@@ -22,4 +24,4 @@ class TraceProjectorPort(Protocol):
     ) -> dict[str, Any]: ...
 
 
-__all__ = ["TraceProjectorPort", "TraceRepository"]
+__all__ = ["TraceBackendPort", "TraceProjectorPort"]

@@ -4,10 +4,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.core.errors import AppError
-from app.modules.runs.application.ports import (
-    PublishedRunRuntimePort,
-    RunRepository,
-)
+from app.modules.runs.application.ports import RunnerPort, RunRepository
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.application.telemetry import RunTelemetryIngestionService
 from app.modules.runs.domain.models import ExecutionMetrics, RunSpec, RuntimeExecutionResult
@@ -238,13 +235,13 @@ class RunExecutionService:
     def __init__(
         self,
         run_repository: RunRepository,
-        published_runtime: PublishedRunRuntimePort,
+        runner: RunnerPort,
         telemetry_ingestor: RunTelemetryIngestionService,
         projector: RunExecutionProjector | None = None,
         recorder: ExecutionRecorder | None = None,
     ) -> None:
         self.run_repository = run_repository
-        self.published_runtime = published_runtime
+        self.runner = runner
         self.projector = projector or RunExecutionProjector()
         self.recorder = recorder or ExecutionRecorder(
             run_repository=run_repository,
@@ -258,7 +255,7 @@ class RunExecutionService:
         context = RunExecutionContext.from_spec(run_id, payload)
 
         try:
-            result = self.published_runtime.execute_published(run_id, payload)
+            result = self.runner.execute(run_id, payload)
             self._update_run_execution_details(run_id, result.runtime_result)
             record = self.projector.project_runtime_success(context, result)
             self.recorder.record(run_id, record)

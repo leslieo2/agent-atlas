@@ -7,6 +7,7 @@ from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentSourceCatalog,
     StateRunnableAgentCatalog,
 )
+from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
 from app.infrastructure.adapters.langchain import (
     LangChainAgentContractValidator,
@@ -18,8 +19,13 @@ from app.infrastructure.adapters.openai_agents import (
     PublishedOpenAIAgentAdapter,
     PublishedOpenAIAgentLoader,
 )
+from app.infrastructure.adapters.runner import (
+    LegacyPassthroughRunner,
+    PublishedArtifactResolver,
+)
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.task_queue import StateTaskQueue
+from app.infrastructure.adapters.trace_backend import AtlasStateTraceBackend
 from app.infrastructure.adapters.trace_projection import TraceIngestProjector
 from app.infrastructure.adapters.trajectory_projection import TraceEventTrajectoryProjector
 from app.infrastructure.repositories import (
@@ -33,6 +39,9 @@ from app.infrastructure.repositories import (
     StateTraceRepository,
     StateTrajectoryRepository,
 )
+from app.modules.agents.application.ports import ArtifactBuilderPort, FrameworkRegistryPort
+from app.modules.runs.application.ports import ArtifactResolverPort, RunnerPort
+from app.modules.traces.application.ports import TraceBackendPort
 
 
 @dataclass(frozen=True)
@@ -47,11 +56,15 @@ class InfrastructureBundle:
     published_agent_repository: StatePublishedAgentRepository
     system_status: StateSystemStatus
     agent_source_catalog: FilesystemAgentSourceCatalog
-    framework_registry: FrameworkRegistry
+    framework_registry: FrameworkRegistryPort
+    artifact_builder: ArtifactBuilderPort
     agent_discovery: FilesystemAgentDiscovery
     runnable_agent_catalog: StateRunnableAgentCatalog
     task_queue: StateTaskQueue
     model_runtime: ModelRuntimeService
+    artifact_resolver: ArtifactResolverPort
+    runner: RunnerPort
+    trace_backend: TraceBackendPort
     trace_projector: TraceIngestProjector
     trajectory_step_projector: TraceEventTrajectoryProjector
 
@@ -87,6 +100,7 @@ def build_infrastructure() -> InfrastructureBundle:
             ),
         }
     )
+    artifact_builder = SourceArtifactBuilder()
     agent_discovery = FilesystemAgentDiscovery(
         source_catalog=agent_source_catalog,
         validator=framework_registry,
@@ -99,6 +113,12 @@ def build_infrastructure() -> InfrastructureBundle:
     model_runtime = ModelRuntimeService(
         framework_registry=framework_registry,
     )
+    artifact_resolver = PublishedArtifactResolver()
+    runner = LegacyPassthroughRunner(
+        artifact_resolver=artifact_resolver,
+        published_runtime=model_runtime,
+    )
+    trace_backend = AtlasStateTraceBackend(trace_repository)
     trace_projector = TraceIngestProjector()
     trajectory_step_projector = TraceEventTrajectoryProjector()
 
@@ -114,10 +134,14 @@ def build_infrastructure() -> InfrastructureBundle:
         system_status=system_status,
         agent_source_catalog=agent_source_catalog,
         framework_registry=framework_registry,
+        artifact_builder=artifact_builder,
         agent_discovery=agent_discovery,
         runnable_agent_catalog=runnable_agent_catalog,
         task_queue=task_queue,
         model_runtime=model_runtime,
+        artifact_resolver=artifact_resolver,
+        runner=runner,
+        trace_backend=trace_backend,
         trace_projector=trace_projector,
         trajectory_step_projector=trajectory_step_projector,
     )

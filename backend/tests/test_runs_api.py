@@ -69,7 +69,7 @@ def test_create_run_and_get_by_id(client):
     assert got.json()["run_id"] == run_id
     assert got.json()["agent_id"] == "basic"
     assert got.json()["status"] == RunStatus.QUEUED.value
-    assert got.json()["project_metadata"]["agent_snapshot"] == {
+    assert got.json()["provenance"]["published_agent_snapshot"] == {
         "manifest": {
             "agent_id": "basic",
             "name": "Basic",
@@ -79,7 +79,7 @@ def test_create_run_and_get_by_id(client):
             "tags": ["example", "smoke"],
         },
         "entrypoint": "app.agent_plugins.basic:build_agent",
-        "published_at": got.json()["project_metadata"]["agent_snapshot"]["published_at"],
+        "published_at": got.json()["provenance"]["published_agent_snapshot"]["published_at"],
     }
 
 

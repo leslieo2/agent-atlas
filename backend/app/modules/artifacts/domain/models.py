@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import AdapterKind, ArtifactFormat, StepType
+from app.modules.shared.domain.models import ProvenanceMetadata
 
 
 class ArtifactExportRequest(BaseModel):
@@ -37,6 +38,7 @@ class ArtifactRunView(BaseModel):
     resolved_model: str | None = None
     agent_type: AdapterKind
     project_metadata: dict[str, Any] = Field(default_factory=dict)
+    provenance: ProvenanceMetadata | None = None
 
 
 class ArtifactTrajectoryStepView(BaseModel):

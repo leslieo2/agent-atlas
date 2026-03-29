@@ -1,4 +1,5 @@
 import type { RunResponse as ApiRunRecord } from "@/src/shared/api/contract";
+import { mapProvenance } from "@/src/shared/api/provenance";
 import type { RunRecord } from "./model";
 
 export function mapRun(run: ApiRunRecord): RunRecord {
@@ -23,6 +24,7 @@ export function mapRun(run: ApiRunRecord): RunRecord {
     artifactRef: run.artifact_ref,
     executionBackend: run.execution_backend ?? null,
     containerImage: run.container_image ?? null,
+    provenance: mapProvenance(run.provenance),
     resolvedModel: run.resolved_model ?? null,
     errorCode: run.error_code ?? null,
     errorMessage: run.error_message ?? null,

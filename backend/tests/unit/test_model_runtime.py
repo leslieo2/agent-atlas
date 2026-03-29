@@ -19,6 +19,7 @@ from app.modules.agents.domain.models import AgentBuildContext, AgentManifest, P
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
+from app.modules.shared.domain.models import ProvenanceMetadata
 from pydantic import SecretStr
 
 
@@ -369,6 +370,17 @@ def test_model_runtime_service_dispatches_published_runs_through_framework_regis
     service = ModelRuntimeService(adapters={}, framework_registry=registry)
     service.api_key = SecretStr("sk-test")
     service.runtime_mode = RuntimeMode.LIVE
+    published_agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="graph-bot",
+            name="Graph Bot",
+            description="LangGraph-backed agent",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=[],
+        ),
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+    )
     payload = RunSpec(
         project="migration-check",
         dataset="framework-ds",
@@ -379,19 +391,10 @@ def test_model_runtime_service_dispatches_published_runs_through_framework_regis
         input_summary="framework coverage",
         prompt="Inspect the latest run.",
         tags=["langchain"],
-        project_metadata={
-            "agent_snapshot": PublishedAgent(
-                manifest=AgentManifest(
-                    agent_id="graph-bot",
-                    name="Graph Bot",
-                    description="LangGraph-backed agent",
-                    framework=AdapterKind.LANGCHAIN.value,
-                    default_model="gpt-5.4-mini",
-                    tags=[],
-                ),
-                entrypoint="app.agent_plugins.graph_bot:build_agent",
-            ).to_snapshot()
-        },
+        provenance=ProvenanceMetadata(
+            framework=AdapterKind.LANGCHAIN.value,
+            published_agent_snapshot=published_agent.to_snapshot(),
+        ),
     )
 
     result = service.execute_published("00000000-0000-0000-0000-000000000123", payload)
@@ -421,6 +424,17 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
 
             return RunnableGraph()
 
+    published_agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="graph-bot",
+            name="Graph Bot",
+            description="LangGraph-backed agent",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=[],
+        ),
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+    )
     adapter = PublishedLangChainAgentAdapter(agent_loader=StubLoader())
     payload = RunSpec(
         project="migration-check",
@@ -432,19 +446,10 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
         input_summary="framework coverage",
         prompt="Inspect the latest run.",
         tags=["langchain"],
-        project_metadata={
-            "agent_snapshot": PublishedAgent(
-                manifest=AgentManifest(
-                    agent_id="graph-bot",
-                    name="Graph Bot",
-                    description="LangGraph-backed agent",
-                    framework=AdapterKind.LANGCHAIN.value,
-                    default_model="gpt-5.4-mini",
-                    tags=[],
-                ),
-                entrypoint="app.agent_plugins.graph_bot:build_agent",
-            ).to_snapshot()
-        },
+        provenance=ProvenanceMetadata(
+            framework=AdapterKind.LANGCHAIN.value,
+            published_agent_snapshot=published_agent.to_snapshot(),
+        ),
     )
     context = AgentBuildContext(
         run_id="00000000-0000-0000-0000-000000000111",
