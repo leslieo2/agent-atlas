@@ -313,10 +313,18 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
               </div>
               <div className="metrics">
                 <MetricCard label="Resolved model" value={selectedRunRecord.resolvedModel ?? "-"} />
+                <MetricCard
+                  label="Runner backend"
+                  value={selectedRunRecord.runnerBackend ?? selectedRunRecord.provenance?.runnerBackend ?? "-"}
+                />
                 <MetricCard label="Backend" value={selectedRunRecord.executionBackend ?? "-"} />
                 <MetricCard
                   label="Artifact handoff"
                   value={selectedRunRecord.provenance?.artifactRef ?? runtimeArtifact?.artifactRef ?? "-"}
+                />
+                <MetricCard
+                  label="Image handoff"
+                  value={selectedRunRecord.imageRef ?? selectedRunRecord.provenance?.imageRef ?? runtimeArtifact?.imageRef ?? "-"}
                 />
                 <MetricCard label="Container image" value={selectedRunRecord.containerImage ?? "-"} />
                 <MetricCard label="Failure code" value={selectedRunRecord.errorCode ?? "-"} />
@@ -324,8 +332,9 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
               <Notice className="mono">
                 {[
                   `entrypoint: ${selectedRunRecord.entrypoint ?? "-"}`,
+                  `runner_backend: ${selectedRunRecord.runnerBackend ?? selectedRunRecord.provenance?.runnerBackend ?? "-"}`,
                   `artifact_ref: ${selectedRunRecord.provenance?.artifactRef ?? runtimeArtifact?.artifactRef ?? "-"}`,
-                  `image_ref: ${selectedRunRecord.provenance?.imageRef ?? runtimeArtifact?.imageRef ?? "-"}`,
+                  `image_ref: ${selectedRunRecord.imageRef ?? selectedRunRecord.provenance?.imageRef ?? runtimeArtifact?.imageRef ?? "-"}`,
                   `build_status: ${runtimeArtifact?.buildStatus ?? "legacy"}`,
                   `source_fingerprint: ${runtimeArtifact?.sourceFingerprint ?? "legacy"}`,
                   ...(selectedRunRecord.errorMessage ? [`error: ${selectedRunRecord.errorMessage}`] : [])

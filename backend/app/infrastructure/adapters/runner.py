@@ -1,15 +1,21 @@
 from __future__ import annotations
 
-from uuid import UUID
+from collections.abc import Mapping
+from typing import Protocol
 
-from app.core.errors import AgentLoadFailedError
+from app.core.errors import AgentLoadFailedError, UnsupportedOperationError
 from app.modules.agents.domain.models import PublishedAgent
-from app.modules.runs.application.ports import (
-    ArtifactResolverPort,
-    PublishedRunRuntimePort,
+from app.modules.runs.application.ports import PublishedRunRuntimePort
+from app.modules.runs.application.results import RunnerExecutionResult
+from app.modules.runs.domain.models import (
+    ResolvedRunArtifact,
+    RunnerExecutionHandoff,
+    RunSpec,
 )
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import ResolvedRunArtifact, RunSpec
+
+
+class _RunnerExecutor(Protocol):
+    def execute(self, handoff: RunnerExecutionHandoff) -> RunnerExecutionResult: ...
 
 
 class PublishedArtifactResolver:
@@ -59,15 +65,48 @@ class PublishedArtifactResolver:
         )
 
 
-class LegacyPassthroughRunner:
+class LocalProcessRunner:
     def __init__(
         self,
-        artifact_resolver: ArtifactResolverPort,
         published_runtime: PublishedRunRuntimePort,
     ) -> None:
-        self.artifact_resolver = artifact_resolver
         self.published_runtime = published_runtime
 
-    def execute(self, run_id: UUID, payload: RunSpec) -> PublishedRunExecutionResult:
-        self.artifact_resolver.resolve(payload)
-        return self.published_runtime.execute_published(run_id, payload)
+    @staticmethod
+    def backend_name() -> str:
+        return "local-process"
+
+    def execute(self, handoff: RunnerExecutionHandoff) -> RunnerExecutionResult:
+        execution = self.published_runtime.execute_published(
+            handoff.run_id,
+            handoff.to_run_spec(),
+        )
+        return RunnerExecutionResult(
+            runner_backend=self.backend_name(),
+            artifact_ref=handoff.artifact_ref,
+            image_ref=handoff.image_ref,
+            execution=execution,
+        )
+
+
+class RunnerRegistry:
+    def __init__(
+        self,
+        *,
+        runners: Mapping[str, _RunnerExecutor],
+        default_backend: str,
+    ) -> None:
+        self.runners = {key.strip().lower(): value for key, value in runners.items()}
+        self.default_backend = default_backend.strip().lower()
+        if self.default_backend not in self.runners:
+            raise ValueError(f"unsupported default runner backend '{default_backend}'")
+
+    def execute(self, handoff: RunnerExecutionHandoff) -> RunnerExecutionResult:
+        backend = handoff.runner_backend.strip().lower()
+        runner = self.runners.get(backend)
+        if runner is None:
+            raise UnsupportedOperationError(
+                f"runner backend '{handoff.runner_backend}' is not configured",
+                runner_backend=handoff.runner_backend,
+            )
+        return runner.execute(handoff)

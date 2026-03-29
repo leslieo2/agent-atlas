@@ -16,12 +16,16 @@ from app.modules.runs.application.execution import (
     RunExecutionContext,
     RunExecutionProjector,
 )
-from app.modules.runs.application.results import PublishedRunExecutionResult
+from app.modules.runs.application.results import (
+    PublishedRunExecutionResult,
+    RunnerExecutionResult,
+)
 from app.modules.runs.application.telemetry import (
     RunTelemetryIngestionService,
     TrajectoryRecorder,
 )
 from app.modules.runs.domain.models import (
+    ResolvedRunArtifact,
     RunRecord,
     RunSpec,
     RuntimeExecutionResult,
@@ -53,6 +57,30 @@ def _build_telemetry_ingestor(
             step_projector=TraceEventTrajectoryProjector(),
         ),
     )
+
+
+class _FixedArtifactResolver:
+    def resolve(self, payload: RunSpec) -> ResolvedRunArtifact:
+        entrypoint = payload.entrypoint or "app.agent_plugins.basic:build_agent"
+        return ResolvedRunArtifact(
+            framework=payload.agent_type.value,
+            entrypoint=entrypoint,
+            source_fingerprint="fingerprint-test",
+            artifact_ref=f"source://{payload.agent_id or 'basic'}@fingerprint-test",
+            image_ref=None,
+            published_agent_snapshot={
+                "manifest": {
+                    "agent_id": payload.agent_id or "basic",
+                    "name": "Basic",
+                    "description": "Basic agent",
+                    "framework": payload.agent_type.value,
+                    "default_model": payload.model,
+                    "tags": [],
+                },
+                "entrypoint": entrypoint,
+                "published_at": "2026-03-20T09:00:00Z",
+            },
+        )
 
 
 def test_run_execution_projector_builds_success_trace_event():
@@ -297,6 +325,7 @@ def test_run_execution_service_records_structured_failure_details():
 
     service = RunExecutionService(
         run_repository=run_repository,
+        artifact_resolver=_FixedArtifactResolver(),
         runner=ExplodingPublishedRuntime(),
         telemetry_ingestor=_build_telemetry_ingestor(
             trace_repository=trace_repository,
@@ -323,6 +352,8 @@ def test_run_execution_service_records_structured_failure_details():
     assert run is not None
     assert run.status == RunStatus.FAILED
     assert run.entrypoint == "app.agent_plugins.basic:build_agent"
+    assert run.runner_backend == "local-process"
+    assert run.artifact_ref == "source://basic@fingerprint-test"
     assert run.error_code == "provider_call"
     assert run.error_message == "provider authentication failed"
     assert run.termination_reason == "provider authentication failed"
@@ -352,78 +383,86 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
 
     class FailedToolPublishedRuntime:
         def execute(self, *_args, **_kwargs):
-            return PublishedRunExecutionResult(
-                runtime_result=RuntimeExecutionResult(
-                    output="success",
-                    latency_ms=15,
-                    token_usage=18,
-                    provider="openai-agents-sdk",
-                    resolved_model="gpt-5.4-mini",
+            return RunnerExecutionResult(
+                runner_backend="local-process",
+                artifact_ref="source://fulfillment_ops@fingerprint-test",
+                image_ref=None,
+                execution=PublishedRunExecutionResult(
+                    runtime_result=RuntimeExecutionResult(
+                        output="success",
+                        latency_ms=15,
+                        token_usage=18,
+                        provider="openai-agents-sdk",
+                        resolved_model="gpt-5.4-mini",
+                    ),
+                    trace_events=[
+                        TraceIngestEvent(
+                            run_id=run_id,
+                            span_id=f"span-{run_id}-1",
+                            step_type=StepType.LLM,
+                            name="gpt-5.4-mini",
+                            input={
+                                "prompt": (
+                                    "Order ORD-ERR-100 is delayed. "
+                                    "Check status and decide the next action."
+                                ),
+                                "model": "gpt-5.4-mini",
+                            },
+                            output={
+                                "output": (
+                                    "tool_call: " 'lookup_order_status({"order_id":"ORD-ERR-100"})'
+                                ),
+                                "success": True,
+                            },
+                            token_usage=8,
+                        ),
+                        TraceIngestEvent(
+                            run_id=run_id,
+                            span_id=f"span-{run_id}-2",
+                            parent_span_id=f"span-{run_id}-1",
+                            step_type=StepType.TOOL,
+                            name="lookup_order_status",
+                            input={"prompt": '{"order_id":"ORD-ERR-100"}'},
+                            output={
+                                "output": (
+                                    "An error occurred while running the tool. Please try again. "
+                                    "Error: tool backend unavailable for order 'ORD-ERR-100'"
+                                ),
+                                "success": False,
+                                "error": "tool backend unavailable for order 'ORD-ERR-100'",
+                            },
+                            tool_name="lookup_order_status",
+                        ),
+                        TraceIngestEvent(
+                            run_id=run_id,
+                            span_id=f"span-{run_id}-3",
+                            parent_span_id=f"span-{run_id}-2",
+                            step_type=StepType.LLM,
+                            name="gpt-5.4-mini",
+                            input={
+                                "prompt": (
+                                    "Order ORD-ERR-100 is delayed. Check status and decide the "
+                                    "next action.\n\nTool outputs:\nlookup_order_status: An "
+                                    "error occurred while running the tool. Please try again. "
+                                    "Error: tool backend unavailable for order 'ORD-ERR-100'"
+                                )
+                            },
+                            output={
+                                "output": "success",
+                                "success": False,
+                                "error": "tool backend unavailable for order 'ORD-ERR-100'",
+                            },
+                            token_usage=10,
+                        ),
+                    ],
                 ),
-                trace_events=[
-                    TraceIngestEvent(
-                        run_id=run_id,
-                        span_id=f"span-{run_id}-1",
-                        step_type=StepType.LLM,
-                        name="gpt-5.4-mini",
-                        input={
-                            "prompt": (
-                                "Order ORD-ERR-100 is delayed. "
-                                "Check status and decide the next action."
-                            ),
-                            "model": "gpt-5.4-mini",
-                        },
-                        output={
-                            "output": 'tool_call: lookup_order_status({"order_id":"ORD-ERR-100"})',
-                            "success": True,
-                        },
-                        token_usage=8,
-                    ),
-                    TraceIngestEvent(
-                        run_id=run_id,
-                        span_id=f"span-{run_id}-2",
-                        parent_span_id=f"span-{run_id}-1",
-                        step_type=StepType.TOOL,
-                        name="lookup_order_status",
-                        input={"prompt": '{"order_id":"ORD-ERR-100"}'},
-                        output={
-                            "output": (
-                                "An error occurred while running the tool. Please try again. "
-                                "Error: tool backend unavailable for order 'ORD-ERR-100'"
-                            ),
-                            "success": False,
-                            "error": "tool backend unavailable for order 'ORD-ERR-100'",
-                        },
-                        tool_name="lookup_order_status",
-                    ),
-                    TraceIngestEvent(
-                        run_id=run_id,
-                        span_id=f"span-{run_id}-3",
-                        parent_span_id=f"span-{run_id}-2",
-                        step_type=StepType.LLM,
-                        name="gpt-5.4-mini",
-                        input={
-                            "prompt": (
-                                "Order ORD-ERR-100 is delayed. Check status and decide the next "
-                                "action.\n\nTool outputs:\nlookup_order_status: An error "
-                                "occurred while running the tool. Please try again. Error: tool "
-                                "backend unavailable for order 'ORD-ERR-100'"
-                            )
-                        },
-                        output={
-                            "output": "success",
-                            "success": False,
-                            "error": "tool backend unavailable for order 'ORD-ERR-100'",
-                        },
-                        token_usage=10,
-                    ),
-                ],
             )
 
     from app.modules.runs.application.execution import RunExecutionService
 
     service = RunExecutionService(
         run_repository=run_repository,
+        artifact_resolver=_FixedArtifactResolver(),
         runner=FailedToolPublishedRuntime(),
         telemetry_ingestor=_build_telemetry_ingestor(
             trace_repository=trace_repository,
@@ -449,6 +488,8 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
 
     assert run is not None
     assert run.status == RunStatus.FAILED
+    assert run.runner_backend == "local-process"
+    assert run.artifact_ref == "source://fulfillment_ops@fingerprint-test"
     assert run.error_code == "tool_execution"
     assert run.error_message == "tool backend unavailable for order 'ORD-ERR-100'"
     assert run.termination_reason == "tool backend unavailable for order 'ORD-ERR-100'"

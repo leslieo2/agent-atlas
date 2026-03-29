@@ -20,8 +20,9 @@ from app.infrastructure.adapters.openai_agents import (
     PublishedOpenAIAgentLoader,
 )
 from app.infrastructure.adapters.runner import (
-    LegacyPassthroughRunner,
+    LocalProcessRunner,
     PublishedArtifactResolver,
+    RunnerRegistry,
 )
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.task_queue import StateTaskQueue
@@ -64,6 +65,7 @@ class InfrastructureBundle:
     model_runtime: ModelRuntimeService
     artifact_resolver: ArtifactResolverPort
     runner: RunnerPort
+    default_runner_backend: str
     trace_backend: TraceBackendPort
     trace_projector: TraceIngestProjector
     trajectory_step_projector: TraceEventTrajectoryProjector
@@ -114,9 +116,15 @@ def build_infrastructure() -> InfrastructureBundle:
         framework_registry=framework_registry,
     )
     artifact_resolver = PublishedArtifactResolver()
-    runner = LegacyPassthroughRunner(
-        artifact_resolver=artifact_resolver,
+    local_process_runner = LocalProcessRunner(
         published_runtime=model_runtime,
+    )
+    default_runner_backend = local_process_runner.backend_name()
+    runner = RunnerRegistry(
+        runners={
+            default_runner_backend: local_process_runner,
+        },
+        default_backend=default_runner_backend,
     )
     trace_backend = AtlasStateTraceBackend(trace_repository)
     trace_projector = TraceIngestProjector()
@@ -141,6 +149,7 @@ def build_infrastructure() -> InfrastructureBundle:
         model_runtime=model_runtime,
         artifact_resolver=artifact_resolver,
         runner=runner,
+        default_runner_backend=default_runner_backend,
         trace_backend=trace_backend,
         trace_projector=trace_projector,
         trajectory_step_projector=trajectory_step_projector,

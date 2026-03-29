@@ -3,9 +3,13 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.runs.application.results import PublishedRunExecutionResult
+from app.modules.runs.application.results import (
+    PublishedRunExecutionResult,
+    RunnerExecutionResult,
+)
 from app.modules.runs.domain.models import (
     ResolvedRunArtifact,
+    RunnerExecutionHandoff,
     RunRecord,
     RunSpec,
     TrajectoryStep,
@@ -52,4 +56,4 @@ class ArtifactResolverPort(Protocol):
 
 
 class RunnerPort(Protocol):
-    def execute(self, run_id: UUID, payload: RunSpec) -> PublishedRunExecutionResult: ...
+    def execute(self, handoff: RunnerExecutionHandoff) -> RunnerExecutionResult: ...

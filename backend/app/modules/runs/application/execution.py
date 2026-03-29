@@ -4,10 +4,21 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.core.errors import AppError
-from app.modules.runs.application.ports import RunnerPort, RunRepository
-from app.modules.runs.application.results import PublishedRunExecutionResult
+from app.modules.runs.application.ports import (
+    ArtifactResolverPort,
+    RunnerPort,
+    RunRepository,
+)
+from app.modules.runs.application.results import (
+    PublishedRunExecutionResult,
+    RunnerExecutionResult,
+)
 from app.modules.runs.application.telemetry import RunTelemetryIngestionService
-from app.modules.runs.domain.models import ExecutionMetrics, RunSpec, RuntimeExecutionResult
+from app.modules.runs.domain.models import (
+    ExecutionMetrics,
+    RunnerExecutionHandoff,
+    RunSpec,
+)
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus, StepType
 from app.modules.traces.domain.models import TraceIngestEvent
@@ -235,13 +246,17 @@ class RunExecutionService:
     def __init__(
         self,
         run_repository: RunRepository,
+        artifact_resolver: ArtifactResolverPort,
         runner: RunnerPort,
         telemetry_ingestor: RunTelemetryIngestionService,
+        default_runner_backend: str = "local-process",
         projector: RunExecutionProjector | None = None,
         recorder: ExecutionRecorder | None = None,
     ) -> None:
         self.run_repository = run_repository
+        self.artifact_resolver = artifact_resolver
         self.runner = runner
+        self.default_runner_backend = default_runner_backend
         self.projector = projector or RunExecutionProjector()
         self.recorder = recorder or ExecutionRecorder(
             run_repository=run_repository,
@@ -255,9 +270,17 @@ class RunExecutionService:
         context = RunExecutionContext.from_spec(run_id, payload)
 
         try:
-            result = self.runner.execute(run_id, payload)
-            self._update_run_execution_details(run_id, result.runtime_result)
-            record = self.projector.project_runtime_success(context, result)
+            artifact = self.artifact_resolver.resolve(payload)
+            handoff = RunnerExecutionHandoff.from_spec(
+                run_id=run_id,
+                payload=payload,
+                artifact=artifact,
+                runner_backend=self._runner_backend(payload),
+            )
+            self._record_execution_handoff(run_id, handoff)
+            result = self.runner.execute(handoff)
+            self._update_run_execution_details(run_id, result)
+            record = self.projector.project_runtime_success(context, result.execution)
             self.recorder.record(run_id, record)
             trace_failure = failure_from_trace_events(record.events)
             if trace_failure is not None:
@@ -300,16 +323,19 @@ class RunExecutionService:
     def _update_run_execution_details(
         self,
         run_id: UUID,
-        runtime_result: RuntimeExecutionResult,
+        result: RunnerExecutionResult,
     ) -> None:
         run = self.run_repository.get(run_id)
         if not run:
             return
         aggregate = RunAggregate.load(run)
-        aggregate.update_model(runtime_result.resolved_model)
+        aggregate.update_model(result.execution.runtime_result.resolved_model)
         updated = aggregate.update_execution_runtime(
-            execution_backend=runtime_result.execution_backend,
-            container_image=runtime_result.container_image,
+            artifact_ref=result.artifact_ref,
+            image_ref=result.image_ref,
+            runner_backend=result.runner_backend,
+            execution_backend=result.execution.runtime_result.execution_backend,
+            container_image=result.execution.runtime_result.container_image,
         )
         self.run_repository.save(updated)
 
@@ -322,3 +348,26 @@ class RunExecutionService:
             error_message=failure.message,
         )
         self.run_repository.save(updated)
+
+    def _record_execution_handoff(
+        self,
+        run_id: UUID,
+        handoff: RunnerExecutionHandoff,
+    ) -> None:
+        run = self.run_repository.get(run_id)
+        if not run:
+            return
+        aggregate = RunAggregate.load(run)
+        updated = aggregate.update_execution_runtime(
+            artifact_ref=handoff.artifact_ref,
+            image_ref=handoff.image_ref,
+            runner_backend=handoff.runner_backend,
+            execution_backend=run.execution_backend,
+            container_image=run.container_image,
+        )
+        self.run_repository.save(updated)
+
+    def _runner_backend(self, payload: RunSpec) -> str:
+        if payload.provenance and payload.provenance.runner_backend:
+            return payload.provenance.runner_backend
+        return self.default_runner_backend

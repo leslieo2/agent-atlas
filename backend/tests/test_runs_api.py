@@ -7,6 +7,7 @@ from app.bootstrap.container import get_container
 from app.core.config import RuntimeMode, settings
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import RunStatus
+from app.modules.shared.domain.models import ProvenanceMetadata
 from fastapi.testclient import TestClient
 
 
@@ -129,12 +130,25 @@ def test_terminate_running_run_in_memory(client):
         model="gpt-5.4-mini",
         agent_type="openai-agents-sdk",
         status=RunStatus.RUNNING,
+        artifact_ref="source://basic@fingerprint-123",
+        image_ref="docker://agent-atlas/basic:latest",
+        runner_backend="local-process",
+        provenance=ProvenanceMetadata(
+            artifact_ref="source://basic@fingerprint-123",
+            image_ref="docker://agent-atlas/basic:latest",
+            runner_backend="local-process",
+        ),
     )
     container.infrastructure.run_repository.save(run)
 
     terminated = client.post(f"/api/v1/runs/{run.run_id}/terminate")
     assert terminated.status_code == 200
     assert terminated.json()["terminated"] is True
+    latest = client.get(f"/api/v1/runs/{run.run_id}")
+    assert latest.status_code == 200
+    assert latest.json()["artifact_ref"] == "source://basic@fingerprint-123"
+    assert latest.json()["image_ref"] == "docker://agent-atlas/basic:latest"
+    assert latest.json()["runner_backend"] == "local-process"
 
     already_terminated = client.post(f"/api/v1/runs/{run.run_id}/terminate")
     assert already_terminated.status_code == 400

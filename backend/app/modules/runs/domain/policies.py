@@ -27,6 +27,8 @@ class RunAggregate:
                 "prompt": spec.prompt,
             },
             artifact_ref=spec.provenance.artifact_ref if spec.provenance else None,
+            image_ref=spec.provenance.image_ref if spec.provenance else None,
+            runner_backend=spec.provenance.runner_backend if spec.provenance else None,
             provenance=spec.provenance.model_copy(deep=True) if spec.provenance else None,
         )
 
@@ -68,13 +70,21 @@ class RunAggregate:
     def update_execution_runtime(
         self,
         *,
+        artifact_ref: str | None,
+        image_ref: str | None,
+        runner_backend: str | None,
         execution_backend: str | None,
         container_image: str | None,
     ) -> RunRecord:
+        self.run.artifact_ref = artifact_ref
+        self.run.image_ref = image_ref
+        self.run.runner_backend = runner_backend
         self.run.execution_backend = execution_backend
         self.run.container_image = container_image
         if self.run.provenance is not None:
-            self.run.provenance.image_ref = container_image
+            self.run.provenance.artifact_ref = artifact_ref
+            self.run.provenance.image_ref = image_ref
+            self.run.provenance.runner_backend = runner_backend
         self.run.error_code = None
         self.run.error_message = None
         if self.run.status != RunStatus.TERMINATED:
@@ -96,7 +106,4 @@ class RunAggregate:
             raise ValueError(f"cannot terminate run from status={self.run.status.value}")
         self.run.status = RunStatus.TERMINATED
         self.run.termination_reason = reason
-        self.run.artifact_ref = None
-        if self.run.provenance is not None:
-            self.run.provenance.artifact_ref = None
         return self.run

@@ -49,8 +49,10 @@ def build_run_module(
     )
     run_execution_service = RunExecutionService(
         run_repository=infra.run_repository,
+        artifact_resolver=infra.artifact_resolver,
         runner=infra.runner,
         telemetry_ingestor=telemetry_ingestor,
+        default_runner_backend=infra.default_runner_backend,
     )
 
     return RunModuleBundle(

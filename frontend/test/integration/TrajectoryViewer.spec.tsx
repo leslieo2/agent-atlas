@@ -59,8 +59,10 @@ const mockedRuns = [
     model: "gpt-5.4-mini",
     agentType: "openai-agents-sdk",
     entrypoint: "app.agent_plugins.customer_service:build_agent",
+    runnerBackend: "local-process",
     executionBackend: "docker",
     containerImage: "agent-atlas-backend:test",
+    imageRef: null,
     resolvedModel: "gpt-5.4-mini",
     errorCode: null,
     errorMessage: null,
@@ -95,8 +97,10 @@ const mockedRuns = [
     model: "gpt-5.4-mini",
     agentType: "openai-agents-sdk",
     entrypoint: "app.agent_plugins.basic:build_agent",
+    runnerBackend: "local-process",
     executionBackend: "local",
     containerImage: null,
+    imageRef: null,
     resolvedModel: "gpt-5.4-mini",
     errorCode: null,
     errorMessage: null,
@@ -116,8 +120,10 @@ const mockedRuns = [
     model: "gpt-5.4-mini",
     agentType: "openai-agents-sdk",
     entrypoint: "app.agent_plugins.customer_service:build_agent",
+    runnerBackend: "local-process",
     executionBackend: "docker",
     containerImage: "agent-atlas-backend:test",
+    imageRef: null,
     resolvedModel: "gpt-5.4-mini",
     errorCode: "rate_limited",
     errorMessage: "provider rate limit exceeded",
@@ -149,8 +155,10 @@ const mockedRuns = [
     model: "gpt-5.4-mini",
     agentType: "openai-agents-sdk",
     entrypoint: "app.agent_plugins.customer_service:build_agent",
+    runnerBackend: "local-process",
     executionBackend: "docker",
     containerImage: "agent-atlas-backend:test",
+    imageRef: null,
     resolvedModel: "gpt-5.4-mini",
     errorCode: null,
     errorMessage: null,
@@ -328,7 +336,9 @@ describe("TrajectoryViewer integration", () => {
     renderWithQueryClient(<TrajectoryWorkspace />);
 
     expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
+    expect(screen.getByText("local-process")).toBeInTheDocument();
     expect(screen.getByText("source://customer_service@fingerprint-current")).toBeInTheDocument();
+    expect(screen.getByText(/runner_backend: local-process/)).toBeInTheDocument();
     expect(screen.getByText(/source_fingerprint: fingerprint-current/)).toBeInTheDocument();
     expect(screen.getByText(/build_status: ready/)).toBeInTheDocument();
   });

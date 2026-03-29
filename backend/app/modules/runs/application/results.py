@@ -10,3 +10,11 @@ from app.modules.traces.domain.models import TraceIngestEvent
 class PublishedRunExecutionResult:
     runtime_result: RuntimeExecutionResult
     trace_events: list[TraceIngestEvent] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class RunnerExecutionResult:
+    runner_backend: str
+    artifact_ref: str | None
+    image_ref: str | None
+    execution: PublishedRunExecutionResult

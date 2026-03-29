@@ -45,6 +45,8 @@ class RunResponse(BaseModel):
     created_at: datetime
     project_metadata: dict[str, object]
     artifact_ref: str | None = None
+    image_ref: str | None = None
+    runner_backend: str | None = None
     execution_backend: str | None = None
     container_image: str | None = None
     provenance: ProvenanceMetadata | None = None

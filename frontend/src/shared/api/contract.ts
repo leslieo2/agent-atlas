@@ -151,6 +151,8 @@ export interface RunResponse {
   "created_at": string;
   "project_metadata": Record<string, unknown>;
   "artifact_ref"?: string | null;
+  "image_ref"?: string | null;
+  "runner_backend"?: string | null;
   "execution_backend"?: string | null;
   "container_image"?: string | null;
   "provenance"?: ProvenanceMetadata | null;

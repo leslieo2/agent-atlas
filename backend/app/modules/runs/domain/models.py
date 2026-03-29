@@ -63,6 +63,88 @@ class ResolvedRunArtifact(BaseModel):
     published_agent_snapshot: dict[str, Any]
 
 
+class RunnerExecutionHandoff(BaseModel):
+    run_id: UUID
+    runner_backend: str
+    project: str
+    dataset: str | None = None
+    agent_id: str
+    model: str
+    entrypoint: str | None = None
+    agent_type: AdapterKind
+    input_summary: str
+    prompt: str
+    tags: list[str] = Field(default_factory=list)
+    project_metadata: dict[str, Any] = Field(default_factory=dict)
+    eval_job_id: UUID | None = None
+    dataset_sample_id: str | None = None
+    framework: str | None = None
+    source_fingerprint: str | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    trace_backend: str | None = None
+    published_agent_snapshot: dict[str, Any]
+
+    @classmethod
+    def from_spec(
+        cls,
+        *,
+        run_id: UUID,
+        payload: RunSpec,
+        artifact: ResolvedRunArtifact,
+        runner_backend: str,
+    ) -> RunnerExecutionHandoff:
+        provenance = payload.provenance
+        return cls(
+            run_id=run_id,
+            runner_backend=runner_backend,
+            project=payload.project,
+            dataset=payload.dataset,
+            agent_id=payload.agent_id,
+            model=payload.model,
+            entrypoint=artifact.entrypoint or payload.entrypoint,
+            agent_type=payload.agent_type,
+            input_summary=payload.input_summary,
+            prompt=payload.prompt,
+            tags=list(payload.tags),
+            project_metadata=dict(payload.project_metadata),
+            eval_job_id=payload.eval_job_id,
+            dataset_sample_id=payload.dataset_sample_id,
+            framework=artifact.framework,
+            source_fingerprint=artifact.source_fingerprint,
+            artifact_ref=artifact.artifact_ref,
+            image_ref=artifact.image_ref,
+            trace_backend=provenance.trace_backend if provenance else None,
+            published_agent_snapshot=artifact.published_agent_snapshot,
+        )
+
+    def to_run_spec(self) -> RunSpec:
+        return RunSpec(
+            project=self.project,
+            dataset=self.dataset,
+            agent_id=self.agent_id,
+            model=self.model,
+            entrypoint=self.entrypoint,
+            agent_type=self.agent_type,
+            input_summary=self.input_summary,
+            prompt=self.prompt,
+            tags=list(self.tags),
+            project_metadata=dict(self.project_metadata),
+            eval_job_id=self.eval_job_id,
+            dataset_sample_id=self.dataset_sample_id,
+            provenance=ProvenanceMetadata(
+                framework=self.framework,
+                published_agent_snapshot=self.published_agent_snapshot,
+                artifact_ref=self.artifact_ref,
+                image_ref=self.image_ref,
+                runner_backend=self.runner_backend,
+                trace_backend=self.trace_backend,
+                eval_job_id=self.eval_job_id,
+                dataset_sample_id=self.dataset_sample_id,
+            ),
+        )
+
+
 def utc_now() -> datetime:
     return datetime.now(UTC)
 
@@ -86,6 +168,8 @@ class RunRecord(BaseModel):
     created_at: datetime = Field(default_factory=utc_now)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     artifact_ref: str | None = None
+    image_ref: str | None = None
+    runner_backend: str | None = None
     execution_backend: str | None = None
     container_image: str | None = None
     provenance: ProvenanceMetadata | None = None

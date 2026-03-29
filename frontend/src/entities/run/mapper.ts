@@ -22,6 +22,8 @@ export function mapRun(run: ApiRunRecord): RunRecord {
     createdAt: run.created_at,
     projectMetadata: run.project_metadata,
     artifactRef: run.artifact_ref,
+    imageRef: run.image_ref ?? null,
+    runnerBackend: run.runner_backend ?? null,
     executionBackend: run.execution_backend ?? null,
     containerImage: run.container_image ?? null,
     provenance: mapProvenance(run.provenance),

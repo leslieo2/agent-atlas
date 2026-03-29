@@ -22,6 +22,8 @@ export interface RunRecord {
   createdAt: string;
   projectMetadata?: Record<string, unknown>;
   artifactRef?: string | null;
+  imageRef?: string | null;
+  runnerBackend?: string | null;
   executionBackend?: string | null;
   containerImage?: string | null;
   provenance?: ProvenanceRecord | null;
