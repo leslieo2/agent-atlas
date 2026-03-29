@@ -210,8 +210,8 @@ function AgentCard({
           </Button>
         ) : null}
         {isPublished && isValid ? (
-          <Button href={`/evals?agent=${encodeURIComponent(agent.agentId)}`} variant="secondary">
-            Run eval <ArrowUpRight size={14} />
+          <Button href={`/experiments?agent=${encodeURIComponent(agent.agentId)}`} variant="secondary">
+            Create experiment <ArrowUpRight size={14} />
           </Button>
         ) : null}
       </div>

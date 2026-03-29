@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.modules.runs.domain.models import ExecutionMetrics, RunRecord, RunSpec
 from app.modules.shared.domain.enums import RunStatus
+from app.modules.shared.domain.models import RunLineage
 
 
 class RunAggregate:
@@ -11,11 +12,13 @@ class RunAggregate:
     @classmethod
     def create(cls, spec: RunSpec) -> RunRecord:
         return RunRecord(
+            run_id=spec.run_id,
+            experiment_id=spec.experiment_id,
+            dataset_version_id=spec.dataset_version_id,
             input_summary=spec.input_summary,
             status=RunStatus.QUEUED,
             project=spec.project,
             dataset=spec.dataset,
-            eval_job_id=spec.eval_job_id,
             dataset_sample_id=spec.dataset_sample_id,
             agent_id=spec.agent_id,
             model=spec.model,
@@ -28,8 +31,15 @@ class RunAggregate:
             },
             artifact_ref=spec.provenance.artifact_ref if spec.provenance else None,
             image_ref=spec.provenance.image_ref if spec.provenance else None,
+            executor_backend=spec.executor_config.backend,
             runner_backend=spec.provenance.runner_backend if spec.provenance else None,
             provenance=spec.provenance.model_copy(deep=True) if spec.provenance else None,
+            lineage=RunLineage(
+                experiment_id=spec.experiment_id,
+                dataset_name=spec.dataset,
+                dataset_version_id=spec.dataset_version_id,
+                dataset_sample_id=spec.dataset_sample_id,
+            ),
         )
 
     @classmethod
@@ -41,6 +51,7 @@ class RunAggregate:
             raise ValueError(f"cannot start run from status={self.run.status.value}")
         self.run.status = RunStatus.RUNNING
         self.run.termination_reason = None
+        self.run.terminal_reason = None
         return self.run
 
     def mark_succeeded(self) -> RunRecord:
@@ -48,6 +59,7 @@ class RunAggregate:
             raise ValueError(f"cannot succeed run from status={self.run.status.value}")
         self.run.status = RunStatus.SUCCEEDED
         self.run.termination_reason = None
+        self.run.terminal_reason = None
         return self.run
 
     def mark_failed(self, reason: str | None = None) -> RunRecord:
@@ -55,6 +67,7 @@ class RunAggregate:
             raise ValueError(f"cannot fail run from status={self.run.status.value}")
         self.run.status = RunStatus.FAILED
         self.run.termination_reason = reason
+        self.run.terminal_reason = reason
         return self.run
 
     def record_metrics(self, metrics: ExecutionMetrics) -> RunRecord:
@@ -89,6 +102,7 @@ class RunAggregate:
         self.run.error_message = None
         if self.run.status != RunStatus.TERMINATED:
             self.run.termination_reason = None
+            self.run.terminal_reason = None
         return self.run
 
     def record_failure(
@@ -106,4 +120,5 @@ class RunAggregate:
             raise ValueError(f"cannot terminate run from status={self.run.status.value}")
         self.run.status = RunStatus.TERMINATED
         self.run.termination_reason = reason
+        self.run.terminal_reason = reason
         return self.run

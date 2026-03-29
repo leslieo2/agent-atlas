@@ -7,16 +7,16 @@ export interface ExportRecord {
   path: string;
   sizeBytes: number;
   rowCount: number;
-  sourceEvalJobId?: string | null;
-  baselineEvalJobId?: string | null;
-  candidateEvalJobId?: string | null;
+  sourceExperimentId?: string | null;
+  baselineExperimentId?: string | null;
+  candidateExperimentId?: string | null;
   filtersSummary: Record<string, unknown>;
 }
 
 export interface CreateExportInput {
-  evalJobId?: string | null;
-  baselineEvalJobId?: string | null;
-  candidateEvalJobId?: string | null;
+  experimentId?: string | null;
+  baselineExperimentId?: string | null;
+  candidateExperimentId?: string | null;
   datasetSampleIds?: string[] | null;
   judgements?: SampleJudgement[] | null;
   errorCodes?: string[] | null;

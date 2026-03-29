@@ -17,8 +17,8 @@ class ArtifactModuleBundle:
 def build_artifact_module(infra: InfrastructureBundle) -> ArtifactModuleBundle:
     artifact_exporter = ArtifactExporterAdapter(
         artifact_repository=infra.artifact_repository,
-        eval_job_repository=infra.eval_job_repository,
-        sample_result_repository=infra.eval_sample_result_repository,
+        experiment_repository=infra.experiment_repository,
+        run_evaluation_repository=infra.run_evaluation_repository,
     )
     artifact_queries = ArtifactQueries(artifact_repository=infra.artifact_repository)
     artifact_commands = ArtifactCommands(artifact_exporter=artifact_exporter)

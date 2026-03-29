@@ -9,9 +9,9 @@ export function mapExportRecord(record: ExportMetadataResponse): ExportRecord {
     path: record.path,
     sizeBytes: record.size_bytes,
     rowCount: record.row_count,
-    sourceEvalJobId: record.source_eval_job_id ?? null,
-    baselineEvalJobId: record.baseline_eval_job_id ?? null,
-    candidateEvalJobId: record.candidate_eval_job_id ?? null,
+    sourceExperimentId: record.source_experiment_id ?? null,
+    baselineExperimentId: record.baseline_experiment_id ?? null,
+    candidateExperimentId: record.candidate_experiment_id ?? null,
     filtersSummary: record.filters_summary
   };
 }

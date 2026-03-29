@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.bootstrap.providers.datasets import get_dataset_commands, get_dataset_queries
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
-from app.modules.datasets.contracts.schemas import DatasetCreate, DatasetResponse
+from app.modules.datasets.contracts.schemas import (
+    DatasetCreate,
+    DatasetResponse,
+    DatasetVersionCreate,
+    DatasetVersionResponse,
+)
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
@@ -36,3 +41,16 @@ def create_dataset(
 ) -> DatasetResponse:
     dataset = commands.create(payload.to_domain())
     return DatasetResponse.from_domain(dataset)
+
+
+@router.post("/{dataset_name}/versions", response_model=DatasetVersionResponse)
+def create_dataset_version(
+    dataset_name: str,
+    payload: DatasetVersionCreate,
+    commands: Annotated[DatasetCommands, Depends(get_dataset_commands)],
+) -> DatasetVersionResponse:
+    try:
+        version = commands.create_version(dataset_name, payload.to_domain())
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return DatasetVersionResponse.from_domain(version)

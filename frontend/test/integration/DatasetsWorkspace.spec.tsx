@@ -22,6 +22,7 @@ describe("Datasets workspace", () => {
         name: "crm-v2",
         description: "Support escalation data",
         source: "customer-support-regression",
+        currentVersionId: "dataset-version-crm-v2",
         version: "2026-03-rl-v2",
         createdAt: "2026-03-24T00:00:00Z",
         rows: [
@@ -45,6 +46,37 @@ describe("Datasets workspace", () => {
             metadata: null,
             exportEligible: false
           }
+        ],
+        versions: [
+          {
+            datasetVersionId: "dataset-version-crm-v2",
+            datasetName: "crm-v2",
+            version: "2026-03-rl-v2",
+            createdAt: "2026-03-24T00:00:00Z",
+            rowCount: 2,
+            rows: [
+              {
+                sampleId: "sample-1",
+                input: "where is my order?",
+                expected: "status lookup",
+                tags: ["shipping"],
+                slice: "shipping",
+                source: "crm",
+                metadata: null,
+                exportEligible: true
+              },
+              {
+                sampleId: "sample-2",
+                input: "cancel my order",
+                expected: null,
+                tags: ["returns"],
+                slice: "returns",
+                source: "crm",
+                metadata: null,
+                exportEligible: false
+              }
+            ]
+          }
         ]
       }
     ]);
@@ -52,6 +84,7 @@ describe("Datasets workspace", () => {
       name: "returns-review",
       description: "High-value failures",
       source: "support_ticket_backfill",
+      currentVersionId: "dataset-version-returns-review",
       version: "2026-03-rl-v1",
       createdAt: "2026-03-25T00:00:00Z",
       rows: [
@@ -65,6 +98,27 @@ describe("Datasets workspace", () => {
           metadata: null,
           exportEligible: true
         }
+      ],
+      versions: [
+        {
+          datasetVersionId: "dataset-version-returns-review",
+          datasetName: "returns-review",
+          version: "2026-03-rl-v1",
+          createdAt: "2026-03-25T00:00:00Z",
+          rowCount: 1,
+          rows: [
+            {
+              sampleId: "returns-review-sample-1",
+              input: "review order return",
+              expected: null,
+              tags: ["returns"],
+              slice: "hard-cases",
+              source: "support_ticket_backfill",
+              metadata: null,
+              exportEligible: true
+            }
+          ]
+        }
       ]
     });
   });
@@ -75,7 +129,10 @@ describe("Datasets workspace", () => {
     expect(await screen.findByRole("heading", { name: "Datasets" })).toBeInTheDocument();
     await waitFor(() => expect(datasetApi.listDatasets).toHaveBeenCalled());
     expect(await screen.findByText("where is my order?")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open in evals" })).toHaveAttribute("href", "/evals?dataset=crm-v2");
+    expect(screen.getByRole("link", { name: "Open in experiments" })).toHaveAttribute(
+      "href",
+      "/experiments?datasetVersion=dataset-version-crm-v2"
+    );
 
     fireEvent.change(screen.getByLabelText("Slice filter"), { target: { value: "returns" } });
     expect(screen.getByText("cancel my order")).toBeInTheDocument();
@@ -113,9 +170,9 @@ describe("Datasets workspace", () => {
     );
 
     expect(await screen.findByText(/Created dataset returns-review with 1 sample\./)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open imported dataset in evals" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open imported dataset in experiments" })).toHaveAttribute(
       "href",
-      "/evals?dataset=returns-review"
+      "/experiments?datasetVersion=dataset-version-returns-review"
     );
   });
 });

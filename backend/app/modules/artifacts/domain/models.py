@@ -14,9 +14,9 @@ def utc_now() -> datetime:
 
 
 class ArtifactExportRequest(BaseModel):
-    eval_job_id: UUID | None = None
-    baseline_eval_job_id: UUID | None = None
-    candidate_eval_job_id: UUID | None = None
+    experiment_id: UUID | None = None
+    baseline_experiment_id: UUID | None = None
+    candidate_experiment_id: UUID | None = None
     dataset_sample_ids: list[str] | None = None
     judgements: list[str] | None = None
     error_codes: list[str] | None = None
@@ -35,7 +35,7 @@ class ArtifactMetadata(BaseModel):
     path: str
     size_bytes: int
     row_count: int = 0
-    source_eval_job_id: UUID | None = None
-    baseline_eval_job_id: UUID | None = None
-    candidate_eval_job_id: UUID | None = None
+    source_experiment_id: UUID | None = None
+    baseline_experiment_id: UUID | None = None
+    candidate_experiment_id: UUID | None = None
     filters_summary: dict[str, Any] = Field(default_factory=dict)

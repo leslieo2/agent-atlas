@@ -10,9 +10,9 @@ export async function listExports() {
 
 export async function createExport(payload: CreateExportInput) {
   const body: ExportCreateRequest = {
-    eval_job_id: payload.evalJobId ?? null,
-    baseline_eval_job_id: payload.baselineEvalJobId ?? null,
-    candidate_eval_job_id: payload.candidateEvalJobId ?? null,
+    experiment_id: payload.experimentId ?? null,
+    baseline_experiment_id: payload.baselineExperimentId ?? null,
+    candidate_experiment_id: payload.candidateExperimentId ?? null,
     dataset_sample_ids: payload.datasetSampleIds ?? null,
     judgements: payload.judgements ?? null,
     error_codes: payload.errorCodes ?? null,

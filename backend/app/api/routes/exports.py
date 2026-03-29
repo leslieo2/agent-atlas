@@ -25,10 +25,10 @@ def create_export(
     payload: ExportCreateRequest,
     commands: Annotated[ArtifactCommands, Depends(get_export_commands)],
 ) -> ExportMetadataResponse:
-    if payload.eval_job_id is None and payload.candidate_eval_job_id is None:
+    if payload.experiment_id is None and payload.candidate_experiment_id is None:
         raise HTTPException(
             status_code=400,
-            detail="export requires eval_job_id or candidate_eval_job_id",
+            detail="export requires experiment_id or candidate_experiment_id",
         )
     try:
         artifact = commands.export(payload.to_domain())

@@ -6,9 +6,10 @@ from functools import lru_cache
 from app.bootstrap.wiring.agents import AgentModuleBundle, build_agent_module
 from app.bootstrap.wiring.artifacts import ArtifactModuleBundle, build_artifact_module
 from app.bootstrap.wiring.datasets import DatasetModuleBundle, build_dataset_module
-from app.bootstrap.wiring.evals import EvalModuleBundle, build_eval_module
+from app.bootstrap.wiring.experiments import ExperimentModuleBundle, build_experiment_module
 from app.bootstrap.wiring.health import HealthModuleBundle, build_health_module
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle, build_infrastructure
+from app.bootstrap.wiring.policies import PolicyModuleBundle, build_policy_module
 from app.bootstrap.wiring.runs import RunModuleBundle, build_run_module
 from app.bootstrap.wiring.traces import TraceModuleBundle, build_trace_module
 from app.bootstrap.wiring.worker import WorkerBundle, build_worker_bundle
@@ -21,8 +22,9 @@ class AppContainer:
     traces: TraceModuleBundle
     datasets: DatasetModuleBundle
     runs: RunModuleBundle
-    evals: EvalModuleBundle
+    experiments: ExperimentModuleBundle
     artifacts: ArtifactModuleBundle
+    policies: PolicyModuleBundle
     health: HealthModuleBundle
     worker: WorkerBundle
 
@@ -34,10 +36,11 @@ def get_container() -> AppContainer:
     traces = build_trace_module(infrastructure)
     datasets = build_dataset_module(infrastructure)
     runs = build_run_module(infrastructure, traces)
-    evals = build_eval_module(infrastructure, agents, runs)
+    experiments = build_experiment_module(infrastructure, agents)
     artifacts = build_artifact_module(infrastructure)
+    policies = build_policy_module(infrastructure)
     health = build_health_module(infrastructure)
-    worker = build_worker_bundle(infrastructure, runs, evals)
+    worker = build_worker_bundle(infrastructure, runs, experiments)
 
     return AppContainer(
         infrastructure=infrastructure,
@@ -45,8 +48,9 @@ def get_container() -> AppContainer:
         traces=traces,
         datasets=datasets,
         runs=runs,
-        evals=evals,
+        experiments=experiments,
         artifacts=artifacts,
+        policies=policies,
         health=health,
         worker=worker,
     )

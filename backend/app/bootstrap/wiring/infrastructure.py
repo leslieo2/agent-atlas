@@ -10,6 +10,11 @@ from app.infrastructure.adapters.agent_catalog import (
     StateRunnableAgentCatalog,
 )
 from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
+from app.infrastructure.adapters.experiments import (
+    ExecutorRegistry,
+    K8sJobExecutorAdapter,
+    LocalRunnerExecutorAdapter,
+)
 from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
 from app.infrastructure.adapters.langchain import (
     LangChainAgentContractValidator,
@@ -35,17 +40,19 @@ from app.infrastructure.adapters.task_queue import StateTaskQueue
 from app.infrastructure.adapters.trace_projection import TraceIngestProjector
 from app.infrastructure.adapters.trajectory_projection import TraceEventTrajectoryProjector
 from app.infrastructure.repositories import (
+    StateApprovalPolicyRepository,
     StateArtifactRepository,
     StateDatasetRepository,
-    StateEvalJobRepository,
-    StateEvalSampleResultRepository,
+    StateExperimentRepository,
     StatePublishedAgentRepository,
+    StateRunEvaluationRepository,
     StateRunRepository,
     StateSystemStatus,
     StateTraceRepository,
     StateTrajectoryRepository,
 )
 from app.modules.agents.application.ports import ArtifactBuilderPort, FrameworkRegistryPort
+from app.modules.experiments.application.ports import ExecutorPort
 from app.modules.runs.application.ports import ArtifactResolverPort, RunnerPort
 from app.modules.traces.application.ports import TraceBackendPort, TraceExporterPort
 
@@ -74,10 +81,11 @@ class InfrastructureBundle:
     trajectory_repository: StateTrajectoryRepository
     trace_repository: StateTraceRepository
     dataset_repository: StateDatasetRepository
-    eval_job_repository: StateEvalJobRepository
-    eval_sample_result_repository: StateEvalSampleResultRepository
+    experiment_repository: StateExperimentRepository
+    run_evaluation_repository: StateRunEvaluationRepository
     artifact_repository: StateArtifactRepository
     published_agent_repository: StatePublishedAgentRepository
+    approval_policy_repository: StateApprovalPolicyRepository
     system_status: StateSystemStatus
     agent_source_catalog: FilesystemAgentSourceCatalog
     framework_registry: FrameworkRegistryPort
@@ -88,6 +96,7 @@ class InfrastructureBundle:
     model_runtime: ModelRuntimeService
     artifact_resolver: ArtifactResolverPort
     runner: RunnerPort
+    executor: ExecutorPort
     default_runner_backend: str
     trace_backend: TraceBackendPort
     trace_exporter: TraceExporterPort
@@ -100,10 +109,11 @@ def build_infrastructure() -> InfrastructureBundle:
     trajectory_repository = StateTrajectoryRepository()
     trace_repository = StateTraceRepository()
     dataset_repository = StateDatasetRepository()
-    eval_job_repository = StateEvalJobRepository()
-    eval_sample_result_repository = StateEvalSampleResultRepository()
+    experiment_repository = StateExperimentRepository()
+    run_evaluation_repository = StateRunEvaluationRepository()
     artifact_repository = StateArtifactRepository()
     published_agent_repository = StatePublishedAgentRepository()
+    approval_policy_repository = StateApprovalPolicyRepository()
     system_status = StateSystemStatus()
     agent_source_catalog = FilesystemAgentSourceCatalog()
     openai_validator = OpenAIAgentContractValidator()
@@ -150,6 +160,18 @@ def build_infrastructure() -> InfrastructureBundle:
         },
         default_backend=default_runner_backend,
     )
+    executor = ExecutorRegistry(
+        executors={
+            "k8s-job": K8sJobExecutorAdapter(
+                task_queue=task_queue,
+                run_repository=run_repository,
+            ),
+            "local-runner": LocalRunnerExecutorAdapter(
+                task_queue=task_queue,
+                run_repository=run_repository,
+            ),
+        }
+    )
     trace_backend: TraceBackendPort
     trace_exporter: TraceExporterPort
     phoenix_base_url, phoenix_otlp_endpoint = _require_phoenix_configuration()
@@ -177,10 +199,11 @@ def build_infrastructure() -> InfrastructureBundle:
         trajectory_repository=trajectory_repository,
         trace_repository=trace_repository,
         dataset_repository=dataset_repository,
-        eval_job_repository=eval_job_repository,
-        eval_sample_result_repository=eval_sample_result_repository,
+        experiment_repository=experiment_repository,
+        run_evaluation_repository=run_evaluation_repository,
         artifact_repository=artifact_repository,
         published_agent_repository=published_agent_repository,
+        approval_policy_repository=approval_policy_repository,
         system_status=system_status,
         agent_source_catalog=agent_source_catalog,
         framework_registry=framework_registry,
@@ -191,6 +214,7 @@ def build_infrastructure() -> InfrastructureBundle:
         model_runtime=model_runtime,
         artifact_resolver=artifact_resolver,
         runner=runner,
+        executor=executor,
         default_runner_backend=default_runner_backend,
         trace_backend=trace_backend,
         trace_exporter=trace_exporter,

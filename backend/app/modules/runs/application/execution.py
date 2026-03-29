@@ -38,7 +38,12 @@ class RunExecutionContext:
             run_id=run_id,
             payload=payload,
             image_digest=str(payload.project_metadata.get("image_digest", "sha256:dev")),
-            prompt_version=str(payload.project_metadata.get("prompt_version", "v1")),
+            prompt_version=str(
+                payload.project_metadata.get(
+                    "prompt_version",
+                    payload.prompt_config.prompt_version if payload.prompt_config else "v1",
+                )
+            ),
         )
 
 
@@ -103,10 +108,14 @@ class RunExecutionProjector:
         return TraceTelemetryMetadata(
             agent_id=context.payload.agent_id,
             framework=provenance.framework if provenance else None,
+            framework_type=provenance.framework_type if provenance else None,
+            framework_version=provenance.framework_version if provenance else None,
             artifact_ref=provenance.artifact_ref if provenance else None,
             image_ref=provenance.image_ref if provenance else None,
             runner_backend=provenance.runner_backend if provenance else None,
-            eval_job_id=context.payload.eval_job_id,
+            executor_backend=provenance.executor_backend if provenance else None,
+            experiment_id=context.payload.experiment_id,
+            dataset_version_id=context.payload.dataset_version_id,
             dataset_sample_id=context.payload.dataset_sample_id,
             prompt_version=context.prompt_version,
             image_digest=context.image_digest,
@@ -231,8 +240,16 @@ class RunExecutionProjector:
                                     if context.payload.provenance
                                     else None
                                 ),
-                                "eval_job_id": event.metadata.eval_job_id
-                                or context.payload.eval_job_id,
+                                "executor_backend": event.metadata.executor_backend
+                                or (
+                                    context.payload.provenance.executor_backend
+                                    if context.payload.provenance
+                                    else None
+                                ),
+                                "experiment_id": event.metadata.experiment_id
+                                or context.payload.experiment_id,
+                                "dataset_version_id": event.metadata.dataset_version_id
+                                or context.payload.dataset_version_id,
                                 "dataset_sample_id": event.metadata.dataset_sample_id
                                 or context.payload.dataset_sample_id,
                                 "prompt_version": event.metadata.prompt_version

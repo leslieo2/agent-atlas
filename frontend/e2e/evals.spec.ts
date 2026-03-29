@@ -1,194 +1,340 @@
 import { expect, test } from "@playwright/test";
-import {
-  buildDataset,
-  buildEvalJob,
-  buildEvalSample,
-  mockCatalog,
-  mockEvals
-} from "./support/mockApi";
 
-test("evals workspace can create an eval job and open eval details", async ({ page }) => {
+test("experiments workspace can compare experiments and curate runs", async ({ page }) => {
   const exportCalls: Array<{ format: string; datasetSampleIds: string[] | null }> = [];
-  let evalJobs = [
-    buildEvalJob({
-      eval_job_id: "eval-002",
-      project: "nightly-candidate",
-      observability: {
-        backend: "phoenix",
-        project_url: "http://127.0.0.1:6006/projects/test?eval_job_id=eval-002"
-      }
-    }),
-    buildEvalJob({
-      eval_job_id: "eval-001",
-      project: "nightly-baseline",
-      observability: {
-        backend: "phoenix",
-        project_url: "http://127.0.0.1:6006/projects/test?eval_job_id=eval-001"
-      },
-      created_at: "2026-03-23T00:00:00Z"
-    })
-  ];
-  const candidateSamples = [
-    buildEvalSample({
-      eval_job_id: "eval-002",
-      dataset_sample_id: "sample-regressed",
-      run_id: "run-003",
-      judgement: "failed",
-      input: "beta",
-      expected: "beta",
-      actual: "not-beta",
-      failure_reason: "actual output did not exactly match expected output",
-      error_code: "mismatch",
-      tags: ["returns"],
-      slice: "returns",
-      source: "crm",
-      curation_status: "review",
-      export_eligible: true,
-      runner_backend: "local-process",
-      artifact_ref: "artifact://candidate",
-      latency_ms: 12,
-      tool_calls: 1,
-      phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-003"
-    }),
-    buildEvalSample({
-      eval_job_id: "eval-002",
-      dataset_sample_id: "sample-pass",
-      run_id: "run-004",
-      judgement: "passed",
-      input: "alpha",
-      expected: "alpha",
-      actual: "alpha",
-      tags: ["shipping"],
-      slice: "shipping",
-      source: "crm",
-      curation_status: "include",
-      export_eligible: true,
-      runner_backend: "local-process",
-      artifact_ref: "artifact://candidate",
-      latency_ms: 10,
-      tool_calls: 0,
-      phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-004"
-    })
-  ];
-  const baselineSamples = [
-    buildEvalSample({
-      eval_job_id: "eval-001",
-      dataset_sample_id: "sample-regressed",
-      run_id: "run-001",
-      judgement: "passed",
-      input: "beta",
-      expected: "beta",
-      actual: "beta",
-      tags: ["returns"],
-      slice: "returns",
-      source: "crm",
-      curation_status: "include",
-      export_eligible: true,
-      runner_backend: "local-process",
-      artifact_ref: "artifact://baseline",
-      latency_ms: 11,
-      tool_calls: 0,
-      phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-001"
-    }),
-    buildEvalSample({
-      eval_job_id: "eval-001",
-      dataset_sample_id: "sample-pass",
-      run_id: "run-002",
-      judgement: "passed",
-      input: "alpha",
-      expected: "alpha",
-      actual: "alpha",
-      tags: ["shipping"],
-      slice: "shipping",
-      source: "crm",
-      curation_status: "include",
-      export_eligible: true,
-      runner_backend: "local-process",
-      artifact_ref: "artifact://baseline",
-      latency_ms: 9,
-      tool_calls: 0,
-      phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-002"
-    })
+
+  const agents = [
+    {
+      agent_id: "basic",
+      name: "Basic",
+      description: "Minimal smoke agent.",
+      framework: "openai-agents-sdk",
+      framework_type: "openai-agents-sdk",
+      framework_version: "0.1.0",
+      entrypoint: "app.agent_plugins.basic:build_agent",
+      default_model: "gpt-5.4-mini",
+      tags: ["example", "smoke"],
+      capabilities: ["submit", "cancel"],
+      published_at: "2026-03-24T00:00:00Z",
+      runtime_artifact: null,
+      provenance: null
+    }
   ];
 
-  await mockCatalog(page, {
-    agents: [
-      {
-        agent_id: "basic",
-        name: "Basic",
-        description: "Minimal smoke agent.",
-        framework: "openai-agents-sdk",
-        entrypoint: "app.agent_plugins.basic:build_agent",
-        default_model: "gpt-5.4-mini",
-        tags: ["example", "smoke"]
-      }
-    ],
-    datasets: [
-      buildDataset({
-        name: "crm-v2",
-        source: "crm",
-        rows: [
-          {
-            sample_id: "sample-pass",
-            input: "alpha",
-            expected: "alpha",
-            tags: ["shipping"],
-            slice: "shipping",
-            source: "crm",
-            export_eligible: true
-          },
-          {
-            sample_id: "sample-regressed",
-            input: "beta",
-            expected: "beta",
-            tags: ["returns"],
-            slice: "returns",
-            source: "crm",
-            export_eligible: true
-          }
-        ]
-      })
-    ]
+  const datasets = [
+    {
+      name: "crm-v2",
+      description: "Support data",
+      source: "crm",
+      created_at: "2026-03-24T00:00:00Z",
+      version: "2026-03",
+      row_count: 2,
+      rows: [
+        {
+          sample_id: "sample-pass",
+          input: "alpha",
+          expected: "alpha",
+          tags: ["shipping"],
+          slice: "shipping",
+          source: "crm",
+          metadata: null,
+          export_eligible: true
+        },
+        {
+          sample_id: "sample-regressed",
+          input: "beta",
+          expected: "beta",
+          tags: ["returns"],
+          slice: "returns",
+          source: "crm",
+          metadata: null,
+          export_eligible: true
+        }
+      ],
+      current_version_id: "dataset-v2",
+      versions: [
+        {
+          dataset_version_id: "dataset-v2",
+          dataset_name: "crm-v2",
+          version: "2026-03",
+          created_at: "2026-03-24T00:00:00Z",
+          row_count: 2,
+          rows: [
+            {
+              sample_id: "sample-pass",
+              input: "alpha",
+              expected: "alpha",
+              tags: ["shipping"],
+              slice: "shipping",
+              source: "crm",
+              metadata: null,
+              export_eligible: true
+            },
+            {
+              sample_id: "sample-regressed",
+              input: "beta",
+              expected: "beta",
+              tags: ["returns"],
+              slice: "returns",
+              source: "crm",
+              metadata: null,
+              export_eligible: true
+            }
+          ]
+        }
+      ]
+    }
+  ];
+
+  const buildSpec = (publishedAgentId: string) => ({
+    dataset_version_id: "dataset-v2",
+    published_agent_id: publishedAgentId,
+    model_config: {
+      model: "gpt-5.4-mini",
+      provider: null,
+      temperature: 0
+    },
+    prompt_config: {
+      prompt_template: null,
+      system_prompt: null,
+      prompt_version: "2026-03"
+    },
+    toolset_config: {
+      tools: [],
+      metadata: {}
+    },
+    evaluator_config: {
+      scoring_mode: "exact_match",
+      metadata: {}
+    },
+    executor_config: {
+      backend: "k8s-job",
+      runner_image: null,
+      timeout_seconds: 600,
+      max_steps: 32,
+      concurrency: 1,
+      resources: {},
+      tracing_backend: "phoenix",
+      artifact_path: null,
+      metadata: {}
+    },
+    approval_policy_id: "policy-default",
+    approval_policy: null,
+    tags: []
   });
 
-  await mockEvals(page, {
-    list: () => evalJobs,
-    create: () => {
-      const created = buildEvalJob({
-        eval_job_id: "eval-003",
-        project: "crm-v2",
+  let experiments = [
+    {
+      experiment_id: "exp-001",
+      name: "baseline",
+      dataset_name: "crm-v2",
+      dataset_version_id: "dataset-v2",
+      published_agent_id: "basic-v1",
+      status: "completed",
+      tags: ["baseline"],
+      spec: buildSpec("basic-v1"),
+      scoring_mode: "exact_match",
+      executor_backend: "k8s-job",
+      sample_count: 2,
+      completed_count: 2,
+      passed_count: 2,
+      failed_count: 0,
+      unscored_count: 0,
+      runtime_error_count: 0,
+      pass_rate: 1,
+      failure_distribution: {},
+      observability: { backend: "phoenix", project_url: "http://127.0.0.1:6006/projects/test/exp-001" },
+      error_code: null,
+      error_message: null,
+      created_at: "2026-03-24T00:00:00Z"
+    },
+    {
+      experiment_id: "exp-002",
+      name: "candidate",
+      dataset_name: "crm-v2",
+      dataset_version_id: "dataset-v2",
+      published_agent_id: "basic",
+      status: "completed",
+      tags: ["candidate"],
+      spec: buildSpec("basic"),
+      scoring_mode: "exact_match",
+      executor_backend: "k8s-job",
+      sample_count: 2,
+      completed_count: 2,
+      passed_count: 1,
+      failed_count: 1,
+      unscored_count: 0,
+      runtime_error_count: 0,
+      pass_rate: 0.5,
+      failure_distribution: { mismatch: 1 },
+      observability: { backend: "phoenix", project_url: "http://127.0.0.1:6006/projects/test/exp-002" },
+      error_code: null,
+      error_message: null,
+      created_at: "2026-03-25T00:00:00Z"
+    }
+  ];
+
+  const runsByExperiment: Record<string, Array<Record<string, unknown>>> = {
+    "exp-001": [
+      {
+        run_id: "run-001",
+        experiment_id: "exp-001",
+        dataset_sample_id: "sample-regressed",
+        input: "beta",
+        expected: "beta",
+        actual: "beta",
+        run_status: "succeeded",
+        judgement: "passed",
+        compare_outcome: null,
+        failure_reason: null,
+        error_code: null,
+        error_message: null,
+        tags: ["returns"],
+        slice: "returns",
+        source: "crm",
+        export_eligible: true,
+        curation_status: "include",
+        curation_note: null,
+        published_agent_snapshot: null,
+        artifact_ref: "source://basic@baseline",
+        image_ref: null,
+        executor_backend: "k8s-job",
+        latency_ms: 11,
+        tool_calls: 0,
+        phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-001"
+      }
+    ],
+    "exp-002": [
+      {
+        run_id: "run-002",
+        experiment_id: "exp-002",
+        dataset_sample_id: "sample-pass",
+        input: "alpha",
+        expected: "alpha",
+        actual: "alpha",
+        run_status: "succeeded",
+        judgement: "passed",
+        compare_outcome: null,
+        failure_reason: null,
+        error_code: null,
+        error_message: null,
+        tags: ["shipping"],
+        slice: "shipping",
+        source: "crm",
+        export_eligible: true,
+        curation_status: "include",
+        curation_note: null,
+        published_agent_snapshot: null,
+        artifact_ref: "source://basic@candidate",
+        image_ref: null,
+        executor_backend: "k8s-job",
+        latency_ms: 10,
+        tool_calls: 0,
+        phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-002"
+      },
+      {
+        run_id: "run-003",
+        experiment_id: "exp-002",
+        dataset_sample_id: "sample-regressed",
+        input: "beta",
+        expected: "beta",
+        actual: "not-beta",
+        run_status: "failed",
+        judgement: "failed",
+        compare_outcome: null,
+        failure_reason: "actual output did not exactly match expected output",
+        error_code: "mismatch",
+        error_message: "model mismatch",
+        tags: ["returns"],
+        slice: "returns",
+        source: "crm",
+        export_eligible: true,
+        curation_status: "review",
+        curation_note: null,
+        published_agent_snapshot: null,
+        artifact_ref: "source://basic@candidate",
+        image_ref: null,
+        executor_backend: "k8s-job",
+        latency_ms: 12,
+        tool_calls: 1,
+        phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-003"
+      }
+    ],
+    "exp-003": []
+  };
+
+  await page.route("**/api/v1/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname;
+    const method = request.method();
+
+    const json = (body: unknown, status = 200) =>
+      route.fulfill({
+        status,
+        contentType: "application/json",
+        body: JSON.stringify(body)
+      });
+
+    if (path === "/api/v1/agents" && method === "GET") {
+      return json(agents);
+    }
+    if (path === "/api/v1/datasets" && method === "GET") {
+      return json(datasets);
+    }
+    if (path === "/api/v1/policies" && method === "GET") {
+      return json([
+        {
+          approval_policy_id: "policy-default",
+          name: "Default policy",
+          description: "Allow approved tools.",
+          tool_policies: [{ tool_name: "search", effect: "allow", description: null }],
+          created_at: "2026-03-24T00:00:00Z"
+        }
+      ]);
+    }
+    if (path === "/api/v1/experiments" && method === "GET") {
+      return json(experiments);
+    }
+    if (path === "/api/v1/experiments" && method === "POST") {
+      const created = {
+        experiment_id: "exp-003",
+        name: "basic-2026-03",
+        dataset_name: "crm-v2",
+        dataset_version_id: "dataset-v2",
+        published_agent_id: "basic",
         status: "queued",
-        sample_count: 1,
-        scored_count: 0,
+        tags: [],
+        spec: buildSpec("basic"),
+        scoring_mode: "exact_match",
+        executor_backend: "k8s-job",
+        sample_count: 0,
+        completed_count: 0,
         passed_count: 0,
         failed_count: 0,
         unscored_count: 0,
         runtime_error_count: 0,
         pass_rate: 0,
-        failure_distribution: {}
-      });
-      evalJobs = [created, ...evalJobs];
-      return created;
-    },
-    samples: (evalJobId) =>
-      evalJobId === "eval-002"
-        ? candidateSamples
-        : evalJobId === "eval-001"
-          ? baselineSamples
-          : []
-  });
-
-  await page.route("**/api/v1/eval-jobs/compare?*", async (route) => {
-    const url = new URL(route.request().url());
-    const baselineEvalJobId = url.searchParams.get("baseline_eval_job_id");
-    const candidateEvalJobId = url.searchParams.get("candidate_eval_job_id");
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        baseline_eval_job_id: baselineEvalJobId,
-        candidate_eval_job_id: candidateEvalJobId,
-        dataset: "crm-v2",
+        failure_distribution: {},
+        observability: { backend: "phoenix", project_url: "http://127.0.0.1:6006/projects/test/exp-003" },
+        error_code: null,
+        error_message: null,
+        created_at: "2026-03-26T00:00:00Z"
+      };
+      experiments = [created, ...experiments.filter((item) => item.experiment_id !== created.experiment_id)];
+      return json(created, 201);
+    }
+    if (path === "/api/v1/experiments/exp-003/start" && method === "POST") {
+      experiments = experiments.map((item) =>
+        item.experiment_id === "exp-003" ? { ...item, status: "running" } : item
+      );
+      return json(experiments.find((item) => item.experiment_id === "exp-003"));
+    }
+    if (path === "/api/v1/experiments/compare" && method === "GET") {
+      return json({
+        baseline_experiment_id: url.searchParams.get("baseline_experiment_id"),
+        candidate_experiment_id: url.searchParams.get("candidate_experiment_id"),
+        dataset_version_id: "dataset-v2",
         distribution: {
           regressed: 1,
           unchanged_pass: 1
@@ -217,98 +363,84 @@ test("evals workspace can create an eval job and open eval details", async ({ pa
             slice: "shipping",
             tags: ["shipping"],
             candidate_run_summary: {
-              run_id: "run-004",
+              run_id: "run-002",
               actual: "alpha",
-              trace_url: "http://127.0.0.1:6006/projects/test/traces/run-004"
+              trace_url: "http://127.0.0.1:6006/projects/test/traces/run-002"
             }
           }
         ]
-      })
-    });
-  });
-
-  await page.route("**/api/v1/eval-jobs/eval-002/samples/*", async (route) => {
-    if (route.request().method() !== "PATCH") {
-      return route.fallback();
-    }
-
-    const datasetSampleId = route.request().url().split("/").pop() ?? "";
-    const payload = route.request().postDataJSON();
-    const sample = candidateSamples.find((item) => item.dataset_sample_id === datasetSampleId);
-    if (!sample) {
-      return route.fulfill({ status: 404 });
-    }
-    if (payload.curation_status) {
-      sample.curation_status = payload.curation_status;
-    }
-    if (typeof payload.export_eligible === "boolean") {
-      sample.export_eligible = payload.export_eligible;
-    }
-    if ("curation_note" in payload) {
-      sample.curation_note = payload.curation_note;
-    }
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(sample)
-    });
-  });
-
-  await page.route("**/api/v1/exports", async (route) => {
-    if (route.request().method() !== "POST") {
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([])
       });
     }
-    const payload = route.request().postDataJSON();
-    exportCalls.push({
-      format: payload.format,
-      datasetSampleIds: payload.dataset_sample_ids
-    });
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+    if (path === "/api/v1/exports" && method === "GET") {
+      return json([]);
+    }
+    if (path === "/api/v1/exports" && method === "POST") {
+      const payload = request.postDataJSON() as {
+        format: string;
+        dataset_sample_ids: string[] | null;
+      };
+      exportCalls.push({
+        format: payload.format,
+        datasetSampleIds: payload.dataset_sample_ids
+      });
+      return json({
         export_id: "export-001",
-        format: "jsonl",
-        row_count: payload.dataset_sample_ids.length,
-        created_at: "2026-03-24T00:05:00Z",
-        path: "/tmp/eval-failures.jsonl",
+        format: payload.format,
+        row_count: payload.dataset_sample_ids?.length ?? 0,
+        created_at: "2026-03-26T00:05:00Z",
+        path: "/tmp/experiment-export.jsonl",
         size_bytes: 64
-      })
-    });
+      });
+    }
+
+    const runsMatch = path.match(/^\/api\/v1\/experiments\/([^/]+)\/runs$/);
+    if (runsMatch && method === "GET") {
+      return json(runsByExperiment[runsMatch[1]] ?? []);
+    }
+
+    const patchMatch = path.match(/^\/api\/v1\/experiments\/([^/]+)\/runs\/([^/]+)$/);
+    if (patchMatch && method === "PATCH") {
+      const [_, experimentId, runId] = patchMatch;
+      const payload = request.postDataJSON() as {
+        curation_status?: "include" | "exclude" | "review" | null;
+        export_eligible?: boolean | null;
+      };
+      const runs = runsByExperiment[experimentId] ?? [];
+      const run = runs.find((item) => item.run_id === runId);
+      if (!run) {
+        return json({ detail: "run not found" }, 404);
+      }
+      if (payload.curation_status) {
+        run.curation_status = payload.curation_status;
+      }
+      if (typeof payload.export_eligible === "boolean") {
+        run.export_eligible = payload.export_eligible;
+      }
+      return json(run);
+    }
+
+    return route.fulfill({ status: 404 });
   });
 
-  await page.goto("/evals?agent=basic&dataset=crm-v2");
-  await expect(page.getByRole("heading", { name: "Evals" })).toBeVisible();
+  await page.goto("/experiments?agent=basic&datasetVersion=dataset-v2&experiment=exp-002");
 
-  await expect(page.getByRole("button", { name: "Create eval job" })).toBeEnabled();
-  await page.getByRole("button", { name: "Create eval job" }).click();
-  await expect(page.getByText("Created eval job eval-003.")).toBeVisible();
-  await expect(page.getByText("No samples match the current filters.")).toBeVisible();
-
-  await page.getByRole("button", { name: /nightly-candidate/ }).click();
+  await expect(page.getByRole("heading", { name: "Experiment-first agent data production" })).toBeVisible();
+  await page.getByRole("button", { name: /candidate · basic/ }).click();
   await expect(page.getByText("sample-regressed")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open Phoenix job view" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Open Phoenix project" })).toHaveAttribute(
     "href",
-    "http://127.0.0.1:6006/projects/test?eval_job_id=eval-002"
+    "http://127.0.0.1:6006/projects/test/exp-002"
   );
 
-  await page.locator("#eval-baseline").selectOption("eval-001");
   await expect(page.getByRole("table").getByText("regressed", { exact: true })).toBeVisible();
-  await page.locator("#eval-filter-compare").selectOption("regressed");
-  await expect(page.getByText("sample-regressed")).toBeVisible();
-  await expect(page.getByText("sample-pass")).toHaveCount(0);
+  await page.locator("#experiment-filter-compare").selectOption("regressed");
 
   const sampleRow = page.locator("tr", { has: page.getByText("sample-regressed") });
-  await expect(sampleRow.getByText("review", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("sample-pass")).toHaveCount(0);
   await sampleRow.getByRole("button", { name: "Include" }).click();
-  await expect(sampleRow.getByText("include", { exact: true }).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Export JSONL" }).click();
-  await expect(page.getByText("Created JSONL export export-001.")).toBeVisible();
+  await page.getByRole("button", { name: "Create export" }).click();
+  await expect(page.getByText("Created export export-001.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Download export" })).toHaveAttribute(
     "href",
     /\/api\/v1\/exports\/export-001$/

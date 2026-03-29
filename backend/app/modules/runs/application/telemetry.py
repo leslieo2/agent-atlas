@@ -9,7 +9,7 @@ from app.modules.runs.application.ports import (
 )
 from app.modules.runs.domain.models import TrajectoryStep
 from app.modules.runs.domain.policies import RunAggregate
-from app.modules.shared.domain.models import ObservabilityMetadata
+from app.modules.shared.domain.models import ObservabilityMetadata, TracePointer
 from app.modules.traces.application.ports import TraceExporterPort, TraceProjectorPort
 from app.modules.traces.domain.models import TraceIngestEvent, TraceSpan
 
@@ -73,6 +73,12 @@ class RunTelemetryIngestionService:
             return
         updated = RunAggregate.load(run)
         updated.run.observability = observability
+        updated.run.trace_pointer = TracePointer(
+            backend=observability.backend,
+            trace_id=observability.trace_id,
+            trace_url=observability.trace_url,
+            project_url=observability.project_url,
+        )
         if updated.run.provenance is not None:
             updated.run.provenance.trace_backend = observability.backend
         self.run_repository.save(updated.run)

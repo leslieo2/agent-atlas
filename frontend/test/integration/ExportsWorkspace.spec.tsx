@@ -1,17 +1,19 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import * as evalApi from "@/src/entities/eval/api";
+import * as experimentApi from "@/src/entities/experiment/api";
 import * as exportApi from "@/src/entities/export/api";
 import { renderWithQueryClient } from "@/test/setup";
 import ExportsWorkspace from "@/src/widgets/exports-workspace/ExportsWorkspace";
 
-vi.mock("@/src/entities/eval/api", () => ({
-  listEvalJobs: vi.fn(),
-  listEvalSamples: vi.fn(),
-  createEvalJob: vi.fn(),
-  compareEvalJobs: vi.fn(),
-  patchEvalSample: vi.fn()
+vi.mock("@/src/entities/experiment/api", () => ({
+  listExperiments: vi.fn(),
+  listExperimentRuns: vi.fn(),
+  createExperiment: vi.fn(),
+  startExperiment: vi.fn(),
+  cancelExperiment: vi.fn(),
+  compareExperiments: vi.fn(),
+  patchExperimentRun: vi.fn()
 }));
 
 vi.mock("@/src/entities/export/api", () => ({
@@ -24,40 +26,47 @@ type MockedApiFn = ReturnType<typeof vi.fn>;
 
 describe("Exports workspace", () => {
   beforeEach(() => {
-    (evalApi.listEvalJobs as unknown as MockedApiFn).mockReset();
-    (evalApi.listEvalSamples as unknown as MockedApiFn).mockReset();
+    (experimentApi.listExperiments as unknown as MockedApiFn).mockReset();
+    (experimentApi.listExperimentRuns as unknown as MockedApiFn).mockReset();
+    (experimentApi.compareExperiments as unknown as MockedApiFn).mockReset();
     (exportApi.listExports as unknown as MockedApiFn).mockReset();
     (exportApi.createExport as unknown as MockedApiFn).mockReset();
 
-    (evalApi.listEvalJobs as unknown as MockedApiFn).mockResolvedValue([
+    (experimentApi.listExperiments as unknown as MockedApiFn).mockResolvedValue([
       {
-        evalJobId: "eval-002",
-        agentId: "basic",
-        dataset: "crm-v2",
-        project: "rl-eval",
+        experimentId: "exp-002",
+        name: "candidate",
+        datasetName: "crm-v2",
+        datasetVersionId: "dataset-v2",
+        publishedAgentId: "basic",
+        status: "completed",
         tags: ["candidate"],
-        scoringMode: "exact_match" as const,
-        status: "completed" as const,
+        scoringMode: "exact_match",
+        executorBackend: "k8s-job",
         sampleCount: 2,
-        scoredCount: 2,
+        completedCount: 2,
         passedCount: 1,
         failedCount: 1,
         unscoredCount: 0,
         runtimeErrorCount: 0,
-        passRate: 50,
+        passRate: 0.5,
         failureDistribution: { mismatch: 1 },
+        observability: null,
+        errorCode: null,
+        errorMessage: null,
         createdAt: "2026-03-25T00:00:00Z"
       }
     ]);
-    (evalApi.listEvalSamples as unknown as MockedApiFn).mockResolvedValue([
+    (experimentApi.listExperimentRuns as unknown as MockedApiFn).mockResolvedValue([
       {
-        evalJobId: "eval-002",
-        datasetSampleId: "sample-1",
         runId: "run-001",
+        experimentId: "exp-002",
+        datasetSampleId: "sample-1",
         judgement: "failed" as const,
         input: "where is my refund?",
         expected: "policy answer",
         actual: "bad answer",
+        runStatus: "failed" as const,
         compareOutcome: null,
         failureReason: "mismatch",
         errorCode: "mismatch",
@@ -71,7 +80,7 @@ describe("Exports workspace", () => {
         publishedAgentSnapshot: null,
         artifactRef: "source://basic@fp-123",
         imageRef: null,
-        runnerBackend: "local-process",
+        executorBackend: "k8s-job",
         latencyMs: 12,
         toolCalls: 1,
         phoenixTraceUrl: "http://phoenix.local/trace/run-001"
@@ -85,9 +94,9 @@ describe("Exports workspace", () => {
         path: "/tmp/export-history-001.jsonl",
         sizeBytes: 256,
         rowCount: 3,
-        sourceEvalJobId: "eval-002",
-        baselineEvalJobId: null,
-        candidateEvalJobId: null,
+        sourceExperimentId: "exp-002",
+        baselineExperimentId: null,
+        candidateExperimentId: null,
         filtersSummary: { judgement: ["failed"] }
       }
     ]);
@@ -98,18 +107,19 @@ describe("Exports workspace", () => {
       path: "/tmp/export-001.parquet",
       sizeBytes: 512,
       rowCount: 1,
-      sourceEvalJobId: "eval-002",
-      baselineEvalJobId: null,
-      candidateEvalJobId: null,
+      sourceExperimentId: "exp-002",
+      baselineExperimentId: null,
+      candidateExperimentId: null,
       filtersSummary: { judgement: ["failed"], slices: ["returns"] }
     });
   });
 
-  it("creates eval-based exports and renders export history", async () => {
-    renderWithQueryClient(<ExportsWorkspace initialEvalJobId="eval-002" />);
+  it("creates experiment-based exports and renders export history", async () => {
+    renderWithQueryClient(<ExportsWorkspace initialExperimentId="exp-002" />);
 
     expect(await screen.findByRole("heading", { name: "Exports" })).toBeInTheDocument();
-    await waitFor(() => expect(evalApi.listEvalJobs).toHaveBeenCalled());
+    await waitFor(() => expect(experimentApi.listExperiments).toHaveBeenCalled());
+    await waitFor(() => expect(experimentApi.listExperimentRuns).toHaveBeenCalledWith("exp-002"));
     await waitFor(() => expect(exportApi.listExports).toHaveBeenCalled());
     expect(screen.getByText("export-history-001")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Download" })).toHaveAttribute(
@@ -124,9 +134,10 @@ describe("Exports workspace", () => {
 
     await waitFor(() =>
       expect(exportApi.createExport).toHaveBeenCalledWith({
-        evalJobId: "eval-002",
-        baselineEvalJobId: null,
-        candidateEvalJobId: null,
+        experimentId: "exp-002",
+        baselineExperimentId: null,
+        candidateExperimentId: null,
+        datasetSampleIds: ["sample-1"],
         judgements: ["failed"],
         errorCodes: null,
         compareOutcomes: null,

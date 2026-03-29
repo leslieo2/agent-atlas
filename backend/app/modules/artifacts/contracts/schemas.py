@@ -9,14 +9,18 @@ from app.modules.artifacts.domain.models import (
     ArtifactExportRequest as DomainArtifactExportRequest,
 )
 from app.modules.artifacts.domain.models import ArtifactMetadata
-from app.modules.evals.domain.models import CompareOutcome, CurationStatus, SampleJudgement
-from app.modules.shared.domain.enums import ArtifactFormat
+from app.modules.shared.domain.enums import (
+    ArtifactFormat,
+    CompareOutcome,
+    CurationStatus,
+    SampleJudgement,
+)
 
 
 class ExportCreateRequest(BaseModel):
-    eval_job_id: UUID | None = None
-    baseline_eval_job_id: UUID | None = None
-    candidate_eval_job_id: UUID | None = None
+    experiment_id: UUID | None = None
+    baseline_experiment_id: UUID | None = None
+    candidate_experiment_id: UUID | None = None
     dataset_sample_ids: list[str] | None = None
     judgements: list[SampleJudgement] | None = None
     error_codes: list[str] | None = None
@@ -38,9 +42,9 @@ class ExportMetadataResponse(BaseModel):
     path: str
     size_bytes: int
     row_count: int
-    source_eval_job_id: UUID | None = None
-    baseline_eval_job_id: UUID | None = None
-    candidate_eval_job_id: UUID | None = None
+    source_experiment_id: UUID | None = None
+    baseline_experiment_id: UUID | None = None
+    candidate_experiment_id: UUID | None = None
     filters_summary: dict[str, object]
 
     @classmethod

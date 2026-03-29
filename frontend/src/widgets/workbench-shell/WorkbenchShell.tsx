@@ -23,11 +23,11 @@ const navItems = [
     match: (pathname: string) => pathname.startsWith("/datasets")
   },
   {
-    href: "/evals",
-    label: "Evals",
-    description: "Batch candidate agents, compare against baselines, and curate sample rows.",
+    href: "/experiments",
+    label: "Experiments",
+    description: "Create batch runs, compare baselines, and curate export-ready trajectory rows.",
     icon: Radar,
-    match: (pathname: string) => pathname.startsWith("/evals")
+    match: (pathname: string) => pathname.startsWith("/experiments")
   },
   {
     href: "/exports",

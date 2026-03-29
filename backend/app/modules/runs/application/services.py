@@ -6,7 +6,7 @@ from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord, RunSpec
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.application.ports import TaskQueuePort
-from app.modules.shared.domain.models import ProvenanceMetadata
+from app.modules.shared.domain.models import ExecutorConfig, ProvenanceMetadata
 from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
 
@@ -85,13 +85,18 @@ class RunSubmissionService:
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
         effective_agent = _resolve_submission_agent(agent)
         provenance = _resolved_submission_provenance(agent, effective_agent)
-        provenance.eval_job_id = payload.eval_job_id
+        provenance.experiment_id = payload.experiment_id
+        provenance.dataset_version_id = payload.dataset_version_id
         provenance.dataset_sample_id = payload.dataset_sample_id
         provenance.trace_backend = self.default_trace_backend
+        executor_config = payload.executor_config or ExecutorConfig(
+            backend=payload.executor_backend
+        )
         spec = RunSpec(
+            experiment_id=payload.experiment_id,
+            dataset_version_id=payload.dataset_version_id,
             project=payload.project,
             dataset=payload.dataset,
-            eval_job_id=payload.eval_job_id,
             dataset_sample_id=payload.dataset_sample_id,
             agent_id=payload.agent_id,
             model=effective_agent.default_model,
@@ -101,6 +106,12 @@ class RunSubmissionService:
             prompt=payload.prompt,
             tags=list(payload.tags),
             project_metadata=dict(payload.project_metadata),
+            executor_config=executor_config,
+            model_config=payload.model_settings,
+            prompt_config=payload.prompt_config,
+            toolset_config=payload.toolset_config,
+            evaluator_config=payload.evaluator_config,
+            approval_policy=payload.approval_policy,
             provenance=provenance,
         )
         run = RunAggregate.create(spec)

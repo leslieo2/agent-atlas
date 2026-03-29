@@ -51,7 +51,7 @@ def build_phoenix_project_url(
     *,
     base_url: str | None,
     project_id: str | None,
-    eval_job_id: str | UUID | None = None,
+    experiment_id: str | UUID | None = None,
     run_id: str | UUID | None = None,
 ) -> str | None:
     normalized_base_url = _normalize_base_url(base_url)
@@ -61,8 +61,8 @@ def build_phoenix_project_url(
         return normalized_base_url
     path = f"{normalized_base_url}/projects/{quote(project_id, safe='')}"
     params: dict[str, str] = {}
-    if eval_job_id is not None:
-        params["eval_job_id"] = str(eval_job_id)
+    if experiment_id is not None:
+        params["experiment_id"] = str(experiment_id)
     if run_id is not None:
         params["run_id"] = str(run_id)
     if not params:
@@ -172,7 +172,7 @@ class PhoenixTraceExporter:
             project_url=build_phoenix_project_url(
                 base_url=self.base_url,
                 project_id=project_id,
-                eval_job_id=first_event.metadata.eval_job_id if first_event.metadata else None,
+                experiment_id=first_event.metadata.experiment_id if first_event.metadata else None,
                 run_id=first_event.run_id,
             ),
         )
@@ -195,11 +195,17 @@ class PhoenixTraceExporter:
             "atlas.step_type": event.step_type.value,
             "atlas.agent_id": metadata.agent_id if metadata else None,
             "atlas.framework": metadata.framework if metadata else None,
+            "atlas.framework_type": metadata.framework_type if metadata else None,
+            "atlas.framework_version": metadata.framework_version if metadata else None,
             "atlas.artifact_ref": metadata.artifact_ref if metadata else None,
             "atlas.image_ref": metadata.image_ref if metadata else None,
             "atlas.runner_backend": metadata.runner_backend if metadata else None,
-            "atlas.eval_job_id": str(metadata.eval_job_id)
-            if metadata and metadata.eval_job_id
+            "atlas.executor_backend": metadata.executor_backend if metadata else None,
+            "atlas.experiment_id": str(metadata.experiment_id)
+            if metadata and metadata.experiment_id
+            else None,
+            "atlas.dataset_version_id": str(metadata.dataset_version_id)
+            if metadata and metadata.dataset_version_id
             else None,
             "atlas.dataset_sample_id": metadata.dataset_sample_id if metadata else None,
             "atlas.prompt_version": span.prompt_version,

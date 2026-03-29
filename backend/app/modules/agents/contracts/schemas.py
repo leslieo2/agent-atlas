@@ -19,9 +19,12 @@ class AgentDescriptorResponse(BaseModel):
     name: str
     description: str
     framework: str
+    framework_type: str
+    framework_version: str
     entrypoint: str
     default_model: str
     tags: list[str]
+    capabilities: list[str]
     published_at: datetime
     runtime_artifact: RuntimeArtifactMetadata | None = None
     provenance: ProvenanceMetadata | None = None
@@ -33,9 +36,12 @@ class AgentDescriptorResponse(BaseModel):
             name=agent.name,
             description=agent.description,
             framework=agent.framework,
+            framework_type=agent.framework,
+            framework_version=agent.framework_version,
             entrypoint=agent.entrypoint,
             default_model=agent.default_model,
             tags=agent.tags,
+            capabilities=agent.capabilities,
             published_at=agent.published_at,
             runtime_artifact=agent.effective_runtime_artifact(),
             provenance=agent.provenance,
@@ -56,9 +62,12 @@ class DiscoveredAgentResponse(BaseModel):
     name: str
     description: str
     framework: str
+    framework_type: str
+    framework_version: str
     entrypoint: str
     default_model: str
     tags: list[str]
+    capabilities: list[str]
     publish_state: AgentPublishState
     validation_status: AgentValidationStatus
     validation_issues: list[AgentValidationIssueResponse]
@@ -75,9 +84,12 @@ class DiscoveredAgentResponse(BaseModel):
             name=agent.name,
             description=agent.description,
             framework=agent.framework,
+            framework_type=agent.framework,
+            framework_version=agent.framework_version,
             entrypoint=agent.entrypoint,
             default_model=agent.default_model,
             tags=agent.tags,
+            capabilities=agent.capabilities,
             publish_state=agent.publish_state,
             validation_status=agent.validation_status,
             validation_issues=[

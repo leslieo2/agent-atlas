@@ -7,11 +7,21 @@ from pydantic import BaseModel, Field
 
 from app.modules.runs.domain.models import RunCreateInput, RunRecord, TrajectoryStep
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
-from app.modules.shared.domain.models import ObservabilityMetadata, ProvenanceMetadata
+from app.modules.shared.domain.models import (
+    ApprovalPolicySnapshot,
+    ExecutorConfig,
+    ObservabilityMetadata,
+    ProvenanceMetadata,
+    RunLineage,
+    ToolsetConfig,
+    TracePointer,
+)
 from app.modules.traces.domain.models import TraceSpan
 
 
 class RunCreateRequest(BaseModel):
+    experiment_id: UUID | None = None
+    dataset_version_id: UUID | None = None
     project: str
     dataset: str | None = None
     agent_id: str
@@ -19,8 +29,11 @@ class RunCreateRequest(BaseModel):
     prompt: str
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, object] = Field(default_factory=dict)
-    eval_job_id: UUID | None = None
     dataset_sample_id: str | None = None
+    executor_backend: str = "local-runner"
+    executor_config: ExecutorConfig | None = None
+    toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
+    approval_policy: ApprovalPolicySnapshot | None = None
 
     def to_domain(self) -> RunCreateInput:
         return RunCreateInput.model_validate(self.model_dump())
@@ -28,6 +41,8 @@ class RunCreateRequest(BaseModel):
 
 class RunResponse(BaseModel):
     run_id: UUID
+    experiment_id: UUID | None = None
+    dataset_version_id: UUID | None = None
     input_summary: str
     status: RunStatus
     latency_ms: int
@@ -35,7 +50,6 @@ class RunResponse(BaseModel):
     tool_calls: int
     project: str
     dataset: str | None = None
-    eval_job_id: UUID | None = None
     dataset_sample_id: str | None = None
     agent_id: str
     model: str
@@ -46,15 +60,21 @@ class RunResponse(BaseModel):
     project_metadata: dict[str, object]
     artifact_ref: str | None = None
     image_ref: str | None = None
+    executor_backend: str | None = None
+    executor_submission_id: str | None = None
+    attempt: int
     runner_backend: str | None = None
     execution_backend: str | None = None
     container_image: str | None = None
     provenance: ProvenanceMetadata | None = None
     observability: ObservabilityMetadata | None = None
+    trace_pointer: TracePointer | None = None
+    lineage: RunLineage | None = None
     resolved_model: str | None = None
     error_code: str | None = None
     error_message: str | None = None
     termination_reason: str | None = None
+    terminal_reason: str | None = None
 
     @classmethod
     def from_domain(cls, run: RunRecord) -> RunResponse:

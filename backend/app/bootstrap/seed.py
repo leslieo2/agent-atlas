@@ -5,9 +5,11 @@ from uuid import UUID
 
 from app.bootstrap.container import AppContainer, get_container
 from app.core.errors import AgentValidationFailedError
-from app.modules.datasets.domain.models import Dataset, DatasetSample
+from app.modules.datasets.domain.models import Dataset, DatasetSample, DatasetVersion
+from app.modules.policies.domain.models import ApprovalPolicyRecord
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
-from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
+from app.modules.shared.domain.enums import AdapterKind, PolicyEffect, RunStatus, StepType
+from app.modules.shared.domain.models import ToolPolicyRule
 
 
 def seed_demo_state(container: AppContainer | None = None) -> None:
@@ -234,66 +236,111 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
     datasets = [
         Dataset(
             name="crm-v2",
-            rows=[
-                DatasetSample(sample_id="sample-001", input="Can you create a shipping itinerary?"),
-                DatasetSample(
-                    sample_id="sample-002",
-                    input="What is fastest carrier from PVG to SFO?",
-                ),
+            current_version_id=UUID("d6f3f2a1-1111-4f8d-9999-111111111111"),
+            versions=[
+                DatasetVersion(
+                    dataset_version_id=UUID("d6f3f2a1-1111-4f8d-9999-111111111111"),
+                    dataset_name="crm-v2",
+                    version="v1",
+                    rows=[
+                        DatasetSample(
+                            sample_id="sample-001", input="Can you create a shipping itinerary?"
+                        ),
+                        DatasetSample(
+                            sample_id="sample-002",
+                            input="What is fastest carrier from PVG to SFO?",
+                        ),
+                    ],
+                )
             ],
         ),
         Dataset(
             name="support-incidents",
-            rows=[
-                DatasetSample(sample_id="sample-101", input="Customer reported stale invoice"),
-                DatasetSample(sample_id="sample-102", input="Account locked after 2 failed logins"),
+            current_version_id=UUID("d6f3f2a1-2222-4f8d-9999-111111111111"),
+            versions=[
+                DatasetVersion(
+                    dataset_version_id=UUID("d6f3f2a1-2222-4f8d-9999-111111111111"),
+                    dataset_name="support-incidents",
+                    version="v1",
+                    rows=[
+                        DatasetSample(
+                            sample_id="sample-101", input="Customer reported stale invoice"
+                        ),
+                        DatasetSample(
+                            sample_id="sample-102", input="Account locked after 2 failed logins"
+                        ),
+                    ],
+                )
             ],
         ),
         Dataset(
             name="fulfillment-eval-v1",
-            rows=[
-                DatasetSample(
-                    sample_id="fulfillment-001",
-                    input=(
-                        "Order ORD-1001 has not arrived. "
-                        "Check status and decide the next action."
-                    ),
-                    expected="resolved: wait_for_delivery",
-                    tags=["fulfillment", "shipping-window"],
-                ),
-                DatasetSample(
-                    sample_id="fulfillment-002",
-                    input=(
-                        "Order ORD-1002 is missing in transit. "
-                        "Check inventory and decide the next action."
-                    ),
-                    expected="resolved: reship_order",
-                    tags=["fulfillment", "replacement"],
-                ),
-                DatasetSample(
-                    sample_id="fulfillment-003",
-                    input="Order ORD-1003 is stuck before shipment. Decide the next action.",
-                    expected="resolved: escalate_to_human",
-                    tags=["fulfillment", "blocked"],
-                ),
-                DatasetSample(
-                    sample_id="fulfillment-004",
-                    input=(
-                        "Order ORD-1004 was delivered but the customer disputes receipt. "
-                        "Decide the next action."
-                    ),
-                    expected="resolved: escalate_to_human",
-                    tags=["fulfillment", "delivered-dispute"],
-                ),
-                DatasetSample(
-                    sample_id="fulfillment-err-001",
-                    input="Order ORD-ERR-100 is delayed. Check status and decide the next action.",
-                    expected=None,
-                    tags=["fulfillment", "runtime-error"],
-                ),
+            current_version_id=UUID("d6f3f2a1-3333-4f8d-9999-111111111111"),
+            versions=[
+                DatasetVersion(
+                    dataset_version_id=UUID("d6f3f2a1-3333-4f8d-9999-111111111111"),
+                    dataset_name="fulfillment-eval-v1",
+                    version="v1",
+                    rows=[
+                        DatasetSample(
+                            sample_id="fulfillment-001",
+                            input=(
+                                "Order ORD-1001 has not arrived. "
+                                "Check status and decide the next action."
+                            ),
+                            expected="resolved: wait_for_delivery",
+                            tags=["fulfillment", "shipping-window"],
+                        ),
+                        DatasetSample(
+                            sample_id="fulfillment-002",
+                            input=(
+                                "Order ORD-1002 is missing in transit. "
+                                "Check inventory and decide the next action."
+                            ),
+                            expected="resolved: reship_order",
+                            tags=["fulfillment", "replacement"],
+                        ),
+                        DatasetSample(
+                            sample_id="fulfillment-003",
+                            input=(
+                                "Order ORD-1003 is stuck before shipment. "
+                                "Decide the next action."
+                            ),
+                            expected="resolved: escalate_to_human",
+                            tags=["fulfillment", "blocked"],
+                        ),
+                        DatasetSample(
+                            sample_id="fulfillment-004",
+                            input=(
+                                "Order ORD-1004 was delivered but the customer disputes receipt. "
+                                "Decide the next action."
+                            ),
+                            expected="resolved: escalate_to_human",
+                            tags=["fulfillment", "delivered-dispute"],
+                        ),
+                        DatasetSample(
+                            sample_id="fulfillment-err-001",
+                            input=(
+                                "Order ORD-ERR-100 is delayed. "
+                                "Check status and decide the next action."
+                            ),
+                            expected=None,
+                            tags=["fulfillment", "runtime-error"],
+                        ),
+                    ],
+                )
             ],
         ),
     ]
+    default_policy = ApprovalPolicyRecord(
+        approval_policy_id=UUID("c6f3f2a1-1111-4f8d-9999-111111111111"),
+        name="default-safe-tools",
+        description="Allow demo tools during local development.",
+        tool_policies=[
+            ToolPolicyRule(tool_name="lookup_order_status", effect=PolicyEffect.ALLOW),
+            ToolPolicyRule(tool_name="lookup_inventory", effect=PolicyEffect.ALLOW),
+        ],
+    )
 
     for run in seeded_runs:
         container.infrastructure.run_repository.save(run)
@@ -302,3 +349,4 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             container.infrastructure.trajectory_repository.append(step)
     for dataset in datasets:
         container.infrastructure.dataset_repository.save(dataset)
+    container.infrastructure.approval_policy_repository.save(default_policy)

@@ -63,42 +63,75 @@ def test_exports_api_creates_compare_aware_rl_rows(
         },
     )
     assert dataset_response.status_code == 200
+    dataset_version_id = dataset_response.json()["current_version_id"]
 
     _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "beta"})
     baseline_response = client.post(
-        "/api/v1/eval-jobs",
+        "/api/v1/experiments",
         json={
-            "agent_id": "basic",
-            "dataset": "export-compare-dataset",
-            "project": "rl-eval",
-            "tags": ["baseline"],
-            "scoring_mode": "exact_match",
+            "name": "baseline",
+            "spec": {
+                "dataset_version_id": dataset_version_id,
+                "published_agent_id": "basic",
+                "model_config": {"model": "gpt-5.4-mini", "temperature": 0},
+                "prompt_config": {"prompt_version": "2026-03"},
+                "toolset_config": {"tools": [], "metadata": {}},
+                "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
+                "executor_config": {
+                    "backend": "local-runner",
+                    "timeout_seconds": 600,
+                    "max_steps": 32,
+                    "concurrency": 1,
+                    "resources": {},
+                    "tracing_backend": "phoenix",
+                    "artifact_path": None,
+                    "metadata": {},
+                },
+                "tags": ["baseline"],
+            },
         },
     )
     assert baseline_response.status_code == 201
-    baseline_eval_job_id = baseline_response.json()["eval_job_id"]
+    baseline_experiment_id = baseline_response.json()["experiment_id"]
+    assert client.post(f"/api/v1/experiments/{baseline_experiment_id}/start").status_code == 200
     assert worker_drain(limit=20) >= 1
 
     _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "not-beta"})
     candidate_response = client.post(
-        "/api/v1/eval-jobs",
+        "/api/v1/experiments",
         json={
-            "agent_id": "basic",
-            "dataset": "export-compare-dataset",
-            "project": "rl-eval",
-            "tags": ["candidate"],
-            "scoring_mode": "exact_match",
+            "name": "candidate",
+            "spec": {
+                "dataset_version_id": dataset_version_id,
+                "published_agent_id": "basic",
+                "model_config": {"model": "gpt-5.4-mini", "temperature": 0},
+                "prompt_config": {"prompt_version": "2026-03"},
+                "toolset_config": {"tools": [], "metadata": {}},
+                "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
+                "executor_config": {
+                    "backend": "local-runner",
+                    "timeout_seconds": 600,
+                    "max_steps": 32,
+                    "concurrency": 1,
+                    "resources": {},
+                    "tracing_backend": "phoenix",
+                    "artifact_path": None,
+                    "metadata": {},
+                },
+                "tags": ["candidate"],
+            },
         },
     )
     assert candidate_response.status_code == 201
-    candidate_eval_job_id = candidate_response.json()["eval_job_id"]
+    candidate_experiment_id = candidate_response.json()["experiment_id"]
+    assert client.post(f"/api/v1/experiments/{candidate_experiment_id}/start").status_code == 200
     assert worker_drain(limit=20) >= 1
 
     export_response = client.post(
         "/api/v1/exports",
         json={
-            "baseline_eval_job_id": baseline_eval_job_id,
-            "candidate_eval_job_id": candidate_eval_job_id,
+            "baseline_experiment_id": baseline_experiment_id,
+            "candidate_experiment_id": candidate_experiment_id,
             "compare_outcomes": ["regressed"],
             "format": "jsonl",
         },
@@ -106,9 +139,9 @@ def test_exports_api_creates_compare_aware_rl_rows(
     assert export_response.status_code == 200
     export_payload = export_response.json()
     assert export_payload["row_count"] == 1
-    assert export_payload["source_eval_job_id"] == candidate_eval_job_id
-    assert export_payload["baseline_eval_job_id"] == baseline_eval_job_id
-    assert export_payload["candidate_eval_job_id"] == candidate_eval_job_id
+    assert export_payload["source_experiment_id"] == candidate_experiment_id
+    assert export_payload["baseline_experiment_id"] == baseline_experiment_id
+    assert export_payload["candidate_experiment_id"] == candidate_experiment_id
     assert export_payload["filters_summary"]["compare_outcomes"] == ["regressed"]
 
     history_response = client.get("/api/v1/exports")
@@ -122,12 +155,13 @@ def test_exports_api_creates_compare_aware_rl_rows(
     assert len(rows) == 1
     row = rows[0]
     assert row["schema_version"] == "rl-export-jsonl-v1"
-    assert row["eval_job_id"] == candidate_eval_job_id
+    assert row["experiment_id"] == candidate_experiment_id
+    assert row["dataset_version_id"] == dataset_version_id
     assert row["dataset_sample_id"] == "sample-regressed"
     assert row["compare_outcome"] == "regressed"
     assert row["dataset_slice"] == "returns"
     assert row["dataset_source"] == "crm"
     assert row["judgement"] == "failed"
     assert row["artifact_ref"]
-    assert row["runner_backend"]
+    assert row["executor_backend"] == "local-runner"
     assert "published_agent_snapshot" in row

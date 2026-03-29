@@ -8,26 +8,21 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 from app.modules.artifacts.domain.models import ArtifactExportRequest, ArtifactMetadata
-from app.modules.evals.domain.models import (
-    CompareOutcome,
-    EvalJobRecord,
-    EvalSampleResult,
-    SampleJudgement,
-)
-from app.modules.shared.domain.enums import ArtifactFormat
+from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
+from app.modules.shared.domain.enums import ArtifactFormat, CompareOutcome, SampleJudgement
 
 
-class _EvalJobReader(Protocol):
-    def get(self, eval_job_id: str | UUID) -> EvalJobRecord | None: ...
+class _ExperimentReader(Protocol):
+    def get(self, experiment_id: str | UUID) -> ExperimentRecord | None: ...
 
 
-class _EvalSampleResultReader(Protocol):
-    def list_for_job(self, eval_job_id: str | UUID) -> list[EvalSampleResult]: ...
+class _RunEvaluationReader(Protocol):
+    def list_for_experiment(self, experiment_id: str | UUID) -> list[RunEvaluationRecord]: ...
 
 
 def _compare_outcome(
-    baseline: EvalSampleResult | None,
-    candidate: EvalSampleResult | None,
+    baseline: RunEvaluationRecord | None,
+    candidate: RunEvaluationRecord | None,
 ) -> CompareOutcome:
     if baseline is None:
         return CompareOutcome.CANDIDATE_ONLY
@@ -56,19 +51,19 @@ class ArtifactExporterAdapter:
     def __init__(
         self,
         artifact_repository,
-        eval_job_repository: _EvalJobReader,
-        sample_result_repository: _EvalSampleResultReader,
+        experiment_repository: _ExperimentReader,
+        run_evaluation_repository: _RunEvaluationReader,
     ) -> None:
         self.artifact_repository = artifact_repository
-        self.eval_job_repository = eval_job_repository
-        self.sample_result_repository = sample_result_repository
+        self.experiment_repository = experiment_repository
+        self.run_evaluation_repository = run_evaluation_repository
         self.output_dir = Path(__file__).resolve().parents[3] / "data" / "artifacts"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def export(self, payload: ArtifactExportRequest) -> ArtifactMetadata:
-        source_eval_job_id = payload.candidate_eval_job_id or payload.eval_job_id
-        if source_eval_job_id is None:
-            raise ValueError("export requires eval_job_id or candidate_eval_job_id")
+        source_experiment_id = payload.candidate_experiment_id or payload.experiment_id
+        if source_experiment_id is None:
+            raise ValueError("export requires experiment_id or candidate_experiment_id")
 
         rows = self._build_rows(payload)
         artifact_id = uuid4()
@@ -85,9 +80,9 @@ class ArtifactExporterAdapter:
             path=str(path),
             size_bytes=path.stat().st_size,
             row_count=len(rows),
-            source_eval_job_id=source_eval_job_id,
-            baseline_eval_job_id=payload.baseline_eval_job_id,
-            candidate_eval_job_id=payload.candidate_eval_job_id,
+            source_experiment_id=source_experiment_id,
+            baseline_experiment_id=payload.baseline_experiment_id,
+            candidate_experiment_id=payload.candidate_experiment_id,
             filters_summary=self._filters_summary(payload),
         )
         self.artifact_repository.save(metadata)
@@ -124,20 +119,20 @@ class ArtifactExporterAdapter:
         pq.write_table(table, path)
 
     def _build_rows(self, payload: ArtifactExportRequest) -> list[dict[str, object]]:
-        if payload.candidate_eval_job_id is not None:
-            if self.eval_job_repository.get(payload.candidate_eval_job_id) is None:
-                raise ValueError("candidate eval job was not found")
-            candidate_results = self.sample_result_repository.list_for_job(
-                payload.candidate_eval_job_id
+        if payload.candidate_experiment_id is not None:
+            if self.experiment_repository.get(payload.candidate_experiment_id) is None:
+                raise ValueError("candidate experiment was not found")
+            candidate_results = self.run_evaluation_repository.list_for_experiment(
+                payload.candidate_experiment_id
             )
             baseline_results = (
                 {
                     result.dataset_sample_id: result
-                    for result in self.sample_result_repository.list_for_job(
-                        payload.baseline_eval_job_id
+                    for result in self.run_evaluation_repository.list_for_experiment(
+                        payload.baseline_experiment_id
                     )
                 }
-                if payload.baseline_eval_job_id is not None
+                if payload.baseline_experiment_id is not None
                 else {}
             )
             rows: list[dict[str, object]] = []
@@ -155,10 +150,13 @@ class ArtifactExporterAdapter:
                 rows.append(self._build_row(chosen, outcome))
             return rows
 
-        if payload.eval_job_id is None or self.eval_job_repository.get(payload.eval_job_id) is None:
-            raise ValueError("eval job was not found")
+        if (
+            payload.experiment_id is None
+            or self.experiment_repository.get(payload.experiment_id) is None
+        ):
+            raise ValueError("experiment was not found")
         rows = []
-        for result in self.sample_result_repository.list_for_job(payload.eval_job_id):
+        for result in self.run_evaluation_repository.list_for_experiment(payload.experiment_id):
             if not self._matches_filters(result, payload, None):
                 continue
             rows.append(self._build_row(result, None))
@@ -166,7 +164,7 @@ class ArtifactExporterAdapter:
 
     def _matches_filters(
         self,
-        result: EvalSampleResult,
+        result: RunEvaluationRecord,
         payload: ArtifactExportRequest,
         compare_outcome: CompareOutcome | None,
     ) -> bool:
@@ -197,7 +195,7 @@ class ArtifactExporterAdapter:
 
     def _build_row(
         self,
-        result: EvalSampleResult,
+        result: RunEvaluationRecord,
         compare_outcome: CompareOutcome | None,
     ) -> dict[str, object]:
         snapshot = result.published_agent_snapshot or {}
@@ -205,7 +203,9 @@ class ArtifactExporterAdapter:
         agent_id = manifest.get("agent_id") if isinstance(manifest, dict) else None
         return {
             "schema_version": "rl-export-jsonl-v1",
-            "eval_job_id": str(result.eval_job_id),
+            "experiment_id": str(result.experiment_id),
+            "dataset_version_id": str(result.dataset_version_id),
+            "run_id": str(result.run_id),
             "dataset_sample_id": result.dataset_sample_id,
             "input": result.input,
             "expected": result.expected,
@@ -226,7 +226,7 @@ class ArtifactExporterAdapter:
             "framework": result.framework,
             "artifact_ref": result.artifact_ref,
             "image_ref": result.image_ref,
-            "runner_backend": result.runner_backend,
+            "executor_backend": result.executor_backend,
             "latency_ms": result.latency_ms,
             "tool_calls": result.tool_calls,
             "phoenix_trace_url": result.trace_url,
@@ -237,12 +237,12 @@ class ArtifactExporterAdapter:
     @staticmethod
     def _filters_summary(payload: ArtifactExportRequest) -> dict[str, object]:
         return {
-            "eval_job_id": str(payload.eval_job_id) if payload.eval_job_id else None,
-            "baseline_eval_job_id": (
-                str(payload.baseline_eval_job_id) if payload.baseline_eval_job_id else None
+            "experiment_id": str(payload.experiment_id) if payload.experiment_id else None,
+            "baseline_experiment_id": (
+                str(payload.baseline_experiment_id) if payload.baseline_experiment_id else None
             ),
-            "candidate_eval_job_id": (
-                str(payload.candidate_eval_job_id) if payload.candidate_eval_job_id else None
+            "candidate_experiment_id": (
+                str(payload.candidate_experiment_id) if payload.candidate_experiment_id else None
             ),
             "dataset_sample_ids": payload.dataset_sample_ids,
             "judgements": payload.judgements,

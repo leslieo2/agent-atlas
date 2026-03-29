@@ -17,9 +17,12 @@ export interface AgentRecord {
   name: string;
   description: string;
   framework: string;
+  frameworkType: string;
+  frameworkVersion: string;
   entrypoint: string;
   defaultModel: string;
   tags: string[];
+  capabilities: string[];
   publishedAt?: string;
   runtimeArtifact?: RuntimeArtifactRecord | null;
   provenance?: ProvenanceRecord | null;

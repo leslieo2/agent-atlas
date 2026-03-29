@@ -12,8 +12,10 @@ from uuid import UUID
 from app.core.config import settings
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.artifacts.domain.models import ArtifactMetadata
-from app.modules.datasets.domain.models import Dataset
+from app.modules.datasets.domain.models import Dataset, DatasetVersion
 from app.modules.evals.domain.models import EvalJobRecord, EvalSampleResult
+from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
+from app.modules.policies.domain.models import ApprovalPolicyRecord
 from app.modules.runs.domain.models import RunRecord, TrajectoryStep
 from app.modules.shared.domain.tasks import QueuedTask, TaskStatus
 from app.modules.traces.domain.models import TraceSpan
@@ -57,6 +59,23 @@ _PAYLOAD_STATEMENTS: dict[tuple[str, str], tuple[str, str]] = {
         ),
         "SELECT payload FROM published_agents WHERE agent_id = ?",
     ),
+    (
+        "experiments",
+        "experiment_id",
+    ): (
+        "INSERT OR REPLACE INTO experiments (experiment_id, payload, updated_at) VALUES (?, ?, ?)",
+        "SELECT payload FROM experiments WHERE experiment_id = ?",
+    ),
+    (
+        "approval_policies",
+        "approval_policy_id",
+    ): (
+        (
+            "INSERT OR REPLACE INTO approval_policies (approval_policy_id, payload, updated_at) "
+            "VALUES (?, ?, ?)"
+        ),
+        "SELECT payload FROM approval_policies WHERE approval_policy_id = ?",
+    ),
 }
 
 
@@ -68,6 +87,13 @@ def to_uuid(value: UUID | str) -> UUID:
 
 def serialize_model(model: Any) -> str:
     return json.dumps(model.model_dump(mode="json"), ensure_ascii=False)
+
+
+def _normalize_experiment_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    spec = payload.get("spec")
+    if isinstance(spec, dict) and "model_config" not in spec and "model_settings" in spec:
+        spec["model_config"] = spec.pop("model_settings")
+    return payload
 
 
 class StatePersistence:
@@ -137,6 +163,12 @@ class StatePersistence:
                     payload TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS dataset_versions (
+                    dataset_version_id TEXT PRIMARY KEY,
+                    dataset_name TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS eval_jobs (
                     eval_job_id TEXT PRIMARY KEY,
                     payload TEXT NOT NULL,
@@ -159,6 +191,34 @@ class StatePersistence:
                     agent_id TEXT PRIMARY KEY,
                     payload TEXT NOT NULL,
                     updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS experiments (
+                    experiment_id TEXT PRIMARY KEY,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS run_evaluations (
+                    run_id TEXT PRIMARY KEY,
+                    experiment_id TEXT NOT NULL,
+                    dataset_sample_id TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (experiment_id)
+                        REFERENCES experiments(experiment_id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS approval_policies (
+                    approval_policy_id TEXT PRIMARY KEY,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS tool_policies (
+                    approval_policy_id TEXT NOT NULL,
+                    tool_name TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (approval_policy_id, tool_name),
+                    FOREIGN KEY (approval_policy_id)
+                        REFERENCES approval_policies(approval_policy_id) ON DELETE CASCADE
                 );
 
                 CREATE TABLE IF NOT EXISTS tasks (
@@ -454,13 +514,30 @@ class StatePersistence:
             self.conn.commit()
 
     def save_dataset(self, dataset: Dataset) -> None:
-        self._upsert(
-            "datasets",
-            "name",
-            dataset.name,
-            serialize_model(dataset),
-            datetime.now(UTC).isoformat(),
-        )
+        timestamp = datetime.now(UTC).isoformat()
+        self._upsert("datasets", "name", dataset.name, serialize_model(dataset), timestamp)
+        if not self.conn:
+            return
+        with self._lock:
+            self.conn.execute(
+                "DELETE FROM dataset_versions WHERE dataset_name = ?",
+                (dataset.name,),
+            )
+            for version in dataset.versions:
+                self.conn.execute(
+                    """
+                    INSERT OR REPLACE INTO dataset_versions (
+                        dataset_version_id, dataset_name, payload, updated_at
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        str(version.dataset_version_id),
+                        dataset.name,
+                        serialize_model(version),
+                        timestamp,
+                    ),
+                )
+            self.conn.commit()
 
     def get_dataset(self, name: str) -> Dataset | None:
         payload = self._fetch_payload("datasets", "name", name)
@@ -471,6 +548,19 @@ class StatePersistence:
     def list_datasets(self) -> list[Dataset]:
         payloads = self._fetch_payloads("SELECT payload FROM datasets ORDER BY updated_at DESC")
         return [Dataset.model_validate(json.loads(payload)) for payload in payloads]
+
+    def get_dataset_version(self, dataset_version_id: UUID | str) -> DatasetVersion | None:
+        payloads = self._fetch_payloads(
+            """
+            SELECT payload FROM dataset_versions
+            WHERE dataset_version_id = ?
+            LIMIT 1
+            """,
+            (str(to_uuid(dataset_version_id)),),
+        )
+        if not payloads:
+            return None
+        return DatasetVersion.model_validate(json.loads(payloads[0]))
 
     def save_eval_job(self, job: EvalJobRecord) -> None:
         self._upsert(
@@ -551,6 +641,136 @@ class StatePersistence:
                 (str(to_uuid(eval_job_id)),),
             )
             self.conn.commit()
+
+    def save_experiment(self, experiment: ExperimentRecord) -> None:
+        self._upsert(
+            "experiments",
+            "experiment_id",
+            str(experiment.experiment_id),
+            json.dumps(experiment.model_dump(mode="json", by_alias=True), ensure_ascii=False),
+            datetime.now(UTC).isoformat(),
+        )
+
+    def get_experiment(self, experiment_id: UUID | str) -> ExperimentRecord | None:
+        payload = self._fetch_payload("experiments", "experiment_id", str(to_uuid(experiment_id)))
+        if payload is None:
+            return None
+        return ExperimentRecord.model_validate(_normalize_experiment_payload(json.loads(payload)))
+
+    def list_experiments(self) -> list[ExperimentRecord]:
+        payloads = self._fetch_payloads("SELECT payload FROM experiments ORDER BY updated_at DESC")
+        return [
+            ExperimentRecord.model_validate(_normalize_experiment_payload(json.loads(payload)))
+            for payload in payloads
+        ]
+
+    def save_run_evaluation(self, record: RunEvaluationRecord) -> None:
+        if not self.conn:
+            return
+        with self._lock:
+            self.conn.execute(
+                """
+                INSERT INTO run_evaluations (
+                    run_id, experiment_id, dataset_sample_id, payload, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(run_id) DO UPDATE SET
+                    experiment_id = excluded.experiment_id,
+                    dataset_sample_id = excluded.dataset_sample_id,
+                    payload = excluded.payload,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    str(record.run_id),
+                    str(record.experiment_id),
+                    record.dataset_sample_id,
+                    serialize_model(record),
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
+            self.conn.commit()
+
+    def list_run_evaluations(self, experiment_id: UUID | str) -> list[RunEvaluationRecord]:
+        payloads = self._fetch_payloads(
+            """
+            SELECT payload FROM run_evaluations
+            WHERE experiment_id = ?
+            ORDER BY dataset_sample_id ASC
+            """,
+            (str(to_uuid(experiment_id)),),
+        )
+        return [RunEvaluationRecord.model_validate(json.loads(payload)) for payload in payloads]
+
+    def get_run_evaluation_by_run(self, run_id: UUID | str) -> RunEvaluationRecord | None:
+        payloads = self._fetch_payloads(
+            """
+            SELECT payload FROM run_evaluations
+            WHERE run_id = ?
+            LIMIT 1
+            """,
+            (str(to_uuid(run_id)),),
+        )
+        if not payloads:
+            return None
+        return RunEvaluationRecord.model_validate(json.loads(payloads[0]))
+
+    def delete_run_evaluations(self, experiment_id: UUID | str) -> None:
+        if not self.conn:
+            return
+        with self._lock:
+            self.conn.execute(
+                "DELETE FROM run_evaluations WHERE experiment_id = ?",
+                (str(to_uuid(experiment_id)),),
+            )
+            self.conn.commit()
+
+    def save_approval_policy(self, policy: ApprovalPolicyRecord) -> None:
+        timestamp = datetime.now(UTC).isoformat()
+        self._upsert(
+            "approval_policies",
+            "approval_policy_id",
+            str(policy.approval_policy_id),
+            serialize_model(policy),
+            timestamp,
+        )
+        if not self.conn:
+            return
+        with self._lock:
+            self.conn.execute(
+                "DELETE FROM tool_policies WHERE approval_policy_id = ?",
+                (str(policy.approval_policy_id),),
+            )
+            for rule in policy.tool_policies:
+                self.conn.execute(
+                    """
+                    INSERT OR REPLACE INTO tool_policies (
+                        approval_policy_id, tool_name, payload, updated_at
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        str(policy.approval_policy_id),
+                        rule.tool_name,
+                        serialize_model(rule),
+                        timestamp,
+                    ),
+                )
+            self.conn.commit()
+
+    def get_approval_policy(self, approval_policy_id: UUID | str) -> ApprovalPolicyRecord | None:
+        payload = self._fetch_payload(
+            "approval_policies",
+            "approval_policy_id",
+            str(to_uuid(approval_policy_id)),
+        )
+        if payload is None:
+            return None
+        return ApprovalPolicyRecord.model_validate(json.loads(payload))
+
+    def list_approval_policies(self) -> list[ApprovalPolicyRecord]:
+        payloads = self._fetch_payloads(
+            "SELECT payload FROM approval_policies ORDER BY updated_at DESC"
+        )
+        return [ApprovalPolicyRecord.model_validate(json.loads(payload)) for payload in payloads]
 
     def save_artifact(self, artifact: ArtifactMetadata) -> None:
         self._upsert(
@@ -672,9 +892,14 @@ class StatePersistence:
             DELETE FROM trajectory;
             DELETE FROM trace_spans;
             DELETE FROM runs;
+            DELETE FROM dataset_versions;
             DELETE FROM datasets;
             DELETE FROM eval_sample_results;
             DELETE FROM eval_jobs;
+            DELETE FROM run_evaluations;
+            DELETE FROM experiments;
+            DELETE FROM tool_policies;
+            DELETE FROM approval_policies;
             DELETE FROM artifacts;
             DELETE FROM published_agents;
             DELETE FROM tasks;
@@ -733,6 +958,9 @@ class StatePersistence:
             trajectory[run_id] = self.list_trajectory(run_id)
             trace_spans[run_id] = self.list_trace_spans(run_id)
         datasets = {dataset.name: dataset for dataset in self.list_datasets()}
+        experiments = {
+            to_uuid(experiment.experiment_id): experiment for experiment in self.list_experiments()
+        }
 
         artifacts: dict[UUID, ArtifactMetadata] = {}
         artifact_payloads = self._fetch_payloads(
@@ -747,6 +975,7 @@ class StatePersistence:
             "trajectory": trajectory,
             "trace_spans": trace_spans,
             "datasets": datasets,
+            "experiments": experiments,
             "artifacts": artifacts,
         }
 
@@ -759,11 +988,17 @@ class StatePersistence:
                 DELETE FROM trace_spans;
                 DELETE FROM trajectory;
                 DELETE FROM runs;
+                DELETE FROM dataset_versions;
                 DELETE FROM datasets;
                 DELETE FROM eval_sample_results;
                 DELETE FROM eval_jobs;
+                DELETE FROM run_evaluations;
+                DELETE FROM experiments;
+                DELETE FROM tool_policies;
+                DELETE FROM approval_policies;
                 DELETE FROM artifacts;
                 DELETE FROM published_agents;
+                DELETE FROM tasks;
                 """
             )
             self.conn.commit()

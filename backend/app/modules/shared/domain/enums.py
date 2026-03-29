@@ -27,3 +27,35 @@ class AdapterKind(str, Enum):
     OPENAI_AGENTS = "openai-agents-sdk"
     LANGCHAIN = "langchain"
     MCP = "mcp"
+
+
+class ScoringMode(str, Enum):
+    EXACT_MATCH = "exact_match"
+    CONTAINS = "contains"
+
+
+class SampleJudgement(str, Enum):
+    PASSED = "passed"
+    FAILED = "failed"
+    UNSCORED = "unscored"
+    RUNTIME_ERROR = "runtime_error"
+
+
+class CurationStatus(str, Enum):
+    INCLUDE = "include"
+    EXCLUDE = "exclude"
+    REVIEW = "review"
+
+
+class CompareOutcome(str, Enum):
+    IMPROVED = "improved"
+    REGRESSED = "regressed"
+    UNCHANGED_PASS = "unchanged_pass"  # nosec B105 - compare label, not a credential
+    UNCHANGED_FAIL = "unchanged_fail"
+    CANDIDATE_ONLY = "candidate_only"
+    BASELINE_ONLY = "baseline_only"
+
+
+class PolicyEffect(str, Enum):
+    ALLOW = "allow"
+    DENY = "deny"

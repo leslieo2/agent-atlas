@@ -147,7 +147,7 @@ export default function DatasetsWorkspace() {
   const [tagFilter, setTagFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [feedback, setFeedback] = useState("");
-  const [latestImportedDataset, setLatestImportedDataset] = useState("");
+  const [latestImportedDatasetVersionId, setLatestImportedDatasetVersionId] = useState("");
 
   const datasets = useMemo(() => datasetsQuery.data ?? [], [datasetsQuery.data]);
   const totalSamples = useMemo(() => datasets.reduce((count, dataset) => count + dataset.rows.length, 0), [datasets]);
@@ -209,7 +209,7 @@ export default function DatasetsWorkspace() {
     });
 
     setSelectedDataset(created.name);
-    setLatestImportedDataset(created.name);
+    setLatestImportedDatasetVersionId(created.currentVersionId ?? "");
     setDatasetName("");
     setDatasetDescription("");
     setDatasetSource("");
@@ -273,7 +273,7 @@ export default function DatasetsWorkspace() {
           <h2 className="section-title">Datasets</h2>
           <p className="kicker">
             Treat datasets as source-of-truth training assets. Define slices, provenance, and export eligibility before
-            you fan out eval jobs.
+            you fan out experiments.
           </p>
           <div className="page-tag-list">
             <span className="page-tag">
@@ -294,13 +294,20 @@ export default function DatasetsWorkspace() {
             <p className="page-info-detail">
               {selectedDatasetRecord
                 ? datasetSummary(selectedDatasetRecord)
-                : "Import JSONL or seed a single sample to create a new RL evaluation asset."}
+                : "Import JSONL or seed a single sample to create a new experiment asset."}
             </p>
           </div>
           <div className="toolbar">
             {selectedDatasetRecord ? (
-              <Button href={`/evals?dataset=${encodeURIComponent(selectedDatasetRecord.name)}`} variant="secondary">
-                Open in evals <ArrowUpRight size={14} />
+              <Button
+                href={
+                  selectedDatasetRecord.currentVersionId
+                    ? `/experiments?datasetVersion=${encodeURIComponent(selectedDatasetRecord.currentVersionId)}`
+                    : "/experiments"
+                }
+                variant="secondary"
+              >
+                Open in experiments <ArrowUpRight size={14} />
               </Button>
             ) : null}
           </div>
@@ -318,9 +325,12 @@ export default function DatasetsWorkspace() {
       {feedback ? (
         <Notice>
           {feedback}{" "}
-          {latestImportedDataset ? (
-            <Button href={`/evals?dataset=${encodeURIComponent(latestImportedDataset)}`} variant="ghost">
-              Open imported dataset in evals
+          {latestImportedDatasetVersionId ? (
+            <Button
+              href={`/experiments?datasetVersion=${encodeURIComponent(latestImportedDatasetVersionId)}`}
+              variant="ghost"
+            >
+              Open imported dataset in experiments
             </Button>
           ) : null}
         </Notice>
@@ -344,7 +354,7 @@ export default function DatasetsWorkspace() {
             <div className={styles.sectionBlock}>
               <div className={styles.sectionHeading}>
                 <h4>Dataset metadata</h4>
-                <p className="muted-note">Describe the asset that drives future eval jobs and RL exports.</p>
+                <p className="muted-note">Describe the asset that drives future experiments and RL exports.</p>
               </div>
               <div className={styles.formGrid}>
                 <Field label="Dataset name" htmlFor="dataset-name">

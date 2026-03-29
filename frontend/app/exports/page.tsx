@@ -3,13 +3,13 @@ import ExportsWorkspace from "@/src/widgets/exports-workspace/ExportsWorkspace";
 export default function ExportsPage({
   searchParams
 }: {
-  searchParams: { eval?: string; baseline?: string; candidate?: string };
+  searchParams: { experiment?: string; baseline?: string; candidate?: string };
 }) {
   return (
     <ExportsWorkspace
-      initialEvalJobId={searchParams.eval}
-      initialBaselineEvalJobId={searchParams.baseline}
-      initialCandidateEvalJobId={searchParams.candidate}
+      initialExperimentId={searchParams.experiment}
+      initialBaselineExperimentId={searchParams.baseline}
+      initialCandidateExperimentId={searchParams.candidate}
     />
   );
 }

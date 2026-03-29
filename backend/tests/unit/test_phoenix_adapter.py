@@ -27,7 +27,7 @@ def test_build_phoenix_urls():
     project_url = build_phoenix_project_url(
         base_url="http://phoenix.local:6006/",
         project_id="UHJvamVjdDoy",
-        eval_job_id="job-123",
+        experiment_id="exp-123",
         run_id="run-456",
     )
     trace_url = build_phoenix_trace_url(
@@ -37,7 +37,7 @@ def test_build_phoenix_urls():
     )
 
     assert project_url == (
-        "http://phoenix.local:6006/projects/UHJvamVjdDoy?" "eval_job_id=job-123&run_id=run-456"
+        "http://phoenix.local:6006/projects/UHJvamVjdDoy?" "experiment_id=exp-123&run_id=run-456"
     )
     assert trace_url == "http://phoenix.local:6006/projects/UHJvamVjdDoy/traces/abc123"
 
@@ -46,7 +46,7 @@ def test_build_phoenix_project_url_falls_back_to_home_without_project_id():
     project_url = build_phoenix_project_url(
         base_url="http://phoenix.local:6006/",
         project_id=None,
-        eval_job_id="job-123",
+        experiment_id="exp-123",
     )
 
     assert project_url == "http://phoenix.local:6006"

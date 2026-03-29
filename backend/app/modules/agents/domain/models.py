@@ -54,8 +54,10 @@ class AgentManifest(BaseModel):
     name: str
     description: str
     framework: str = "openai-agents-sdk"
+    framework_version: str = "1.0.0"
     default_model: str
     tags: list[str] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
 
 
 class AgentBuildContext(BaseModel):
@@ -113,6 +115,16 @@ class PublishedAgent(BaseModel):
     @property
     def tags(self) -> list[str]:
         return list(self.manifest.tags)
+
+    @property
+    def framework_version(self) -> str:
+        return self.manifest.framework_version
+
+    @property
+    def capabilities(self) -> list[str]:
+        if self.manifest.capabilities:
+            return list(self.manifest.capabilities)
+        return ["batch-execution", "phoenix-links", "offline-export"]
 
     def adapter_kind(self) -> AdapterKind:
         return adapter_kind_for_framework(self.framework)
@@ -192,6 +204,16 @@ class DiscoveredAgent(BaseModel):
     @property
     def tags(self) -> list[str]:
         return list(self.manifest.tags)
+
+    @property
+    def framework_version(self) -> str:
+        return self.manifest.framework_version
+
+    @property
+    def capabilities(self) -> list[str]:
+        if self.manifest.capabilities:
+            return list(self.manifest.capabilities)
+        return ["batch-execution", "phoenix-links", "offline-export"]
 
     def adapter_kind(self) -> AdapterKind:
         return adapter_kind_for_framework(self.framework)

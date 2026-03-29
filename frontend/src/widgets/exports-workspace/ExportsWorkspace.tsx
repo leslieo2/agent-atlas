@@ -4,8 +4,12 @@ import { Download, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getExportDownloadUrl } from "@/src/entities/export/api";
 import { useCreateExportMutation, useExportsQuery } from "@/src/entities/export/query";
-import { useEvalJobsQuery, useEvalSamplesQuery } from "@/src/entities/eval/query";
-import type { EvalSampleRecord } from "@/src/entities/eval/model";
+import type { ExperimentRunRecord } from "@/src/entities/experiment/model";
+import {
+  useExperimentCompareQuery,
+  useExperimentRunsQuery,
+  useExperimentsQuery
+} from "@/src/entities/experiment/query";
 import type { CompareOutcome, CurationStatus, SampleJudgement } from "@/src/shared/api/contract";
 import { Button } from "@/src/shared/ui/Button";
 import { Field } from "@/src/shared/ui/Field";
@@ -15,9 +19,9 @@ import { TableShell } from "@/src/shared/ui/TableShell";
 import styles from "./ExportsWorkspace.module.css";
 
 type Props = {
-  initialEvalJobId?: string;
-  initialBaselineEvalJobId?: string;
-  initialCandidateEvalJobId?: string;
+  initialExperimentId?: string;
+  initialBaselineExperimentId?: string;
+  initialCandidateExperimentId?: string;
 };
 
 function uniqueStrings(values: Array<string | null | undefined>) {
@@ -70,7 +74,8 @@ function buildActiveFilters(filters: {
 }
 
 function matchesPreviewFilters({
-  sample,
+  run,
+  compareOutcome,
   judgementFilter,
   errorCodeFilter,
   sliceFilter,
@@ -79,7 +84,8 @@ function matchesPreviewFilters({
   curationFilter,
   exportEligibleOnly
 }: {
-  sample: EvalSampleRecord;
+  run: ExperimentRunRecord;
+  compareOutcome?: CompareOutcome | null;
   judgementFilter: string;
   errorCodeFilter: string;
   sliceFilter: string;
@@ -88,25 +94,25 @@ function matchesPreviewFilters({
   curationFilter: string;
   exportEligibleOnly: boolean;
 }) {
-  if (judgementFilter && sample.judgement !== judgementFilter) {
+  if (judgementFilter && run.judgement !== judgementFilter) {
     return false;
   }
-  if (errorCodeFilter && sample.errorCode !== errorCodeFilter) {
+  if (errorCodeFilter && run.errorCode !== errorCodeFilter) {
     return false;
   }
-  if (sliceFilter && sample.slice !== sliceFilter) {
+  if (sliceFilter && run.slice !== sliceFilter) {
     return false;
   }
-  if (tagFilter && !sample.tags.includes(tagFilter)) {
+  if (tagFilter && !run.tags.includes(tagFilter)) {
     return false;
   }
-  if (compareOutcomeFilter && sample.compareOutcome !== compareOutcomeFilter) {
+  if (compareOutcomeFilter && compareOutcome !== compareOutcomeFilter) {
     return false;
   }
-  if (curationFilter && sample.curationStatus !== curationFilter) {
+  if (curationFilter && run.curationStatus !== curationFilter) {
     return false;
   }
-  if (exportEligibleOnly && sample.exportEligible === false) {
+  if (exportEligibleOnly && run.exportEligible === false) {
     return false;
   }
   return true;
@@ -135,17 +141,17 @@ function summarizeFilterSummary(filtersSummary: Record<string, unknown>) {
 }
 
 export default function ExportsWorkspace({
-  initialEvalJobId = "",
-  initialBaselineEvalJobId = "",
-  initialCandidateEvalJobId = ""
+  initialExperimentId = "",
+  initialBaselineExperimentId = "",
+  initialCandidateExperimentId = ""
 }: Props) {
-  const evalJobsQuery = useEvalJobsQuery();
+  const experimentsQuery = useExperimentsQuery();
   const exportsQuery = useExportsQuery();
   const createExportMutation = useCreateExportMutation();
 
-  const [evalJobId, setEvalJobId] = useState(initialEvalJobId);
-  const [baselineEvalJobId, setBaselineEvalJobId] = useState(initialBaselineEvalJobId);
-  const [candidateEvalJobId, setCandidateEvalJobId] = useState(initialCandidateEvalJobId);
+  const [experimentId, setExperimentId] = useState(initialExperimentId);
+  const [baselineExperimentId, setBaselineExperimentId] = useState(initialBaselineExperimentId);
+  const [candidateExperimentId, setCandidateExperimentId] = useState(initialCandidateExperimentId);
   const [judgementFilter, setJudgementFilter] = useState("");
   const [errorCodeFilter, setErrorCodeFilter] = useState("");
   const [sliceFilter, setSliceFilter] = useState("");
@@ -157,22 +163,32 @@ export default function ExportsWorkspace({
   const [actionMessage, setActionMessage] = useState("");
   const [latestExportId, setLatestExportId] = useState<string | null>(null);
 
-  const evalJobs = useMemo(() => evalJobsQuery.data ?? [], [evalJobsQuery.data]);
-  const selectedSourceEvalId = candidateEvalJobId || evalJobId;
-  const sourceEvalJob = useMemo(
-    () => evalJobs.find((job) => job.evalJobId === selectedSourceEvalId) ?? null,
-    [evalJobs, selectedSourceEvalId]
+  const experiments = useMemo(() => experimentsQuery.data ?? [], [experimentsQuery.data]);
+  const selectedSourceExperimentId = candidateExperimentId || experimentId;
+  const sourceExperiment = useMemo(
+    () => experiments.find((record) => record.experimentId === selectedSourceExperimentId) ?? null,
+    [experiments, selectedSourceExperimentId]
   );
-  const selectedSamplesQuery = useEvalSamplesQuery(selectedSourceEvalId);
-  const samples = useMemo(() => selectedSamplesQuery.data ?? [], [selectedSamplesQuery.data]);
-  const errorCodeOptions = useMemo(() => uniqueStrings(samples.map((sample) => sample.errorCode)), [samples]);
-  const sliceOptions = useMemo(() => uniqueStrings(samples.map((sample) => sample.slice)), [samples]);
-  const tagOptions = useMemo(() => uniqueStrings(samples.flatMap((sample) => sample.tags)), [samples]);
+  const selectedRunsQuery = useExperimentRunsQuery(selectedSourceExperimentId);
+  const compareQuery = useExperimentCompareQuery(baselineExperimentId, candidateExperimentId);
+  const runs = useMemo(() => selectedRunsQuery.data ?? [], [selectedRunsQuery.data]);
+  const compareLookup = useMemo(
+    () =>
+      new Map(
+        (compareQuery.data?.samples ?? []).map((sample) => [sample.datasetSampleId, sample.compareOutcome] as const)
+      ),
+    [compareQuery.data?.samples]
+  );
+
+  const errorCodeOptions = useMemo(() => uniqueStrings(runs.map((run) => run.errorCode)), [runs]);
+  const sliceOptions = useMemo(() => uniqueStrings(runs.map((run) => run.slice)), [runs]);
+  const tagOptions = useMemo(() => uniqueStrings(runs.flatMap((run) => run.tags)), [runs]);
   const previewRows = useMemo(
     () =>
-      samples.filter((sample) =>
+      runs.filter((run) =>
         matchesPreviewFilters({
-          sample,
+          run,
+          compareOutcome: compareLookup.get(run.datasetSampleId) ?? run.compareOutcome ?? null,
           judgementFilter,
           errorCodeFilter,
           sliceFilter,
@@ -183,7 +199,8 @@ export default function ExportsWorkspace({
         })
       ),
     [
-      samples,
+      runs,
+      compareLookup,
       judgementFilter,
       errorCodeFilter,
       sliceFilter,
@@ -194,7 +211,7 @@ export default function ExportsWorkspace({
     ]
   );
   const previewReviewCount = useMemo(
-    () => previewRows.filter((sample) => sample.curationStatus === "review").length,
+    () => previewRows.filter((run) => run.curationStatus === "review").length,
     [previewRows]
   );
   const activeFilters = useMemo(
@@ -212,40 +229,45 @@ export default function ExportsWorkspace({
   );
   const baselineOptions = useMemo(
     () =>
-      sourceEvalJob
-        ? evalJobs.filter((job) => job.dataset === sourceEvalJob.dataset && job.evalJobId !== sourceEvalJob.evalJobId)
+      sourceExperiment
+        ? experiments.filter(
+            (record) =>
+              record.datasetVersionId === sourceExperiment.datasetVersionId &&
+              record.experimentId !== sourceExperiment.experimentId
+          )
         : [],
-    [evalJobs, sourceEvalJob]
+    [experiments, sourceExperiment]
   );
 
   useEffect(() => {
-    if (!selectedSourceEvalId && evalJobs[0]) {
-      setEvalJobId(evalJobs[0].evalJobId);
+    if (!selectedSourceExperimentId && experiments[0]) {
+      setExperimentId(experiments[0].experimentId);
     }
-  }, [evalJobs, selectedSourceEvalId]);
+  }, [experiments, selectedSourceExperimentId]);
 
   useEffect(() => {
-    if (candidateEvalJobId) {
+    if (candidateExperimentId) {
       return;
     }
 
-    if (baselineEvalJobId && baselineOptions.some((job) => job.evalJobId === baselineEvalJobId)) {
+    if (baselineExperimentId && baselineOptions.some((record) => record.experimentId === baselineExperimentId)) {
       return;
     }
 
-    setBaselineEvalJobId("");
-  }, [baselineEvalJobId, baselineOptions, candidateEvalJobId]);
+    setBaselineExperimentId("");
+  }, [baselineExperimentId, baselineOptions, candidateExperimentId]);
 
   const handleCreateExport = async () => {
-    if (!selectedSourceEvalId) {
-      setActionMessage("Select an eval source before creating an export.");
+    if (!selectedSourceExperimentId) {
+      setActionMessage("Select an experiment source before creating an export.");
       return;
     }
 
     const exported = await createExportMutation.mutateAsync({
-      evalJobId: candidateEvalJobId ? null : evalJobId || null,
-      baselineEvalJobId: baselineEvalJobId || null,
-      candidateEvalJobId: candidateEvalJobId || null,
+      experimentId: candidateExperimentId ? null : experimentId || null,
+      baselineExperimentId: baselineExperimentId || null,
+      candidateExperimentId: candidateExperimentId || null,
+      datasetSampleIds: previewRows.map((run) => run.datasetSampleId),
       judgements: judgementFilter ? [judgementFilter as SampleJudgement] : null,
       errorCodes: errorCodeFilter ? [errorCodeFilter] : null,
       compareOutcomes: compareOutcomeFilter ? [compareOutcomeFilter as CompareOutcome] : null,
@@ -277,18 +299,18 @@ export default function ExportsWorkspace({
           <p className="page-eyebrow">Offline handoff</p>
           <h2 className="section-title">Exports</h2>
           <p className="kicker">
-            Convert eval sample results into RL-ready offline files. Export only the samples that survived compare,
-            curation, and provenance checks.
+            Convert experiment runs into RL-ready offline files. Export only the rows that survive compare, curation,
+            and lineage filters.
           </p>
           <div className="page-tag-list">
             <span className="page-tag">
               Exports <strong>{(exportsQuery.data ?? []).length}</strong>
             </span>
             <span className="page-tag">
-              Source dataset <strong>{sourceEvalJob?.dataset ?? "none"}</strong>
+              Source dataset <strong>{sourceExperiment?.datasetName ?? "none"}</strong>
             </span>
             <span className="page-tag">
-              Source samples <strong>{samples.length}</strong>
+              Source runs <strong>{runs.length}</strong>
             </span>
           </div>
         </div>
@@ -296,12 +318,14 @@ export default function ExportsWorkspace({
           <div className="page-info-item">
             <span className="page-info-label">Current source</span>
             <span className="page-info-value">
-              {sourceEvalJob ? `${sourceEvalJob.agentId} on ${sourceEvalJob.dataset}` : "Waiting for selection"}
+              {sourceExperiment
+                ? `${sourceExperiment.publishedAgentId} on ${sourceExperiment.datasetName}`
+                : "Waiting for selection"}
             </span>
             <p className="page-info-detail">
-              {candidateEvalJobId
+              {candidateExperimentId
                 ? "Compare-aware export mode is active."
-                : "Export rows directly from one eval job or switch into compare-aware mode by providing a candidate eval."}
+                : "Export rows directly from one experiment or switch into compare-aware mode by selecting a candidate."}
             </p>
           </div>
         </div>
@@ -323,7 +347,7 @@ export default function ExportsWorkspace({
           <div className="surface-header">
             <div>
               <p className="surface-kicker">Create export</p>
-              <h3 className="panel-title">Filter eval samples into a training file</h3>
+              <h3 className="panel-title">Filter experiment runs into a training file</h3>
               <p className="muted-note">
                 This is the Atlas handoff surface. Phoenix explains failures; Atlas decides what leaves the platform.
               </p>
@@ -335,48 +359,52 @@ export default function ExportsWorkspace({
               <div className={styles.sectionHeading}>
                 <h4>Source selection</h4>
                 <p className="muted-note">
-                  Choose one eval for direct export, or switch into candidate-plus-baseline compare mode.
+                  Choose one experiment for direct export, or switch into candidate-plus-baseline compare mode.
                 </p>
               </div>
 
               <div className={styles.formGrid}>
-                <Field label="Eval job" htmlFor="export-eval">
-                  <select id="export-eval" value={evalJobId} onChange={(event) => setEvalJobId(event.target.value)}>
-                    <option value="">Select an eval job</option>
-                    {evalJobs.map((job) => (
-                      <option key={job.evalJobId} value={job.evalJobId}>
-                        {job.agentId} · {job.dataset}
+                <Field label="Experiment" htmlFor="export-experiment">
+                  <select
+                    id="export-experiment"
+                    value={experimentId}
+                    onChange={(event) => setExperimentId(event.target.value)}
+                  >
+                    <option value="">Select an experiment</option>
+                    {experiments.map((record) => (
+                      <option key={record.experimentId} value={record.experimentId}>
+                        {record.publishedAgentId} · {record.datasetName}
                       </option>
                     ))}
                   </select>
                 </Field>
 
-                <Field label="Candidate eval" htmlFor="export-candidate">
+                <Field label="Candidate experiment" htmlFor="export-candidate">
                   <select
                     id="export-candidate"
-                    value={candidateEvalJobId}
-                    onChange={(event) => setCandidateEvalJobId(event.target.value)}
+                    value={candidateExperimentId}
+                    onChange={(event) => setCandidateExperimentId(event.target.value)}
                   >
                     <option value="">No candidate compare</option>
-                    {evalJobs.map((job) => (
-                      <option key={job.evalJobId} value={job.evalJobId}>
-                        {job.agentId} · {job.dataset}
+                    {experiments.map((record) => (
+                      <option key={record.experimentId} value={record.experimentId}>
+                        {record.publishedAgentId} · {record.datasetName}
                       </option>
                     ))}
                   </select>
                 </Field>
 
-                <Field label="Baseline eval" htmlFor="export-baseline">
+                <Field label="Baseline experiment" htmlFor="export-baseline">
                   <select
                     id="export-baseline"
-                    value={baselineEvalJobId}
-                    onChange={(event) => setBaselineEvalJobId(event.target.value)}
-                    disabled={!candidateEvalJobId && !evalJobId}
+                    value={baselineExperimentId}
+                    onChange={(event) => setBaselineExperimentId(event.target.value)}
+                    disabled={!candidateExperimentId && !experimentId}
                   >
                     <option value="">No baseline compare</option>
-                    {baselineOptions.map((job) => (
-                      <option key={job.evalJobId} value={job.evalJobId}>
-                        {job.agentId} · {job.createdAt}
+                    {baselineOptions.map((record) => (
+                      <option key={record.experimentId} value={record.experimentId}>
+                        {record.publishedAgentId} · {record.createdAt}
                       </option>
                     ))}
                   </select>
@@ -447,11 +475,7 @@ export default function ExportsWorkspace({
                 </Field>
 
                 <Field label="Slice" htmlFor="export-slice">
-                  <select
-                    id="export-slice"
-                    value={sliceFilter}
-                    onChange={(event) => setSliceFilter(event.target.value)}
-                  >
+                  <select id="export-slice" value={sliceFilter} onChange={(event) => setSliceFilter(event.target.value)}>
                     <option value="">All slices</option>
                     {sliceOptions.map((option) => (
                       <option key={option} value={option}>
@@ -477,7 +501,7 @@ export default function ExportsWorkspace({
                     id="export-compare"
                     value={compareOutcomeFilter}
                     onChange={(event) => setCompareOutcomeFilter(event.target.value)}
-                    disabled={!candidateEvalJobId || !baselineEvalJobId}
+                    disabled={!candidateExperimentId || !baselineExperimentId}
                   >
                     <option value="">All compare outcomes</option>
                     <option value="improved">improved</option>
@@ -510,7 +534,7 @@ export default function ExportsWorkspace({
                       checked={exportEligibleOnly}
                       onChange={(event) => setExportEligibleOnly(event.target.checked)}
                     />{" "}
-                    only include export-eligible samples
+                    only include export-eligible rows
                   </label>
                 </Field>
               </div>
@@ -519,14 +543,18 @@ export default function ExportsWorkspace({
 
           <div className={styles.handoffLine}>
             <span>
-              Mode <strong>{candidateEvalJobId ? "compare" : "single eval"}</strong>
+              Mode <strong>{candidateExperimentId ? "compare" : "single experiment"}</strong>
             </span>
             <span>
               Source{" "}
-              <strong>{sourceEvalJob ? `${sourceEvalJob.agentId} on ${sourceEvalJob.dataset}` : "not selected"}</strong>
+              <strong>
+                {sourceExperiment
+                  ? `${sourceExperiment.publishedAgentId} on ${sourceExperiment.datasetName}`
+                  : "not selected"}
+              </strong>
             </span>
             <span>
-              Preview <strong>{previewRows.length}</strong> of {samples.length || 0}
+              Preview <strong>{previewRows.length}</strong> of {runs.length || 0}
             </span>
             <span>
               Review <strong>{previewReviewCount}</strong> rows
@@ -547,7 +575,7 @@ export default function ExportsWorkspace({
               <p className="surface-kicker">Export history</p>
               <h3 className="panel-title">Previously generated offline files</h3>
               <p className="muted-note">
-                Each export records the source eval and the filter summary used to produce it.
+                Each export records the source experiment and the filter summary used to produce it.
               </p>
             </div>
           </div>
@@ -578,12 +606,12 @@ export default function ExportsWorkspace({
                     </td>
                     <td>
                       <div className={styles.historyMeta}>
-                        <span className="muted-note">eval {record.sourceEvalJobId || "-"}</span>
-                        {record.candidateEvalJobId ? (
-                          <span className="muted-note">candidate {record.candidateEvalJobId}</span>
+                        <span className="muted-note">experiment {record.sourceExperimentId || "-"}</span>
+                        {record.candidateExperimentId ? (
+                          <span className="muted-note">candidate {record.candidateExperimentId}</span>
                         ) : null}
-                        {record.baselineEvalJobId ? (
-                          <span className="muted-note">baseline {record.baselineEvalJobId}</span>
+                        {record.baselineExperimentId ? (
+                          <span className="muted-note">baseline {record.baselineExperimentId}</span>
                         ) : null}
                       </div>
                     </td>

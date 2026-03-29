@@ -23,9 +23,12 @@ describe("Agents workspace", () => {
         name: "Basic",
         description: "Ready OpenAI smoke agent.",
         framework: "openai-agents-sdk",
+        frameworkType: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
         entrypoint: "app.agent_plugins.basic:build_agent",
         defaultModel: "gpt-5.4-mini",
         tags: ["example", "smoke"],
+        capabilities: ["submit", "cancel"],
         publishState: "published",
         validationStatus: "valid",
         validationIssues: [],
@@ -36,16 +39,20 @@ describe("Agents workspace", () => {
           buildStatus: "ready",
           sourceFingerprint: "basic-fingerprint-123456",
           artifactRef: "source://basic@basic-fingerprint-123456"
-        }
+        },
+        provenance: null
       },
       {
         agentId: "customer_service",
         name: "Customer Service",
         description: "Published agent with local changes.",
         framework: "openai-agents-sdk",
+        frameworkType: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
         entrypoint: "app.agent_plugins.customer_service:build_agent",
         defaultModel: "gpt-5.4-mini",
         tags: ["support", "ops"],
+        capabilities: ["submit", "cancel"],
         publishState: "published",
         validationStatus: "valid",
         validationIssues: [],
@@ -56,35 +63,44 @@ describe("Agents workspace", () => {
           buildStatus: "ready",
           sourceFingerprint: "customer-fingerprint-123456",
           artifactRef: "source://customer_service@customer-fingerprint-123456"
-        }
+        },
+        provenance: null
       },
       {
         agentId: "tools",
         name: "Tools",
         description: "Draft tool agent.",
         framework: "openai-agents-sdk",
+        frameworkType: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
         entrypoint: "app.agent_plugins.tools:build_agent",
         defaultModel: "gpt-5.4-mini",
         tags: ["example", "tools"],
+        capabilities: ["submit"],
         publishState: "draft",
         validationStatus: "valid",
         validationIssues: [],
         lastValidatedAt: "2026-03-26T09:00:00Z",
-        hasUnpublishedChanges: false
+        hasUnpublishedChanges: false,
+        provenance: null
       },
       {
         agentId: "unsupported",
         name: "Unsupported",
         description: "Unsupported framework plugin.",
         framework: "mcp",
+        frameworkType: "mcp",
+        frameworkVersion: "0.1.0",
         entrypoint: "app.agent_plugins.unsupported:build_agent",
         defaultModel: "gpt-5.4-mini",
         tags: [],
+        capabilities: [],
         publishState: "draft",
         validationStatus: "invalid",
         validationIssues: [{ code: "framework_unsupported", message: "framework 'mcp' is not supported for discovery" }],
         lastValidatedAt: "2026-03-26T09:00:00Z",
-        hasUnpublishedChanges: false
+        hasUnpublishedChanges: false,
+        provenance: null
       }
     ];
 
@@ -107,7 +123,7 @@ describe("Agents workspace", () => {
     });
   });
 
-  it("groups discovered agents and routes published agents into evals", async () => {
+  it("groups discovered agents and routes published agents into experiments", async () => {
     renderWithQueryClient(<AgentsWorkspace />);
 
     expect(await screen.findByRole("heading", { name: "Agents" })).toBeInTheDocument();
@@ -116,7 +132,10 @@ describe("Agents workspace", () => {
     expect(await screen.findByText("Ready OpenAI smoke agent.")).toBeInTheDocument();
     expect(screen.getByText("Published agent with local changes.")).toBeInTheDocument();
     expect(screen.getByText("framework 'mcp' is not supported for discovery")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Run eval/i })[0]).toHaveAttribute("href", "/evals?agent=basic");
+    expect(screen.getAllByRole("link", { name: /Create experiment/i })[0]).toHaveAttribute(
+      "href",
+      "/experiments?agent=basic"
+    );
     expect(screen.getByText("source://basic@basic-fingerprint-123456")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Framework"), { target: { value: "mcp" } });

@@ -50,7 +50,7 @@ class FakePhoenixTraceExporter:
             project_url=build_phoenix_project_url(
                 base_url=self.base_url,
                 project_id=self.project_id,
-                eval_job_id=first_event.metadata.eval_job_id if first_event.metadata else None,
+                experiment_id=first_event.metadata.experiment_id if first_event.metadata else None,
                 run_id=first_event.run_id,
             ),
         )
