@@ -1,17 +1,39 @@
 # Agent Atlas Backend
 
-The backend is the control plane for the self-hosted Agent Atlas workbench. It provides the HTTP API, persists local state, queues and executes runs, ingests traces, manages datasets, and produces export artifacts.
+The backend is the control plane for Agent Atlas. It provides the HTTP API, persists Atlas-owned
+state, executes runs through the worker, manages repository-local agent publication, coordinates
+datasets and eval jobs, and produces export artifacts.
 
-For the full-stack workflow, start from the repository root README. Use this document when you are working directly on the backend service.
+Strategically, the backend is moving toward a split where:
+
+- Atlas remains the source of truth for control-plane state and provenance
+- Phoenix becomes the preferred backend for raw trace and evaluation observability
+- immutable artifacts or images and runner orchestration become the execution handoff
+- RL integration starts with offline export contracts
+
+For the full-stack workflow, start from the repository root README. Use this document when you are
+working directly on the backend service.
 
 ## What This Service Owns
 
+Today:
+
+- repository-local agent discovery and publication
 - run creation, lifecycle tracking, and execution dispatch
 - background job processing through the worker
 - trajectory and trace ingestion and normalization
 - dataset CRUD
+- eval job fan-out and aggregation
 - artifact export metadata and download flow
 - local development defaults backed by SQLite
+
+Directionally, the backend will also own:
+
+- framework-aware agent integration contracts
+- artifact or image provenance attached to published agents and runs
+- runner backend selection and execution control
+- Phoenix-backed trace and eval integration behind backend-owned ports
+- RL-ready export contracts
 
 ## Architecture
 
@@ -22,7 +44,8 @@ This backend is a modular monolith built with FastAPI.
 - `app/infrastructure/`: repositories and outbound adapters
 - `app/bootstrap/container.py`: composition root
 
-Read the full architecture rules in [ARCHITECTURE.md](./ARCHITECTURE.md). Contributor and layering guidance lives in [AGENTS.md](./AGENTS.md).
+Read the full architecture rules in [ARCHITECTURE.md](./ARCHITECTURE.md). Contributor and layering
+guidance lives in [AGENTS.md](./AGENTS.md).
 
 ## Local Setup
 
@@ -48,13 +71,25 @@ Local defaults:
 
 ## Runtime Model
 
-- API requests create run records immediately and enqueue work in SQLite-backed local state.
-- `app.worker` is a separate process that claims queued jobs and executes them.
-- Run both `make run-api` and `make run-worker` during development if you want runs to advance past `queued`.
+Current runtime model:
+
+- API requests create run records immediately and enqueue work in local state
+- `app.worker` is a separate process that claims queued jobs and executes them
+- run both `make run-api` and `make run-worker` during development if you want runs to advance past
+  `queued`
+
+Planned runtime direction:
+
+- published agents remain repo-local and governed by Atlas
+- execution resolves from published snapshot toward immutable artifact or image references
+- runner orchestration is added behind infrastructure ports
+- raw trace and evaluation observability move toward Phoenix without making Phoenix the control
+  plane
 
 ## Dependency Management
 
-`uv` is the package manager for the backend. `pyproject.toml` and `uv.lock` are the source of truth.
+`uv` is the package manager for the backend. `pyproject.toml` and `uv.lock` are the source of
+truth.
 
 Main install paths:
 
@@ -74,22 +109,27 @@ The production image installs from `pyproject.toml` via [Dockerfile](./Dockerfil
 
 Copy [`.env.example`](./.env.example) to `.env`.
 
-Important settings:
+Important settings currently wired in code:
 
 - `AGENT_ATLAS_API_PREFIX`: API route prefix
 - `AGENT_ATLAS_APP_NAME`: name shown in docs and metadata
 - `AGENT_ATLAS_ALLOWED_ORIGINS`: allowed browser origins for frontend access
-- `AGENT_ATLAS_RUNNER_MODE`: execution carrier selection (`auto`, `local`, `docker`, `mock`)
 - `AGENT_ATLAS_RUNTIME_MODE`: provider execution behavior (`auto`, `live`, `mock`)
 - `AGENT_ATLAS_DATABASE_URL`: SQLite database location
 - `AGENT_ATLAS_SEED_DEMO`: whether to seed demo data on startup
-- `AGENT_ATLAS_RUNNER_IMAGE`: Docker image used when `AGENT_ATLAS_RUNNER_MODE=docker`
 - `AGENT_ATLAS_OPENAI_API_KEY` or `OPENAI_API_KEY`: credentials for live mode
+- `AGENT_ATLAS_WORKER_NAME`: optional worker name override
+- `AGENT_ATLAS_WORKER_POLL_INTERVAL_SECONDS`: worker polling interval
+- `AGENT_ATLAS_WORKER_TASK_LEASE_SECONDS`: worker task lease duration
+
+Planned settings such as runner backend selection, artifact build controls, or Phoenix OTLP
+configuration should not be treated as live product behavior until they are backed by code.
 
 Runtime mode notes:
 
 - `AGENT_ATLAS_RUNTIME_MODE=mock`: always simulate execution
-- `AGENT_ATLAS_RUNTIME_MODE=auto`: use live execution when an API key is configured, otherwise fallback to mock
+- `AGENT_ATLAS_RUNTIME_MODE=auto`: use live execution when an API key is configured, otherwise
+  fallback to mock
 - `AGENT_ATLAS_RUNTIME_MODE=live`: require a real API key and disable implicit demo behavior
 
 ## Developer Commands
@@ -123,14 +163,38 @@ Additional focused commands:
 Current backend endpoints include:
 
 - Health: `GET /health`
-- Runs: `GET /api/v1/runs`, `POST /api/v1/runs`, `GET /api/v1/runs/{run_id}`
-- Trajectory: `GET /api/v1/runs/{run_id}/trajectory`
-- Datasets: `GET /api/v1/datasets`, `POST /api/v1/datasets`
-- Artifacts: `POST /api/v1/artifacts/export`, `GET /api/v1/artifacts/{artifact_id}`
-- Traces: `POST /api/v1/traces/ingest`
+- Agents:
+  - `GET /api/v1/agents`
+  - `GET /api/v1/agents/discovered`
+  - `POST /api/v1/agents/{agent_id}/publish`
+  - `POST /api/v1/agents/{agent_id}/unpublish`
+- Runs:
+  - `GET /api/v1/runs`
+  - `POST /api/v1/runs`
+  - `GET /api/v1/runs/{run_id}`
+  - `POST /api/v1/runs/{run_id}/terminate`
+  - `GET /api/v1/runs/{run_id}/trajectory`
+  - `GET /api/v1/runs/{run_id}/traces`
+- Datasets:
+  - `GET /api/v1/datasets`
+  - `POST /api/v1/datasets`
+- Eval jobs:
+  - `GET /api/v1/eval-jobs`
+  - `POST /api/v1/eval-jobs`
+  - `GET /api/v1/eval-jobs/{eval_job_id}`
+  - `GET /api/v1/eval-jobs/{eval_job_id}/samples`
+- Artifacts:
+  - `GET /api/v1/artifacts`
+  - `POST /api/v1/artifacts/export`
+  - `GET /api/v1/artifacts/{artifact_id}`
+- Traces:
+  - `POST /api/v1/traces/normalize`
+  - `POST /api/v1/traces/ingest`
 
 Sample datasets for manual import live under `backend/datasets/`. The seeded `fulfillment_ops`
-dataset is also available as [`backend/datasets/fulfillment-eval-v1.jsonl`](/Users/leslie/PycharmProjects/agent-atlas/backend/datasets/fulfillment-eval-v1.jsonl) so you can upload it through the UI or load it into the database without relying on demo seeding.
+dataset is also available as
+[`backend/datasets/fulfillment-eval-v1.jsonl`](/Users/leslie/PycharmProjects/agent-atlas/backend/datasets/fulfillment-eval-v1.jsonl)
+so you can upload it through the UI or load it into the database without relying on demo seeding.
 
 ## Verification
 

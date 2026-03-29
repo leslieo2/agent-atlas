@@ -16,6 +16,11 @@ Allowed responsibilities:
 - `src/entities/`: domain models, API clients, mappers, entity-scoped query hooks, and entity-level presentation helpers.
 - `src/shared/`: low-level UI primitives and generic utilities with no product workflow knowledge.
 
+External backend rule:
+
+- observability or evaluation vendors such as Phoenix stay behind backend-owned APIs, summaries, and deep links
+- frontend entities should not call vendor APIs directly
+
 ## Current Conventions
 
 - Route files should stay thin and delegate immediately to a widget.
@@ -40,4 +45,5 @@ Allowed responsibilities:
 - Keep App Router as the routing layer.
 - Keep page-level orchestration local to widgets.
 - Use TanStack Query for server state, cache keys, mutations, and invalidation across workspaces.
+- Keep the backend as the integration boundary for external observability and eval systems.
 - Do not introduce a separate global client store unless state starts crossing multiple workspaces in ways React Query cannot model cleanly.

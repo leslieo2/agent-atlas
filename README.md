@@ -1,30 +1,71 @@
 # Agent Atlas
 
-Agent Atlas is a self-hosted agent workbench for running, observing, and evaluating agent workflows on your own infrastructure. It combines a FastAPI backend that manages runs, traces, datasets, artifacts, and execution orchestration with a Next.js frontend for exploring and operating that workflow.
+Agent Atlas is a self-hosted control plane for turning repository-local agents into governed
+runtime assets and RL-ready execution data.
+
+It combines:
+
+- a FastAPI backend that owns discovery, publication, run control, datasets, eval linkage,
+  provenance, and export contracts
+- a Next.js frontend that exposes the operator-facing control plane
+- an external-observability-first direction where Phoenix is the preferred backend for raw traces,
+  prompt and experiment workflows, and evaluation-oriented debugging
 
 ## What Is In This Repository
 
-- `backend/`: FastAPI service, worker process, feature modules, backend tests, and backend-specific tooling.
-- `frontend/`: Next.js App Router application, layered product code, and frontend tests.
-- `Makefile`: root entrypoint for installing dependencies and running the common full-stack workflows.
+- `backend/`: FastAPI service, worker process, feature modules, backend tests, and backend-specific
+  tooling
+- `frontend/`: Next.js App Router application, layered product code, and frontend tests
+- `Makefile`: root entrypoint for installing dependencies and running the common full-stack
+  workflows
 
 ## Current Capability Snapshot
 
-Current capabilities cover the core workbench loop:
+What exists today:
 
-- create and inspect runs
-- process queued work through a background worker
-- ingest and view trajectory and trace data
-- manage datasets
-- export artifacts
-- operate the workbench UI through the run dashboard, trajectory viewer, and playground
+- repository-local agent discovery and publish / unpublish workflow
+- worker-backed manual run execution
+- run inspection through dashboard, trajectory viewer, and trace endpoints
+- dataset management and dataset-driven eval jobs
+- artifact export for downstream analysis
 
-At the API level, the backend currently exposes health, runs, trajectories, datasets, artifacts, and trace ingestion endpoints.
+What is directional, not yet shipped:
+
+- immutable artifact or image-backed publication
+- Docker or Kubernetes runner orchestration
+- Phoenix-backed trace and eval storage
+- RL-ready export contracts beyond the current artifact schema
+
+## Product Direction
+
+Agent Atlas is not trying to become another hosted observability product.
+
+The product boundary is:
+
+- Agent Atlas owns repository-local discovery, publish policy, run control, provenance, and export
+  semantics
+- Phoenix is the preferred external backend for trace-heavy observability and evaluation workflows
+- RL integration starts with offline export first, not direct training orchestration
+
+This means the long-term shape is:
+
+- repo-local discovery and validation
+- framework-aware publication
+- artifact and image provenance
+- runner orchestration
+- Phoenix-first observability and eval integration
+- RL-ready offline export
 
 ## Architecture At A Glance
 
-- Backend: a modular monolith built with FastAPI. HTTP routes stay thin, feature logic lives under `backend/app/modules`, infrastructure adapters live under `backend/app/infrastructure`, and wiring happens in `backend/app/bootstrap/container.py`.
-- Frontend: a layered Next.js App Router app. Route entrypoints live in `frontend/app`, while product code follows `app -> widgets -> features -> entities -> shared` in `frontend/src`.
+- Backend: a modular monolith built with FastAPI. HTTP routes stay thin, feature logic lives under
+  `backend/app/modules`, infrastructure adapters live under `backend/app/infrastructure`, and
+  wiring happens in `backend/app/bootstrap/container.py`.
+- Frontend: a layered Next.js App Router app. Route entrypoints live in `frontend/app`, while
+  product code follows `app -> widgets -> features -> entities -> shared` in `frontend/src`.
+- External backend direction: raw tracing and evaluation observability are intended to move behind
+  infrastructure adapters so Atlas stays the control plane even when Phoenix becomes the preferred
+  backend.
 
 Use the subsystem docs for the full architecture rules:
 
@@ -69,7 +110,8 @@ Stop all three development processes together with `Ctrl-C`.
 - the backend worker process
 - the frontend development server
 
-The worker is required if you want queued runs to progress beyond `queued`. If you only start the API, run records can still be created, but background execution will not advance.
+The worker is required if you want queued runs to progress beyond `queued`. If you only start the
+API, run records can still be created, but background execution will not advance.
 
 Useful root commands:
 
@@ -104,17 +146,18 @@ What they do:
 
 Copy `backend/.env.example` to `backend/.env`.
 
-Key settings:
+Key settings currently wired in the backend:
 
 - `AGENT_ATLAS_API_PREFIX`: API route prefix
 - `AGENT_ATLAS_APP_NAME`: application name shown in docs and metadata
 - `AGENT_ATLAS_ALLOWED_ORIGINS`: allowed browser origins for local frontend access
-- `AGENT_ATLAS_RUNNER_MODE`: execution carrier selection (`auto`, `local`, `docker`, `mock`)
 - `AGENT_ATLAS_RUNTIME_MODE`: provider execution behavior (`auto`, `live`, `mock`)
 - `AGENT_ATLAS_DATABASE_URL`: SQLite database location for local state
 - `AGENT_ATLAS_SEED_DEMO`: whether demo data is seeded on startup
-- `AGENT_ATLAS_RUNNER_IMAGE`: Docker image used for docker-based execution
 - `AGENT_ATLAS_OPENAI_API_KEY` or `OPENAI_API_KEY`: OpenAI credentials for live mode
+
+Planned infrastructure settings such as runner backend selection or Phoenix OTLP configuration
+should not be treated as shipped until they are backed by code and documented in subsystem docs.
 
 ### Frontend
 
@@ -122,11 +165,13 @@ Copy `frontend/.env.example` to `frontend/.env.local`.
 
 Key setting:
 
-- `NEXT_PUBLIC_API_BASE_URL`: browser-visible backend base URL, defaulting to `http://127.0.0.1:8000`
+- `NEXT_PUBLIC_API_BASE_URL`: browser-visible backend base URL, defaulting to
+  `http://127.0.0.1:8000`
 
 ## Work By Subproject
 
-Use the root workflow when you want the standard local stack. Drop into a subproject when you need more focused commands.
+Use the root workflow when you want the standard local stack. Drop into a subproject when you need
+more focused commands.
 
 ### Backend
 
@@ -169,13 +214,13 @@ npm run ci
 
 Additional frontend commands:
 
-- `npm run format`: format frontend files with Prettier
-- `npm run format:check`: check formatting without rewriting files
-- `npm run lint:fix`: auto-fix lint issues where possible
-- `npm run test:coverage`: run Vitest with coverage
-- `npm run test:e2e`: run Playwright end-to-end tests against a local frontend server
-- `npm run verify`: run lint, typecheck, and coverage tests
-- `npm run check`: run format check, lint, and typecheck
+- `npm run format`
+- `npm run format:check`
+- `npm run lint:fix`
+- `npm run test:coverage`
+- `npm run test:e2e`
+- `npm run verify`
+- `npm run check`
 
 ## Testing And CI
 
@@ -200,8 +245,10 @@ If you are working in only one subproject, use the subsystem-local CI entrypoint
 
 ## Where To Go Next
 
+- Product direction and boundaries: [prd.md](prd.md), [roadmap.md](roadmap.md)
 - Backend runtime, API surface, and environment details: [backend/README.md](backend/README.md)
 - Backend architecture and dependency rules: [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
 - Frontend setup, testing, and product surfaces: [frontend/README.md](frontend/README.md)
 - Frontend architecture rules: [frontend/ARCHITECTURE.md](frontend/ARCHITECTURE.md)
-- Repository conventions for contributors and agents: [backend/AGENTS.md](backend/AGENTS.md), [frontend/AGENTS.md](frontend/AGENTS.md)
+- Repository conventions for contributors and agents: [backend/AGENTS.md](backend/AGENTS.md),
+  [frontend/AGENTS.md](frontend/AGENTS.md)

@@ -1,9 +1,9 @@
 # Backend Architecture
 
-This document describes the current backend architecture for Agent Atlas.
+This document describes the backend architecture for Agent Atlas.
 
-It is intentionally practical. The goal is to explain the dependency rules that the codebase
-actually follows today, not to describe a hypothetical future design.
+It stays intentionally practical. The goal is to explain the dependency rules that the codebase
+follows today and the extension rules that should guide the next stage of work.
 
 ## Summary
 
@@ -36,23 +36,26 @@ app/bootstrap/container -> app/bootstrap/wiring/* -> app/modules/* + app/infrast
 app/infrastructure/* -> app/modules/* application ports and domain models
 ```
 
-Business logic belongs in feature modules. Infrastructure implements ports owned by those
-modules. Routes handle HTTP concerns only.
+Business logic belongs in feature modules. Infrastructure implements ports owned by those modules.
+Routes handle HTTP concerns only.
 
 The module boundaries are enforced by architecture tests under `backend/tests/unit/`.
 
 ## Design Goals
 
-This architecture is optimized for the current product shape:
+This architecture is optimized for the current and next-stage product shape:
 
 - a single control-plane backend
 - clear feature ownership
 - low ceremony for a small team
-- explicit boundaries for runs, traces, agents, evals, datasets, and exports
-- the ability to swap infrastructure implementations without moving business logic
+- explicit boundaries for agents, runs, traces, evals, datasets, and exports
+- the ability to swap runtime, runner, queue, and observability implementations without moving
+  business logic out of modules
+- a clean split between Atlas-owned control-plane state and external observability backends such as
+  Phoenix
 
-This is not a microservice architecture. For v1, the backend should stay a single deployable
-service.
+This is not a microservice architecture. The backend should stay a single deployable service unless
+that constraint becomes the actual bottleneck.
 
 ## Layer Model
 
@@ -73,6 +76,7 @@ Non-responsibilities:
 - business policy
 - persistence logic
 - runtime integration details
+- vendor-specific observability SDK wiring
 
 ### 1a. Contracts layer
 
@@ -104,9 +108,15 @@ Responsibilities:
 Examples in the current codebase:
 
 - `RunCommands`, `RunQueries`, `RunExecutionService`, `RunSubmissionService`
-- `TraceCommands`, `TraceIngestionWorkflow`
+- `TraceCommands`, `RunTelemetryIngestionService`
 - `EvalJobCommands`, `EvalExecutionService`, `EvalAggregationService`
 - `AgentDiscoveryQueries`, `AgentPublicationCommands`
+
+Planned additions should follow the same rule:
+
+- framework registry orchestration stays in feature-owned application code
+- runner selection stays behind application-owned ports
+- Phoenix or OTLP clients stay in infrastructure
 
 ### 3. Domain layer
 
@@ -126,6 +136,7 @@ Non-responsibilities:
 - task queue implementations
 - SDK-specific runtime code
 - filesystem or package scanning
+- vendor SDK clients
 
 Not every feature needs a rich domain layer. Some modules are mostly application-oriented and use
 domain models only as contracts.
@@ -138,27 +149,29 @@ Responsibilities:
 
 - repository implementations
 - runtime adapters
-- export adapters
+- artifact export adapters
+- future artifact build and image-resolution adapters
+- future runner adapters
 - trace projection adapters
 - task queue implementations
 - cross-feature gateway adapters
 - SDK-specific agent loading and validation
+- future Phoenix and OTLP export adapters
 
 Infrastructure may depend on module ports and domain models. The reverse must not happen.
 
 #### Repositories vs adapters
 
-`app/infrastructure/repositories/` contains persistence implementations:
+`app/infrastructure/repositories/` contains persistence implementations for Atlas-owned state:
 
-- `StateRunRepository`
-- `StateTrajectoryRepository`
-- `StateTraceRepository`
-- `StateDatasetRepository`
-- `StateEvalJobRepository`
-- `StateEvalSampleResultRepository`
-- `StatePublishedAgentRepository`
-- `StateArtifactRepository`
-- `StateSystemStatus`
+- runs
+- trajectories
+- traces
+- datasets
+- eval jobs and sample results
+- published agents
+- artifacts
+- health and system status
 
 `app/infrastructure/adapters/` contains other infrastructure implementations that are not simple
 record persistence:
@@ -173,14 +186,14 @@ record persistence:
 - artifact export adapter in `artifacts.py`
 - filesystem agent discovery and runnable catalog assembly in `agent_catalog.py`
 
-Adapter organization follows the same rule:
+Future external integrations should follow the same pattern:
 
 - keep SDK-agnostic or feature-agnostic adapter services near `app/infrastructure/adapters/`
-- keep vendor-specific code in nested packages such as
-  `app/infrastructure/adapters/openai_agents/` or `app/infrastructure/adapters/langchain/`
+- keep vendor-specific code in nested packages such as `app/infrastructure/adapters/openai_agents/`
+  or a future `app/infrastructure/adapters/phoenix/`
 - keep persistence adapters under `app/infrastructure/repositories/`
 - do not mix generic orchestration with SDK object validation, SDK response parsing, or
-  provider-specific runtime setup in the same file
+  provider-specific setup in the same file
 
 ### 5. Composition root
 
@@ -200,16 +213,7 @@ Responsibilities:
 
 `container.py` remains the only public composition root. The lower-level assembly details live in
 `bootstrap/wiring/`, which groups object graph construction by concern and keeps each module's
-bundle type next to its builder:
-
-- `infrastructure.py`: repositories and low-level adapters
-- `agents.py`, `traces.py`, `datasets.py`, `runs.py`, `evals.py`, `artifacts.py`, `health.py`:
-  feature wiring
-- `worker.py`: worker wiring
-
-`bootstrap/providers/` contains thin dependency-provider functions such as
-`get_container().runs.run_queries`, so route imports do not need to point back into
-`container.py`.
+bundle type next to its builder.
 
 ## Feature Modules
 
@@ -223,8 +227,10 @@ Owns:
 - run creation and termination
 - submission of queued run work
 - runtime execution workflow
+- runner-facing execution control contracts
 - run-owned execution telemetry read models such as trajectory
 - run-scoped query aggregation, including trace lookup for run detail views
+- execution provenance such as backend, artifact, and failure metadata
 
 Examples:
 
@@ -240,15 +246,17 @@ Owns:
 
 - trace ingestion workflow
 - trace normalization contracts
-- trace span projection
-- trace persistence port
+- trace span persistence contracts
+- collaboration contracts for trace projection and raw trace retrieval
 
 Examples:
 
 - `TraceCommands`
-- `TraceIngestionWorkflow`
-- `TraceProjectorPort`
 - `TraceRepository`
+- `TraceIngestionPort`
+
+When Phoenix integration lands, the module should still own the feature-level contracts. Phoenix
+clients themselves remain in infrastructure adapters.
 
 ### `agents`
 
@@ -258,6 +266,7 @@ Owns:
 - published agent metadata
 - runnable agent catalog contracts
 - agent framework metadata used by run submission
+- future artifact or image metadata attached to publication
 
 Examples:
 
@@ -274,7 +283,7 @@ Owns:
 - eval execution workflow
 - eval aggregation and scoring
 - eval-owned sample contracts for scoring and run fan-out
-- contracts for reading run outcomes
+- contracts for reading run outcomes and comparison summaries
 
 Examples:
 
@@ -290,6 +299,7 @@ Owns:
 - export use cases
 - artifact metadata
 - artifacts-owned export views for runs and trajectories
+- future RL-ready export contracts
 
 Examples:
 
@@ -334,11 +344,37 @@ Examples:
 - `EvalRunGatewayPort` belongs to `evals`, because eval execution needs to fan out runs
 - `TaskQueuePort` lives in `shared`, because it is a real cross-feature system protocol
 
-This avoids turning one feature module into a hidden shared layer.
+For upcoming work:
+
+- runner selection should stay behind a feature-owned application port, not leak vendor or carrier
+  code into use cases
+- Phoenix integration should sit behind feature-owned trace and eval read/write ports
+- artifact or image build and resolution should stay behind infrastructure adapters implementing
+  ports owned by the feature that consumes them
+
+## Atlas vs External Backends
+
+Atlas remains the source of truth for:
+
+- published agents
+- run state and lifecycle
+- dataset and eval job linkage
+- artifact metadata
+- export provenance
+
+External systems such as Phoenix may become the preferred backend for:
+
+- raw spans
+- deep trace exploration
+- experiment-oriented observability
+- prompt and evaluation inspection workflows
+
+That split must be enforced through infrastructure adapters. Feature modules should not know whether
+raw traces came from local state or from Phoenix.
 
 ## Data and Control Flow
 
-### Run flow
+### Current run flow
 
 ```text
 POST /runs
@@ -352,35 +388,13 @@ POST /runs
   -> PublishedRunRuntimePort.execute_published(...)
   -> RunTelemetryIngestionService.ingest(...)
   -> TraceIngestionPort.ingest(...)
-  -> TraceProjectorPort.project
   -> TraceRepository.append
   -> TrajectoryStepProjectorPort.project(...)
   -> TrajectoryRepository.append(...)
   -> RunRepository.save(updated status/metrics)
 ```
 
-### Trace ingestion flow
-
-```text
-POST /traces/ingest
-  -> RunTelemetryIngestionService.ingest
-  -> TraceIngestionPort.ingest
-  -> TraceProjectorPort.project
-  -> TraceRepository.append
-  -> TrajectoryStepProjectorPort.project(...)
-  -> TrajectoryRepository.append(...)
-```
-
-### Agent publication flow
-
-```text
-POST /agents/{agent_id}/publish
-  -> AgentPublicationCommands.publish
-  -> AgentSourceDiscoveryPort.list_agents
-  -> PublishedAgentRepositoryPort.save_agent
-```
-
-### Eval flow
+### Current eval flow
 
 ```text
 POST /eval-jobs
@@ -399,15 +413,20 @@ POST /eval-jobs
   -> EvalJobRepository.save(completed job)
 ```
 
-### Artifact export flow
+### Target direction for execution and observability
 
 ```text
-POST /artifacts/export
-  -> ArtifactCommands.export
-  -> ArtifactExportPort.export
-  -> RunLookupSource.get
-  -> TrajectoryExportSource.list_for_run
-  -> ArtifactRepository.save
+POST /runs
+  -> RunCommands.create_run
+  -> RunnableAgentCatalogPort.get_agent(...)
+  -> RunSubmissionService.submit
+  -> resolve published snapshot -> artifact/image reference
+  -> enqueue execution work
+  -> worker or runner adapter executes selected artifact/image
+  -> telemetry export adapter emits spans via OTel/OpenInference
+  -> Phoenix stores raw spans
+  -> Atlas persists run status, provenance, and export metadata
+  -> Atlas returns run detail through stable REST contracts
 ```
 
 ## Current Infrastructure Notes
@@ -418,9 +437,9 @@ The current backend uses state-backed repository implementations behind
 The lower-level state machinery under `app/db/` is infrastructure-private support code. It should
 be treated as an implementation detail, not as a separate business layer.
 
-If the backend later moves to Postgres, external object storage, or external trace storage, the
-change should primarily happen by replacing infrastructure implementations, not by moving business
-logic out of modules.
+If the backend later moves to Docker-backed runners, Phoenix-backed observability, or different
+task execution infrastructure, the change should primarily happen by replacing or extending
+infrastructure implementations, not by moving business logic out of modules.
 
 ## Guardrails
 
@@ -441,22 +460,26 @@ In practice, these rules matter most:
 - infrastructure implements ports owned by modules
 - cross-feature imports of another feature's `application.use_cases` or
   `application.execution` are not allowed
+- vendor SDKs such as Phoenix clients or framework-specific tracing helpers must stay in
+  infrastructure, not feature modules
 
-## How To Add A New Feature
+## How To Add A New Integration
 
 When adding a new backend capability:
 
-1. Create or extend a feature module under `app/modules/`.
-2. Put domain models and rules in `domain/`.
-3. Put use cases and required ports in `application/`.
-4. Put HTTP request/response schemas in `contracts/` if the feature is exposed over HTTP.
-5. Put persistence implementations in `app/infrastructure/repositories/`.
-6. Put non-persistence infrastructure implementations in `app/infrastructure/adapters/`.
-7. Wire everything in `app/bootstrap/container.py`.
-8. Add or extend architecture tests if a new boundary rule needs protection.
+1. Identify the feature module that owns the use case.
+2. Add or extend domain models in that module if business state changes.
+3. Add or extend application ports in that module if a new infrastructure dependency is needed.
+4. Implement the dependency under `app/infrastructure/`.
+5. Wire everything in `app/bootstrap/container.py` through `app/bootstrap/wiring/`.
+6. Add or extend architecture tests if a new boundary rule needs protection.
 
-When wiring grows, prefer adding or updating a builder in `app/bootstrap/wiring/` instead of
-putting more assembly detail back into `container.py`.
+Examples:
+
+- a Phoenix trace reader belongs in `app/infrastructure/adapters/phoenix/` and implements a
+  feature-owned port for run-scoped trace retrieval
+- a Docker runner belongs in infrastructure and is selected through a runner port, not by letting
+  `RunExecutionService` import Docker SDKs directly
 
 ## What Not To Do
 
@@ -468,9 +491,10 @@ Avoid these patterns:
 - putting persistence code into feature domain modules
 - putting every reusable protocol into `runs`
 - adding broad "shared services" abstractions without a concrete cross-feature need
+- letting frontend-facing route code know about vendor trace backends directly
 
 ## Scope Note
 
-This document describes the code that exists today. Earlier drafts mentioned replay workflows, but
-the current backend does not contain a `replays` module. If replay support is added later, it
-should follow the same module and port ownership rules described here.
+This document describes the current codebase and the extension rules for the next stage. It does
+not imply that Phoenix, Docker runners, or artifact-backed publication are already implemented. It
+documents where those integrations should live once the code is added.

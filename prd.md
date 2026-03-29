@@ -1,420 +1,382 @@
-Title: Agent Flight Recorder
-Subtitle: A Scanned-and-Published Agent Workbench for execution, observation, and export
+# Agent Atlas PRD
 
-Product Summary
-Agent Flight Recorder is a self-hosted workbench for discovering, publishing, running, observing, and exporting executions of user-authored agents. In v1, the product focuses on OpenAI Agents SDK agents that live inside the repository and follow a product-defined plugin contract. The workbench automatically discovers those agents, validates that they satisfy the contract, lets users explicitly publish them, and only allows published and currently valid agents to be run from the UI.
-The product is not a new agent framework, and it is not a generic plugin marketplace. Its job is to load an existing repository-local agent entrypoint, execute it in a reproducible runtime, capture execution records, and make those records usable for debugging and downstream data workflows.
+## Subtitle
+Repository-local agent control plane for RL-ready execution data
 
-Problem Statement
-Teams building agent systems usually face five recurring problems:
-Existing agents are hard to connect to a shared experimentation workbench.
-Agent runtime environments are difficult to reproduce and maintain across framework versions and dependencies.
-Debugging is slow because agent behavior is opaque and execution history is hard to inspect.
-Execution data is fragmented, making it difficult to turn real runs into reusable artifacts.
-The integration path for a new agent is usually operationally messy because discovery, validation, and publication are not part of the product workflow.
-The immediate pain is not a lack of another prompt playground. The immediate pain is that real agents already exist, but they are difficult to connect to a stable run-and-debug workflow without platform engineers hand-editing internal control-plane wiring.
+## Product Summary
+Agent Atlas is a self-hosted control plane for teams that need to turn repository-local agents into
+governed runtime assets.
 
-Target Users
-Agent infrastructure engineers
-Applied ML and RL engineers
-Algorithm teams iterating on agent policies and prompts
-Internal platform teams supporting agent experimentation
+Its job is not to replace an observability vendor and not to become a general-purpose agent
+framework. Its job is to:
 
-Primary User in v1
-The primary user for v1 is an agent infrastructure engineer who already has a repository-local OpenAI Agents SDK agent and needs to plug it into a shared execution, inspection, and export workflow with minimal integration effort and clear publication control.
+- discover repository-local agent implementations
+- validate and publish runnable agent definitions
+- build and track immutable runtime artifacts over time
+- orchestrate controlled execution through runner backends
+- preserve run, eval, and artifact provenance
+- export RL-ready execution data for downstream training systems
 
-Product Goals
-Provide a reliable way to discover repository-local OpenAI Agents SDK agents inside the workbench.
-Make agent publication an explicit control-plane action rather than a backend-only code edit.
-Run published OpenAI Agents SDK agents in reproducible local or containerized environments.
-Offer trajectory inspection focused on real execution steps and outputs.
-Export execution records into reusable JSONL artifacts.
-Reduce the integration cost of bringing an existing agent into a shared engineering workflow.
+The current repository already implements a local-first workbench across Agents, Runs, Playground,
+Datasets, Evals, and Trajectory detail. The next product stage keeps that control plane and shifts
+trace and eval observability toward a Phoenix-first backend strategy.
 
-Non-Goals
-Building a new general-purpose agent orchestration framework
-Building a custom trace database or general APM platform
-Supporting every agent framework in the ecosystem in v1
-Building a multi-tenant SaaS platform in v1
-Replacing existing observability backends such as Phoenix or Langfuse
-Supporting worktree-external paths, pip packages, or remote agent sources in v1
-Freezing published agent source code into versioned runtime snapshots in v1
+## Business Value
+Agent Atlas creates business value by turning codebase-local agents into controlled engineering
+assets that can be:
 
-Why This Fits the JD
-The JD implies a platform-oriented role rather than an application-only role. The real engineering need is a system that:
-Connects existing agents to internal experimentation and data workflows
-Maintains stable and reproducible runtimes
-Makes real executions visible and debuggable
-Reduces integration cost for new agent implementations
-Adds publication controls so draft or broken agents do not leak into the shared UI
-Improves reliability and iteration speed for internal agent systems
+- connected to a shared execution system without ad hoc platform edits
+- observed and evaluated through a standard telemetry path
+- reproduced through published snapshots and runtime artifacts
+- exported as training-ready records with explicit provenance
 
-Product Scope for v1
-v1 should stay narrow enough for a single engineer.
+In DeepSeek-style infrastructure terms, Agent Atlas is the layer that links external agent
+scaffolds, internal execution infrastructure, and RL-facing data production.
 
-Included:
+## Problem Statement
+Teams building agents usually hit the same operational gaps:
 
-Repository-local OpenAI Agents SDK agent plugins
-Automatic discovery of agent plugins from `backend/app/agent_plugins/`
-Contract validation for discovered plugins
-Explicit publish / unpublish workflow
-Published runnable agent catalog
-Local and Docker runner execution
-Agent management workspace
-Run dashboard
-Playground
-Trajectory viewer
-JSONL trajectory export
+- external agent frameworks are easy to prototype with but hard to integrate into a shared control
+  plane
+- prompt, tool, trace, eval, and failure data drift across notebooks, dashboards, and local scripts
+- agent definitions are not governed as first-class engineering assets
+- runtime reproducibility is weak because source code, dependencies, and execution environments are
+  not tied together tightly enough
+- RL and training teams often receive partial exports instead of stable, provenance-rich data
+  contracts
 
-Excluded from v1:
+The immediate need is not another chat UI. The immediate need is a control plane that takes
+repository-local agents through discovery, publication, execution, observability, evaluation, and
+RL-ready export.
 
-Replay for published agents
-Eval for published agents
-LangChain agent-plugin support
-MCP agent-plugin support
-UI-based authoring of agent source code
-Parquet export as a required v1 capability
-Kubernetes-first scheduling
-Multi-tenant auth and permissions
-A custom tracing backend
-Versioned publish artifacts or frozen source bundles
-External package, worktree-external, or remote agent sources
+## Target Users
+- agent infrastructure engineers
+- applied ML and RL engineers
+- platform engineers supporting agent experimentation
+- algorithm teams iterating on prompts, tools, and evaluation loops
 
-Future Phases / Post-v1 Backlog
-Replay for published agents
-Batch eval over datasets for published agents
-Versioned publish snapshots for agent source and manifest
-Support for external package sources after repository-local plugins are stable
-LangChain and MCP plugin contracts
-Standardized telemetry pipelines such as OpenTelemetry / OpenInference / Phoenix integration
-Parquet export and richer artifact storage
+## Primary User
+The primary user is an agent infrastructure engineer who owns repository-local integrations and
+needs a reliable publish, run, debug, evaluate, and export loop with low setup overhead.
 
-Core User Flows
-A. Discover and publish an agent
-User authors an OpenAI Agents SDK plugin module inside `backend/app/agent_plugins/`.
-The control plane discovers the module, derives its entrypoint, reads its manifest, and validates that it satisfies the product contract.
-The Agent Management workspace shows the plugin as Draft or Invalid.
-The user reviews metadata and validation results, then explicitly publishes a valid plugin.
-The published agent becomes visible in the runnable catalog and in the Playground selector.
+## Product Goals
+- make repository-local agent scaffolds discoverable and publishable through a stable contract
+- keep runnable exposure explicit so draft or invalid agents do not leak into execution systems
+- support framework-aware execution across a small set of formal runtime targets
+- move runtime execution toward immutable artifacts and isolated runners
+- integrate external observability and evaluation backends without losing Atlas control-plane
+  ownership
+- export RL-ready execution records with enough provenance to be consumed offline by training teams
 
-B. Run an agent
-User opens the Playground or Run Dashboard and selects a published agent.
-Control plane creates a run record and schedules a local or Docker runner.
-The runtime resolves the published agent snapshot, loads the configured Python entrypoint, and executes the real OpenAI Agents SDK agent.
-The workbench records run metadata, trajectory steps, and execution records.
-The user can open the run workspace to inspect the result.
+## Current Product Baseline
+The current product baseline is the implemented repository state, not the target architecture.
 
-C. Debug a run
-User opens the trajectory viewer for a completed run.
-The UI renders a step list or execution timeline based on real recorded execution steps.
-User inspects prompt, output, latency, token usage, tool information when present, and errors when present.
-User uses the run workspace to understand what happened in the real execution.
+### Implemented product surfaces
+- Agents workspace for discovery, validation, publish, and unpublish
+- Run dashboard for filtering, selection, and artifact export
+- Trajectory viewer for graph inspection, step inspection, and comparable-run diffing
+- Playground for direct manual runs and trace refresh
+- Datasets workspace for JSONL upload and manual sample creation
+- Eval workbench for dataset-driven batch jobs, failure clustering, and sample drill-down
 
-D. Export training artifacts
-User selects one or more runs.
-The exporter converts execution records into JSONL.
-Output can feed downstream analysis, dataset curation, or model-training pipelines.
+### Implemented backend capabilities
+- repository-local agent discovery from `backend/app/agent_plugins/`
+- publish and unpublish workflow for runnable agents
+- SQLite-backed run, trace, trajectory, dataset, eval, artifact, and task persistence
+- worker-backed run execution queue
+- eval fan-out into child runs plus aggregation into eval job results
+- trace ingestion and trace normalization endpoints
+- JSONL artifact export
+- parquet artifact export with JSON fallback when optional parquet dependencies are unavailable
 
-Typical User Workflow in the Current v1 Product
-The most common user path in the current product is:
-User authors an OpenAI Agents SDK plugin inside `backend/app/agent_plugins/`.
-User opens the Agent Management workspace and sees the plugin appear as Draft or Invalid based on validation.
-User publishes a valid plugin.
-User opens the Playground and selects the published agent.
-User enters a prompt, optionally attaches a dataset, and launches a run.
-Backend resolves `agent_id` from the runnable catalog, loads the published Python entrypoint, and executes the real agent in a local or Docker runner.
-User opens the run workspace to inspect output, trajectory, latency, token usage, and execution metadata.
-User exports successful runs as JSONL for downstream analysis or data workflows.
+### Current runtime facts that must stay accurate
+- published OpenAI Agents SDK plugins are the current first-class published runtime path
+- `manifest.framework` already exists in agent metadata and `AdapterKind` includes
+  `openai-agents-sdk`, `langchain`, and `mcp`
+- LangChain currently exists as runtime groundwork, not as a fully productized published-agent
+  discovery and execution path
+- MCP is only a placeholder in current shared enums and traces; it is not a supported published
+  protocol
+- the current implementation does not expose a real Docker or Kubernetes runner carrier
+  abstraction through config and wiring, so containerized execution must not be documented as a
+  shipped capability
+- Phoenix is not yet the active backend for the current codebase; it is the preferred next-stage
+  observability and eval backend
 
-Primary Screens
-A. Agent Management
-Purpose: Discover, validate, publish, and unpublish repository-local agent plugins.
+## Product Boundary
+### Agent Atlas owns
+- repository-local discovery and validation
+- publish and unpublish control
+- runnable catalog and framework-aware integration contracts
+- run submission, execution control, and runner selection
+- artifact and image provenance
+- dataset and eval job linkage
+- RL-ready export contracts
+
+### External backends own
+- raw span storage and trace exploration
+- prompt and experiment-oriented observability workflows
+- vendor-specific evaluator tooling
+
+Phoenix is the preferred first external backend for the observability and evaluation side of that
+boundary.
+
+## Current Scope
+### Included in the current product
+- repository-local agent discovery and publish flow
+- published runnable agent catalog
+- manual runs from Playground
+- run history, filtering, and run detail inspection
+- trajectory graph and step inspection
+- raw trace retrieval for runs
+- dataset creation and upload
+- eval job creation and sample result inspection
+- JSONL export and parquet fallback export
+
+### Explicitly not current capability
+- immutable build artifacts or image-backed publication
+- Docker or Kubernetes runner orchestration
+- Phoenix-backed trace or eval storage
+- direct RL job submission
+- remote repository, external package, or worktree-external agent sources
+- MCP protocol support as a runnable published-agent path
+- versioned publish artifacts with rollback semantics
+- LLM-as-judge evaluation
+- a dedicated multi-tenant auth and permissions model
+
+## Next-Stage Product Direction
+The next stage of Agent Atlas shifts from a local-first workbench to a control plane for RL-ready
+data production.
+
+### Directional pillars
+- framework-aware agent integration
+- immutable artifact and image pipeline
+- runner orchestration with local-process first and Docker next
+- Phoenix-first observability and eval backend integration
+- RL-ready offline export contract
+
+### Why this direction
+- it aligns the product with real agent infrastructure work instead of a generic workbench story
+- it preserves the strongest Atlas differentiation: repository-local agent governance
+- it avoids rebuilding a full observability vendor inside Atlas
+- it makes exported run data usable by training teams without manual reconstruction
+
+## Core User Flows
+### A. Connect a repository-local agent scaffold
+1. A developer adds or updates a plugin under `backend/app/agent_plugins/`.
+2. Atlas discovers the module, reads `AGENT_MANIFEST`, validates the build contract, and shows
+   validation state in the Agents workspace.
+3. The user publishes a valid agent.
+4. The published agent becomes eligible for execution and downstream data generation.
+
+### B. Launch a controlled run
+1. The user opens Playground and selects a published agent.
+2. The user enters a prompt and optionally associates a dataset and tags.
+3. The backend creates a queued run and submits it to the worker queue.
+4. The execution path resolves the published agent snapshot and, in the next stage, the selected
+   artifact or image.
+5. The user opens run detail to inspect status, provenance, trajectory, and trace links.
+
+### C. Run a dataset evaluation
+1. The user creates or uploads a dataset.
+2. The user opens Evals, selects a published agent and dataset, and creates an eval job.
+3. The backend fans the dataset out into child runs and schedules aggregation.
+4. The UI shows pass rate, failure clusters, and sample-level outcomes.
+5. The user pivots from failed samples into run detail or downstream export.
+
+### D. Inspect trace and failure data
+1. The user opens a run detail page.
+2. Atlas renders projected trajectory steps and run metadata.
+3. The user inspects raw spans, either in Atlas summaries or through Phoenix-backed deep links in
+   the next stage.
+4. The user uses that context to debug failures or compare candidates.
+
+### E. Export RL-ready data
+1. The user exports selected runs from the dashboard, run detail view, or failure selection in
+   Evals.
+2. The exporter emits JSONL or parquet-compatible records.
+3. The exported rows include enough run, eval, agent, and trace provenance to be consumed offline
+   by RL or data-processing systems.
+
+## Primary Screens
+### Agents
+Purpose: discover, validate, publish, and inspect repository-local plugins.
+
 Key elements:
-Groups: Published, Draft, Invalid
-Agent cards: name, agent_id, description, default model, tags, entrypoint
-Status surfaces: publish_state, validation_status, validation_issues
-Actions: Publish, Unpublish, Open in Playground
+- grouped sections for published, published with draft changes, draft, and invalid agents
+- framework, entrypoint, model, tag, and validation metadata
+- publish and unpublish actions
+- future build and artifact status
 
-B. Run Dashboard
-Purpose: Search and inspect all executions.
+### Runs
+Purpose: search, filter, export, and open individual run detail views.
+
 Key elements:
-Filters: project, dataset, agent_id, model, tag, time range
-Table columns: run_id, agent_id, input summary, status, latency, token cost, tool-call count
-Actions: New Run, Export
+- filters for project, dataset, agent, model, status, tag, and time range
+- run table with execution context and status
+- artifact export actions
+- future artifact and runner provenance
 
-C. Trajectory Viewer
-Purpose: Make real execution understandable.
+### Trajectory Detail
+Purpose: inspect projected execution structure and run metadata.
+
 Key elements:
-Step list or execution timeline showing recorded execution steps
-Visual state markers for success, failure, latency, and token count
-Fast inspection of step-level input, output, and metadata
+- trajectory graph
+- step inspector
+- comparable-run selection and diff summary
+- run metadata including resolved model, entrypoint, runtime backend, and failure fields
+- future Phoenix-backed raw trace access
 
-D. Step Detail Panel
-Purpose: Deep inspection per recorded step.
+### Playground
+Purpose: launch direct manual runs against published agents.
+
 Key elements:
-Prompt input and model output
-Tool input/output JSON when present
-Model metadata and token usage
-Error stack when present
+- published agent selector
+- optional dataset selection
+- prompt input and tags
+- latest run tracking
+- future artifact and runner metadata
 
-E. Playground
-Purpose: Manual testing entry point for published agents.
+### Datasets
+Purpose: prepare reusable sample sets for evals and manual runs.
+
 Key elements:
-Published agent selector
-Prompt input
-Optional dataset selector
-Execution output
-Link to the created run workspace
+- JSONL upload
+- manual single-sample dataset creation
+- preview of imported samples
+- deep links into Playground and Evals
 
-Technical Architecture
-A. Frontend Workbench
-Next.js + TypeScript
-React Flow or equivalent execution visualization for trajectory viewing
-Agent Management workspace for discovery, validation, and publication
-Run Dashboard for filtering and inspecting published-agent runs
-Playground for selecting a published agent and executing it
-Trajectory workspace for step inspection and timeline viewing
-Implementation layering in the frontend follows:
-App Router for route entrypoints and layout
-Widget layer for workspace-level orchestration
-Feature layer for focused user capabilities
-Entity layer for typed API mapping and domain presentation helpers
-Shared layer for low-level UI and generic utilities
-Detailed frontend rules live in `frontend/ARCHITECTURE.md`.
+### Evals
+Purpose: batch fan-out dataset rows into runs and inspect aggregated quality signals.
 
-B. Control Plane API
-FastAPI
-Agent Discovery API for listing discovered plugins and their validation state
-Published Agent Catalog API for listing runnable agents
-Agent Publication API for publish and unpublish actions
-Run Orchestrator for scheduling and state transitions
-Artifact Exporter for JSONL outputs
-Trace and trajectory persistence for execution records captured by the workbench
+Key elements:
+- eval job creation form
+- recent eval jobs list
+- summary metrics and failure distribution
+- sample-level table with direct links into run detail
+- selective export of failed runs
+- future candidate-vs-baseline comparison
 
-C. Runtime Layer
-Local runner and Docker runner
-One execution environment per run
-Versioned environments for framework and dependency control
-Published agent runtime loading driven by the published catalog rather than the discovery view
-Agent plugin contract fixed as `AGENT_MANIFEST` plus `build_agent(context) -> Agent`
-Only Python modules inside `backend/app/agent_plugins/` are supported in v1
+## Technical Architecture
+### Frontend
+- Next.js App Router
+- layered product architecture: `app -> widgets -> features -> entities -> shared`
+- TanStack Query for server state
+- trajectory rendering via React Flow
+- backend remains the integration boundary for external observability backends
 
-D. Observability and Storage
-Trajectory and execution records captured by the workbench
-Run metadata includes agent_id, entrypoint, framework, and resolved_model
-Published agent metadata persists manifest and entrypoint snapshots for audit and run creation
-SQLite is acceptable for control-plane metadata in v1
-Standardized telemetry backends such as Phoenix, OpenTelemetry, and OpenInference are future-phase integrations rather than v1 acceptance requirements
+### Backend
+- FastAPI modular monolith
+- thin route layer under `backend/app/api/routes`
+- feature modules under `backend/app/modules`
+- infrastructure adapters and repositories under `backend/app/infrastructure`
+- composition root under `backend/app/bootstrap`
 
-E. Agent / Tool Layer
-Published OpenAI Agents SDK agents
-User-authored tools that are part of the published agent definition
-LangChain and MCP support remain post-v1 extensions
+### Current execution model
+- `POST /api/v1/runs` creates a queued run immediately
+- a background worker claims queued tasks and executes runs
+- eval jobs enqueue both execution and aggregation tasks
+- trajectory steps are projected from traces and persisted
+- run detail combines stored run metadata with trajectory and trace data
 
-Hexagonal Architecture Constraints
-The backend must continue to follow Hexagonal Architecture.
-The `agents` feature owns the agent plugin contract, discovery queries, publication commands, and runnable catalog ports.
-The `runs` feature only depends on a published runnable catalog and runtime port. It must not know how filesystem scanning, module import, SDK validation, or publication persistence work.
-Infrastructure is responsible for filesystem scanning, module import, OpenAI Agents SDK `Agent` validation, and persistence of published agent records.
-The composition root assembles discovery, publication, runnable catalog, and runtime loading implementations. Application and domain layers must not directly import concrete infrastructure modules or the SDK package.
+### Target execution direction
+- publication resolves to a stable snapshot and then to an immutable artifact or image
+- runner backends execute the resolved artifact in a controlled environment
+- telemetry is standardized on OpenTelemetry plus OpenInference
+- Phoenix receives raw runtime spans and experiment-oriented evaluation data
+- Atlas remains the source of truth for control-plane state and export provenance
 
-Module Responsibilities
-Frontend:
-Agent Management: discover, validate, publish, and unpublish agent plugins
-Run Dashboard: filter, search, inspect, and export published-agent runs
-Playground: select a published agent and launch a run
-Trajectory Viewer: inspect real execution steps and node relationships when present
+### Storage
+- SQLite-backed local persistence is the current default control-plane store
+- persisted entities include published agents, runs, trajectory steps, trace spans, datasets, eval
+  jobs, eval sample results, artifacts, and queued tasks
+- in the next stage, local control-plane persistence remains in Atlas even when raw trace and eval
+  observability move to Phoenix
 
-Backend:
-Agents: discover plugins, validate manifests and entrypoints, manage publish state, expose runnable catalog
-Run Orchestrator: create runs, resolve agent_id from the runnable catalog, schedule runners, update states
-Runtime Loader: load the published Python entrypoint and execute the real agent
-Artifact Exporter: generate JSONL-ready execution outputs
+## Public API and Contracts
+### Stable current APIs
+- Agents:
+  - `GET /api/v1/agents`
+  - `GET /api/v1/agents/discovered`
+  - `POST /api/v1/agents/{agent_id}/publish`
+  - `POST /api/v1/agents/{agent_id}/unpublish`
+- Runs:
+  - `GET /api/v1/runs`
+  - `POST /api/v1/runs`
+  - `GET /api/v1/runs/{run_id}`
+  - `POST /api/v1/runs/{run_id}/terminate`
+  - `GET /api/v1/runs/{run_id}/trajectory`
+  - `GET /api/v1/runs/{run_id}/traces`
+- Datasets:
+  - `GET /api/v1/datasets`
+  - `POST /api/v1/datasets`
+- Evals:
+  - `POST /api/v1/eval-jobs`
+  - `GET /api/v1/eval-jobs`
+  - `GET /api/v1/eval-jobs/{eval_job_id}`
+  - `GET /api/v1/eval-jobs/{eval_job_id}/samples`
+- Artifacts:
+  - `GET /api/v1/artifacts`
+  - `POST /api/v1/artifacts/export`
+  - `GET /api/v1/artifacts/{artifact_id}`
+- Traces:
+  - `POST /api/v1/traces/normalize`
+  - `POST /api/v1/traces/ingest`
 
-Infrastructure:
-Filesystem scanner: enumerate repository-local plugin modules under `backend/app/agent_plugins/`
-Published-agent persistence: store publish records and agent snapshots
-Runner Pool: local and Docker execution with reproducible dependencies
-Control-plane persistence: run metadata, datasets, execution records, and exports
+### Planned additions
+- optional trace filters on `GET /api/v1/runs/{run_id}/traces`
+- eval comparison endpoint for candidate-vs-baseline analysis
+- additional run and artifact provenance fields for artifact/image references and RL-ready export
 
-Public API and Contracts
-`GET /api/v1/agents`
-Returns the published runnable agent catalog for the UI.
-Expected response shape:
-agent_id
-name
-description
-framework
-entrypoint
-default_model
-tags
+## Repository-Local Agent Contract
+Current contract:
+- modules live under `backend/app/agent_plugins/`
+- each module exposes `AGENT_MANIFEST`
+- each module exposes `build_agent(context)`
 
-`GET /api/v1/agents/discovered`
-Returns all discovered repository-local plugins, including draft and invalid items.
-Expected response shape extends runnable metadata with:
-publish_state
-validation_status
-validation_issues
+Direction:
+- the contract remains repository-local
+- `manifest.framework` becomes the dispatch key for validation, publication, runtime loading, and
+  later artifact building
+- the initial formal framework set remains `openai-agents-sdk` and `langchain`
 
-`POST /api/v1/agents/{agent_id}/publish`
-Publishes a discovered plugin if and only if the plugin passes validation at request time.
-The published record must save a snapshot of:
-agent_id
-entrypoint
-framework
-default_model
-tags
+## External Observability and Eval Contract
+Direction:
+- Atlas does not expose Phoenix directly to users as the control plane
+- Atlas emits standardized telemetry and queries or links Phoenix-backed observability data
+- Phoenix is the preferred first backend for raw spans, experiments, and prompt-oriented debugging
 
-`POST /api/v1/agents/{agent_id}/unpublish`
-Removes an agent from the runnable catalog but does not delete the underlying source module.
+## RL Export Contract
+Current export semantics:
+- exported rows include run, step, message, reward, and published-agent summary fields
 
-`POST /api/v1/runs`
-Creates a run from a published and currently valid `agent_id`.
-Required v1 inputs:
-project
-agent_id
-input_summary
-prompt
-Optional v1 inputs:
-dataset
-tags
-project_metadata
+Next-stage export semantics:
+- exported rows must additionally preserve agent snapshot, artifact or image reference, eval job id,
+  dataset sample id, failure fields, prompt version, image digest, and trace identifiers
+- phase 1 remains offline export first, not direct RL job submission
 
-Run metadata must record:
-agent_id
-entrypoint
-framework
-resolved_model
-agent_snapshot
+## Non-Goals
+- building a new general-purpose agent framework
+- replacing Phoenix or another observability backend with a home-grown equivalent
+- becoming a hosted SaaS control plane
+- supporting every framework in the ecosystem in the current phase
+- acting as a code authoring IDE for agent source files
+- shipping direct RL training orchestration in the first integration stage
 
-Example `POST /api/v1/runs` request:
-```json
-{
-  "project": "support-workbench",
-  "agent_id": "customer_service",
-  "input_summary": "Refund request for delayed shipment",
-  "prompt": "Customer says the package is delayed and asks for a refund. Respond with the next action.",
-  "dataset": "support-inbox-v1",
-  "tags": ["playground", "refund"]
-}
-```
+## Acceptance Criteria For The Next Stage
+- a valid repository-local `langchain` or `openai-agents-sdk` agent can be published through the
+  same Atlas workflow
+- run execution preserves explicit published-agent and artifact provenance
+- Phoenix can receive and expose run traces without becoming the source of truth for Atlas control
+  state
+- eval jobs remain linked to datasets, runs, and exported artifacts
+- offline exports are sufficient for RL-facing downstream consumption without ad hoc join logic
 
-Example successful run response:
-```json
-{
-  "run_id": "generated-run-id",
-  "agent_id": "customer_service",
-  "status": "queued",
-  "project": "support-workbench",
-  "dataset": "support-inbox-v1",
-  "model": "gpt-5.4-mini"
-}
-```
+## Product Positioning
+Agent Atlas is not a chatbot product and not an observability vendor. It is a repository-local
+agent control plane that governs how agents enter execution systems and how their outputs become
+reproducible, observable, evaluable, and RL-ready engineering assets.
 
-Required error semantics in v1:
-Unknown or unpublished `agent_id` returns a structured `agent_not_published` error.
-Discovered but invalid agent publish attempts return a structured `agent_validation_failed` error.
-Agent entrypoint import or construction failure at runtime returns a structured `agent_load_failed` error.
-Provider-level failures must remain structured, including at least authentication, missing-model, rate-limit, and timeout cases.
-
-The v1 agent plugin contract is:
-Only repository-local Python modules inside `backend/app/agent_plugins/` may be discovered.
-The system derives `entrypoint` from the Python module path and the fixed `build_agent` symbol.
-Each plugin module must export `AGENT_MANIFEST`.
-Each plugin module must implement `build_agent(context) -> Agent`.
-`AGENT_MANIFEST` must contain:
-agent_id
-name
-description
-default_model
-tags
-framework is fixed to `openai-agents-sdk` by the platform rather than author-configurable.
-
-Dataset Semantics in v1
-In the current product, a dataset is a named collection of standardized task samples associated with a business scenario or evaluation context.
-A dataset typically contains:
-input samples that represent real tasks or prompts
-optional expected outputs or reference answers
-optional tags that classify scenario, difficulty, or task type
-
-The dataset serves three purposes in v1:
-It gives a run business context, so the execution is tied to a known task set rather than treated as an isolated prompt experiment.
-It provides a stable anchor for future comparison, replay, evaluation, and export workflows.
-It makes repeated experimentation more structured by grouping runs under a reusable sample set.
-
-In the Playground, dataset selection is optional. Selecting a dataset associates the run with that named sample set and its context. It does not imply that the full dataset is batch-executed inside the Playground.
-
-v1 Sample Agent Plugins
-The first test agents should align with three categories derived from official OpenAI Agents SDK examples:
-basic
-customer_service
-tools
-These are test objects for validating the discovery, publication, and runtime paths, not separate product features.
-
-Data Model Sketch
-Core v1 entities:
-discovered_agent
-published_agent
-run
-trajectory_step
-dataset
-artifact_export
-
-Important normalized fields:
-agent_id
-entrypoint
-framework
-default_model
-resolved_model
-publish_state
-validation_status
-validation_issues
-run_id
-step_id
-step_type
-input
-output
-tool_name
-latency_ms
-token_usage
-
-Non-Functional Requirements and Risks
-The system must support both local and Docker execution for published agents.
-All repository-local agent plugins must be discoverable from `backend/app/agent_plugins/` without manual runtime patching.
-The control plane must fail fast with structured errors when plugin manifests, imports, or runtime dependencies are invalid.
-Published agents that later become invalid must disappear from the runnable catalog and Playground, but remain visible in discovery surfaces as `published + invalid`.
-The biggest v1 risks are Python dependency drift, container image mismatch, and user-authored tool side effects.
-
-MVP Definition
-The product is considered real once this loop works end-to-end:
-User adds a repository-local OpenAI Agents SDK plugin
-Workbench discovers it and shows validation results
-User publishes the plugin
-Backend creates a run from a published `agent_id`
-Runner loads the published Python entrypoint and executes the real agent
-Workbench captures run, trajectory, and execution metadata
-Frontend renders the run workspace and trajectory view
-User can export the result as JSONL
-
-v1 Acceptance Criteria
-An engineer can add a repository-local OpenAI Agents SDK plugin and see it appear in `GET /api/v1/agents/discovered` without editing frontend code.
-A valid discovered plugin can be published and then appears in `GET /api/v1/agents`.
-The primary Playground flow can launch a run from a published `agent_id` and return a run record within 2 seconds, excluding downstream model execution time.
-Every successful published-agent run persists a run record and at least one recorded trajectory step.
-The run workspace shows agent_id, resolved_model, status, output, latency, token usage, and trajectory data for every successful run.
-JSONL export succeeds for selected published-agent runs and includes run metadata plus recorded execution steps.
-Replay and Eval are not exposed as supported actions for newly created published-agent runs.
-If a published agent later fails validation, it disappears from `GET /api/v1/agents` and the Playground, while remaining visible in discovery surfaces with its validation issues.
-
-Success Metrics
-Time to connect an existing repository-local OpenAI Agents SDK plugin to the workbench: under 30 minutes for an engineer familiar with the codebase.
-Time to make a new valid plugin visible as Draft in the Agent Management workspace: under 5 minutes once the module exists.
-Time to publish a valid plugin and make it runnable from Playground: under 10 minutes once the module exists.
-Time to inspect a completed execution in the run workspace: under 5 minutes from run completion to finding prompt, output, latency, token usage, and trajectory details.
-Run creation acknowledgment latency: p95 under 2 seconds for the control-plane request path, excluding model execution time.
-Percentage of successful published-agent runs exportable as JSONL artifacts: 100%.
-
-Product Positioning
-Agent Flight Recorder is not a chatbot product and not a new agent framework. It is an engineering workbench for discovering, publishing, running, inspecting, and exporting real agent executions.
-The simplest positioning line is:
-A self-hosted workbench that discovers repository-local OpenAI Agents SDK agents, publishes runnable ones, captures execution records, and turns them into reusable engineering artifacts.
+### Positioning sentence
+> A self-hosted control plane that turns repository-local agents into governed runtime assets and
+> RL-ready execution data.
