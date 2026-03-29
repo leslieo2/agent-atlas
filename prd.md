@@ -9,6 +9,28 @@ Atlas is not an observability product and should not compete with Phoenix on tra
 experimentation, prompt workflows, evaluator authoring, or playground UX. Its value is the
 governed data path from published agents to offline training exports.
 
+## Architecture Stance
+
+The product architecture should be described as a layered platform:
+
+- `Control Plane`
+- `Execution Plane`
+- `Observability / Eval Plane`
+- `Data Plane`
+- `Training Plane`
+
+That is the right level for the whole product because the system includes orchestration, telemetry,
+storage, and offline data-processing concerns in addition to business services.
+
+Hexagonal architecture is still appropriate, but only for part of the system:
+
+- use it inside control-plane and core business services where Atlas needs stable domain semantics
+  across changing frameworks, runners, trace backends, and tool gateways
+- do not use it as the top-level model for execution runtime, tracing pipelines, or trajectory and
+  reward data processing
+- treat execution runtime primarily as orchestration and state machines
+- treat telemetry and trajectory ingestion primarily as event-driven or data-pipeline systems
+
 ## Problem
 
 Training teams need a reliable way to answer these questions:

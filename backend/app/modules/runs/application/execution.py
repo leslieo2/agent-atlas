@@ -349,7 +349,7 @@ class RunExecutionService:
         )
 
     def execute_run(self, run_id: UUID, payload: RunSpec) -> None:
-        if not self._set_status(run_id, RunStatus.RUNNING):
+        if not self._set_status(run_id, RunStatus.STARTING):
             return
 
         context = RunExecutionContext.from_spec(run_id, payload)
@@ -363,10 +363,15 @@ class RunExecutionService:
                 runner_backend=self._runner_backend(payload),
             )
             self._record_execution_handoff(run_id, handoff)
+            if not self._set_status(run_id, RunStatus.RUNNING):
+                self._mark_cancelled_if_requested(run_id)
+                return
             result = self.runner.execute(handoff)
             self._update_run_execution_details(run_id, result)
             record = self.projector.project_runtime_success(context, result.execution)
             self.recorder.record(run_id, record)
+            if self._mark_cancelled_if_requested(run_id):
+                return
             trace_failure = failure_from_trace_events(record.events)
             if trace_failure is not None:
                 self._record_failure(run_id, trace_failure)
@@ -376,6 +381,8 @@ class RunExecutionService:
         except Exception as exc:
             failure = normalize_run_failure(exc)
             self.recorder.record(run_id, self.projector.project_runtime_failure(context, failure))
+            if self._mark_cancelled_if_requested(run_id):
+                return
             self._record_failure(run_id, failure)
             self._set_status(run_id, RunStatus.FAILED, reason=failure.message)
 
@@ -391,7 +398,9 @@ class RunExecutionService:
 
         aggregate = RunAggregate.load(run)
         try:
-            if status == RunStatus.RUNNING:
+            if status == RunStatus.STARTING:
+                updated = aggregate.mark_starting()
+            elif status == RunStatus.RUNNING:
                 updated = aggregate.mark_running()
             elif status == RunStatus.SUCCEEDED:
                 updated = aggregate.mark_succeeded()
@@ -402,6 +411,18 @@ class RunExecutionService:
         except ValueError:
             return False
 
+        self.run_repository.save(updated)
+        return True
+
+    def _mark_cancelled_if_requested(self, run_id: UUID) -> bool:
+        run = self.run_repository.get(run_id)
+        if not run or run.status != RunStatus.CANCELLING:
+            return False
+        reason = run.termination_reason or "cancelled by user"
+        try:
+            updated = RunAggregate.load(run).mark_cancelled(reason)
+        except ValueError:
+            return False
         self.run_repository.save(updated)
         return True
 

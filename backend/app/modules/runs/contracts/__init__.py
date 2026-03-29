@@ -1,15 +1,15 @@
 from app.modules.runs.contracts.schemas import (
+    CancelRunResponse,
     RunCreateRequest,
     RunResponse,
     RunTraceSpanResponse,
-    TerminateRunResponse,
     TrajectoryStepResponse,
 )
 
 __all__ = [
+    "CancelRunResponse",
     "RunCreateRequest",
     "RunResponse",
     "RunTraceSpanResponse",
-    "TerminateRunResponse",
     "TrajectoryStepResponse",
 ]

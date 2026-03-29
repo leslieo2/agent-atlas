@@ -5,6 +5,9 @@ This document describes the backend architecture for Agent Atlas.
 It stays intentionally practical. The goal is to explain the dependency rules that the codebase
 follows today and the extension rules that should guide the next stage of work.
 
+This document describes the control-plane backend only. It is not the topology document for the
+entire product platform.
+
 ## Summary
 
 The backend is a modular monolith built with FastAPI and organized around feature modules.
@@ -40,6 +43,37 @@ Business logic belongs in feature modules. Infrastructure implements ports owned
 Routes handle HTTP concerns only.
 
 The module boundaries are enforced by architecture tests under `backend/tests/unit/`.
+
+## Scope Of This Architecture
+
+Agent Atlas as a product should be described as a layered platform:
+
+- control plane
+- execution plane
+- observability / eval plane
+- data plane
+- training plane
+
+This backend document covers the first of those layers: the control-plane service that owns Atlas
+state and control-plane workflows.
+
+## Hexagonal Scope
+
+Ports-and-adapters design is useful here because the control plane has to preserve Atlas-owned
+semantics while external systems keep changing.
+
+Use that style for:
+
+- run, dataset, eval, export, policy, and provenance services
+- stable control-plane contracts such as `RunSpec`, `RunHandle`, and export metadata
+- adapters for execution backends, trace sinks, artifact stores, judge services, or tool gateways
+
+Do not treat it as the primary mental model for every subsystem in the platform:
+
+- execution runtime is better understood as orchestration, scheduling, and state machines
+- tracing and telemetry are better understood as event-driven collection and processing pipelines
+- trajectory storage, replay, reward computation, and sample curation are better understood as
+  data-plane workloads
 
 ## Design Goals
 
@@ -225,10 +259,8 @@ Feature modules live under `app/modules/`.
 Owns:
 
 - run lifecycle
-- run creation and termination
-- submission of queued run work
+- run creation and cancellation intent
 - runtime execution workflow
-- runner-facing execution control contracts
 - run-owned execution telemetry read models such as trajectory
 - execution provenance such as backend, artifact, and failure metadata
 
@@ -244,6 +276,22 @@ Examples:
 - `RunSubmissionService`
 - `RunExecutionService`
 - `RunTelemetryIngestionService`
+
+### `execution`
+
+Owns:
+
+- the neutral control-plane to execution-plane contract
+- opaque run handles, cancellation requests, heartbeat payloads, and terminal summaries
+- control-plane status queries for submitted work
+- capability discovery for execution backends
+
+Examples:
+
+- `ExecutionControlPort`
+- `RunHandle`
+- `CancelRequest`
+- `RunStatusSnapshot`
 
 ### `traces`
 
@@ -352,11 +400,44 @@ Examples:
 
 For upcoming work:
 
-- runner selection should stay behind a feature-owned application port, not leak vendor or carrier
-  code into use cases
+- execution backend selection should stay behind the execution-control port and not leak vendor or
+  carrier code into use cases
 - Phoenix integration should sit behind feature-owned trace and eval read/write ports
 - artifact or image build and resolution should stay behind infrastructure adapters implementing
   ports owned by the feature that consumes them
+
+## Control Plane To Execution Plane Boundary
+
+This is the most important neutral boundary in the backend.
+
+Control-plane code should depend on execution intent and lifecycle contracts only:
+
+- `RunSpec`
+- `RunHandle`
+- `RunStatus`
+- `CancelRequest`
+- `Heartbeat`
+- `RunTerminalSummary`
+
+Control-plane code must not depend on:
+
+- Kubernetes `Pod` or `Job` names
+- container states
+- `kubectl logs`
+- local worker process identifiers
+- queue-specific acknowledgements
+
+The required semantics are:
+
+```text
+submit_run(run_spec)
+cancel_run(cancel_request)
+retry_run(run_id)
+get_status(run_id)
+```
+
+Step-level execution telemetry does not traverse this boundary. LLM spans, tool calls, retries,
+and raw trace events flow directly into trace or data-plane adapters.
 
 ## Atlas vs External Backends
 
@@ -391,7 +472,8 @@ POST /runs
   -> RunnableAgentCatalogPort.get_agent(...)
   -> RunSubmissionService.submit
   -> RunRepository.save
-  -> TaskQueuePort.enqueue(RUN_EXECUTION)
+  -> ExecutionControlPort.submit_run
+  -> current backend: TaskQueuePort.enqueue(RUN_EXECUTION)
   -> AppWorker.run_once
   -> RunExecutionService.execute_run
   -> PublishedRunRuntimePort.execute_published(...)

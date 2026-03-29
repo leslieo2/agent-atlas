@@ -35,7 +35,7 @@ def build_experiment_module(
         dataset_repository=infra.dataset_repository,
         run_repository=infra.run_repository,
         approval_policy_repository=infra.approval_policy_repository,
-        executor=infra.executor,
+        execution_control=infra.execution_control,
         task_queue=infra.task_queue,
         agent_exists=agents.agent_exists,
     )
@@ -44,7 +44,7 @@ def build_experiment_module(
         dataset_repository=infra.dataset_repository,
         run_repository=infra.run_repository,
         agent_catalog=infra.runnable_agent_catalog,
-        executor=infra.executor,
+        execution_control=infra.execution_control,
         task_queue=infra.task_queue,
     )
     experiment_aggregation_service = ExperimentAggregationService(

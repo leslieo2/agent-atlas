@@ -4,8 +4,8 @@ from uuid import UUID
 
 from app.modules.agents.application.ports import RunnableAgentCatalogPort
 from app.modules.datasets.application.ports import DatasetRepository
+from app.modules.execution.application.ports import ExecutionControlPort
 from app.modules.experiments.application.ports import (
-    ExecutorPort,
     ExperimentRepository,
     RunEvaluationRepository,
     RunRepository,
@@ -29,14 +29,14 @@ class ExperimentOrchestrator:
         dataset_repository: DatasetRepository,
         run_repository: RunRepository,
         agent_catalog: RunnableAgentCatalogPort,
-        executor: ExecutorPort,
+        execution_control: ExecutionControlPort,
         task_queue: TaskQueuePort,
     ) -> None:
         self.experiment_repository = experiment_repository
         self.dataset_repository = dataset_repository
         self.run_repository = run_repository
         self.agent_catalog = agent_catalog
-        self.executor = executor
+        self.execution_control = execution_control
         self.task_queue = task_queue
 
     def execute_experiment(self, experiment_id: UUID) -> None:
@@ -115,11 +115,12 @@ class ExperimentOrchestrator:
             )
             run = RunAggregate.create(run_spec)
             self.run_repository.save(run)
-            submission = self.executor.submit(run_spec)
+            handle = self.execution_control.submit_run(run_spec)
             updated = run.model_copy(
                 update={
-                    "executor_backend": submission.backend,
-                    "executor_submission_id": submission.submission_id,
+                    "attempt_id": handle.attempt_id,
+                    "executor_backend": handle.backend,
+                    "executor_submission_id": handle.executor_ref,
                 }
             )
             self.run_repository.save(updated)
@@ -170,7 +171,14 @@ class ExperimentAggregationService:
             if run.experiment_id == experiment.experiment_id and run.dataset_sample_id is not None
         ]
         if len(runs) < len(dataset_version.rows) or any(
-            run.status in {RunStatus.QUEUED, RunStatus.RUNNING} for run in runs
+            run.status
+            in {
+                RunStatus.QUEUED,
+                RunStatus.STARTING,
+                RunStatus.RUNNING,
+                RunStatus.CANCELLING,
+            }
+            for run in runs
         ):
             self.task_queue.enqueue(
                 QueuedTask(

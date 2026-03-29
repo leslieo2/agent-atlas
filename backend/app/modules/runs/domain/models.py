@@ -234,6 +234,7 @@ def utc_now() -> datetime:
 
 class RunRecord(BaseModel):
     run_id: UUID = Field(default_factory=uuid4)
+    attempt_id: UUID = Field(default_factory=uuid4)
     experiment_id: UUID | None = None
     dataset_version_id: UUID | None = None
     input_summary: str
@@ -250,6 +251,8 @@ class RunRecord(BaseModel):
     agent_type: AdapterKind
     tags: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     artifact_ref: str | None = None
     image_ref: str | None = None
@@ -268,6 +271,81 @@ class RunRecord(BaseModel):
     error_message: str | None = None
     termination_reason: str | None = None
     terminal_reason: str | None = None
+    last_heartbeat_at: datetime | None = None
+    last_progress_at: datetime | None = None
+    lease_expires_at: datetime | None = None
+    heartbeat_sequence: int = 0
+
+    def to_run_spec(self) -> RunSpec:
+        prompt = str(self.project_metadata.get("prompt", ""))
+        project_metadata = dict(self.project_metadata)
+        project_metadata.pop("prompt", None)
+        provenance = self.provenance.model_copy(deep=True) if self.provenance is not None else None
+        prompt_version = project_metadata.get("prompt_version")
+        system_prompt = project_metadata.get("system_prompt")
+        model_config = None
+        prompt_config = None
+        toolset_config = ToolsetConfig()
+        evaluator_config = EvaluatorConfig()
+        executor_config = ExecutorConfig(backend=self.executor_backend or "local-runner")
+        approval_policy = None
+        if provenance is not None:
+            model_config = ModelConfig(model=self.resolved_model or self.model)
+            prompt_config = PromptConfig(
+                prompt_version=prompt_version if isinstance(prompt_version, str) else None,
+                system_prompt=system_prompt if isinstance(system_prompt, str) else None,
+            )
+            toolset_config = (
+                provenance.toolset.model_copy(deep=True)
+                if provenance.toolset is not None
+                else ToolsetConfig()
+            )
+            evaluator_config = (
+                provenance.evaluator.model_copy(deep=True)
+                if provenance.evaluator is not None
+                else EvaluatorConfig()
+            )
+            executor_config = (
+                provenance.executor.model_copy(deep=True)
+                if provenance.executor is not None
+                else ExecutorConfig(backend=self.executor_backend or "local-runner")
+            )
+            approval_policy = (
+                provenance.approval_policy.model_copy(deep=True)
+                if provenance.approval_policy is not None
+                else None
+            )
+            provenance = provenance.model_copy(
+                update={
+                    "artifact_ref": self.artifact_ref,
+                    "image_ref": self.image_ref,
+                    "executor_backend": self.executor_backend,
+                }
+            )
+
+        return RunSpec(
+            run_id=self.run_id,
+            experiment_id=self.experiment_id,
+            dataset_version_id=self.dataset_version_id,
+            project=self.project,
+            dataset=self.dataset,
+            agent_id=self.agent_id,
+            model=self.resolved_model or self.model,
+            entrypoint=self.entrypoint,
+            agent_type=self.agent_type,
+            input_summary=self.input_summary,
+            prompt=prompt,
+            tags=list(self.tags),
+            project_metadata=project_metadata,
+            dataset_sample_id=self.dataset_sample_id,
+            model_config=model_config,
+            prompt_config=prompt_config,
+            toolset_config=toolset_config,
+            evaluator_config=evaluator_config,
+            executor_config=executor_config,
+            approval_policy=approval_policy,
+            provenance=provenance,
+        )
 
 
 class TrajectoryStep(BaseModel):

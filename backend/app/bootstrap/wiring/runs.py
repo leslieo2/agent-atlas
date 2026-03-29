@@ -28,7 +28,7 @@ def build_run_module(
 ) -> RunModuleBundle:
     run_submission = RunSubmissionService(
         run_repository=infra.run_repository,
-        task_queue=infra.task_queue,
+        execution_control=infra.execution_control,
         default_trace_backend=infra.trace_backend.backend_name(),
     )
     telemetry_ingestor = RunTelemetryIngestionService(
@@ -49,6 +49,7 @@ def build_run_module(
         run_repository=infra.run_repository,
         agent_catalog=infra.runnable_agent_catalog,
         submission_service=run_submission,
+        execution_control=infra.execution_control,
     )
     run_execution_service = RunExecutionService(
         run_repository=infra.run_repository,

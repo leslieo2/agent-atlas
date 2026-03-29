@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from app.modules.runs.domain.models import ExecutionMetrics, RunRecord, RunSpec
+from uuid import uuid4
+
+from app.modules.runs.domain.models import ExecutionMetrics, RunRecord, RunSpec, utc_now
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.shared.domain.models import RunLineage
 
@@ -13,6 +15,7 @@ class RunAggregate:
     def create(cls, spec: RunSpec) -> RunRecord:
         return RunRecord(
             run_id=spec.run_id,
+            attempt_id=uuid4(),
             experiment_id=spec.experiment_id,
             dataset_version_id=spec.dataset_version_id,
             input_summary=spec.input_summary,
@@ -46,26 +49,56 @@ class RunAggregate:
     def load(cls, run: RunRecord) -> RunAggregate:
         return cls(run)
 
-    def mark_running(self) -> RunRecord:
+    def mark_starting(self) -> RunRecord:
         if self.run.status != RunStatus.QUEUED:
             raise ValueError(f"cannot start run from status={self.run.status.value}")
+        now = utc_now()
+        self.run.status = RunStatus.STARTING
+        self.run.started_at = self.run.started_at or now
+        self.run.last_heartbeat_at = now
+        self.run.last_progress_at = now
+        self.run.heartbeat_sequence += 1
+        self.run.termination_reason = None
+        self.run.terminal_reason = None
+        return self.run
+
+    def mark_running(self) -> RunRecord:
+        if self.run.status not in {RunStatus.QUEUED, RunStatus.STARTING}:
+            raise ValueError(f"cannot start run from status={self.run.status.value}")
+        now = utc_now()
         self.run.status = RunStatus.RUNNING
+        self.run.started_at = self.run.started_at or now
+        self.run.last_heartbeat_at = now
+        self.run.last_progress_at = now
+        self.run.heartbeat_sequence += 1
         self.run.termination_reason = None
         self.run.terminal_reason = None
         return self.run
 
     def mark_succeeded(self) -> RunRecord:
-        if self.run.status not in {RunStatus.RUNNING, RunStatus.QUEUED}:
+        if self.run.status not in {RunStatus.RUNNING, RunStatus.STARTING, RunStatus.QUEUED}:
             raise ValueError(f"cannot succeed run from status={self.run.status.value}")
+        now = utc_now()
         self.run.status = RunStatus.SUCCEEDED
+        self.run.started_at = self.run.started_at or now
+        self.run.completed_at = now
+        self.run.last_heartbeat_at = now
+        self.run.last_progress_at = now
+        self.run.heartbeat_sequence += 1
         self.run.termination_reason = None
         self.run.terminal_reason = None
         return self.run
 
     def mark_failed(self, reason: str | None = None) -> RunRecord:
-        if self.run.status in {RunStatus.SUCCEEDED, RunStatus.TERMINATED}:
+        if self.run.status in {RunStatus.SUCCEEDED, RunStatus.CANCELLED, RunStatus.LOST}:
             raise ValueError(f"cannot fail run from status={self.run.status.value}")
+        now = utc_now()
         self.run.status = RunStatus.FAILED
+        self.run.started_at = self.run.started_at or now
+        self.run.completed_at = now
+        self.run.last_heartbeat_at = now
+        self.run.last_progress_at = now
+        self.run.heartbeat_sequence += 1
         self.run.termination_reason = reason
         self.run.terminal_reason = reason
         return self.run
@@ -100,7 +133,7 @@ class RunAggregate:
             self.run.provenance.runner_backend = runner_backend
         self.run.error_code = None
         self.run.error_message = None
-        if self.run.status != RunStatus.TERMINATED:
+        if self.run.status not in {RunStatus.CANCELLING, RunStatus.CANCELLED}:
             self.run.termination_reason = None
             self.run.terminal_reason = None
         return self.run
@@ -115,10 +148,56 @@ class RunAggregate:
         self.run.error_message = error_message
         return self.run
 
-    def terminate(self, reason: str = "terminated by user") -> RunRecord:
-        if self.run.status not in {RunStatus.QUEUED, RunStatus.RUNNING}:
-            raise ValueError(f"cannot terminate run from status={self.run.status.value}")
-        self.run.status = RunStatus.TERMINATED
+    def request_cancel(self, reason: str = "cancelled by user") -> RunRecord:
+        if self.run.status not in {
+            RunStatus.QUEUED,
+            RunStatus.STARTING,
+            RunStatus.RUNNING,
+            RunStatus.CANCELLING,
+        }:
+            raise ValueError(f"cannot cancel run from status={self.run.status.value}")
+        self.run.status = (
+            RunStatus.CANCELLED
+            if self.run.status in {RunStatus.QUEUED, RunStatus.STARTING}
+            else RunStatus.CANCELLING
+        )
+        now = utc_now()
+        self.run.last_heartbeat_at = now
+        self.run.last_progress_at = now
+        self.run.heartbeat_sequence += 1
+        self.run.termination_reason = reason
+        self.run.terminal_reason = reason
+        if self.run.status == RunStatus.CANCELLED:
+            self.run.completed_at = now
+        return self.run
+
+    def mark_cancelled(self, reason: str = "cancelled by user") -> RunRecord:
+        if self.run.status not in {
+            RunStatus.QUEUED,
+            RunStatus.STARTING,
+            RunStatus.RUNNING,
+            RunStatus.CANCELLING,
+        }:
+            raise ValueError(f"cannot cancel run from status={self.run.status.value}")
+        now = utc_now()
+        self.run.status = RunStatus.CANCELLED
+        self.run.completed_at = now
+        self.run.last_heartbeat_at = now
+        self.run.last_progress_at = now
+        self.run.heartbeat_sequence += 1
+        self.run.termination_reason = reason
+        self.run.terminal_reason = reason
+        return self.run
+
+    def mark_lost(self, reason: str = "execution heartbeat lost") -> RunRecord:
+        if self.run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}:
+            raise ValueError(f"cannot lose run from status={self.run.status.value}")
+        now = utc_now()
+        self.run.status = RunStatus.LOST
+        self.run.completed_at = now
+        self.run.last_heartbeat_at = now
+        self.run.last_progress_at = now
+        self.run.heartbeat_sequence += 1
         self.run.termination_reason = reason
         self.run.terminal_reason = reason
         return self.run

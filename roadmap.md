@@ -4,6 +4,17 @@
 
 Agent Atlas is narrowing into an RL data control plane.
 
+The platform should be framed as layered infrastructure:
+
+- control plane
+- execution plane
+- observability / eval plane
+- data plane
+- training plane
+
+Hexagonal design should be applied locally inside control-plane services, not used as the
+top-level description for the entire platform.
+
 The target product loop is:
 
 ```text
@@ -160,6 +171,8 @@ Scope:
 - align PRD, README, roadmap, and architecture docs
 - remove workbench-first phrasing
 - describe Phoenix as the analysis plane and Atlas as the RL data control plane
+- describe the whole product as a layered platform while keeping hexagonal design scoped to
+  control-plane services
 
 ### Frontend control-plane focus
 

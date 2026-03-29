@@ -31,7 +31,15 @@ export type ApiDataset = {
 export type ApiRun = {
   run_id: string;
   input_summary: string;
-  status: "queued" | "running" | "succeeded" | "failed";
+  status:
+    | "queued"
+    | "starting"
+    | "running"
+    | "cancelling"
+    | "succeeded"
+    | "failed"
+    | "cancelled"
+    | "lost";
   latency_ms: number;
   token_cost: number;
   tool_calls: number;

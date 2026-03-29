@@ -1,4 +1,4 @@
-from app.infrastructure.adapters.execution import (
+from app.infrastructure.adapters.execution.control import (
     ExecutionControlRegistry,
     K8sJobExecutionAdapter,
     LocalWorkerExecutionAdapter,

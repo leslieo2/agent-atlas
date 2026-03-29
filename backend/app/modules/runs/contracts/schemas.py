@@ -41,6 +41,7 @@ class RunCreateRequest(BaseModel):
 
 class RunResponse(BaseModel):
     run_id: UUID
+    attempt_id: UUID
     experiment_id: UUID | None = None
     dataset_version_id: UUID | None = None
     input_summary: str
@@ -63,6 +64,8 @@ class RunResponse(BaseModel):
     executor_backend: str | None = None
     executor_submission_id: str | None = None
     attempt: int
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     runner_backend: str | None = None
     execution_backend: str | None = None
     container_image: str | None = None
@@ -75,15 +78,18 @@ class RunResponse(BaseModel):
     error_message: str | None = None
     termination_reason: str | None = None
     terminal_reason: str | None = None
+    last_heartbeat_at: datetime | None = None
+    last_progress_at: datetime | None = None
+    lease_expires_at: datetime | None = None
 
     @classmethod
     def from_domain(cls, run: RunRecord) -> RunResponse:
         return cls.model_validate(run.model_dump())
 
 
-class TerminateRunResponse(BaseModel):
+class CancelRunResponse(BaseModel):
     run_id: UUID
-    terminated: bool
+    cancelled: bool
     status: RunStatus
     termination_reason: str | None = None
 

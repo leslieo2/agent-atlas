@@ -7,8 +7,9 @@ from uuid import UUID
 
 from app.core.errors import AgentNotPublishedError, AppError, DatasetNotFoundError
 from app.modules.datasets.application.ports import DatasetRepository
+from app.modules.execution.application.ports import ExecutionControlPort
+from app.modules.execution.domain.models import CancelRequest
 from app.modules.experiments.application.ports import (
-    ExecutorPort,
     ExperimentRepository,
     RunEvaluationRepository,
     RunRepository,
@@ -243,7 +244,7 @@ class ExperimentCommands:
         dataset_repository: DatasetRepository,
         run_repository: RunRepository,
         approval_policy_repository: ApprovalPolicyRepository,
-        executor: ExecutorPort,
+        execution_control: ExecutionControlPort,
         task_queue: TaskQueuePort,
         agent_exists: Callable[[str], bool],
     ) -> None:
@@ -252,7 +253,7 @@ class ExperimentCommands:
         self.dataset_repository = dataset_repository
         self.run_repository = run_repository
         self.approval_policy_repository = approval_policy_repository
-        self.executor = executor
+        self.execution_control = execution_control
         self.task_queue = task_queue
         self.agent_exists = agent_exists
 
@@ -316,9 +317,20 @@ class ExperimentCommands:
         for run in self.run_repository.list():
             if run.experiment_id != experiment.experiment_id:
                 continue
-            if run.status not in {RunStatus.QUEUED, RunStatus.RUNNING}:
+            if run.status not in {
+                RunStatus.QUEUED,
+                RunStatus.STARTING,
+                RunStatus.RUNNING,
+                RunStatus.CANCELLING,
+            }:
                 continue
-            self.executor.cancel(run.run_id)
+            self.execution_control.cancel_run(
+                CancelRequest(
+                    run_id=run.run_id,
+                    attempt_id=run.attempt_id,
+                    reason="cancelled by experiment",
+                )
+            )
         return experiment
 
     def patch_run_evaluation(

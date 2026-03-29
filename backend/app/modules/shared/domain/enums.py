@@ -5,10 +5,13 @@ from enum import Enum
 
 class RunStatus(str, Enum):
     QUEUED = "queued"
+    STARTING = "starting"
     RUNNING = "running"
+    CANCELLING = "cancelling"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
-    TERMINATED = "terminated"
+    CANCELLED = "cancelled"
+    LOST = "lost"
 
 
 class StepType(str, Enum):

@@ -10,10 +10,10 @@ from app.infrastructure.adapters.agent_catalog import (
     StateRunnableAgentCatalog,
 )
 from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
-from app.infrastructure.adapters.experiments import (
-    ExecutorRegistry,
-    K8sJobExecutorAdapter,
-    LocalRunnerExecutorAdapter,
+from app.infrastructure.adapters.execution import (
+    ExecutionControlRegistry,
+    K8sJobExecutionAdapter,
+    LocalWorkerExecutionAdapter,
 )
 from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
 from app.infrastructure.adapters.langchain import (
@@ -52,7 +52,7 @@ from app.infrastructure.repositories import (
     StateTrajectoryRepository,
 )
 from app.modules.agents.application.ports import ArtifactBuilderPort, FrameworkRegistryPort
-from app.modules.experiments.application.ports import ExecutorPort
+from app.modules.execution.application.ports import ExecutionControlPort
 from app.modules.runs.application.ports import ArtifactResolverPort, RunnerPort
 from app.modules.traces.application.ports import TraceBackendPort, TraceExporterPort
 
@@ -96,7 +96,7 @@ class InfrastructureBundle:
     model_runtime: ModelRuntimeService
     artifact_resolver: ArtifactResolverPort
     runner: RunnerPort
-    executor: ExecutorPort
+    execution_control: ExecutionControlPort
     default_runner_backend: str
     trace_backend: TraceBackendPort
     trace_exporter: TraceExporterPort
@@ -160,13 +160,13 @@ def build_infrastructure() -> InfrastructureBundle:
         },
         default_backend=default_runner_backend,
     )
-    executor = ExecutorRegistry(
-        executors={
-            "k8s-job": K8sJobExecutorAdapter(
+    execution_control = ExecutionControlRegistry(
+        backends={
+            "k8s-job": K8sJobExecutionAdapter(
                 task_queue=task_queue,
                 run_repository=run_repository,
             ),
-            "local-runner": LocalRunnerExecutorAdapter(
+            "local-runner": LocalWorkerExecutionAdapter(
                 task_queue=task_queue,
                 run_repository=run_repository,
             ),
@@ -214,7 +214,7 @@ def build_infrastructure() -> InfrastructureBundle:
         model_runtime=model_runtime,
         artifact_resolver=artifact_resolver,
         runner=runner,
-        executor=executor,
+        execution_control=execution_control,
         default_runner_backend=default_runner_backend,
         trace_backend=trace_backend,
         trace_exporter=trace_exporter,

@@ -26,10 +26,10 @@ def evaluate_sample(
     default_export_eligible = (
         sample.export_eligible
         if sample.export_eligible is not None
-        else run.status != RunStatus.TERMINATED
+        else run.status not in {RunStatus.CANCELLED, RunStatus.LOST}
     )
 
-    if run.status in {RunStatus.FAILED, RunStatus.TERMINATED}:
+    if run.status in {RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.LOST}:
         return EvalSampleResult(
             eval_job_id=resolved_eval_job_id,
             dataset_sample_id=sample.sample_id,
@@ -41,7 +41,7 @@ def evaluate_sample(
             failure_reason=(
                 run.error_message or run.termination_reason or "runtime execution failed"
             ),
-            error_code=run.error_code or "timeout_or_termination",
+            error_code=run.error_code or "timeout_or_cancellation",
             error_message=run.error_message,
             trace_url=run.trace_url,
             tags=sample.tags,

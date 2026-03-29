@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.modules.agents.domain.models import PublishedAgent
+from app.modules.execution.application.ports import ExecutionControlPort
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord, RunSpec
 from app.modules.runs.domain.policies import RunAggregate
-from app.modules.shared.application.ports import TaskQueuePort
 from app.modules.shared.domain.models import ExecutorConfig, ProvenanceMetadata
-from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
 
 def _resolve_submission_agent(agent: PublishedAgent) -> PublishedAgent:
@@ -75,11 +74,11 @@ class RunSubmissionService:
     def __init__(
         self,
         run_repository: RunRepository,
-        task_queue: TaskQueuePort,
+        execution_control: ExecutionControlPort,
         default_trace_backend: str = "phoenix",
     ) -> None:
         self.run_repository = run_repository
-        self.task_queue = task_queue
+        self.execution_control = execution_control
         self.default_trace_backend = default_trace_backend
 
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
@@ -116,11 +115,13 @@ class RunSubmissionService:
         )
         run = RunAggregate.create(spec)
         self.run_repository.save(run)
-        self.task_queue.enqueue(
-            QueuedTask(
-                task_type=TaskType.RUN_EXECUTION,
-                target_id=run.run_id,
-                payload=spec.model_dump(mode="json"),
-            )
+        handle = self.execution_control.submit_run(spec)
+        updated = run.model_copy(
+            update={
+                "attempt_id": handle.attempt_id,
+                "executor_backend": handle.backend,
+                "executor_submission_id": handle.executor_ref,
+            }
         )
-        return run
+        self.run_repository.save(updated)
+        return updated

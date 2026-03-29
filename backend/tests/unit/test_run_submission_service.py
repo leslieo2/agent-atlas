@@ -4,10 +4,10 @@ import pytest
 from app.core.errors import AgentFrameworkMismatchError
 from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
+from app.modules.execution.domain.models import RunHandle
 from app.modules.runs.application.services import RunSubmissionService
-from app.modules.runs.domain.models import RunCreateInput, RunRecord
+from app.modules.runs.domain.models import RunCreateInput, RunRecord, RunSpec
 from app.modules.shared.domain.enums import AdapterKind
-from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
 
 class StubRunRepository:
@@ -24,21 +24,33 @@ class StubRunRepository:
         return list(self.saved)
 
     def save(self, run: RunRecord) -> None:
+        for index, existing in enumerate(self.saved):
+            if existing.run_id == run.run_id:
+                self.saved[index] = run
+                return
         self.saved.append(run)
 
 
-class StubTaskQueue:
+class StubExecutionControl:
     def __init__(self) -> None:
-        self.enqueued: list[QueuedTask] = []
+        self.submitted: list[RunSpec] = []
 
-    def enqueue(self, task: QueuedTask) -> None:
-        self.enqueued.append(task)
+    def submit_run(self, run_spec: RunSpec) -> RunHandle:
+        self.submitted.append(run_spec)
+        return RunHandle(
+            run_id=run_spec.run_id,
+            backend=run_spec.executor_config.backend,
+            executor_ref=f"local-{run_spec.run_id}",
+        )
 
 
 def test_run_submission_service_uses_published_agent_framework_and_enqueues_execution() -> None:
     repository = StubRunRepository()
-    task_queue = StubTaskQueue()
-    service = RunSubmissionService(run_repository=repository, task_queue=task_queue)
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
     payload = RunCreateInput(
         project="migration-check",
         dataset="framework-ds",
@@ -74,19 +86,23 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert run.provenance.published_agent_snapshot["runtime_artifact"]["build_status"] == "ready"
     assert run.provenance.artifact_ref == build_result.runtime_artifact.artifact_ref
     assert repository.saved == [run]
-    assert len(task_queue.enqueued) == 1
-    task = task_queue.enqueued[0]
-    assert task.task_type == TaskType.RUN_EXECUTION
-    assert task.target_id == run.run_id
-    assert task.payload["agent_type"] == AdapterKind.LANGCHAIN.value
-    assert task.payload["entrypoint"] == "app.agent_plugins.triage_bot:build_agent"
-    assert task.payload["provenance"]["framework"] == "langchain"
+    assert len(execution_control.submitted) == 1
+    task = execution_control.submitted[0]
+    assert run.executor_backend == "local-runner"
+    assert run.executor_submission_id == f"local-{run.run_id}"
+    assert task.agent_type == AdapterKind.LANGCHAIN
+    assert task.entrypoint == "app.agent_plugins.triage_bot:build_agent"
+    assert task.provenance is not None
+    assert task.provenance.framework == "langchain"
 
 
 def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
     repository = StubRunRepository()
-    task_queue = StubTaskQueue()
-    service = RunSubmissionService(run_repository=repository, task_queue=task_queue)
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
     payload = RunCreateInput(
         project="migration-check",
         dataset="framework-ds",
@@ -116,13 +132,16 @@ def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
         service.submit(payload, agent)
 
     assert repository.saved == []
-    assert task_queue.enqueued == []
+    assert execution_control.submitted == []
 
 
 def test_run_submission_service_backfills_legacy_artifact_handoff() -> None:
     repository = StubRunRepository()
-    task_queue = StubTaskQueue()
-    service = RunSubmissionService(run_repository=repository, task_queue=task_queue)
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
     payload = RunCreateInput(
         project="legacy-handoff",
         agent_id="triage-bot",
@@ -150,3 +169,4 @@ def test_run_submission_service_backfills_legacy_artifact_handoff() -> None:
     assert run.provenance.published_agent_snapshot["runtime_artifact"]["source_fingerprint"] == (
         "legacy-fingerprint"
     )
+    assert run.executor_submission_id == f"local-{run.run_id}"

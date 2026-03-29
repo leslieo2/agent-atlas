@@ -48,7 +48,7 @@ function experimentTone(status: string) {
   if (status === "completed") {
     return "success";
   }
-  if (status === "failed" || status === "cancelled") {
+  if (status === "failed" || status === "cancelled" || status === "lost") {
     return "error";
   }
   return "warn";

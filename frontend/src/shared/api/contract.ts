@@ -303,6 +303,7 @@ export interface RunLineage {
 }
 export interface RunResponse {
   "run_id": string;
+  "attempt_id": string;
   "experiment_id"?: string | null;
   "dataset_version_id"?: string | null;
   "input_summary": string;
@@ -325,6 +326,8 @@ export interface RunResponse {
   "executor_backend"?: string | null;
   "executor_submission_id"?: string | null;
   "attempt": number;
+  "started_at"?: string | null;
+  "completed_at"?: string | null;
   "runner_backend"?: string | null;
   "execution_backend"?: string | null;
   "container_image"?: string | null;
@@ -337,8 +340,11 @@ export interface RunResponse {
   "error_message"?: string | null;
   "termination_reason"?: string | null;
   "terminal_reason"?: string | null;
+  "last_heartbeat_at"?: string | null;
+  "last_progress_at"?: string | null;
+  "lease_expires_at"?: string | null;
 }
-export type RunStatus = "queued" | "running" | "succeeded" | "failed" | "terminated";
+export type RunStatus = "queued" | "starting" | "running" | "cancelling" | "succeeded" | "failed" | "cancelled" | "lost";
 export interface RuntimeArtifactMetadata {
   "build_status"?: string | null;
   "source_fingerprint"?: string | null;

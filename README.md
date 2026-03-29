@@ -24,7 +24,7 @@ It combines:
 What exists today:
 
 - repository-local agent discovery and publish / unpublish workflow
-- worker-backed execution and run lifecycle tracking
+- worker-backed execution behind a neutral run-control contract
 - dataset management and dataset-driven eval jobs
 - artifact export for downstream analysis
 - legacy run, trajectory, and playground surfaces from the earlier workbench story
@@ -62,6 +62,31 @@ This means the long-term shape is:
 - eval-driven batch execution and comparison
 - Phoenix-linked debugging instead of Atlas-native trace tooling
 - RL-ready offline export
+
+## Platform Architecture
+
+The product should be described first as a layered platform, not as one giant hexagonal
+application.
+
+The platform planes are:
+
+- control plane: governs datasets, experiments or eval jobs, runs, provenance, curation, and
+  export contracts
+- execution plane: runs agents in isolated carriers such as local workers, containers, or
+  Kubernetes jobs
+- observability and eval plane: collects telemetry, stores raw traces, and supports debugging and
+  comparison
+- data plane: normalizes trajectories, artifacts, labels, and lineage into training-usable data
+- training plane: filters, transforms, and exports offline RL or post-training datasets
+
+Hexagonal architecture is still useful, but only locally:
+
+- use it inside control-plane and core business services where Atlas-owned semantics must stay
+  stable while backends change
+- do not use it as the primary mental model for the whole platform topology
+- do not force execution orchestration, telemetry pipelines, or high-throughput data processing
+  into a pure ports-and-adapters shape when state-machine, event-driven, or data-pipeline designs
+  fit better
 
 ## Architecture At A Glance
 

@@ -5,13 +5,14 @@ from uuid import UUID
 
 from app.core.errors import AgentNotPublishedError
 from app.modules.agents.application.ports import RunnableAgentCatalogPort
+from app.modules.execution.application.ports import ExecutionControlPort
+from app.modules.execution.domain.models import CancelRequest
 from app.modules.runs.application.ports import (
     RunRepository,
     TrajectoryRepository,
 )
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord, TrajectoryStep
-from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.traces.application.ports import TraceBackendPort
 from app.modules.traces.domain.models import TraceSpan
@@ -88,10 +89,12 @@ class RunCommands:
         run_repository: RunRepository,
         agent_catalog: RunnableAgentCatalogPort,
         submission_service: RunSubmissionService,
+        execution_control: ExecutionControlPort,
     ) -> None:
         self.run_repository = run_repository
         self.agent_catalog = agent_catalog
         self.submission_service = submission_service
+        self.execution_control = execution_control
 
     def create_run(self, payload: RunCreateInput) -> RunRecord:
         agent = self.agent_catalog.get_agent(payload.agent_id)
@@ -100,13 +103,12 @@ class RunCommands:
 
         return self.submission_service.submit(payload, agent)
 
-    def terminate(self, run_id: str | UUID, reason: str = "terminated by user") -> RunRecord | None:
+    def terminate(self, run_id: str | UUID, reason: str = "cancelled by user") -> RunRecord | None:
         run = self.run_repository.get(run_id)
         if not run:
             return None
-        try:
-            updated = RunAggregate.load(run).terminate(reason)
-        except ValueError:
+        if not self.execution_control.cancel_run(
+            CancelRequest(run_id=run.run_id, attempt_id=run.attempt_id, reason=reason)
+        ):
             return None
-        self.run_repository.save(updated)
-        return updated
+        return self.run_repository.get(run_id)

@@ -1,8 +1,8 @@
 # Agent Atlas Backend
 
 The backend is the control plane for Agent Atlas. It provides the HTTP API, persists Atlas-owned
-state, executes runs through the worker, manages repository-local agent publication, coordinates
-datasets and eval jobs, and produces export artifacts.
+state, submits run intent through a neutral execution-control contract, manages repository-local
+agent publication, coordinates datasets and eval jobs, and produces export artifacts.
 
 Strategically, the backend is moving toward a split where:
 
@@ -32,7 +32,7 @@ Directionally, the backend will also own:
 
 - stronger dataset and sample identity for RL data workflows
 - artifact or image provenance attached to published agents and exports
-- runner backend selection and execution control
+- runner backend selection and execution control behind a run contract
 - Phoenix-backed trace integration behind backend-owned ports and deep links
 - RL-ready export contracts and curation-oriented filtering
 
@@ -51,6 +51,14 @@ This backend is a modular monolith built with FastAPI.
 - `app/modules/`: feature-level application and domain logic
 - `app/infrastructure/`: repositories and outbound adapters
 - `app/bootstrap/container.py`: composition root
+
+This is the internal architecture of the control-plane backend, not the architecture of the whole
+product platform.
+
+At the product level, Atlas should still be described as a layered system with control,
+execution, observability or eval, data, and training planes. Inside this backend, ports and
+adapters are useful because they keep Atlas-owned semantics stable while runner, trace, and
+storage implementations change.
 
 Read the full architecture rules in [ARCHITECTURE.md](./ARCHITECTURE.md). Contributor and layering
 guidance lives in [AGENTS.md](./AGENTS.md).
@@ -81,7 +89,8 @@ Local defaults:
 
 Current runtime model:
 
-- API requests create run records immediately and enqueue work in local state
+- API requests create run records immediately and submit them through `ExecutionControlPort`
+- the current local backend maps that contract to queued worker tasks
 - `app.worker` is a separate process that claims queued jobs and executes them
 - run both `make run-api` and `make run-worker` during development if you want runs to advance past
   `queued`
