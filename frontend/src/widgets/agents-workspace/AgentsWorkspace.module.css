@@ -5,6 +5,12 @@
   border-top: 1px solid rgba(158, 189, 226, 0.08);
 }
 
+.filterRow {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 320px);
+}
+
 .cards {
   display: grid;
   gap: 14px;
@@ -100,6 +106,10 @@
 }
 
 @media (max-width: 900px) {
+  .filterRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .cardHeader {
     flex-direction: column;
   }

@@ -6,6 +6,7 @@ from types import ModuleType, SimpleNamespace
 import pytest
 from app.core.config import RuntimeMode
 from app.core.errors import (
+    AgentFrameworkMismatchError,
     ModelNotFoundError,
     ProviderAuthError,
     ProviderTimeoutError,
@@ -472,3 +473,76 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
     assert result.runtime_result.token_usage == 21
     assert len(result.trace_events) == 1
     assert result.trace_events[0].step_type.value == "llm"
+
+
+def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_runs():
+    class StubValidator:
+        def discover(self, source):
+            raise AssertionError(f"unexpected discovery: {source}")
+
+    class StubLoader:
+        def build_agent(
+            self,
+            *,
+            published_agent: PublishedAgent,
+            context: AgentBuildContext,
+        ) -> object:
+            del published_agent, context
+            return object()
+
+    class StubRuntime:
+        def execute_published(
+            self,
+            *,
+            api_key: SecretStr | None,
+            payload: RunSpec,
+            context: AgentBuildContext,
+        ) -> PublishedRunExecutionResult:
+            del api_key, payload, context
+            raise AssertionError("mock mode should not call live runtime")
+
+    registry = FrameworkRegistry(
+        plugins={
+            AdapterKind.LANGCHAIN.value: FrameworkPlugin(
+                framework=AdapterKind.LANGCHAIN.value,
+                validator=StubValidator(),
+                loader=StubLoader(),
+                runtime=StubRuntime(),
+            )
+        }
+    )
+    service = ModelRuntimeService(adapters={}, framework_registry=registry)
+    service.runtime_mode = RuntimeMode.MOCK
+    published_agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="graph-bot",
+            name="Graph Bot",
+            description="LangGraph-backed agent",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=[],
+        ),
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+    )
+    payload = RunSpec(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="graph-bot",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        tags=["langchain"],
+        provenance=ProvenanceMetadata(
+            framework=AdapterKind.LANGCHAIN.value,
+            published_agent_snapshot=published_agent.to_snapshot(),
+        ),
+    )
+
+    with pytest.raises(AgentFrameworkMismatchError):
+        service.execute_published("00000000-0000-0000-0000-000000000123", payload)
+
+    payload.agent_type = AdapterKind.LANGCHAIN
+    result = service.execute_published("00000000-0000-0000-0000-000000000123", payload)
+    assert "Simulated langchain execution" in result.runtime_result.output

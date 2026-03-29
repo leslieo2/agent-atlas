@@ -1,13 +1,14 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   useDiscoveredAgentsQuery,
   usePublishAgentMutation,
   useUnpublishAgentMutation
 } from "@/src/entities/agent/query";
 import type { DiscoveredAgentRecord } from "@/src/entities/agent/model";
+import { Field } from "@/src/shared/ui/Field";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Notice } from "@/src/shared/ui/Notice";
@@ -21,27 +22,27 @@ type AgentGroup = {
   items: DiscoveredAgentRecord[];
 };
 
-type AgentWorkspaceState = "published" | "published_with_draft_changes" | "draft" | "invalid";
+type AgentReadiness = "ready" | "published_with_drift" | "draft" | "invalid";
 
-function getAgentWorkspaceState(agent: DiscoveredAgentRecord): AgentWorkspaceState {
+function getAgentReadiness(agent: DiscoveredAgentRecord): AgentReadiness {
   if (agent.validationStatus === "invalid") {
     return "invalid";
   }
   if (agent.publishState === "published" && agent.hasUnpublishedChanges) {
-    return "published_with_draft_changes";
+    return "published_with_drift";
   }
   if (agent.publishState === "published") {
-    return "published";
+    return "ready";
   }
   return "draft";
 }
 
-function stateLabel(state: AgentWorkspaceState) {
-  if (state === "published_with_draft_changes") {
+function readinessLabel(state: AgentReadiness) {
+  if (state === "published_with_drift") {
     return "Draft changes";
   }
-  if (state === "published") {
-    return "Published";
+  if (state === "ready") {
+    return "Ready";
   }
   if (state === "draft") {
     return "Draft";
@@ -54,8 +55,18 @@ function validationTone(agent: DiscoveredAgentRecord) {
 }
 
 function publishTone(agent: DiscoveredAgentRecord) {
-  const state = getAgentWorkspaceState(agent);
-  return state === "published" ? "success" : "warn";
+  const readiness = getAgentReadiness(agent);
+  return readiness === "ready" ? "success" : "warn";
+}
+
+function validationIssuesLabel(agent: DiscoveredAgentRecord) {
+  if (agent.framework === "openai-agents-sdk") {
+    return "OpenAI Agents SDK validation issues";
+  }
+  if (agent.framework === "langchain") {
+    return "LangChain validation issues";
+  }
+  return "Unsupported framework issues";
 }
 
 function AgentCard({
@@ -73,8 +84,8 @@ function AgentCard({
 }) {
   const isValid = agent.validationStatus === "valid";
   const isPublished = agent.publishState === "published";
-  const state = getAgentWorkspaceState(agent);
-  const hasDraftChanges = state === "published_with_draft_changes";
+  const readiness = getAgentReadiness(agent);
+  const hasDraftChanges = readiness === "published_with_drift";
 
   return (
     <article className={styles.card}>
@@ -87,7 +98,7 @@ function AgentCard({
           <p className="muted-note">{agent.description}</p>
         </div>
         <div className="toolbar">
-          <StatusPill tone={publishTone(agent)}>{stateLabel(state)}</StatusPill>
+          <StatusPill tone={publishTone(agent)}>{readinessLabel(readiness)}</StatusPill>
           <StatusPill tone={validationTone(agent)}>{agent.validationStatus}</StatusPill>
         </div>
       </div>
@@ -129,7 +140,7 @@ function AgentCard({
 
       {!isValid ? (
         <div>
-          <p className="page-eyebrow">Validation issues</p>
+          <p className="page-eyebrow">{validationIssuesLabel(agent)}</p>
           <ul className={styles.issueList}>
             {agent.validationIssues.map((issue) => (
               <li key={`${agent.agentId}-${issue.code}-${issue.message}`}>{issue.message}</li>
@@ -173,32 +184,41 @@ export default function AgentsWorkspace() {
   const discoveredAgentsQuery = useDiscoveredAgentsQuery();
   const publishMutation = usePublishAgentMutation();
   const unpublishMutation = useUnpublishAgentMutation();
+  const [frameworkFilter, setFrameworkFilter] = useState("all");
   const agents = useMemo(() => discoveredAgentsQuery.data ?? [], [discoveredAgentsQuery.data]);
+  const frameworkOptions = useMemo(
+    () => ["all", ...Array.from(new Set(agents.map((agent) => agent.framework))).sort()],
+    [agents]
+  );
+  const filteredAgents = useMemo(
+    () => (frameworkFilter === "all" ? agents : agents.filter((agent) => agent.framework === frameworkFilter)),
+    [agents, frameworkFilter]
+  );
 
   const groups = useMemo<AgentGroup[]>(
     () => [
       {
-        title: "Published",
-        description: "Runnable agents exposed to Playground and run creation.",
-        items: agents.filter((agent) => getAgentWorkspaceState(agent) === "published")
+        title: "Ready",
+        description: "Valid published agents exposed to Playground and run creation.",
+        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "ready")
       },
       {
         title: "Published with draft changes",
         description: "Current repository code differs from the published snapshot.",
-        items: agents.filter((agent) => getAgentWorkspaceState(agent) === "published_with_draft_changes")
+        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "published_with_drift")
       },
       {
         title: "Draft",
         description: "Valid repository plugins that are not yet exposed.",
-        items: agents.filter((agent) => getAgentWorkspaceState(agent) === "draft")
+        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "draft")
       },
       {
         title: "Invalid",
-        description: "Discovered plugins that currently fail the OpenAI Agents SDK contract.",
-        items: agents.filter((agent) => getAgentWorkspaceState(agent) === "invalid")
+        description: "Discovered plugins that currently fail framework-specific contract validation.",
+        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "invalid")
       }
     ],
-    [agents]
+    [filteredAgents]
   );
 
   const errorMessage =
@@ -214,11 +234,12 @@ export default function AgentsWorkspace() {
           <p className="page-eyebrow">Agent control plane</p>
           <h2 className="section-title">Agents</h2>
           <p className="kicker">
-            Discover repository-local plugins, publish runnable snapshots, and keep invalid agents out of Playground.
+            Discover repository-local plugins, publish framework-aware runnable snapshots, and keep invalid agents out
+            of Playground.
           </p>
           <div className="page-tag-list">
             <span className="page-tag">
-              Discovered <strong>{agents.length}</strong>
+              Visible <strong>{filteredAgents.length}</strong>
             </span>
             <span className="page-tag">
               Ready to run <strong>{groups[0].items.length}</strong>
@@ -232,7 +253,7 @@ export default function AgentsWorkspace() {
           <div className="page-info-item">
             <span className="page-info-label">Publishing status</span>
             <span className="page-info-value">
-              {groups[0].items.length} live / {groups[1].items.length} drifted / {groups[2].items.length} staged
+              {groups[0].items.length} ready / {groups[1].items.length} drifted / {groups[2].items.length} staged
             </span>
             <p className="page-info-detail">
               Re-publish drifted agents to refresh the runnable snapshot without expanding release scope.
@@ -242,11 +263,29 @@ export default function AgentsWorkspace() {
       </header>
 
       <div className="summary-strip">
-        <MetricCard label="Published" value={groups[0].items.length} />
+        <MetricCard label="Ready" value={groups[0].items.length} />
         <MetricCard label="Draft changes" value={groups[1].items.length} />
         <MetricCard label="Draft" value={groups[2].items.length} />
         <MetricCard label="Invalid" value={groups[3].items.length} />
       </div>
+
+      <Panel tone="plain">
+        <div className={styles.filterRow}>
+          <Field label="Framework" htmlFor="agents-framework-filter">
+            <select
+              id="agents-framework-filter"
+              value={frameworkFilter}
+              onChange={(event) => setFrameworkFilter(event.target.value)}
+            >
+              {frameworkOptions.map((framework) => (
+                <option key={framework} value={framework}>
+                  {framework}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </Panel>
 
       {errorMessage ? <Notice>{errorMessage}</Notice> : null}
       {discoveredAgentsQuery.isLoading ? <Notice>Loading discovered agents...</Notice> : null}

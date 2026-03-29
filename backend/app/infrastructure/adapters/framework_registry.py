@@ -7,7 +7,7 @@ from typing import Any, Protocol
 
 from pydantic import SecretStr
 
-from app.core.errors import AgentLoadFailedError
+from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentManifest,
@@ -16,6 +16,7 @@ from app.modules.agents.domain.models import (
     AgentValidationStatus,
     DiscoveredAgent,
     PublishedAgent,
+    adapter_kind_for_framework,
 )
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec
@@ -65,7 +66,10 @@ class FrameworkRegistry:
         return plugin.validator.discover(source)
 
     def build_agent(self, *, published_agent: PublishedAgent, context: AgentBuildContext) -> Any:
-        plugin = self._plugin_for_framework(published_agent.framework)
+        plugin = self._plugin_for_framework(
+            published_agent.framework,
+            agent_id=published_agent.agent_id,
+        )
         return plugin.loader.build_agent(published_agent=published_agent, context=context)
 
     def execute_published(
@@ -75,6 +79,18 @@ class FrameworkRegistry:
         payload: RunSpec,
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult:
+        published_agent = self.published_agent_from_payload(payload)
+        plugin = self._plugin_for_framework(
+            published_agent.framework,
+            agent_id=published_agent.agent_id,
+        )
+        return plugin.runtime.execute_published(
+            api_key=api_key,
+            payload=payload,
+            context=context,
+        )
+
+    def published_agent_from_payload(self, payload: RunSpec) -> PublishedAgent:
         try:
             snapshot = payload.provenance.published_agent_snapshot if payload.provenance else None
             published_agent = PublishedAgent.model_validate(snapshot)
@@ -84,17 +100,51 @@ class FrameworkRegistry:
                 agent_id=payload.agent_id,
             ) from exc
 
-        plugin = self._plugin_for_framework(published_agent.framework)
-        return plugin.runtime.execute_published(
-            api_key=api_key,
-            payload=payload,
-            context=context,
-        )
+        expected_framework = published_agent.framework
+        actual_framework = payload.provenance.framework if payload.provenance else None
+        if actual_framework and (
+            actual_framework.strip().lower() != expected_framework.strip().lower()
+        ):
+            raise AgentFrameworkMismatchError(
+                "run payload framework metadata does not match published snapshot",
+                agent_id=payload.agent_id,
+                expected_framework=expected_framework,
+                actual_framework=actual_framework,
+            )
 
-    def _plugin_for_framework(self, framework: str) -> FrameworkPlugin:
+        expected_agent_type = adapter_kind_for_framework(expected_framework)
+        if payload.agent_type != expected_agent_type:
+            raise AgentFrameworkMismatchError(
+                "run payload adapter kind does not match published snapshot framework",
+                agent_id=payload.agent_id,
+                expected_framework=expected_framework,
+                actual_agent_type=payload.agent_type.value,
+            )
+
+        if payload.agent_id and payload.agent_id != published_agent.agent_id:
+            raise AgentFrameworkMismatchError(
+                "run payload agent_id does not match published snapshot",
+                agent_id=payload.agent_id,
+                snapshot_agent_id=published_agent.agent_id,
+            )
+
+        return published_agent
+
+    def _plugin_for_framework(
+        self,
+        framework: str,
+        *,
+        agent_id: str | None = None,
+    ) -> FrameworkPlugin:
         normalized = framework.strip().lower()
         plugin = self.plugins.get(normalized)
         if plugin is None:
+            if agent_id is not None:
+                raise AgentLoadFailedError(
+                    f"published agent framework '{framework}' is not supported",
+                    agent_id=agent_id,
+                    framework=framework,
+                )
             raise ValueError(f"unsupported published agent framework '{framework}'")
         return plugin
 

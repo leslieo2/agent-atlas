@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+from app.core.errors import AgentFrameworkMismatchError
 from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
 from app.modules.runs.application.services import RunSubmissionService
@@ -75,3 +77,37 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert task.payload["agent_type"] == AdapterKind.LANGCHAIN.value
     assert task.payload["entrypoint"] == "app.agent_plugins.triage_bot:build_agent"
     assert task.payload["provenance"]["framework"] == "langchain"
+
+
+def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
+    repository = StubRunRepository()
+    task_queue = StubTaskQueue()
+    service = RunSubmissionService(run_repository=repository, task_queue=task_queue)
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+    )
+    agent.provenance = SourceArtifactBuilder().build(agent)
+    assert agent.provenance is not None
+    assert agent.provenance.published_agent_snapshot is not None
+    agent.provenance.published_agent_snapshot["manifest"]["framework"] = AdapterKind.LANGCHAIN.value
+
+    with pytest.raises(AgentFrameworkMismatchError):
+        service.submit(payload, agent)
+
+    assert repository.saved == []
+    assert task_queue.enqueued == []

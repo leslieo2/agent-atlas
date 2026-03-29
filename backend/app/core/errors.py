@@ -73,6 +73,35 @@ class AgentLoadFailedError(AppError):
     status_code = 500
 
 
+class AgentFrameworkMismatchError(AgentLoadFailedError, ValueError):
+    code = "agent_framework_mismatch"
+    status_code = 400
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        agent_id: str,
+        expected_framework: str | None = None,
+        actual_framework: str | None = None,
+        actual_agent_type: str | None = None,
+        snapshot_agent_id: str | None = None,
+    ) -> None:
+        context: dict[str, str] = {"agent_id": agent_id}
+        if expected_framework:
+            context["expected_framework"] = expected_framework
+        if actual_framework:
+            context["actual_framework"] = actual_framework
+        if actual_agent_type:
+            context["actual_agent_type"] = actual_agent_type
+        if snapshot_agent_id:
+            context["snapshot_agent_id"] = snapshot_agent_id
+        super().__init__(
+            message,
+            **context,
+        )
+
+
 class UnsupportedOperationError(AppError, ValueError):
     code = "unsupported_operation"
     status_code = 400

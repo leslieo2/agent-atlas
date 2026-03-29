@@ -14,7 +14,7 @@ from app.core.errors import (
     UnsupportedAdapterError,
 )
 from app.infrastructure.adapters.framework_registry import FrameworkRegistry
-from app.modules.agents.domain.models import AgentBuildContext
+from app.modules.agents.domain.models import AgentBuildContext, adapter_kind_for_framework
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
@@ -220,9 +220,14 @@ class ModelRuntimeService:
             return fallback
 
     def execute_published(self, run_id: Any, payload: RunSpec) -> PublishedRunExecutionResult:
+        resolved_agent_type = payload.agent_type
+        if self.framework_registry is not None:
+            published_agent = self.framework_registry.published_agent_from_payload(payload)
+            resolved_agent_type = adapter_kind_for_framework(published_agent.framework)
+
         effective_mode = self._effective_runtime_mode()
         if effective_mode == RuntimeMode.MOCK:
-            fallback = self._simulate_output(payload.agent_type, payload.model, payload.prompt)
+            fallback = self._simulate_output(resolved_agent_type, payload.model, payload.prompt)
             return PublishedRunExecutionResult(
                 runtime_result=fallback.model_copy(update={"resolved_model": payload.model})
             )
@@ -257,7 +262,7 @@ class ModelRuntimeService:
                 if normalized_exc is exc:
                     raise
                 raise normalized_exc from exc
-            fallback = self._simulate_output(payload.agent_type, payload.model, payload.prompt)
+            fallback = self._simulate_output(resolved_agent_type, payload.model, payload.prompt)
             fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
             return PublishedRunExecutionResult(
                 runtime_result=fallback.model_copy(update={"resolved_model": payload.model})

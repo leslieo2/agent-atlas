@@ -21,7 +21,7 @@ describe("Agents workspace", () => {
       {
         agentId: "basic",
         name: "Basic",
-        description: "Published smoke agent.",
+        description: "Ready OpenAI smoke agent.",
         framework: "openai-agents-sdk",
         entrypoint: "app.agent_plugins.basic:build_agent",
         defaultModel: "gpt-5.4-mini",
@@ -30,6 +30,21 @@ describe("Agents workspace", () => {
         validationStatus: "valid" as const,
         validationIssues: [],
         publishedAt: "2026-03-20T09:00:00Z",
+        lastValidatedAt: "2026-03-26T09:00:00Z",
+        hasUnpublishedChanges: false
+      },
+      {
+        agentId: "graph-bot",
+        name: "Graph Bot",
+        description: "Ready LangChain agent.",
+        framework: "langchain",
+        entrypoint: "test_agent_plugins.graph_bot:build_agent",
+        defaultModel: "gpt-5.4-mini",
+        tags: ["langchain", "graph"],
+        publishState: "published" as const,
+        validationStatus: "valid" as const,
+        validationIssues: [],
+        publishedAt: "2026-03-19T09:00:00Z",
         lastValidatedAt: "2026-03-26T09:00:00Z",
         hasUnpublishedChanges: false
       },
@@ -77,6 +92,21 @@ describe("Agents workspace", () => {
         publishedAt: "2026-03-12T10:00:00Z",
         lastValidatedAt: "2026-03-26T09:00:00Z",
         hasUnpublishedChanges: false
+      },
+      {
+        agentId: "unsupported",
+        name: "Unsupported",
+        description: "Unsupported framework plugin.",
+        framework: "mcp",
+        entrypoint: "app.agent_plugins.unsupported:build_agent",
+        defaultModel: "gpt-5.4-mini",
+        tags: [],
+        publishState: "draft" as const,
+        validationStatus: "invalid" as const,
+        validationIssues: [{ code: "framework_unsupported", message: "framework 'mcp' is not supported for discovery" }],
+        publishedAt: undefined,
+        lastValidatedAt: "2026-03-26T09:00:00Z",
+        hasUnpublishedChanges: false
       }
     ];
 
@@ -103,14 +133,25 @@ describe("Agents workspace", () => {
     renderWithQueryClient(<AgentsWorkspace />);
 
     expect(await screen.findByText("Agents")).toBeInTheDocument();
-    expect(await screen.findByText("Published smoke agent.")).toBeInTheDocument();
+    expect(await screen.findByText("Ready OpenAI smoke agent.")).toBeInTheDocument();
+    expect(await screen.findByText("Ready LangChain agent.")).toBeInTheDocument();
     expect(await screen.findByText("Published agent with local changes.")).toBeInTheDocument();
     expect(await screen.findByText("Draft tool agent.")).toBeInTheDocument();
     expect(await screen.findByText("entrypoint validation failed")).toBeInTheDocument();
+    expect(await screen.findByText("framework 'mcp' is not supported for discovery")).toBeInTheDocument();
+    expect(screen.getByText("OpenAI Agents SDK validation issues")).toBeInTheDocument();
+    expect(screen.getByText("Unsupported framework issues")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Run eval/i })[0]).toHaveAttribute("href", "/evals?agent=basic");
+    expect(screen.getByText("Ready to run")).toBeInTheDocument();
     expect(screen.getByText("Published with draft changes")).toBeInTheDocument();
     expect(screen.getByText("Current repository code differs from the published snapshot.")).toBeInTheDocument();
 
+    fireEvent.change(screen.getByLabelText("Framework"), { target: { value: "langchain" } });
+    expect(await screen.findByText("Ready LangChain agent.")).toBeInTheDocument();
+    expect(screen.queryByText("Ready OpenAI smoke agent.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Draft tool agent.")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Framework"), { target: { value: "all" } });
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
     await waitFor(() => expect(agentApi.publishAgent).toHaveBeenCalledWith("tools"));
     await waitFor(() => expect(agentApi.listDiscoveredAgents).toHaveBeenCalledTimes(3));

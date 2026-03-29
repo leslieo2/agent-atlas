@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.infrastructure.adapters.agent_catalog import (
     AgentModuleSource,
     FilesystemAgentDiscovery,
@@ -22,6 +24,7 @@ from app.modules.agents.domain.models import (
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
+from app.modules.shared.domain.models import ProvenanceMetadata
 
 
 def test_source_catalog_discovers_builtin_agent_plugins() -> None:
@@ -263,3 +266,155 @@ def test_langchain_validator_accepts_invoke_based_runnable(monkeypatch) -> None:
 
     assert discovered.validation_status == AgentValidationStatus.VALID
     assert discovered.framework == AdapterKind.LANGCHAIN.value
+
+
+def test_framework_registry_rejects_published_payload_framework_mismatch() -> None:
+    class StubValidator:
+        def discover(self, source):
+            raise AssertionError(f"unexpected discovery: {source}")
+
+    class StubLoader:
+        def build_agent(
+            self,
+            *,
+            published_agent: PublishedAgent,
+            context: AgentBuildContext,
+        ) -> object:
+            del published_agent, context
+            return object()
+
+    class StubRuntime:
+        def execute_published(self, *, api_key, payload: RunSpec, context: AgentBuildContext):
+            del api_key, payload, context
+            raise AssertionError("runtime should not be called when framework metadata is invalid")
+
+    registry = FrameworkRegistry(
+        plugins={
+            AdapterKind.LANGCHAIN.value: FrameworkPlugin(
+                framework=AdapterKind.LANGCHAIN.value,
+                validator=StubValidator(),
+                loader=StubLoader(),
+                runtime=StubRuntime(),
+            )
+        }
+    )
+    published_agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="graph-bot",
+            name="Graph Bot",
+            description="LangGraph-backed agent",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=[],
+        ),
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+    )
+    payload = RunSpec(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="graph-bot",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        provenance=ProvenanceMetadata(
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            published_agent_snapshot=published_agent.to_snapshot(),
+        ),
+    )
+
+    with pytest.raises(AgentFrameworkMismatchError):
+        registry.execute_published(
+            api_key=None,
+            payload=payload,
+            context=AgentBuildContext(
+                run_id="00000000-0000-0000-0000-000000000123",
+                project="migration-check",
+                dataset="framework-ds",
+                prompt="Inspect the latest run.",
+                tags=[],
+                project_metadata={},
+            ),
+        )
+
+
+def test_framework_registry_rejects_unsupported_published_framework() -> None:
+    class StubValidator:
+        def discover(self, source):
+            raise AssertionError(f"unexpected discovery: {source}")
+
+    class StubLoader:
+        def build_agent(
+            self,
+            *,
+            published_agent: PublishedAgent,
+            context: AgentBuildContext,
+        ) -> object:
+            del published_agent, context
+            return object()
+
+    class StubRuntime:
+        def execute_published(self, *, api_key, payload: RunSpec, context: AgentBuildContext):
+            del api_key, payload, context
+            return PublishedRunExecutionResult(
+                runtime_result=RuntimeExecutionResult(
+                    output="ok",
+                    latency_ms=1,
+                    token_usage=0,
+                    provider="stub",
+                )
+            )
+
+    registry = FrameworkRegistry(
+        plugins={
+            AdapterKind.OPENAI_AGENTS.value: FrameworkPlugin(
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                validator=StubValidator(),
+                loader=StubLoader(),
+                runtime=StubRuntime(),
+            )
+        }
+    )
+    published_agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="graph-bot",
+            name="Graph Bot",
+            description="Unsupported runtime",
+            framework=AdapterKind.MCP.value,
+            default_model="gpt-5.4-mini",
+            tags=[],
+        ),
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+    )
+    payload = RunSpec(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="graph-bot",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.graph_bot:build_agent",
+        agent_type=AdapterKind.MCP,
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        provenance=ProvenanceMetadata(
+            framework=AdapterKind.MCP.value,
+            published_agent_snapshot=published_agent.to_snapshot(),
+        ),
+    )
+
+    with pytest.raises(
+        AgentLoadFailedError,
+        match="published agent framework 'mcp' is not supported",
+    ):
+        registry.execute_published(
+            api_key=None,
+            payload=payload,
+            context=AgentBuildContext(
+                run_id="00000000-0000-0000-0000-000000000123",
+                project="migration-check",
+                dataset="framework-ds",
+                prompt="Inspect the latest run.",
+                tags=[],
+                project_metadata={},
+            ),
+        )
