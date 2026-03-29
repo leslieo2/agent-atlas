@@ -10,7 +10,7 @@ from app.modules.agents.domain.models import (
     DiscoveredAgent,
     PublishedAgent,
 )
-from app.modules.shared.domain.models import ProvenanceMetadata
+from app.modules.shared.domain.models import RuntimeArtifactBuildResult
 
 if TYPE_CHECKING:
     from app.modules.runs.application.results import PublishedRunExecutionResult
@@ -54,4 +54,4 @@ class FrameworkRegistryPort(Protocol):
 
 
 class ArtifactBuilderPort(Protocol):
-    def build(self, published_agent: PublishedAgent) -> ProvenanceMetadata: ...
+    def build(self, published_agent: PublishedAgent) -> RuntimeArtifactBuildResult: ...

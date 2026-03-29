@@ -3,6 +3,15 @@ import type { ProvenanceRecord } from "@/src/shared/api/provenance";
 export type AgentPublishState = "draft" | "published";
 export type AgentValidationStatus = "valid" | "invalid";
 
+export interface RuntimeArtifactRecord {
+  buildStatus?: string | null;
+  sourceFingerprint?: string | null;
+  framework?: string | null;
+  entrypoint?: string | null;
+  artifactRef?: string | null;
+  imageRef?: string | null;
+}
+
 export interface AgentRecord {
   agentId: string;
   name: string;
@@ -12,6 +21,7 @@ export interface AgentRecord {
   defaultModel: string;
   tags: string[];
   publishedAt?: string;
+  runtimeArtifact?: RuntimeArtifactRecord | null;
   provenance?: ProvenanceRecord | null;
 }
 
@@ -27,5 +37,6 @@ export interface DiscoveredAgentRecord extends AgentRecord {
   publishedAt?: string;
   lastValidatedAt: string;
   hasUnpublishedChanges: boolean;
+  runtimeArtifact?: RuntimeArtifactRecord | null;
   provenance?: ProvenanceRecord | null;
 }

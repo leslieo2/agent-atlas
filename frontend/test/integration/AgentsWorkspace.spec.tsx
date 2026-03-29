@@ -31,7 +31,12 @@ describe("Agents workspace", () => {
         validationIssues: [],
         publishedAt: "2026-03-20T09:00:00Z",
         lastValidatedAt: "2026-03-26T09:00:00Z",
-        hasUnpublishedChanges: false
+        hasUnpublishedChanges: false,
+        runtimeArtifact: {
+          buildStatus: "ready",
+          sourceFingerprint: "basic-fingerprint-123456",
+          artifactRef: "source://basic@basic-fingerprint-123456"
+        }
       },
       {
         agentId: "graph-bot",
@@ -46,7 +51,12 @@ describe("Agents workspace", () => {
         validationIssues: [],
         publishedAt: "2026-03-19T09:00:00Z",
         lastValidatedAt: "2026-03-26T09:00:00Z",
-        hasUnpublishedChanges: false
+        hasUnpublishedChanges: false,
+        runtimeArtifact: {
+          buildStatus: "ready",
+          sourceFingerprint: "graph-fingerprint-123456",
+          artifactRef: "source://graph-bot@graph-fingerprint-123456"
+        }
       },
       {
         agentId: "customer_service",
@@ -61,7 +71,12 @@ describe("Agents workspace", () => {
         validationIssues: [],
         publishedAt: "2026-03-18T08:30:00Z",
         lastValidatedAt: "2026-03-26T09:00:00Z",
-        hasUnpublishedChanges: true
+        hasUnpublishedChanges: true,
+        runtimeArtifact: {
+          buildStatus: "ready",
+          sourceFingerprint: "customer-fingerprint-123456",
+          artifactRef: "source://customer_service@customer-fingerprint-123456"
+        }
       },
       {
         agentId: "tools",
@@ -145,6 +160,9 @@ describe("Agents workspace", () => {
     expect(screen.getByText("Ready to run")).toBeInTheDocument();
     expect(screen.getByText("Published with draft changes")).toBeInTheDocument();
     expect(screen.getByText("Current repository code differs from the published snapshot.")).toBeInTheDocument();
+    expect(screen.getAllByText("Build ready")).not.toHaveLength(0);
+    expect(screen.getByText("source://basic@basic-fingerprint-123456")).toBeInTheDocument();
+    expect(screen.getByText("basic-finger")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Framework"), { target: { value: "langchain" } });
     expect(await screen.findByText("Ready LangChain agent.")).toBeInTheDocument();

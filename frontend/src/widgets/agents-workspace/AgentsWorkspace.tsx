@@ -7,7 +7,7 @@ import {
   usePublishAgentMutation,
   useUnpublishAgentMutation
 } from "@/src/entities/agent/query";
-import type { DiscoveredAgentRecord } from "@/src/entities/agent/model";
+import type { DiscoveredAgentRecord, RuntimeArtifactRecord } from "@/src/entities/agent/model";
 import { Field } from "@/src/shared/ui/Field";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
@@ -59,6 +59,41 @@ function publishTone(agent: DiscoveredAgentRecord) {
   return readiness === "ready" ? "success" : "warn";
 }
 
+function runtimeArtifactStatus(agent: DiscoveredAgentRecord) {
+  if (!agent.runtimeArtifact?.buildStatus) {
+    return agent.publishState === "published" ? "legacy" : "not built";
+  }
+  return agent.runtimeArtifact.buildStatus;
+}
+
+function runtimeArtifactTone(runtimeArtifact?: RuntimeArtifactRecord | null) {
+  if (!runtimeArtifact?.buildStatus) {
+    return "warn" as const;
+  }
+  return runtimeArtifact.buildStatus === "ready" ? ("success" as const) : ("warn" as const);
+}
+
+function runtimeArtifactSummary(runtimeArtifact?: RuntimeArtifactRecord | null) {
+  if (!runtimeArtifact) {
+    return "legacy";
+  }
+  if (runtimeArtifact.imageRef) {
+    return runtimeArtifact.imageRef;
+  }
+  if (runtimeArtifact.artifactRef) {
+    return runtimeArtifact.artifactRef;
+  }
+  return "pending";
+}
+
+function shortSourceFingerprint(runtimeArtifact?: RuntimeArtifactRecord | null) {
+  const fingerprint = runtimeArtifact?.sourceFingerprint;
+  if (!fingerprint) {
+    return "legacy";
+  }
+  return fingerprint.slice(0, 12);
+}
+
 function validationIssuesLabel(agent: DiscoveredAgentRecord) {
   if (agent.framework === "openai-agents-sdk") {
     return "OpenAI Agents SDK validation issues";
@@ -100,6 +135,7 @@ function AgentCard({
         <div className="toolbar">
           <StatusPill tone={publishTone(agent)}>{readinessLabel(readiness)}</StatusPill>
           <StatusPill tone={validationTone(agent)}>{agent.validationStatus}</StatusPill>
+          <StatusPill tone={runtimeArtifactTone(agent.runtimeArtifact)}>{`Build ${runtimeArtifactStatus(agent)}`}</StatusPill>
         </div>
       </div>
 
@@ -131,6 +167,14 @@ function AgentCard({
         <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Published at</span>
           <span className={styles.metaValue}>{agent.publishedAt ? new Date(agent.publishedAt).toLocaleString("en") : "-"}</span>
+        </div>
+        <div className={styles.metaItem}>
+          <span className={styles.metaLabel}>Artifact</span>
+          <span className={`${styles.metaValue} mono`}>{runtimeArtifactSummary(agent.runtimeArtifact)}</span>
+        </div>
+        <div className={styles.metaItem}>
+          <span className={styles.metaLabel}>Source fingerprint</span>
+          <span className={`${styles.metaValue} mono`}>{shortSourceFingerprint(agent.runtimeArtifact)}</span>
         </div>
         <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Last validated</span>

@@ -60,7 +60,9 @@ class AgentPublicationCommands:
             raise AgentValidationFailedError(agent_id=agent_id, message=issue_summary)
 
         published = discovered.to_published()
-        published.provenance = self.artifact_builder.build(published)
+        build_result = self.artifact_builder.build(published)
+        published.runtime_artifact = build_result.runtime_artifact
+        published.provenance = build_result.provenance
         self.published_agents.save_agent(published)
         return published
 

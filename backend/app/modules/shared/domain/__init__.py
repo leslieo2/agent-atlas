@@ -4,13 +4,22 @@ from app.modules.shared.domain.enums import (
     RunStatus,
     StepType,
 )
-from app.modules.shared.domain.models import ProvenanceMetadata, build_source_artifact_ref
+from app.modules.shared.domain.models import (
+    ProvenanceMetadata,
+    RuntimeArtifactBuildResult,
+    RuntimeArtifactMetadata,
+    build_source_artifact_ref,
+    build_source_runtime_artifact,
+)
 
 __all__ = [
     "AdapterKind",
     "ArtifactFormat",
     "ProvenanceMetadata",
     "RunStatus",
+    "RuntimeArtifactBuildResult",
+    "RuntimeArtifactMetadata",
     "StepType",
     "build_source_artifact_ref",
+    "build_source_runtime_artifact",
 ]

@@ -69,18 +69,22 @@ def test_create_run_and_get_by_id(client):
     assert got.json()["run_id"] == run_id
     assert got.json()["agent_id"] == "basic"
     assert got.json()["status"] == RunStatus.QUEUED.value
-    assert got.json()["provenance"]["published_agent_snapshot"] == {
-        "manifest": {
-            "agent_id": "basic",
-            "name": "Basic",
-            "description": "Minimal plugin agent for smoke testing the SDK execution path.",
-            "framework": "openai-agents-sdk",
-            "default_model": "gpt-5.4-mini",
-            "tags": ["example", "smoke"],
-        },
-        "entrypoint": "app.agent_plugins.basic:build_agent",
-        "published_at": got.json()["provenance"]["published_agent_snapshot"]["published_at"],
+    snapshot = got.json()["provenance"]["published_agent_snapshot"]
+    assert snapshot["manifest"] == {
+        "agent_id": "basic",
+        "name": "Basic",
+        "description": "Minimal plugin agent for smoke testing the SDK execution path.",
+        "framework": "openai-agents-sdk",
+        "default_model": "gpt-5.4-mini",
+        "tags": ["example", "smoke"],
     }
+    assert snapshot["entrypoint"] == "app.agent_plugins.basic:build_agent"
+    assert (
+        snapshot["published_at"]
+        == got.json()["provenance"]["published_agent_snapshot"]["published_at"]
+    )
+    assert snapshot["runtime_artifact"]["build_status"] == "ready"
+    assert snapshot["runtime_artifact"]["artifact_ref"].startswith("source://basic@")
 
 
 def test_create_run_without_dataset(client):

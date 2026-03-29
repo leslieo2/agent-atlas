@@ -28,6 +28,13 @@ type Props = {
   runId?: string;
 };
 
+type SnapshotRuntimeArtifact = {
+  buildStatus?: string | null;
+  sourceFingerprint?: string | null;
+  artifactRef?: string | null;
+  imageRef?: string | null;
+};
+
 type ExportFeedbackState = {
   tone: "success" | "warn" | "error";
   title: string;
@@ -35,6 +42,25 @@ type ExportFeedbackState = {
   downloadHref?: string;
   downloadLabel?: string;
 } | null;
+
+function getSnapshotRuntimeArtifact(snapshot?: Record<string, unknown> | null): SnapshotRuntimeArtifact | null {
+  if (!snapshot || typeof snapshot !== "object") {
+    return null;
+  }
+
+  const raw = snapshot["runtime_artifact"];
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const candidate = raw as Record<string, unknown>;
+  return {
+    buildStatus: typeof candidate.build_status === "string" ? candidate.build_status : null,
+    sourceFingerprint: typeof candidate.source_fingerprint === "string" ? candidate.source_fingerprint : null,
+    artifactRef: typeof candidate.artifact_ref === "string" ? candidate.artifact_ref : null,
+    imageRef: typeof candidate.image_ref === "string" ? candidate.image_ref : null
+  };
+}
 
 function hasSameExpandedState(current: Record<string, boolean>, next: Record<string, boolean>) {
   const currentKeys = Object.keys(current);
@@ -111,6 +137,10 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   const nodes = useMemo(() => buildTrajectoryNodes(steps, focusedStepId), [focusedStepId, steps]);
   const edges = useMemo(() => buildTrajectoryEdges(steps), [steps]);
   const metrics = useMemo(() => getTrajectoryMetrics(steps), [steps]);
+  const runtimeArtifact = useMemo(
+    () => getSnapshotRuntimeArtifact(selectedRunRecord?.provenance?.publishedAgentSnapshot),
+    [selectedRunRecord?.provenance?.publishedAgentSnapshot]
+  );
   const message = runsQuery.isError
     ? "Failed to load runs."
     : trajectoryQuery.isPending
@@ -284,13 +314,22 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
               <div className="metrics">
                 <MetricCard label="Resolved model" value={selectedRunRecord.resolvedModel ?? "-"} />
                 <MetricCard label="Backend" value={selectedRunRecord.executionBackend ?? "-"} />
+                <MetricCard
+                  label="Artifact handoff"
+                  value={selectedRunRecord.provenance?.artifactRef ?? runtimeArtifact?.artifactRef ?? "-"}
+                />
                 <MetricCard label="Container image" value={selectedRunRecord.containerImage ?? "-"} />
                 <MetricCard label="Failure code" value={selectedRunRecord.errorCode ?? "-"} />
               </div>
               <Notice className="mono">
-                {`entrypoint: ${selectedRunRecord.entrypoint ?? "-"}${
-                  selectedRunRecord.errorMessage ? `\nerror: ${selectedRunRecord.errorMessage}` : ""
-                }`}
+                {[
+                  `entrypoint: ${selectedRunRecord.entrypoint ?? "-"}`,
+                  `artifact_ref: ${selectedRunRecord.provenance?.artifactRef ?? runtimeArtifact?.artifactRef ?? "-"}`,
+                  `image_ref: ${selectedRunRecord.provenance?.imageRef ?? runtimeArtifact?.imageRef ?? "-"}`,
+                  `build_status: ${runtimeArtifact?.buildStatus ?? "legacy"}`,
+                  `source_fingerprint: ${runtimeArtifact?.sourceFingerprint ?? "legacy"}`,
+                  ...(selectedRunRecord.errorMessage ? [`error: ${selectedRunRecord.errorMessage}`] : [])
+                ].join("\n")}
               </Notice>
             </div>
           ) : null}

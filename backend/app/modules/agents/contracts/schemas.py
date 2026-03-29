@@ -11,7 +11,7 @@ from app.modules.agents.domain.models import (
     DiscoveredAgent,
     PublishedAgent,
 )
-from app.modules.shared.domain.models import ProvenanceMetadata
+from app.modules.shared.domain.models import ProvenanceMetadata, RuntimeArtifactMetadata
 
 
 class AgentDescriptorResponse(BaseModel):
@@ -23,6 +23,7 @@ class AgentDescriptorResponse(BaseModel):
     default_model: str
     tags: list[str]
     published_at: datetime
+    runtime_artifact: RuntimeArtifactMetadata | None = None
     provenance: ProvenanceMetadata | None = None
 
     @classmethod
@@ -36,6 +37,7 @@ class AgentDescriptorResponse(BaseModel):
             default_model=agent.default_model,
             tags=agent.tags,
             published_at=agent.published_at,
+            runtime_artifact=agent.effective_runtime_artifact(),
             provenance=agent.provenance,
         )
 
@@ -63,6 +65,7 @@ class DiscoveredAgentResponse(BaseModel):
     published_at: datetime | None = None
     last_validated_at: datetime
     has_unpublished_changes: bool
+    runtime_artifact: RuntimeArtifactMetadata | None = None
     provenance: ProvenanceMetadata | None = None
 
     @classmethod
@@ -83,6 +86,7 @@ class DiscoveredAgentResponse(BaseModel):
             published_at=agent.published_at,
             last_validated_at=agent.last_validated_at,
             has_unpublished_changes=agent.has_unpublished_changes,
+            runtime_artifact=agent.runtime_artifact,
             provenance=agent.provenance,
         )
 

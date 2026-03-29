@@ -6,6 +6,7 @@ from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord, RunSpec
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.application.ports import TaskQueuePort
+from app.modules.shared.domain.models import ProvenanceMetadata
 from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
 
@@ -49,6 +50,27 @@ def _resolve_submission_agent(agent: PublishedAgent) -> PublishedAgent:
     return published_snapshot
 
 
+def _resolved_submission_provenance(
+    agent: PublishedAgent,
+    effective_agent: PublishedAgent,
+) -> ProvenanceMetadata:
+    runtime_artifact = agent.effective_runtime_artifact()
+    provenance = (
+        agent.provenance.model_copy(deep=True) if agent.provenance else ProvenanceMetadata()
+    )
+    snapshot = effective_agent.model_copy(
+        update={"runtime_artifact": runtime_artifact},
+        deep=True,
+    ).to_snapshot()
+    provenance.framework = runtime_artifact.framework or effective_agent.framework
+    provenance.published_agent_snapshot = snapshot
+    provenance.artifact_ref = runtime_artifact.artifact_ref
+    provenance.image_ref = runtime_artifact.image_ref
+    if provenance.trace_backend is None:
+        provenance.trace_backend = "atlas-state"
+    return provenance
+
+
 class RunSubmissionService:
     def __init__(
         self,
@@ -60,10 +82,9 @@ class RunSubmissionService:
 
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
         effective_agent = _resolve_submission_agent(agent)
-        provenance = agent.provenance.model_copy(deep=True) if agent.provenance else None
-        if provenance is not None:
-            provenance.eval_job_id = payload.eval_job_id
-            provenance.dataset_sample_id = payload.dataset_sample_id
+        provenance = _resolved_submission_provenance(agent, effective_agent)
+        provenance.eval_job_id = payload.eval_job_id
+        provenance.dataset_sample_id = payload.dataset_sample_id
         spec = RunSpec(
             project=payload.project,
             dataset=payload.dataset,

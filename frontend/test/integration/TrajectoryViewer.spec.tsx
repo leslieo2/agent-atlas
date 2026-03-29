@@ -68,6 +68,18 @@ const mockedRuns = [
     createdAt: "2026-03-24T01:00:00Z",
     projectMetadata: {
       prompt: "Retry the failed support run."
+    },
+    provenance: {
+      artifactRef: "source://customer_service@fingerprint-current",
+      imageRef: null,
+      publishedAgentSnapshot: {
+        runtime_artifact: {
+          build_status: "ready",
+          source_fingerprint: "fingerprint-current",
+          artifact_ref: "source://customer_service@fingerprint-current",
+          image_ref: null
+        }
+      }
     }
   },
   {
@@ -110,7 +122,19 @@ const mockedRuns = [
     errorCode: "rate_limited",
     errorMessage: "provider rate limit exceeded",
     tags: [],
-    createdAt: "2026-03-23T23:00:00Z"
+    createdAt: "2026-03-23T23:00:00Z",
+    provenance: {
+      artifactRef: "source://customer_service@fingerprint-previous",
+      imageRef: null,
+      publishedAgentSnapshot: {
+        runtime_artifact: {
+          build_status: "ready",
+          source_fingerprint: "fingerprint-previous",
+          artifact_ref: "source://customer_service@fingerprint-previous",
+          image_ref: null
+        }
+      }
+    }
   },
   {
     runId: "run-older",
@@ -131,7 +155,19 @@ const mockedRuns = [
     errorCode: null,
     errorMessage: null,
     tags: [],
-    createdAt: "2026-03-23T22:00:00Z"
+    createdAt: "2026-03-23T22:00:00Z",
+    provenance: {
+      artifactRef: "source://customer_service@fingerprint-older",
+      imageRef: null,
+      publishedAgentSnapshot: {
+        runtime_artifact: {
+          build_status: "ready",
+          source_fingerprint: "fingerprint-older",
+          artifact_ref: "source://customer_service@fingerprint-older",
+          image_ref: null
+        }
+      }
+    }
   }
 ];
 
@@ -286,5 +322,14 @@ describe("TrajectoryViewer integration", () => {
       "href",
       "/playground?agent=customer_service&dataset=dataset-a&prompt=Retry+the+failed+support+run.&tags=retry%2Csupport"
     );
+  });
+
+  it("shows artifact handoff summary from run provenance", async () => {
+    renderWithQueryClient(<TrajectoryWorkspace />);
+
+    expect(await screen.findByText("Loaded 4 steps.")).toBeInTheDocument();
+    expect(screen.getByText("source://customer_service@fingerprint-current")).toBeInTheDocument();
+    expect(screen.getByText(/source_fingerprint: fingerprint-current/)).toBeInTheDocument();
+    expect(screen.getByText(/build_status: ready/)).toBeInTheDocument();
   });
 });

@@ -57,6 +57,7 @@ class RuntimeExecutionResult(BaseModel):
 class ResolvedRunArtifact(BaseModel):
     framework: str | None = None
     entrypoint: str | None = None
+    source_fingerprint: str | None = None
     artifact_ref: str | None = None
     image_ref: str | None = None
     published_agent_snapshot: dict[str, Any]

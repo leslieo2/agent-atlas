@@ -11,7 +11,12 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import AdapterKind
-from app.modules.shared.domain.models import ProvenanceMetadata
+from app.modules.shared.domain.models import (
+    ProvenanceMetadata,
+    RuntimeArtifactMetadata,
+    build_source_artifact_ref,
+    build_source_runtime_artifact,
+)
 
 
 @dataclass(frozen=True)
@@ -82,6 +87,7 @@ class PublishedAgent(BaseModel):
     entrypoint: str
     published_at: datetime = Field(default_factory=utc_now)
     source_fingerprint: str = ""
+    runtime_artifact: RuntimeArtifactMetadata | None = None
     provenance: ProvenanceMetadata | None = None
 
     @property
@@ -116,8 +122,39 @@ class PublishedAgent(BaseModel):
             return self.source_fingerprint
         return compute_source_fingerprint(self.manifest, self.entrypoint)
 
+    def effective_runtime_artifact(self) -> RuntimeArtifactMetadata:
+        if self.runtime_artifact is None:
+            return build_source_runtime_artifact(
+                agent_id=self.agent_id,
+                source_fingerprint=self.effective_source_fingerprint(),
+                framework=self.framework,
+                entrypoint=self.entrypoint,
+            )
+
+        runtime_artifact = self.runtime_artifact.model_copy(deep=True)
+        if runtime_artifact.source_fingerprint is None:
+            runtime_artifact.source_fingerprint = self.effective_source_fingerprint()
+        if runtime_artifact.framework is None:
+            runtime_artifact.framework = self.framework
+        if runtime_artifact.entrypoint is None:
+            runtime_artifact.entrypoint = self.entrypoint
+        if runtime_artifact.artifact_ref is None and runtime_artifact.image_ref is None:
+            runtime_artifact.artifact_ref = build_source_artifact_ref(
+                self.agent_id,
+                runtime_artifact.source_fingerprint,
+            )
+        if runtime_artifact.build_status is None and (
+            runtime_artifact.artifact_ref is not None or runtime_artifact.image_ref is not None
+        ):
+            runtime_artifact.build_status = "ready"
+        return runtime_artifact
+
     def to_snapshot(self) -> dict[str, Any]:
-        return self.model_dump(mode="json", exclude={"source_fingerprint", "provenance"})
+        snapshot = self.model_copy(
+            update={"runtime_artifact": self.effective_runtime_artifact()},
+            deep=True,
+        )
+        return snapshot.model_dump(mode="json", exclude={"source_fingerprint", "provenance"})
 
 
 class DiscoveredAgent(BaseModel):
@@ -129,6 +166,7 @@ class DiscoveredAgent(BaseModel):
     published_at: datetime | None = None
     last_validated_at: datetime = Field(default_factory=utc_now)
     has_unpublished_changes: bool = False
+    runtime_artifact: RuntimeArtifactMetadata | None = None
     provenance: ProvenanceMetadata | None = None
 
     @property
@@ -171,6 +209,7 @@ class DiscoveredAgent(BaseModel):
                     "publish_state": AgentPublishState.DRAFT,
                     "published_at": None,
                     "has_unpublished_changes": False,
+                    "runtime_artifact": None,
                     "provenance": None,
                 }
             )
@@ -181,6 +220,7 @@ class DiscoveredAgent(BaseModel):
                 "has_unpublished_changes": (
                     self.source_fingerprint() != published_agent.effective_source_fingerprint()
                 ),
+                "runtime_artifact": published_agent.effective_runtime_artifact(),
                 "provenance": published_agent.provenance,
             }
         )

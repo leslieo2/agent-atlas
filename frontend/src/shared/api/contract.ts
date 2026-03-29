@@ -11,6 +11,7 @@ export interface AgentDescriptorResponse {
   "default_model": string;
   "tags": Array<string>;
   "published_at": string;
+  "runtime_artifact"?: RuntimeArtifactMetadata | null;
   "provenance"?: ProvenanceMetadata | null;
 }
 export interface AgentPublicationResponse {
@@ -64,6 +65,7 @@ export interface DiscoveredAgentResponse {
   "published_at"?: string | null;
   "last_validated_at": string;
   "has_unpublished_changes": boolean;
+  "runtime_artifact"?: RuntimeArtifactMetadata | null;
   "provenance"?: ProvenanceMetadata | null;
 }
 export interface EvalJobCreateRequest {
@@ -171,6 +173,14 @@ export interface RunTraceSpanResponse {
   "image_digest"?: string | null;
   "prompt_version"?: string | null;
   "received_at": string;
+}
+export interface RuntimeArtifactMetadata {
+  "build_status"?: string | null;
+  "source_fingerprint"?: string | null;
+  "framework"?: string | null;
+  "entrypoint"?: string | null;
+  "artifact_ref"?: string | null;
+  "image_ref"?: string | null;
 }
 export type SampleJudgement = "passed" | "failed" | "unscored" | "runtime_error";
 export type ScoringMode = "exact_match" | "contains";

@@ -59,7 +59,9 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    agent.provenance = SourceArtifactBuilder().build(agent)
+    build_result = SourceArtifactBuilder().build(agent)
+    agent.runtime_artifact = build_result.runtime_artifact
+    agent.provenance = build_result.provenance
 
     run = service.submit(payload, agent)
 
@@ -69,6 +71,8 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert run.provenance.framework == "langchain"
     assert run.provenance.published_agent_snapshot is not None
     assert run.provenance.published_agent_snapshot["manifest"]["framework"] == "langchain"
+    assert run.provenance.published_agent_snapshot["runtime_artifact"]["build_status"] == "ready"
+    assert run.provenance.artifact_ref == build_result.runtime_artifact.artifact_ref
     assert repository.saved == [run]
     assert len(task_queue.enqueued) == 1
     task = task_queue.enqueued[0]
@@ -101,7 +105,9 @@ def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    agent.provenance = SourceArtifactBuilder().build(agent)
+    build_result = SourceArtifactBuilder().build(agent)
+    agent.runtime_artifact = build_result.runtime_artifact
+    agent.provenance = build_result.provenance
     assert agent.provenance is not None
     assert agent.provenance.published_agent_snapshot is not None
     agent.provenance.published_agent_snapshot["manifest"]["framework"] = AdapterKind.LANGCHAIN.value
@@ -111,3 +117,36 @@ def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
 
     assert repository.saved == []
     assert task_queue.enqueued == []
+
+
+def test_run_submission_service_backfills_legacy_artifact_handoff() -> None:
+    repository = StubRunRepository()
+    task_queue = StubTaskQueue()
+    service = RunSubmissionService(run_repository=repository, task_queue=task_queue)
+    payload = RunCreateInput(
+        project="legacy-handoff",
+        agent_id="triage-bot",
+        input_summary="legacy handoff",
+        prompt="Inspect the latest run.",
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        source_fingerprint="legacy-fingerprint",
+    )
+
+    run = service.submit(payload, agent)
+
+    assert run.provenance is not None
+    assert run.provenance.artifact_ref == "source://triage-bot@legacy-fingerprint"
+    assert run.provenance.published_agent_snapshot is not None
+    assert run.provenance.published_agent_snapshot["runtime_artifact"]["source_fingerprint"] == (
+        "legacy-fingerprint"
+    )
