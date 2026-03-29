@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
+from app.execution_plane.contracts import RunnerRunSpec
 from app.modules.runs.application.results import (
     PublishedRunExecutionResult,
     RunnerExecutionResult,
@@ -43,7 +44,7 @@ class PublishedRunRuntimePort(Protocol):
     def execute_published(
         self,
         run_id: UUID,
-        payload: RunSpec,
+        payload: RunnerRunSpec,
     ) -> PublishedRunExecutionResult: ...
 
 

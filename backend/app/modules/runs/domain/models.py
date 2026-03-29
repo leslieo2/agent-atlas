@@ -105,6 +105,8 @@ class RunnerExecutionHandoff(BaseModel):
     runner_backend: str
     experiment_id: UUID | None = None
     dataset_version_id: UUID | None = None
+    attempt: int = 1
+    attempt_id: UUID | None = None
     project: str
     dataset: str | None = None
     agent_id: str
@@ -116,6 +118,8 @@ class RunnerExecutionHandoff(BaseModel):
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
+    model_settings: ModelConfig | None = None
+    prompt_config: PromptConfig | None = None
     framework: str | None = None
     framework_type: str | None = None
     framework_version: str | None = None
@@ -139,6 +143,8 @@ class RunnerExecutionHandoff(BaseModel):
         payload: RunSpec,
         artifact: ResolvedRunArtifact,
         runner_backend: str,
+        attempt: int = 1,
+        attempt_id: UUID | None = None,
     ) -> RunnerExecutionHandoff:
         provenance = payload.provenance
         return cls(
@@ -146,6 +152,8 @@ class RunnerExecutionHandoff(BaseModel):
             runner_backend=runner_backend,
             experiment_id=payload.experiment_id,
             dataset_version_id=payload.dataset_version_id,
+            attempt=attempt,
+            attempt_id=attempt_id,
             project=payload.project,
             dataset=payload.dataset,
             agent_id=payload.agent_id,
@@ -157,6 +165,16 @@ class RunnerExecutionHandoff(BaseModel):
             tags=list(payload.tags),
             project_metadata=dict(payload.project_metadata),
             dataset_sample_id=payload.dataset_sample_id,
+            model_settings=(
+                payload.model_settings.model_copy(deep=True)
+                if payload.model_settings is not None
+                else None
+            ),
+            prompt_config=(
+                payload.prompt_config.model_copy(deep=True)
+                if payload.prompt_config is not None
+                else None
+            ),
             framework=artifact.framework,
             framework_type=artifact.framework,
             framework_version=(
@@ -195,6 +213,14 @@ class RunnerExecutionHandoff(BaseModel):
             tags=list(self.tags),
             project_metadata=dict(self.project_metadata),
             dataset_sample_id=self.dataset_sample_id,
+            model_config=(
+                self.model_settings.model_copy(deep=True)
+                if self.model_settings is not None
+                else None
+            ),
+            prompt_config=(
+                self.prompt_config.model_copy(deep=True) if self.prompt_config is not None else None
+            ),
             toolset_config=self.toolset_config.model_copy(deep=True),
             evaluator_config=self.evaluator_config.model_copy(deep=True),
             executor_config=self.executor_config.model_copy(deep=True),

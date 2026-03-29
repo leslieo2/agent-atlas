@@ -5,6 +5,8 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 from app.core.errors import UnsupportedOperationError
+from app.execution_plane.contracts import RunnerRunSpec
+from app.execution_plane.launchers import K8sLauncher
 from app.modules.execution.application.ports import ExecutionControlPort
 from app.modules.execution.domain.models import (
     CancelRequest,
@@ -70,11 +72,17 @@ class _QueuedExecutionBackendAdapter:
                 submitted_at=existing.created_at,
             )
 
+        attempt = existing.attempt if existing is not None else 1
+        attempt_id = uuid4()
         handle = RunHandle(
             run_id=run_spec.run_id,
-            attempt_id=uuid4(),
+            attempt_id=attempt_id,
             backend=self.backend,
-            executor_ref=self._executor_ref(run_spec.run_id),
+            executor_ref=self._executor_ref(
+                run_spec,
+                attempt=attempt,
+                attempt_id=attempt_id,
+            ),
         )
         if existing is not None:
             self.run_repository.save(
@@ -117,16 +125,22 @@ class _QueuedExecutionBackendAdapter:
             return None
 
         retry_spec = run.to_run_spec()
+        retry_attempt = run.attempt + 1
+        retry_attempt_id = uuid4()
         retry_handle = RunHandle(
             run_id=run.run_id,
-            attempt_id=uuid4(),
+            attempt_id=retry_attempt_id,
             backend=self.backend,
-            executor_ref=self._executor_ref(run.run_id),
+            executor_ref=self._executor_ref(
+                retry_spec,
+                attempt=retry_attempt,
+                attempt_id=retry_attempt_id,
+            ),
         )
         updated = run.model_copy(
             update={
                 "attempt_id": retry_handle.attempt_id,
-                "attempt": run.attempt + 1,
+                "attempt": retry_attempt,
                 "status": RunStatus.QUEUED,
                 "latency_ms": 0,
                 "token_cost": 0,
@@ -217,7 +231,14 @@ class _QueuedExecutionBackendAdapter:
             supports_heartbeat=False,
         )
 
-    def _executor_ref(self, run_id: UUID) -> str:
+    def _executor_ref(
+        self,
+        run_spec: RunSpec,
+        *,
+        attempt: int,
+        attempt_id: UUID,
+    ) -> str:
+        run_id = run_spec.run_id
         prefix = "job" if self.backend == "k8s-job" else "local"
         return f"{prefix}-{run_id}"
 
@@ -233,13 +254,34 @@ class LocalWorkerExecutionAdapter(_QueuedExecutionBackendAdapter):
 
 
 class K8sJobExecutionAdapter(_QueuedExecutionBackendAdapter):
-    def __init__(self, *, task_queue: TaskQueuePort, run_repository: RunRepository) -> None:
+    def __init__(
+        self,
+        *,
+        task_queue: TaskQueuePort,
+        run_repository: RunRepository,
+        launcher: K8sLauncher | None = None,
+    ) -> None:
         super().__init__(
             backend="k8s-job",
             task_queue=task_queue,
             run_repository=run_repository,
             production_ready=True,
         )
+        self.launcher = launcher or K8sLauncher()
+
+    def _executor_ref(
+        self,
+        run_spec: RunSpec,
+        *,
+        attempt: int,
+        attempt_id: UUID,
+    ) -> str:
+        runner_payload = RunnerRunSpec.from_run_spec(
+            run_spec,
+            attempt=attempt,
+            attempt_id=attempt_id,
+        )
+        return self.launcher.build_request(runner_payload).job_name
 
 
 class ExecutionControlRegistry(ExecutionControlPort):

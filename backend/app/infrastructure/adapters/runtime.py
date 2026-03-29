@@ -13,10 +13,11 @@ from app.core.errors import (
     RateLimitedError,
     UnsupportedAdapterError,
 )
+from app.execution_plane.contracts import RunnerRunSpec
 from app.infrastructure.adapters.framework_registry import FrameworkRegistry
 from app.modules.agents.domain.models import AgentBuildContext, adapter_kind_for_framework
 from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
+from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 
 from .runtime_utils import extract_error_message
@@ -37,7 +38,7 @@ class PublishedAgentRuntimeAdapter(Protocol):
         self,
         *,
         api_key: SecretStr | None,
-        payload: RunSpec,
+        payload: RunnerRunSpec,
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult: ...
 
@@ -219,8 +220,8 @@ class ModelRuntimeService:
             fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
             return fallback
 
-    def execute_published(self, run_id: Any, payload: RunSpec) -> PublishedRunExecutionResult:
-        resolved_agent_type = payload.agent_type
+    def execute_published(self, run_id: Any, payload: RunnerRunSpec) -> PublishedRunExecutionResult:
+        resolved_agent_type = AdapterKind(payload.agent_type)
         if self.framework_registry is not None:
             published_agent = self.framework_registry.published_agent_from_payload(payload)
             resolved_agent_type = adapter_kind_for_framework(published_agent.framework)

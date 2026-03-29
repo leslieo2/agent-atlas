@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from pydantic import SecretStr
 
+from app.execution_plane.contracts import RunnerRunSpec
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentModuleSource,
@@ -14,7 +15,6 @@ from app.modules.shared.domain.models import RuntimeArtifactBuildResult
 
 if TYPE_CHECKING:
     from app.modules.runs.application.results import PublishedRunExecutionResult
-    from app.modules.runs.domain.models import RunSpec
 
 
 class AgentSourceDiscoveryPort(Protocol):
@@ -48,7 +48,7 @@ class FrameworkRegistryPort(Protocol):
         self,
         *,
         api_key: SecretStr | None,
-        payload: RunSpec,
+        payload: RunnerRunSpec,
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult: ...
 

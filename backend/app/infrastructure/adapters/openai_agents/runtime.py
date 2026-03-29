@@ -8,6 +8,13 @@ from typing import Any
 from pydantic import SecretStr
 
 from app.core.errors import AgentLoadFailedError
+from app.execution_plane.contracts import RunnerRunSpec
+from app.execution_plane.translation import (
+    empty_artifact_manifest,
+    producer_for_runtime,
+    terminal_result_from_runtime_result,
+    trace_event_to_event_envelope,
+)
 from app.infrastructure.adapters.openai_agents.catalog import PublishedOpenAIAgentLoader
 from app.infrastructure.adapters.openai_agents.trace_mapper import (
     build_trace_events_from_agent_run,
@@ -16,7 +23,7 @@ from app.infrastructure.adapters.runtime import RuntimeAdapter
 from app.infrastructure.adapters.runtime_utils import usage_total_tokens
 from app.modules.agents.domain.models import AgentBuildContext, PublishedAgent
 from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
+from app.modules.runs.domain.models import RuntimeExecutionResult
 
 
 class OpenAIAgentsSdkAdapter(RuntimeAdapter):
@@ -118,7 +125,7 @@ class PublishedOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
         self,
         *,
         api_key: SecretStr | None,
-        payload: RunSpec,
+        payload: RunnerRunSpec,
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult:
         try:
@@ -159,15 +166,37 @@ class PublishedOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
             provider="openai-agents-sdk",
             resolved_model=effective_model,
         )
+        producer = producer_for_runtime(
+            runtime="openai-agents-sdk",
+            framework=published_agent.framework,
+        )
+        trace_events = build_trace_events_from_agent_run(
+            run_id=context.run_id,
+            prompt=payload.prompt,
+            model=effective_model,
+            provider="openai-agents-sdk",
+            result=result,
+        )
         return PublishedRunExecutionResult(
             runtime_result=runtime_result,
-            trace_events=build_trace_events_from_agent_run(
-                run_id=context.run_id,
-                prompt=payload.prompt,
-                model=effective_model,
-                provider="openai-agents-sdk",
-                result=result,
+            event_envelopes=[
+                trace_event_to_event_envelope(
+                    event,
+                    experiment_id=payload.experiment_id,
+                    attempt=payload.attempt,
+                    attempt_id=payload.attempt_id,
+                    producer=producer,
+                    sequence=index,
+                )
+                for index, event in enumerate(trace_events, start=1)
+            ],
+            terminal_result=terminal_result_from_runtime_result(
+                payload=payload,
+                runtime_result=runtime_result,
+                producer=producer,
+                tool_calls=sum(1 for event in trace_events if event.step_type.value == "tool"),
             ),
+            artifact_manifest=empty_artifact_manifest(payload=payload, producer=producer),
         )
 
     @staticmethod
@@ -182,8 +211,8 @@ class PublishedOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
         return None
 
     @staticmethod
-    def _published_agent_from_payload(payload: RunSpec) -> PublishedAgent:
-        snapshot = payload.provenance.published_agent_snapshot if payload.provenance else None
+    def _published_agent_from_payload(payload: RunnerRunSpec) -> PublishedAgent:
+        snapshot = payload.published_agent_snapshot
         try:
             return PublishedAgent.model_validate(snapshot)
         except Exception as exc:

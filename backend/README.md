@@ -61,7 +61,9 @@ adapters are useful because they keep Atlas-owned semantics stable while runner,
 storage implementations change.
 
 Read the full architecture rules in [ARCHITECTURE.md](./ARCHITECTURE.md). Contributor and layering
-guidance lives in [AGENTS.md](./AGENTS.md).
+guidance lives in [AGENTS.md](./AGENTS.md). Module ownership and the split between hexagonal
+control-plane code and non-hex execution or pipeline code is documented in
+[PLATFORM_MODULES.md](./PLATFORM_MODULES.md).
 
 ## Local Setup
 

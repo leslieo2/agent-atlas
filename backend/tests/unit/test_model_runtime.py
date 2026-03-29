@@ -13,6 +13,7 @@ from app.core.errors import (
     RateLimitedError,
     UnsupportedAdapterError,
 )
+from app.execution_plane.contracts import RunnerRunSpec
 from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
 from app.infrastructure.adapters.langchain.runtime import PublishedLangChainAgentAdapter
 from app.infrastructure.adapters.runtime import ModelRuntimeService
@@ -340,7 +341,7 @@ def test_model_runtime_service_dispatches_published_runs_through_framework_regis
             self,
             *,
             api_key: SecretStr | None,
-            payload: RunSpec,
+            payload: RunnerRunSpec,
             context: AgentBuildContext,
         ) -> PublishedRunExecutionResult:
             assert api_key is not None
@@ -398,7 +399,10 @@ def test_model_runtime_service_dispatches_published_runs_through_framework_regis
         ),
     )
 
-    result = service.execute_published("00000000-0000-0000-0000-000000000123", payload)
+    result = service.execute_published(
+        "00000000-0000-0000-0000-000000000123",
+        RunnerRunSpec.from_run_spec(payload),
+    )
 
     assert runtime.calls == ["graph-bot"]
     assert result.runtime_result.execution_backend == "langgraph"
@@ -463,7 +467,7 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
 
     result = adapter.execute_published(
         api_key=SecretStr("sk-test"),
-        payload=payload,
+        payload=RunnerRunSpec.from_run_spec(payload),
         context=context,
     )
 
@@ -471,8 +475,11 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
     assert result.runtime_result.provider == "langchain"
     assert result.runtime_result.execution_backend == "langgraph"
     assert result.runtime_result.token_usage == 21
-    assert len(result.trace_events) == 1
-    assert result.trace_events[0].step_type.value == "llm"
+    assert len(result.event_envelopes) == 1
+    assert len(result.projected_trace_events()) == 1
+    assert result.projected_trace_events()[0].step_type.value == "llm"
+    assert result.terminal_result is not None
+    assert result.terminal_result.status == "succeeded"
 
 
 def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_runs():
@@ -495,7 +502,7 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
             self,
             *,
             api_key: SecretStr | None,
-            payload: RunSpec,
+            payload: RunnerRunSpec,
             context: AgentBuildContext,
         ) -> PublishedRunExecutionResult:
             del api_key, payload, context
@@ -541,8 +548,14 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
     )
 
     with pytest.raises(AgentFrameworkMismatchError):
-        service.execute_published("00000000-0000-0000-0000-000000000123", payload)
+        service.execute_published(
+            "00000000-0000-0000-0000-000000000123",
+            RunnerRunSpec.from_run_spec(payload),
+        )
 
     payload.agent_type = AdapterKind.LANGCHAIN
-    result = service.execute_published("00000000-0000-0000-0000-000000000123", payload)
+    result = service.execute_published(
+        "00000000-0000-0000-0000-000000000123",
+        RunnerRunSpec.from_run_spec(payload),
+    )
     assert "Simulated langchain execution" in result.runtime_result.output

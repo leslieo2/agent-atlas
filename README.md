@@ -104,6 +104,7 @@ Use the subsystem docs for the full architecture rules:
 - [roadmap.md](roadmap.md)
 - [backend/README.md](backend/README.md)
 - [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
+- [backend/PLATFORM_MODULES.md](backend/PLATFORM_MODULES.md)
 - [backend/AGENTS.md](backend/AGENTS.md)
 - [frontend/README.md](frontend/README.md)
 - [frontend/ARCHITECTURE.md](frontend/ARCHITECTURE.md)

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from app.core.config import TraceBackendMode, settings
+from app.execution_plane.launchers import K8sLauncher, LocalLauncher
 from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
@@ -152,6 +153,7 @@ def build_infrastructure() -> InfrastructureBundle:
     artifact_resolver = PublishedArtifactResolver()
     local_process_runner = LocalProcessRunner(
         published_runtime=model_runtime,
+        launcher=LocalLauncher(),
     )
     default_runner_backend = local_process_runner.backend_name()
     runner = RunnerRegistry(
@@ -165,6 +167,7 @@ def build_infrastructure() -> InfrastructureBundle:
             "k8s-job": K8sJobExecutionAdapter(
                 task_queue=task_queue,
                 run_repository=run_repository,
+                launcher=K8sLauncher(),
             ),
             "local-runner": LocalWorkerExecutionAdapter(
                 task_queue=task_queue,

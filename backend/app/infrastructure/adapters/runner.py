@@ -4,6 +4,8 @@ from collections.abc import Mapping
 from typing import Protocol
 
 from app.core.errors import AgentLoadFailedError, UnsupportedOperationError
+from app.execution_plane.contracts import RunnerRunSpec
+from app.execution_plane.launchers import LocalLauncher
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import PublishedRunRuntimePort
 from app.modules.runs.application.results import RunnerExecutionResult
@@ -69,18 +71,23 @@ class LocalProcessRunner:
     def __init__(
         self,
         published_runtime: PublishedRunRuntimePort,
+        launcher: LocalLauncher | None = None,
     ) -> None:
         self.published_runtime = published_runtime
+        self.launcher = launcher or LocalLauncher()
 
     @staticmethod
     def backend_name() -> str:
         return "local-process"
 
     def execute(self, handoff: RunnerExecutionHandoff) -> RunnerExecutionResult:
+        runner_payload = RunnerRunSpec.from_handoff(handoff)
+        session = self.launcher.prepare(runner_payload)
         execution = self.published_runtime.execute_published(
             handoff.run_id,
-            handoff.to_run_spec(),
+            session.payload,
         )
+        self.launcher.persist_result(session, execution)
         return RunnerExecutionResult(
             runner_backend=self.backend_name(),
             artifact_ref=handoff.artifact_ref,

@@ -137,9 +137,7 @@ class RunExecutionProjector:
             metrics=ExecutionMetrics(
                 latency_ms=runtime_result.latency_ms,
                 token_cost=runtime_result.token_usage,
-                tool_calls=sum(
-                    1 for event in result.trace_events if event.step_type == StepType.TOOL
-                ),
+                tool_calls=sum(1 for event in events if event.step_type == StepType.TOOL),
             ),
         )
 
@@ -181,7 +179,8 @@ class RunExecutionProjector:
         result: PublishedRunExecutionResult,
     ) -> list[TraceIngestEvent]:
         runtime_result = result.runtime_result
-        if not result.trace_events:
+        trace_events = result.projected_trace_events()
+        if not trace_events:
             return [
                 self._build_event(
                     context=context,
@@ -269,7 +268,7 @@ class RunExecutionProjector:
                     ),
                 }
             )
-            for event in result.trace_events
+            for event in trace_events
         ]
 
     def _build_event(
@@ -356,11 +355,14 @@ class RunExecutionService:
 
         try:
             artifact = self.artifact_resolver.resolve(payload)
+            run = self.run_repository.get(run_id)
             handoff = RunnerExecutionHandoff.from_spec(
                 run_id=run_id,
                 payload=payload,
                 artifact=artifact,
                 runner_backend=self._runner_backend(payload),
+                attempt=run.attempt if run is not None else 1,
+                attempt_id=run.attempt_id if run is not None else None,
             )
             self._record_execution_handoff(run_id, handoff)
             if not self._set_status(run_id, RunStatus.RUNNING):

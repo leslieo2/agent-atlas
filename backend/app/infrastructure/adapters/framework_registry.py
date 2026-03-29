@@ -8,6 +8,7 @@ from typing import Any, Protocol
 from pydantic import SecretStr
 
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
+from app.execution_plane.contracts import RunnerRunSpec
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentManifest,
@@ -19,7 +20,6 @@ from app.modules.agents.domain.models import (
     adapter_kind_for_framework,
 )
 from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RunSpec
 from app.modules.shared.domain.enums import AdapterKind
 
 
@@ -41,7 +41,7 @@ class PublishedRuntimeExecutor(Protocol):
         self,
         *,
         api_key: SecretStr | None,
-        payload: RunSpec,
+        payload: RunnerRunSpec,
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult: ...
 
@@ -76,7 +76,7 @@ class FrameworkRegistry:
         self,
         *,
         api_key: SecretStr | None,
-        payload: RunSpec,
+        payload: RunnerRunSpec,
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult:
         published_agent = self.published_agent_from_payload(payload)
@@ -90,10 +90,9 @@ class FrameworkRegistry:
             context=context,
         )
 
-    def published_agent_from_payload(self, payload: RunSpec) -> PublishedAgent:
+    def published_agent_from_payload(self, payload: RunnerRunSpec) -> PublishedAgent:
         try:
-            snapshot = payload.provenance.published_agent_snapshot if payload.provenance else None
-            published_agent = PublishedAgent.model_validate(snapshot)
+            published_agent = PublishedAgent.model_validate(payload.published_agent_snapshot)
         except Exception as exc:
             raise AgentLoadFailedError(
                 "run payload is missing a valid published agent snapshot",
@@ -101,7 +100,7 @@ class FrameworkRegistry:
             ) from exc
 
         expected_framework = published_agent.framework
-        actual_framework = payload.provenance.framework if payload.provenance else None
+        actual_framework = payload.framework
         if actual_framework and (
             actual_framework.strip().lower() != expected_framework.strip().lower()
         ):
@@ -113,12 +112,12 @@ class FrameworkRegistry:
             )
 
         expected_agent_type = adapter_kind_for_framework(expected_framework)
-        if payload.agent_type != expected_agent_type:
+        if payload.agent_type != expected_agent_type.value:
             raise AgentFrameworkMismatchError(
                 "run payload adapter kind does not match published snapshot framework",
                 agent_id=payload.agent_id,
                 expected_framework=expected_framework,
-                actual_agent_type=payload.agent_type.value,
+                actual_agent_type=payload.agent_type,
             )
 
         if payload.agent_id and payload.agent_id != published_agent.agent_id:

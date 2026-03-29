@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from app.execution_plane.launchers import K8sJobLaunchRequest
 from app.infrastructure.adapters.execution import LocalWorkerExecutionAdapter
+from app.infrastructure.adapters.execution.control import K8sJobExecutionAdapter
 from app.modules.execution.domain.models import CancelRequest
 from app.modules.runs.domain.models import RunRecord, RunSpec
 from app.modules.runs.domain.policies import RunAggregate
@@ -146,3 +148,41 @@ def test_retry_run_resubmits_same_run_as_new_attempt() -> None:
     assert updated.executor_submission_id == handle.executor_ref
     assert updated.latency_ms == 0
     assert updated.error_code is None
+
+
+def test_k8s_execution_adapter_uses_launcher_job_name_for_executor_ref() -> None:
+    repository = StubRunRepository()
+    queue = StubTaskQueue()
+    spec = _spec()
+    spec = spec.model_copy(
+        update={"executor_config": spec.executor_config.model_copy(update={"backend": "k8s-job"})}
+    )
+    repository.save(RunAggregate.create(spec))
+
+    class StubK8sLauncher:
+        def __init__(self) -> None:
+            self.calls: list[tuple[object, int]] = []
+
+        def build_request(self, payload):
+            self.calls.append((payload.run_id, payload.attempt))
+            return K8sJobLaunchRequest(
+                job_name="atlas-run-custom",
+                namespace="atlas-tests",
+                config_map_name="atlas-run-custom-input",
+                image="python:3.12-slim",
+                config_map_manifest={},
+                job_manifest={},
+            )
+
+    launcher = StubK8sLauncher()
+    adapter = K8sJobExecutionAdapter(
+        task_queue=queue,
+        run_repository=repository,
+        launcher=launcher,
+    )
+
+    handle = adapter.submit_run(spec)
+
+    assert handle.executor_ref == "atlas-run-custom"
+    assert launcher.calls == [(spec.run_id, 1)]
+    assert len(queue.enqueued) == 1

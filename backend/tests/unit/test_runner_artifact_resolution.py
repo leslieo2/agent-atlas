@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from app.core.errors import AgentLoadFailedError
+from app.execution_plane.contracts import RunnerRunSpec
 from app.infrastructure.adapters.runner import LocalProcessRunner, PublishedArtifactResolver
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
 from app.modules.runs.application.results import PublishedRunExecutionResult
@@ -149,21 +150,29 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
         payload=payload,
         artifact=artifact,
         runner_backend="local-process",
+        attempt=2,
+        attempt_id=uuid4(),
     )
 
     assert handoff.run_id == run_id
     assert handoff.runner_backend == "local-process"
+    assert handoff.attempt == 2
+    assert handoff.attempt_id is not None
     assert handoff.framework == AdapterKind.OPENAI_AGENTS.value
     assert handoff.artifact_ref == "source://basic@fingerprint-123"
     assert handoff.project_metadata == {"branch": "main"}
+    assert handoff.model_settings is None
     assert handoff.to_run_spec().provenance.runner_backend == "local-process"
 
 
 def test_local_process_runner_stamps_runner_backend() -> None:
     run_id = uuid4()
+    captured: dict[str, RunnerRunSpec] = {}
 
     class StubPublishedRuntime:
-        def execute_published(self, *_args, **_kwargs):
+        def execute_published(self, run_id_value, payload):
+            captured["payload"] = payload
+            assert run_id_value == run_id
             return PublishedRunExecutionResult(
                 runtime_result=RuntimeExecutionResult(
                     output="ok",
@@ -178,6 +187,8 @@ def test_local_process_runner_stamps_runner_backend() -> None:
         runner_backend="local-process",
         project="resolver-test",
         dataset=None,
+        attempt=3,
+        attempt_id=uuid4(),
         agent_id="basic",
         model="gpt-5.4-mini",
         entrypoint="app.agent_plugins.basic:build_agent",
@@ -206,3 +217,11 @@ def test_local_process_runner_stamps_runner_backend() -> None:
     assert result.runner_backend == "local-process"
     assert result.artifact_ref == "source://basic@fingerprint-123"
     assert result.execution.runtime_result.output == "ok"
+    assert captured["payload"].attempt == 3
+    assert captured["payload"].attempt_id == handoff.attempt_id
+    assert captured["payload"].agent_type == AdapterKind.OPENAI_AGENTS.value
+    assert (
+        captured["payload"]
+        .bootstrap.as_environment()["ATLAS_RUNSPEC_PATH"]
+        .endswith("run_spec.json")
+    )

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
+from app.execution_plane.contracts import RunnerRunSpec
 from app.infrastructure.adapters.agent_catalog import (
     AgentModuleSource,
     FilesystemAgentDiscovery,
@@ -327,7 +328,7 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
     with pytest.raises(AgentFrameworkMismatchError):
         registry.execute_published(
             api_key=None,
-            payload=payload,
+            payload=RunnerRunSpec.from_run_spec(payload),
             context=AgentBuildContext(
                 run_id="00000000-0000-0000-0000-000000000123",
                 project="migration-check",
@@ -408,7 +409,7 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
     ):
         registry.execute_published(
             api_key=None,
-            payload=payload,
+            payload=RunnerRunSpec.from_run_spec(payload),
             context=AgentBuildContext(
                 run_id="00000000-0000-0000-0000-000000000123",
                 project="migration-check",
