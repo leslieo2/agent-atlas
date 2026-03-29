@@ -39,5 +39,6 @@ class TraceIngestProjector(TraceProjectorPort):
             "token_usage": span.token_usage,
             "image_digest": span.image_digest,
             "prompt_version": span.prompt_version,
+            "trace_backend": span.trace_backend,
             "received_at": span.received_at.isoformat(),
         }

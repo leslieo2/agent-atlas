@@ -49,7 +49,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
                     },
                 },
                 artifact_ref=build_source_artifact_ref("policy-agent", "policy-fingerprint"),
-                trace_backend="atlas-state",
+                trace_backend="phoenix",
             ),
         )
     )
@@ -112,7 +112,7 @@ def test_export_artifact_jsonl_is_training_ready(client, tmp_path):
     assert rows[0]["published_agent_snapshot"]["manifest"]["framework"] == "openai-agents-sdk"
     assert rows[0]["published_agent_snapshot"]["runtime_artifact"]["build_status"] == "ready"
     assert rows[0]["artifact_ref"] == "source://policy-agent@policy-fingerprint"
-    assert rows[0]["trace_backend"] == "atlas-state"
+    assert rows[0]["trace_backend"] == "phoenix"
     assert rows[0]["published_agent"] == {
         "published_at": "2026-03-20T09:00:00Z",
         "default_model": "gpt-5.4-mini",

@@ -21,6 +21,7 @@ from app.modules.runs.domain.models import (
 )
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus, StepType
+from app.modules.shared.domain.models import TraceTelemetryMetadata
 from app.modules.traces.domain.models import TraceIngestEvent
 
 
@@ -96,6 +97,21 @@ def normalize_run_failure(exc: Exception) -> RunFailureDetails:
 
 
 class RunExecutionProjector:
+    @staticmethod
+    def _event_metadata(context: RunExecutionContext) -> TraceTelemetryMetadata:
+        provenance = context.payload.provenance
+        return TraceTelemetryMetadata(
+            agent_id=context.payload.agent_id,
+            framework=provenance.framework if provenance else None,
+            artifact_ref=provenance.artifact_ref if provenance else None,
+            image_ref=provenance.image_ref if provenance else None,
+            runner_backend=provenance.runner_backend if provenance else None,
+            eval_job_id=context.payload.eval_job_id,
+            dataset_sample_id=context.payload.dataset_sample_id,
+            prompt_version=context.prompt_version,
+            image_digest=context.image_digest,
+        )
+
     @staticmethod
     def runtime_result_span_id(run_id: UUID) -> str:
         return f"span-{run_id}-1"
@@ -187,6 +203,53 @@ class RunExecutionProjector:
                     or runtime_result.container_image
                     or context.image_digest,
                     "prompt_version": event.prompt_version or context.prompt_version,
+                    "metadata": (
+                        event.metadata.model_copy(
+                            update={
+                                "agent_id": event.metadata.agent_id or context.payload.agent_id,
+                                "framework": event.metadata.framework
+                                or (
+                                    context.payload.provenance.framework
+                                    if context.payload.provenance
+                                    else None
+                                ),
+                                "artifact_ref": event.metadata.artifact_ref
+                                or (
+                                    context.payload.provenance.artifact_ref
+                                    if context.payload.provenance
+                                    else None
+                                ),
+                                "image_ref": event.metadata.image_ref
+                                or (
+                                    context.payload.provenance.image_ref
+                                    if context.payload.provenance
+                                    else None
+                                ),
+                                "runner_backend": event.metadata.runner_backend
+                                or (
+                                    context.payload.provenance.runner_backend
+                                    if context.payload.provenance
+                                    else None
+                                ),
+                                "eval_job_id": event.metadata.eval_job_id
+                                or context.payload.eval_job_id,
+                                "dataset_sample_id": event.metadata.dataset_sample_id
+                                or context.payload.dataset_sample_id,
+                                "prompt_version": event.metadata.prompt_version
+                                or context.prompt_version,
+                                "image_digest": event.metadata.image_digest
+                                or runtime_result.container_image
+                                or context.image_digest,
+                            }
+                        )
+                        if event.metadata
+                        else self._event_metadata(context).model_copy(
+                            update={
+                                "image_digest": runtime_result.container_image
+                                or context.image_digest,
+                            }
+                        )
+                    ),
                 }
             )
             for event in result.trace_events
@@ -219,6 +282,11 @@ class RunExecutionProjector:
             token_usage=token_usage,
             image_digest=image_digest or context.image_digest,
             prompt_version=context.prompt_version,
+            metadata=self._event_metadata(context).model_copy(
+                update={
+                    "image_digest": image_digest or context.image_digest,
+                }
+            ),
         )
 
 
@@ -232,8 +300,8 @@ class ExecutionRecorder:
         self.telemetry_ingestor = telemetry_ingestor
 
     def record(self, run_id: UUID, record: ProjectedExecutionRecord) -> None:
-        for event in record.events:
-            self.telemetry_ingestor.ingest(event)
+        if record.events:
+            self.telemetry_ingestor.ingest_many(record.events)
 
         run = self.run_repository.get(run_id)
         if not run:

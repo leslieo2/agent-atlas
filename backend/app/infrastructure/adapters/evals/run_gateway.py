@@ -87,6 +87,7 @@ class StateEvalRunGateway(EvalRunGatewayPort):
                     error_code=run.error_code,
                     error_message=run.error_message,
                     termination_reason=run.termination_reason,
+                    trace_url=run.observability.trace_url if run.observability else None,
                 )
             )
         return states

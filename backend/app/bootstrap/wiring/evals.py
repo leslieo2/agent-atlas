@@ -37,6 +37,8 @@ def build_eval_module(
     eval_queries = EvalJobQueries(
         eval_job_repository=infra.eval_job_repository,
         sample_result_repository=infra.eval_sample_result_repository,
+        phoenix_base_url=getattr(infra.trace_exporter, "base_url", None),
+        phoenix_project_name=getattr(infra.trace_exporter, "project_name", "default"),
     )
     eval_commands = EvalJobCommands(
         eval_job_repository=infra.eval_job_repository,

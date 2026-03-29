@@ -1,11 +1,12 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getArtifactDownloadUrl } from "@/src/entities/artifact/api";
 import { useExportArtifactMutation } from "@/src/entities/artifact/query";
 import { useRunsQuery } from "@/src/entities/run/query";
+import { useRunTracesQuery } from "@/src/entities/trace/query";
 import { buildPlaygroundRerunHref } from "@/src/entities/run/presentation";
 import { trajectoryQueryOptions, useTrajectoryQuery } from "@/src/entities/trajectory/query";
 import { ArtifactExportFeedback } from "@/src/features/artifact-export/ArtifactExportFeedback";
@@ -82,10 +83,14 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [focusedStepId, setFocusedStepId] = useState("");
   const [comparisonRunId, setComparisonRunId] = useState("");
+  const [traceStepFilter, setTraceStepFilter] = useState("all");
+  const [traceToolFilter, setTraceToolFilter] = useState("all");
   const [exportFeedback, setExportFeedback] = useState<ExportFeedbackState>(null);
   const runs = useMemo(() => runsQuery.data ?? [], [runsQuery.data]);
   const trajectoryQuery = useTrajectoryQuery(selectedRun);
+  const tracesQuery = useRunTracesQuery(selectedRun);
   const steps = useMemo(() => trajectoryQuery.data ?? [], [trajectoryQuery.data]);
+  const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
 
   useEffect(() => {
     if (runId) {
@@ -105,6 +110,11 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
 
   useEffect(() => {
     setDiffSummary("");
+  }, [selectedRun]);
+
+  useEffect(() => {
+    setTraceStepFilter("all");
+    setTraceToolFilter("all");
   }, [selectedRun]);
 
   useEffect(() => {
@@ -129,7 +139,7 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
     }
 
     setComparisonRunId((current) =>
-      comparableRuns.some((run) => run.runId === current) ? current : comparableRuns[0]?.runId ?? ""
+      comparableRuns.some((run) => run.runId === current) ? current : (comparableRuns[0]?.runId ?? "")
     );
   }, [comparableRuns]);
 
@@ -147,13 +157,34 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
       ? "Loading trajectory..."
       : trajectoryQuery.isError
         ? `Failed to load trajectory: ${trajectoryQuery.error instanceof Error ? trajectoryQuery.error.message : "unknown error"}`
-          : steps.length
-            ? `Loaded ${steps.length} steps.`
-            : selectedRun
-              ? "No trajectory found."
-              : runs.length
-                ? "Select a run to inspect."
-                : "No runs available yet. Start from Playground to generate a trajectory.";
+        : steps.length
+          ? `Loaded ${steps.length} steps.`
+          : selectedRun
+            ? "No trajectory found."
+            : runs.length
+              ? "Select a run to inspect."
+              : "No runs available yet. Start from Playground to generate a trajectory.";
+  const traceStepOptions = useMemo(() => Array.from(new Set(traces.map((trace) => trace.stepType))), [traces]);
+  const traceToolOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(traces.map((trace) => trace.toolName).filter((toolName): toolName is string => Boolean(toolName)))
+      ),
+    [traces]
+  );
+  const filteredTraces = useMemo(
+    () =>
+      traces.filter((trace) => {
+        if (traceStepFilter !== "all" && trace.stepType !== traceStepFilter) {
+          return false;
+        }
+        if (traceToolFilter !== "all" && trace.toolName !== traceToolFilter) {
+          return false;
+        }
+        return true;
+      }),
+    [traceStepFilter, traceToolFilter, traces]
+  );
 
   const compareWithSelectedRun = async () => {
     if (!comparisonRunId) {
@@ -250,7 +281,8 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
               <p className="surface-kicker">Run context</p>
               <h3 className="panel-title">Select a run and compare it against any scoped execution</h3>
               <p className="muted-note">
-                Stay inside the same project, dataset, and agent scope to inspect regressions without leaving detail view.
+                Stay inside the same project, dataset, and agent scope to inspect regressions without leaving detail
+                view.
               </p>
             </div>
             <div className="toolbar">
@@ -324,7 +356,12 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
                 />
                 <MetricCard
                   label="Image handoff"
-                  value={selectedRunRecord.imageRef ?? selectedRunRecord.provenance?.imageRef ?? runtimeArtifact?.imageRef ?? "-"}
+                  value={
+                    selectedRunRecord.imageRef ??
+                    selectedRunRecord.provenance?.imageRef ??
+                    runtimeArtifact?.imageRef ??
+                    "-"
+                  }
                 />
                 <MetricCard label="Container image" value={selectedRunRecord.containerImage ?? "-"} />
                 <MetricCard label="Failure code" value={selectedRunRecord.errorCode ?? "-"} />
@@ -333,6 +370,7 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
                 {[
                   `entrypoint: ${selectedRunRecord.entrypoint ?? "-"}`,
                   `runner_backend: ${selectedRunRecord.runnerBackend ?? selectedRunRecord.provenance?.runnerBackend ?? "-"}`,
+                  `trace_backend: ${selectedRunRecord.provenance?.traceBackend ?? selectedRunRecord.observability?.backend ?? "-"}`,
                   `artifact_ref: ${selectedRunRecord.provenance?.artifactRef ?? runtimeArtifact?.artifactRef ?? "-"}`,
                   `image_ref: ${selectedRunRecord.imageRef ?? selectedRunRecord.provenance?.imageRef ?? runtimeArtifact?.imageRef ?? "-"}`,
                   `build_status: ${runtimeArtifact?.buildStatus ?? "legacy"}`,
@@ -340,6 +378,85 @@ export default function TrajectoryWorkspace({ runId }: Props = {}) {
                   ...(selectedRunRecord.errorMessage ? [`error: ${selectedRunRecord.errorMessage}`] : [])
                 ].join("\n")}
               </Notice>
+            </div>
+          ) : null}
+
+          {selectedRunRecord ? (
+            <div className="surface" style={{ marginBottom: 18 }}>
+              <div className="surface-header">
+                <div>
+                  <p className="surface-kicker">Raw traces</p>
+                  <h4 className="panel-title">Phoenix-backed raw trace panel</h4>
+                  <p className="muted-note">
+                    Atlas fetches raw traces through its own API and only deep-links out to Phoenix when available.
+                  </p>
+                </div>
+                <div className="toolbar">
+                  <select value={traceStepFilter} onChange={(event) => setTraceStepFilter(event.target.value)}>
+                    <option value="all">All step types</option>
+                    {traceStepOptions.map((stepType) => (
+                      <option key={stepType} value={stepType}>
+                        {stepType}
+                      </option>
+                    ))}
+                  </select>
+                  <select value={traceToolFilter} onChange={(event) => setTraceToolFilter(event.target.value)}>
+                    <option value="all">All tools</option>
+                    {traceToolOptions.map((toolName) => (
+                      <option key={toolName} value={toolName}>
+                        {toolName}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedRunRecord.observability?.traceUrl ? (
+                    <Button
+                      href={selectedRunRecord.observability.traceUrl}
+                      variant="secondary"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open Phoenix trace <ExternalLink size={14} />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              <div className="metrics">
+                <MetricCard
+                  label="Trace backend"
+                  value={selectedRunRecord.observability?.backend ?? selectedRunRecord.provenance?.traceBackend ?? "-"}
+                />
+                <MetricCard label="Trace spans" value={traces.length} />
+                <MetricCard label="Filtered spans" value={filteredTraces.length} />
+                <MetricCard label="Trace ID" value={selectedRunRecord.observability?.traceId ?? "-"} />
+              </div>
+              {tracesQuery.isPending ? <Notice>Loading raw traces...</Notice> : null}
+              {tracesQuery.isError ? (
+                <Notice>
+                  Failed to load raw traces:{" "}
+                  {tracesQuery.error instanceof Error ? tracesQuery.error.message : "unknown error"}
+                </Notice>
+              ) : null}
+              {!tracesQuery.isPending && !tracesQuery.isError && !filteredTraces.length ? (
+                <Notice>No raw traces available for the selected filters.</Notice>
+              ) : null}
+              {filteredTraces.length ? (
+                <Notice className="mono">
+                  {filteredTraces
+                    .map((trace) =>
+                      [
+                        `[${trace.stepType}] ${trace.spanId}`,
+                        `parent=${trace.parentSpanId ?? "-"}`,
+                        `tool=${trace.toolName ?? "-"}`,
+                        `latency_ms=${trace.latencyMs}`,
+                        `tokens=${trace.tokenUsage}`,
+                        `backend=${trace.traceBackend ?? selectedRunRecord.observability?.backend ?? "-"}`,
+                        `input=${JSON.stringify(trace.input)}`,
+                        `output=${JSON.stringify(trace.output)}`
+                      ].join(" | ")
+                    )
+                    .join("\n\n")}
+                </Notice>
+              ) : null}
             </div>
           ) : null}
 

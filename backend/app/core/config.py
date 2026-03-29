@@ -12,6 +12,10 @@ class RuntimeMode(StrEnum):
     MOCK = "mock"
 
 
+class TraceBackendMode(StrEnum):
+    PHOENIX = "phoenix"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="AGENT_ATLAS_",
@@ -59,6 +63,31 @@ class Settings(BaseSettings):
     worker_task_lease_seconds: int = Field(
         default=30,
         description="Lease duration before a running task can be reclaimed by another worker.",
+    )
+    trace_backend: TraceBackendMode = Field(
+        default=TraceBackendMode.PHOENIX,
+        description="Raw trace backend mode: phoenix.",
+    )
+    phoenix_base_url: str | None = Field(
+        default=None,
+        description="Phoenix application base URL used to build backend-owned deep links.",
+    )
+    phoenix_otlp_endpoint: str | None = Field(
+        default=None,
+        description="Phoenix OTLP endpoint used for trace export.",
+    )
+    phoenix_api_key: SecretStr | None = Field(
+        default=None,
+        repr=False,
+        description="Optional Phoenix API key used for export and query clients.",
+    )
+    phoenix_project_name: str = Field(
+        default="default",
+        description="Phoenix project name used for exported Agent Atlas traces.",
+    )
+    phoenix_query_limit: int = Field(
+        default=500,
+        description="Maximum number of Phoenix spans to fetch when reconstructing a run trace.",
     )
 
     def effective_runtime_mode(self, api_key: SecretStr | None = None) -> RuntimeMode:

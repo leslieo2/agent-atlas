@@ -36,6 +36,7 @@ def evaluate_sample(
                 run.error_message or run.termination_reason or "runtime execution failed"
             ),
             error_code=run.error_code or "timeout_or_termination",
+            trace_url=run.trace_url,
             tags=sample.tags,
         )
 
@@ -48,6 +49,7 @@ def evaluate_sample(
             input=sample.input,
             expected=sample.expected,
             actual=actual,
+            trace_url=run.trace_url,
             tags=sample.tags,
         )
 
@@ -67,5 +69,6 @@ def evaluate_sample(
         expected=sample.expected,
         actual=actual,
         failure_reason=failure_reason,
+        trace_url=run.trace_url,
         tags=sample.tags,
     )

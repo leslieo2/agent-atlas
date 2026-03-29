@@ -9,6 +9,9 @@ from app.modules.shared.domain.models import (
 
 
 class SourceArtifactBuilder:
+    def __init__(self, default_trace_backend: str = "phoenix") -> None:
+        self.default_trace_backend = default_trace_backend
+
     def build(self, published_agent: PublishedAgent) -> RuntimeArtifactBuildResult:
         runtime_artifact = build_source_runtime_artifact(
             agent_id=published_agent.agent_id,
@@ -29,6 +32,6 @@ class SourceArtifactBuilder:
                 artifact_ref=runtime_artifact.artifact_ref,
                 image_ref=runtime_artifact.image_ref,
                 runner_backend=None,
-                trace_backend="atlas-state",
+                trace_backend=self.default_trace_backend,
             ),
         )

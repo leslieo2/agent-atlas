@@ -29,9 +29,12 @@ def build_run_module(
     run_submission = RunSubmissionService(
         run_repository=infra.run_repository,
         task_queue=infra.task_queue,
+        default_trace_backend=infra.trace_backend.backend_name(),
     )
     telemetry_ingestor = RunTelemetryIngestionService(
-        trace_ingestor=traces.trace_commands,
+        run_repository=infra.run_repository,
+        trace_projector=infra.trace_projector,
+        trace_exporter=infra.trace_exporter,
         trajectory_recorder=TrajectoryRecorder(
             trajectory_repository=infra.trajectory_repository,
             step_projector=infra.trajectory_step_projector,

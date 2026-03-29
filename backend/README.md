@@ -7,7 +7,7 @@ datasets and eval jobs, and produces export artifacts.
 Strategically, the backend is moving toward a split where:
 
 - Atlas remains the source of truth for control-plane state and provenance
-- Phoenix becomes the preferred backend for raw trace and evaluation observability
+- Phoenix is the required backend for raw trace and evaluation observability
 - immutable artifacts or images and runner orchestration become the execution handoff
 - RL integration starts with offline export contracts
 
@@ -83,7 +83,7 @@ Planned runtime direction:
 - published agents remain repo-local and governed by Atlas
 - execution resolves from published snapshot toward immutable artifact or image references
 - runner orchestration is added behind infrastructure ports
-- raw trace and evaluation observability move toward Phoenix without making Phoenix the control
+- raw trace and evaluation observability run through Phoenix without making Phoenix the control
   plane
 
 ## Dependency Management
@@ -122,8 +122,16 @@ Important settings currently wired in code:
 - `AGENT_ATLAS_WORKER_POLL_INTERVAL_SECONDS`: worker polling interval
 - `AGENT_ATLAS_WORKER_TASK_LEASE_SECONDS`: worker task lease duration
 
-Planned settings such as runner backend selection, artifact build controls, or Phoenix OTLP
-configuration should not be treated as live product behavior until they are backed by code.
+Planned settings such as runner backend selection or artifact build controls should not be treated
+as live product behavior until they are backed by code.
+
+Phoenix tracing is now required in code:
+
+- `AGENT_ATLAS_PHOENIX_BASE_URL`: backend-owned Phoenix deep link base URL
+- `AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT`: OTLP collector endpoint used by the Phoenix SDK
+- `AGENT_ATLAS_PHOENIX_PROJECT_NAME`: project name used for Atlas-exported traces
+- `AGENT_ATLAS_PHOENIX_API_KEY`: optional API key for Phoenix export/query access
+- `AGENT_ATLAS_PHOENIX_QUERY_LIMIT`: read-side span fetch cap for run trace reconstruction
 
 Runtime mode notes:
 

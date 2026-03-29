@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
-from app.modules.shared.domain.models import ProvenanceMetadata
+from app.modules.shared.domain.models import ObservabilityMetadata, ProvenanceMetadata
 
 
 class RunSpec(BaseModel):
@@ -173,6 +173,7 @@ class RunRecord(BaseModel):
     execution_backend: str | None = None
     container_image: str | None = None
     provenance: ProvenanceMetadata | None = None
+    observability: ObservabilityMetadata | None = None
     resolved_model: str | None = None
     error_code: str | None = None
     error_message: str | None = None

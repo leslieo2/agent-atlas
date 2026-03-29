@@ -3,7 +3,6 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.core.errors import ProviderAuthError
-from app.infrastructure.adapters.trace_backend import AtlasStateTraceBackend
 from app.infrastructure.adapters.trace_projection import TraceIngestProjector
 from app.infrastructure.adapters.trajectory_projection import TraceEventTrajectoryProjector
 from app.infrastructure.repositories import (
@@ -31,26 +30,23 @@ from app.modules.runs.domain.models import (
     RuntimeExecutionResult,
 )
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
-from app.modules.traces.application.use_cases import (
-    TraceCommands,
-    TraceIngestionWorkflow,
-    TraceRecorder,
-)
 from app.modules.traces.domain.models import TraceIngestEvent
+from tests.support.fake_phoenix import FakePhoenixTraceExporter
 
 
 def _build_telemetry_ingestor(
+    run_repository: StateRunRepository,
     trace_repository: StateTraceRepository,
     trajectory_repository: StateTrajectoryRepository,
 ) -> RunTelemetryIngestionService:
     return RunTelemetryIngestionService(
-        trace_ingestor=TraceCommands(
-            workflow=TraceIngestionWorkflow(
-                trace_projector=TraceIngestProjector(),
-                trace_recorder=TraceRecorder(
-                    trace_backend=AtlasStateTraceBackend(trace_repository),
-                ),
-            )
+        run_repository=run_repository,
+        trace_projector=TraceIngestProjector(),
+        trace_exporter=FakePhoenixTraceExporter(
+            endpoint="http://phoenix.test:6006/v1/traces",
+            project_name="agent-atlas-tests",
+            base_url="http://phoenix.test:6006",
+            repository=trace_repository,
         ),
         trajectory_recorder=TrajectoryRecorder(
             trajectory_repository=trajectory_repository,
@@ -119,6 +115,9 @@ def test_run_execution_projector_builds_success_trace_event():
     assert record.events[0].output["output"] == "Projected success output"
     assert record.events[0].output["provider"] == "mock"
     assert record.events[0].image_digest == "python:3.12-slim"
+    assert record.events[0].metadata is not None
+    assert record.events[0].metadata.image_digest == "python:3.12-slim"
+    assert record.events[0].metadata.prompt_version == "v2"
     assert record.metrics.token_cost == 31
 
 
@@ -155,6 +154,7 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     recorder = ExecutionRecorder(
         run_repository=run_repository,
         telemetry_ingestor=_build_telemetry_ingestor(
+            run_repository=run_repository,
             trace_repository=trace_repository,
             trajectory_repository=trajectory_repository,
         ),
@@ -183,6 +183,8 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     assert run.latency_ms == 9
     assert run.token_cost == 13
     assert run.tool_calls == 0
+    assert run.observability is not None
+    assert run.observability.backend == "phoenix"
     expected_span_ids = [f"span-{run_id}-1"]
     assert [step.id for step in steps] == expected_span_ids
     assert [step.parent_step_id for step in steps] == [None]
@@ -222,6 +224,7 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
     recorder = ExecutionRecorder(
         run_repository=run_repository,
         telemetry_ingestor=_build_telemetry_ingestor(
+            run_repository=run_repository,
             trace_repository=trace_repository,
             trajectory_repository=trajectory_repository,
         ),
@@ -328,6 +331,7 @@ def test_run_execution_service_records_structured_failure_details():
         artifact_resolver=_FixedArtifactResolver(),
         runner=ExplodingPublishedRuntime(),
         telemetry_ingestor=_build_telemetry_ingestor(
+            run_repository=run_repository,
             trace_repository=trace_repository,
             trajectory_repository=trajectory_repository,
         ),
@@ -465,6 +469,7 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
         artifact_resolver=_FixedArtifactResolver(),
         runner=FailedToolPublishedRuntime(),
         telemetry_ingestor=_build_telemetry_ingestor(
+            run_repository=run_repository,
             trace_repository=trace_repository,
             trajectory_repository=trajectory_repository,
         ),

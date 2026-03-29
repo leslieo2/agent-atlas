@@ -53,11 +53,7 @@ function toneForJudgement(judgement: "passed" | "failed" | "unscored" | "runtime
   return "warn";
 }
 
-export default function EvalsWorkspace({
-  initialAgentId = "",
-  initialDataset = "",
-  initialJobId = ""
-}: Props) {
+export default function EvalsWorkspace({ initialAgentId = "", initialDataset = "", initialJobId = "" }: Props) {
   const agentsQuery = useAgentsQuery();
   const datasetsQuery = useDatasetsQuery();
   const evalJobsQuery = useEvalJobsQuery();
@@ -82,9 +78,7 @@ export default function EvalsWorkspace({
   const evalSamplesQuery = useEvalSamplesQuery(selectedJob?.evalJobId ?? "");
   const samples = useMemo(() => evalSamplesQuery.data ?? [], [evalSamplesQuery.data]);
   const failureSamples = useMemo(
-    () =>
-      samples
-        .filter((sample) => sample.judgement === "failed" || sample.judgement === "runtime_error"),
+    () => samples.filter((sample) => sample.judgement === "failed" || sample.judgement === "runtime_error"),
     [samples]
   );
   const allFailingRunIds = useMemo(() => dedupeStrings(failureSamples.map((sample) => sample.runId)), [failureSamples]);
@@ -177,9 +171,9 @@ export default function EvalsWorkspace({
         ? "Eval workbench is temporarily unavailable."
         : !datasets.length
           ? "No datasets available. Open datasets workspace to import or create one."
-        : evalJobs.length
-          ? `Loaded ${evalJobs.length} eval jobs.`
-          : "No eval jobs yet. Create the first dataset-driven batch run.");
+          : evalJobs.length
+            ? `Loaded ${evalJobs.length} eval jobs.`
+            : "No eval jobs yet. Create the first dataset-driven batch run.");
 
   return (
     <section className="page-stack">
@@ -221,6 +215,11 @@ export default function EvalsWorkspace({
                 Open selected eval
               </Button>
             ) : null}
+            {selectedJob?.observability?.projectUrl ? (
+              <Button href={selectedJob.observability.projectUrl} variant="secondary" target="_blank" rel="noreferrer">
+                Open Phoenix job view <ArrowUpRight size={14} />
+              </Button>
+            ) : null}
             <Button onClick={handleCreateEval} disabled={createEvalJobMutation.isPending}>
               <Radar size={14} /> {createEvalJobMutation.isPending ? "Creating..." : "Create eval job"}
             </Button>
@@ -242,7 +241,9 @@ export default function EvalsWorkspace({
           <div>
             <p className="surface-kicker">Launch eval</p>
             <h3 className="panel-title">Create a batch eval from a published agent and dataset</h3>
-            <p className="muted-note">Keep scoring deterministic for now and reuse the existing JSONL export path for failures.</p>
+            <p className="muted-note">
+              Keep scoring deterministic for now and reuse the existing JSONL export path for failures.
+            </p>
           </div>
         </div>
 
@@ -314,7 +315,9 @@ export default function EvalsWorkspace({
             <div>
               <p className="surface-kicker">Jobs</p>
               <h3 className="panel-title">Recent eval jobs</h3>
-              <p className="muted-note">Select a batch run to inspect aggregate metrics, clustered failures, and sample-level outcomes.</p>
+              <p className="muted-note">
+                Select a batch run to inspect aggregate metrics, clustered failures, and sample-level outcomes.
+              </p>
             </div>
           </div>
 
@@ -346,7 +349,9 @@ export default function EvalsWorkspace({
             <div>
               <p className="surface-kicker">Failures</p>
               <h3 className="panel-title">Failure clusters and sample drill-down</h3>
-              <p className="muted-note">Use runtime codes to separate infrastructure faults from agent quality regressions.</p>
+              <p className="muted-note">
+                Use runtime codes to separate infrastructure faults from agent quality regressions.
+              </p>
             </div>
             <div className={styles.failureActions}>
               <div className="toolbar">
@@ -357,11 +362,7 @@ export default function EvalsWorkspace({
                 >
                   Select all failures
                 </Button>
-                <Button
-                  variant="ghost"
-                  disabled={!selectedFailureCount}
-                  onClick={() => setSelectedFailureRunIds([])}
-                >
+                <Button variant="ghost" disabled={!selectedFailureCount} onClick={() => setSelectedFailureRunIds([])}>
                   Clear selection
                 </Button>
               </div>
@@ -403,6 +404,7 @@ export default function EvalsWorkspace({
                   <th>Error code</th>
                   <th>Actual</th>
                   <th>Run</th>
+                  <th>Phoenix</th>
                 </tr>
               </thead>
               <tbody>
@@ -436,12 +438,23 @@ export default function EvalsWorkspace({
                         Open run {sample.runId} <ArrowUpRight size={14} />
                       </Button>
                     </td>
+                    <td>
+                      {sample.traceUrl ? (
+                        <Button href={sample.traceUrl} variant="ghost" target="_blank" rel="noreferrer">
+                          Open trace <ArrowUpRight size={14} />
+                        </Button>
+                      ) : (
+                        <span className="muted-note">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {!samples.length ? (
                   <tr>
-                    <td colSpan={6}>
-                      <Notice>{selectedJob ? "No sample results yet for this eval job." : "Select an eval job first."}</Notice>
+                    <td colSpan={7}>
+                      <Notice>
+                        {selectedJob ? "No sample results yet for this eval job." : "Select an eval job first."}
+                      </Notice>
                     </td>
                   </tr>
                 ) : null}

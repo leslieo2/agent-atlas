@@ -6,7 +6,6 @@ from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.modules.traces.application.use_cases import (
     TraceCommands,
     TraceIngestionWorkflow,
-    TraceRecorder,
 )
 
 
@@ -19,7 +18,6 @@ class TraceModuleBundle:
 def build_trace_module(infra: InfrastructureBundle) -> TraceModuleBundle:
     trace_workflow = TraceIngestionWorkflow(
         trace_projector=infra.trace_projector,
-        trace_recorder=TraceRecorder(trace_backend=infra.trace_backend),
     )
     trace_commands = TraceCommands(workflow=trace_workflow)
 

@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import StepType
+from app.modules.shared.domain.models import TraceTelemetryMetadata
 from app.modules.traces.domain.models import TraceIngestEvent as DomainTraceIngestEvent
 from app.modules.traces.domain.models import TraceSpan
 
@@ -22,6 +23,7 @@ class TraceSpanResponse(BaseModel):
     token_usage: int
     image_digest: str | None = None
     prompt_version: str | None = None
+    trace_backend: str | None = None
     received_at: datetime
 
     @classmethod
@@ -42,6 +44,7 @@ class TraceIngestEvent(BaseModel):
     token_usage: int = 0
     image_digest: str | None = None
     prompt_version: str | None = None
+    metadata: TraceTelemetryMetadata | None = None
 
     def to_domain(self) -> DomainTraceIngestEvent:
         return DomainTraceIngestEvent.model_validate(self.model_dump())

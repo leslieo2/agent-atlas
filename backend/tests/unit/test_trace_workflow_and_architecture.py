@@ -4,19 +4,15 @@ import ast
 from pathlib import Path
 from uuid import uuid4
 
-from app.infrastructure.adapters.trace_backend import AtlasStateTraceBackend
 from app.infrastructure.adapters.trace_projection import TraceIngestProjector
-from app.infrastructure.repositories import StateTraceRepository
 from app.modules.shared.domain.enums import StepType
-from app.modules.traces.application.use_cases import TraceIngestionWorkflow, TraceRecorder
+from app.modules.traces.application.use_cases import TraceIngestionWorkflow
 from app.modules.traces.domain.models import TraceIngestEvent
 
 
 def test_trace_ingestion_workflow_projects_and_persists_span():
-    repository = StateTraceRepository()
     workflow = TraceIngestionWorkflow(
         trace_projector=TraceIngestProjector(),
-        trace_recorder=TraceRecorder(trace_backend=AtlasStateTraceBackend(repository)),
     )
     run_id = uuid4()
     event = TraceIngestEvent(
@@ -35,10 +31,6 @@ def test_trace_ingestion_workflow_projects_and_persists_span():
     )
 
     normalized = workflow.normalize(event)
-    traces = repository.list_for_run(run_id)
-
-    assert len(traces) == 1
-    assert traces[0].span_id == "span-123"
     assert normalized["run_id"] == str(run_id)
     assert normalized["step_type"] == "tool"
 

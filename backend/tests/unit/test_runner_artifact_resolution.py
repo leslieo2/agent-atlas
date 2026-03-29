@@ -121,7 +121,7 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
         prompt="Resolve the artifact handoff.",
         tags=["phase4"],
         project_metadata={"branch": "main"},
-        provenance=ProvenanceMetadata(trace_backend="atlas-state"),
+        provenance=ProvenanceMetadata(trace_backend="phoenix"),
     )
 
     artifact = ResolvedRunArtifact(

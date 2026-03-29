@@ -8,7 +8,7 @@ It combines:
 - a FastAPI backend that owns discovery, publication, run control, datasets, eval linkage,
   provenance, and export contracts
 - a Next.js frontend that exposes the operator-facing control plane
-- an external-observability-first direction where Phoenix is the preferred backend for raw traces,
+- an external-observability-first direction where Phoenix is the required backend for raw traces,
   prompt and experiment workflows, and evaluation-oriented debugging
 
 ## What Is In This Repository
@@ -44,7 +44,7 @@ The product boundary is:
 
 - Agent Atlas owns repository-local discovery, publish policy, run control, provenance, and export
   semantics
-- Phoenix is the preferred external backend for trace-heavy observability and evaluation workflows
+- Phoenix is the required external backend for raw trace observability and evaluation workflows
 - RL integration starts with offline export first, not direct training orchestration
 
 This means the long-term shape is:
@@ -64,7 +64,7 @@ This means the long-term shape is:
 - Frontend: a layered Next.js App Router app. Route entrypoints live in `frontend/app`, while
   product code follows `app -> widgets -> features -> entities -> shared` in `frontend/src`.
 - External backend direction: raw tracing and evaluation observability are intended to move behind
-  infrastructure adapters so Atlas stays the control plane even when Phoenix becomes the preferred
+  infrastructure adapters so Atlas stays the control plane while Phoenix remains the required
   backend.
 
 Use the subsystem docs for the full architecture rules:
@@ -156,8 +156,15 @@ Key settings currently wired in the backend:
 - `AGENT_ATLAS_SEED_DEMO`: whether demo data is seeded on startup
 - `AGENT_ATLAS_OPENAI_API_KEY` or `OPENAI_API_KEY`: OpenAI credentials for live mode
 
-Planned infrastructure settings such as runner backend selection or Phoenix OTLP configuration
-should not be treated as shipped until they are backed by code and documented in subsystem docs.
+Planned infrastructure settings such as runner backend selection should not be treated as shipped
+until they are backed by code and documented in subsystem docs.
+
+Phoenix-backed tracing is now required behind backend-owned settings:
+
+- `AGENT_ATLAS_PHOENIX_BASE_URL`
+- `AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT`
+- `AGENT_ATLAS_PHOENIX_PROJECT_NAME`
+- `AGENT_ATLAS_PHOENIX_API_KEY` (optional)
 
 ### Frontend
 

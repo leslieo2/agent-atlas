@@ -12,5 +12,6 @@ export interface TraceSpan {
   tokenUsage: number;
   imageDigest?: string | null;
   promptVersion?: string | null;
+  traceBackend?: string | null;
   receivedAt: string;
 }

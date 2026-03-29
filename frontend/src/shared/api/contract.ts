@@ -91,6 +91,7 @@ export interface EvalJobResponse {
   "runtime_error_count": number;
   "pass_rate": number;
   "failure_distribution": Record<string, number>;
+  "observability"?: ObservabilityMetadata | null;
   "error_code"?: string | null;
   "error_message"?: string | null;
   "created_at": string;
@@ -106,10 +107,17 @@ export interface EvalSampleResultResponse {
   "actual"?: string | null;
   "failure_reason"?: string | null;
   "error_code"?: string | null;
+  "trace_url"?: string | null;
   "tags": Array<string>;
 }
 export interface HTTPValidationError {
   "detail"?: Array<ValidationError>;
+}
+export interface ObservabilityMetadata {
+  "backend": string;
+  "trace_id"?: string | null;
+  "trace_url"?: string | null;
+  "project_url"?: string | null;
 }
 export interface ProvenanceMetadata {
   "framework"?: string | null;
@@ -156,6 +164,7 @@ export interface RunResponse {
   "execution_backend"?: string | null;
   "container_image"?: string | null;
   "provenance"?: ProvenanceMetadata | null;
+  "observability"?: ObservabilityMetadata | null;
   "resolved_model"?: string | null;
   "error_code"?: string | null;
   "error_message"?: string | null;
@@ -174,6 +183,7 @@ export interface RunTraceSpanResponse {
   "token_usage": number;
   "image_digest"?: string | null;
   "prompt_version"?: string | null;
+  "trace_backend"?: string | null;
   "received_at": string;
 }
 export interface RuntimeArtifactMetadata {
@@ -206,6 +216,18 @@ export interface TraceIngestEvent {
   "token_usage"?: number;
   "image_digest"?: string | null;
   "prompt_version"?: string | null;
+  "metadata"?: TraceTelemetryMetadata | null;
+}
+export interface TraceTelemetryMetadata {
+  "agent_id"?: string | null;
+  "framework"?: string | null;
+  "artifact_ref"?: string | null;
+  "image_ref"?: string | null;
+  "runner_backend"?: string | null;
+  "eval_job_id"?: string | null;
+  "dataset_sample_id"?: string | null;
+  "prompt_version"?: string | null;
+  "image_digest"?: string | null;
 }
 export interface TrajectoryStepResponse {
   "id": string;

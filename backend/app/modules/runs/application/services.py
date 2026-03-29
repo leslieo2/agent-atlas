@@ -67,7 +67,7 @@ def _resolved_submission_provenance(
     provenance.artifact_ref = runtime_artifact.artifact_ref
     provenance.image_ref = runtime_artifact.image_ref
     if provenance.trace_backend is None:
-        provenance.trace_backend = "atlas-state"
+        provenance.trace_backend = "phoenix"
     return provenance
 
 
@@ -76,15 +76,18 @@ class RunSubmissionService:
         self,
         run_repository: RunRepository,
         task_queue: TaskQueuePort,
+        default_trace_backend: str = "phoenix",
     ) -> None:
         self.run_repository = run_repository
         self.task_queue = task_queue
+        self.default_trace_backend = default_trace_backend
 
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
         effective_agent = _resolve_submission_agent(agent)
         provenance = _resolved_submission_provenance(agent, effective_agent)
         provenance.eval_job_id = payload.eval_job_id
         provenance.dataset_sample_id = payload.dataset_sample_id
+        provenance.trace_backend = self.default_trace_backend
         spec = RunSpec(
             project=payload.project,
             dataset=payload.dataset,

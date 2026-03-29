@@ -14,6 +14,7 @@ export function mapTraceSpan(span: RunTraceSpanResponse): TraceSpan {
     tokenUsage: span.token_usage,
     imageDigest: span.image_digest,
     promptVersion: span.prompt_version,
+    traceBackend: span.trace_backend ?? null,
     receivedAt: span.received_at
   };
 }

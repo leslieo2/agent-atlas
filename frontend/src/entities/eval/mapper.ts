@@ -1,7 +1,5 @@
-import type {
-  EvalJobResponse,
-  EvalSampleResultResponse
-} from "@/src/shared/api/contract";
+import type { EvalJobResponse, EvalSampleResultResponse } from "@/src/shared/api/contract";
+import { mapObservability } from "@/src/shared/api/observability";
 import type { EvalJobRecord, EvalSampleResult } from "./model";
 
 export function mapEvalJob(job: EvalJobResponse): EvalJobRecord {
@@ -21,6 +19,7 @@ export function mapEvalJob(job: EvalJobResponse): EvalJobRecord {
     runtimeErrorCount: job.runtime_error_count,
     passRate: job.pass_rate,
     failureDistribution: job.failure_distribution,
+    observability: mapObservability(job.observability),
     errorCode: job.error_code ?? null,
     errorMessage: job.error_message ?? null,
     createdAt: job.created_at
@@ -38,6 +37,7 @@ export function mapEvalSample(result: EvalSampleResultResponse): EvalSampleResul
     actual: result.actual ?? null,
     failureReason: result.failure_reason ?? null,
     errorCode: result.error_code ?? null,
+    traceUrl: result.trace_url ?? null,
     tags: result.tags
   };
 }

@@ -369,8 +369,8 @@ External systems such as Phoenix may become the preferred backend for:
 - experiment-oriented observability
 - prompt and evaluation inspection workflows
 
-That split must be enforced through infrastructure adapters. Feature modules should not know whether
-raw traces came from local state or from Phoenix.
+That split must be enforced through infrastructure adapters. Feature modules should not know vendor
+query details, and Atlas should not keep a second product-level raw trace store beside Phoenix.
 
 ## Data and Control Flow
 
@@ -478,6 +478,9 @@ Examples:
 
 - a Phoenix trace reader belongs in `app/infrastructure/adapters/phoenix/` and implements a
   feature-owned port for run-scoped trace retrieval
+- a Phoenix SDK exporter belongs in `app/infrastructure/adapters/phoenix/` and emits spans through
+  `phoenix.otel.register(...)`, while feature modules continue to deal only in Atlas trace events
+  and stable REST contracts
 - a Docker runner belongs in infrastructure and is selected through a runner port, not by letting
   `RunExecutionService` import Docker SDKs directly
 

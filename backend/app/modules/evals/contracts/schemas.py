@@ -13,6 +13,7 @@ from app.modules.evals.domain.models import (
     SampleJudgement,
     ScoringMode,
 )
+from app.modules.shared.domain.models import ObservabilityMetadata
 
 
 class EvalJobCreateRequest(BaseModel):
@@ -42,6 +43,7 @@ class EvalJobResponse(BaseModel):
     runtime_error_count: int
     pass_rate: float
     failure_distribution: dict[str, int]
+    observability: ObservabilityMetadata | None = None
     error_code: str | None = None
     error_message: str | None = None
     created_at: datetime
@@ -61,6 +63,7 @@ class EvalSampleResultResponse(BaseModel):
     actual: str | None = None
     failure_reason: str | None = None
     error_code: str | None = None
+    trace_url: str | None = None
     tags: list[str]
 
     @classmethod

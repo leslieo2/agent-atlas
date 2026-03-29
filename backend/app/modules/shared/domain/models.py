@@ -47,6 +47,25 @@ class ProvenanceMetadata(BaseModel):
     dataset_sample_id: str | None = None
 
 
+class ObservabilityMetadata(BaseModel):
+    backend: str
+    trace_id: str | None = None
+    trace_url: str | None = None
+    project_url: str | None = None
+
+
+class TraceTelemetryMetadata(BaseModel):
+    agent_id: str | None = None
+    framework: str | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    runner_backend: str | None = None
+    eval_job_id: UUID | None = None
+    dataset_sample_id: str | None = None
+    prompt_version: str | None = None
+    image_digest: str | None = None
+
+
 class RuntimeArtifactBuildResult(BaseModel):
     runtime_artifact: RuntimeArtifactMetadata
     provenance: ProvenanceMetadata

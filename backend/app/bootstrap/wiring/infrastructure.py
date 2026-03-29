@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.core.config import TraceBackendMode, settings
 from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
@@ -19,6 +20,10 @@ from app.infrastructure.adapters.openai_agents import (
     PublishedOpenAIAgentAdapter,
     PublishedOpenAIAgentLoader,
 )
+from app.infrastructure.adapters.phoenix import (
+    PhoenixTraceBackend,
+    PhoenixTraceExporter,
+)
 from app.infrastructure.adapters.runner import (
     LocalProcessRunner,
     PublishedArtifactResolver,
@@ -26,7 +31,6 @@ from app.infrastructure.adapters.runner import (
 )
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.task_queue import StateTaskQueue
-from app.infrastructure.adapters.trace_backend import AtlasStateTraceBackend
 from app.infrastructure.adapters.trace_projection import TraceIngestProjector
 from app.infrastructure.adapters.trajectory_projection import TraceEventTrajectoryProjector
 from app.infrastructure.repositories import (
@@ -42,7 +46,26 @@ from app.infrastructure.repositories import (
 )
 from app.modules.agents.application.ports import ArtifactBuilderPort, FrameworkRegistryPort
 from app.modules.runs.application.ports import ArtifactResolverPort, RunnerPort
-from app.modules.traces.application.ports import TraceBackendPort
+from app.modules.traces.application.ports import TraceBackendPort, TraceExporterPort
+
+
+def _require_phoenix_configuration() -> tuple[str, str]:
+    missing: list[str] = []
+    if not settings.phoenix_base_url:
+        missing.append("AGENT_ATLAS_PHOENIX_BASE_URL")
+    if not settings.phoenix_otlp_endpoint:
+        missing.append("AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT")
+    if missing:
+        missing_fields = ", ".join(missing)
+        raise RuntimeError(
+            "Phoenix-backed raw tracing is required. Configure "
+            f"{missing_fields} before starting Agent Atlas."
+        )
+    phoenix_base_url = settings.phoenix_base_url
+    phoenix_otlp_endpoint = settings.phoenix_otlp_endpoint
+    assert phoenix_base_url is not None
+    assert phoenix_otlp_endpoint is not None
+    return phoenix_base_url, phoenix_otlp_endpoint
 
 
 @dataclass(frozen=True)
@@ -67,6 +90,7 @@ class InfrastructureBundle:
     runner: RunnerPort
     default_runner_backend: str
     trace_backend: TraceBackendPort
+    trace_exporter: TraceExporterPort
     trace_projector: TraceIngestProjector
     trajectory_step_projector: TraceEventTrajectoryProjector
 
@@ -102,7 +126,7 @@ def build_infrastructure() -> InfrastructureBundle:
             ),
         }
     )
-    artifact_builder = SourceArtifactBuilder()
+    artifact_builder = SourceArtifactBuilder(default_trace_backend=TraceBackendMode.PHOENIX.value)
     agent_discovery = FilesystemAgentDiscovery(
         source_catalog=agent_source_catalog,
         validator=framework_registry,
@@ -126,7 +150,25 @@ def build_infrastructure() -> InfrastructureBundle:
         },
         default_backend=default_runner_backend,
     )
-    trace_backend = AtlasStateTraceBackend(trace_repository)
+    trace_backend: TraceBackendPort
+    trace_exporter: TraceExporterPort
+    phoenix_base_url, phoenix_otlp_endpoint = _require_phoenix_configuration()
+    phoenix_api_key = (
+        settings.phoenix_api_key.get_secret_value() if settings.phoenix_api_key else None
+    )
+    trace_backend = PhoenixTraceBackend(
+        run_repository=run_repository,
+        base_url=phoenix_base_url,
+        project_name=settings.phoenix_project_name,
+        api_key=phoenix_api_key,
+        query_limit=settings.phoenix_query_limit,
+    )
+    trace_exporter = PhoenixTraceExporter(
+        endpoint=phoenix_otlp_endpoint,
+        project_name=settings.phoenix_project_name,
+        base_url=phoenix_base_url,
+        api_key=phoenix_api_key,
+    )
     trace_projector = TraceIngestProjector()
     trajectory_step_projector = TraceEventTrajectoryProjector()
 
@@ -151,6 +193,7 @@ def build_infrastructure() -> InfrastructureBundle:
         runner=runner,
         default_runner_backend=default_runner_backend,
         trace_backend=trace_backend,
+        trace_exporter=trace_exporter,
         trace_projector=trace_projector,
         trajectory_step_projector=trajectory_step_projector,
     )

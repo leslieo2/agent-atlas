@@ -1,8 +1,5 @@
-import type {
-  EvalJobStatus,
-  SampleJudgement,
-  ScoringMode
-} from "@/src/shared/api/contract";
+import type { EvalJobStatus, SampleJudgement, ScoringMode } from "@/src/shared/api/contract";
+import type { ObservabilityRecord } from "@/src/shared/api/observability";
 
 export interface EvalJobRecord {
   evalJobId: string;
@@ -20,6 +17,7 @@ export interface EvalJobRecord {
   runtimeErrorCount: number;
   passRate: number;
   failureDistribution: Record<string, number>;
+  observability?: ObservabilityRecord | null;
   errorCode?: string | null;
   errorMessage?: string | null;
   createdAt: string;
@@ -35,6 +33,7 @@ export interface EvalSampleResult {
   actual?: string | null;
   failureReason?: string | null;
   errorCode?: string | null;
+  traceUrl?: string | null;
   tags: string[];
 }
 

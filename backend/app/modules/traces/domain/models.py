@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import StepType
+from app.modules.shared.domain.models import TraceTelemetryMetadata
 
 
 class TraceIngestEvent(BaseModel):
@@ -22,6 +23,7 @@ class TraceIngestEvent(BaseModel):
     token_usage: int = 0
     image_digest: str | None = None
     prompt_version: str | None = None
+    metadata: TraceTelemetryMetadata | None = None
 
 
 def utc_now() -> datetime:
@@ -40,4 +42,5 @@ class TraceSpan(BaseModel):
     token_usage: int
     image_digest: str | None = None
     prompt_version: str | None = None
+    trace_backend: str | None = None
     received_at: datetime = Field(default_factory=utc_now)

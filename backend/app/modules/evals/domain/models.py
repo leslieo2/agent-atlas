@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import RunStatus
+from app.modules.shared.domain.models import ObservabilityMetadata
 
 
 def utc_now() -> datetime:
@@ -56,6 +57,7 @@ class EvalJobRecord(BaseModel):
     runtime_error_count: int = 0
     pass_rate: float = 0.0
     failure_distribution: dict[str, int] = Field(default_factory=dict)
+    observability: ObservabilityMetadata | None = None
     error_code: str | None = None
     error_message: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
@@ -83,6 +85,7 @@ class EvalSampleResult(BaseModel):
     actual: str | None = None
     failure_reason: str | None = None
     error_code: str | None = None
+    trace_url: str | None = None
     tags: list[str] = Field(default_factory=list)
 
 
@@ -94,3 +97,4 @@ class EvalRunState(BaseModel):
     error_code: str | None = None
     error_message: str | None = None
     termination_reason: str | None = None
+    trace_url: str | None = None
