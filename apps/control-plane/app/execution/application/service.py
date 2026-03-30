@@ -6,7 +6,7 @@ from uuid import UUID
 from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
 
 from app.core.errors import AppError
-from app.execution.adapters.specs import execution_handoff_from_run_spec
+from app.execution.contracts import execution_handoff_from_run_spec
 from app.execution.application.ports import ExecutionOutcomeSinkPort
 from app.modules.runs.application.ports import (
     ArtifactResolverPort,

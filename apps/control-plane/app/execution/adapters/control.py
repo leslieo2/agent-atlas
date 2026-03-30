@@ -6,16 +6,16 @@ from uuid import UUID, uuid4
 
 from app.core.errors import UnsupportedOperationError
 from app.execution.adapters.launchers import K8sLauncher
-from app.execution.adapters.specs import runner_run_spec_from_run_spec
-from app.execution.application.ports import ExecutionControlPort
-from app.execution.domain.models import (
+from app.execution.contracts import (
     CancelRequest,
     ExecutionCapability,
     Heartbeat,
     RunHandle,
     RunStatusSnapshot,
     RunTerminalSummary,
+    runner_run_spec_from_run_spec,
 )
+from app.execution.application.ports import ExecutionControlPort
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunSpec, utc_now
 from app.modules.shared.application.ports import TaskQueuePort

@@ -61,21 +61,13 @@ from app.execution.application import (
 from app.execution.application import (
     normalize_run_failure as normalize_run_failure,
 )
-from app.execution.domain import (
+from app.execution.contracts import (
     CancelRequest as CancelRequest,
-)
-from app.execution.domain import (
     ExecutionCapability as ExecutionCapability,
+    RunHandle as RunHandle,
+    RunStatusSnapshot as RunStatusSnapshot,
+    RunTerminalSummary as RunTerminalSummary,
 )
 from app.execution.domain import (
     Heartbeat as Heartbeat,
-)
-from app.execution.domain import (
-    RunHandle as RunHandle,
-)
-from app.execution.domain import (
-    RunStatusSnapshot as RunStatusSnapshot,
-)
-from app.execution.domain import (
-    RunTerminalSummary as RunTerminalSummary,
 )

@@ -6,7 +6,7 @@ from uuid import UUID
 
 from agent_atlas_contracts.execution import ExecutionHandoff
 
-from app.execution.domain.models import (
+from app.execution.contracts import (
     CancelRequest,
     ExecutionCapability,
     RunHandle,

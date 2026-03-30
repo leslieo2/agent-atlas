@@ -7,7 +7,7 @@ from agent_atlas_contracts.execution import ExecutionArtifact, ExecutionHandoff
 
 from app.core.errors import AgentLoadFailedError, UnsupportedOperationError
 from app.execution.adapters.launchers import LocalLauncher
-from app.execution.adapters.specs import runner_run_spec_from_handoff
+from app.execution.contracts import runner_run_spec_from_handoff
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import PublishedRunRuntimePort
 from app.modules.runs.application.results import RunnerExecutionResult

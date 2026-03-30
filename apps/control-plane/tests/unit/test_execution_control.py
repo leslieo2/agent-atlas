@@ -7,7 +7,7 @@ from app.execution.adapters import (
     K8sJobLaunchRequest,
     LocalWorkerExecutionAdapter,
 )
-from app.execution.domain.models import CancelRequest
+from app.execution.contracts import CancelRequest
 from app.modules.runs.domain.models import RunRecord, RunSpec
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
