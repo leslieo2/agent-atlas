@@ -50,6 +50,8 @@ This backend is a modular monolith built with FastAPI.
 - `app/api/routes/`: thin compatibility entrypoints that mount module-local routers
 - `app/modules/`: feature-level `domain`, `application`, and module-local `adapters`
 - `app/execution/`: execution orchestration subsystem for handoff, runner dispatch, and launchers
+- `app/agent_tracing/`: in-process trace ingest, export, and read-side backend integration
+- `app/data_plane/`: in-process trajectory projection and data-side normalization helpers
 - `app/infrastructure/`: cross-feature or legacy compatibility adapters
 - `app/bootstrap/container.py`: composition root
 

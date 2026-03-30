@@ -17,7 +17,8 @@ from app.modules.datasets.domain.models import Dataset, DatasetVersion
 from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
 from app.modules.exports.domain.models import ArtifactMetadata
 from app.modules.policies.domain.models import ApprovalPolicyRecord
-from app.modules.runs.domain.models import RunRecord, TrajectoryStep
+from app.modules.runs.domain.models import RunRecord
+from app.modules.shared.domain.models import TrajectoryStepRecord
 from app.modules.shared.domain.tasks import QueuedTask, TaskStatus
 from app.modules.shared.domain.traces import TraceSpan
 
@@ -612,7 +613,7 @@ class StatePersistence:
         )
         return bool(cursor.rowcount)
 
-    def save_trajectory_step(self, step: TrajectoryStep, position: int) -> None:
+    def save_trajectory_step(self, step: TrajectoryStepRecord, position: int) -> None:
         placeholder = self._data.placeholder
         self._data.execute(  # nosec B608
             f"""
@@ -626,7 +627,7 @@ class StatePersistence:
             commit=True,
         )
 
-    def append_trajectory_step(self, step: TrajectoryStep) -> None:
+    def append_trajectory_step(self, step: TrajectoryStepRecord) -> None:
         existing = self._data.fetchone(  # nosec B608
             f"""
             SELECT position
@@ -649,7 +650,7 @@ class StatePersistence:
             position = int(row["next_position"]) if row else 0
         self.save_trajectory_step(step, position)
 
-    def list_trajectory(self, run_id: UUID | str) -> list[TrajectoryStep]:
+    def list_trajectory(self, run_id: UUID | str) -> list[TrajectoryStepRecord]:
         payloads = self._fetch_payloads(  # nosec B608
             self._data,
             f"""
@@ -660,9 +661,9 @@ class StatePersistence:
             """,
             (str(to_uuid(run_id)),),
         )
-        return [TrajectoryStep.model_validate(json.loads(payload)) for payload in payloads]
+        return [TrajectoryStepRecord.model_validate(json.loads(payload)) for payload in payloads]
 
-    def persist_trajectory(self, run_id: UUID, steps: list[TrajectoryStep]) -> None:
+    def persist_trajectory(self, run_id: UUID, steps: list[TrajectoryStepRecord]) -> None:
         self._data.execute(  # nosec B608
             f"DELETE FROM {self._data.table('trajectory')} WHERE run_id = {self._data.placeholder}",  # nosec B608
             (str(run_id),),

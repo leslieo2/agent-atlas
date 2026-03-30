@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Protocol
 from uuid import UUID
 
-from app.modules.shared.domain.models import TracingMetadata
+from app.modules.shared.domain.models import TracingMetadata, TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
@@ -28,7 +28,9 @@ class TraceRepository(Protocol):
 
 
 class TrajectoryRepository(Protocol):
-    def append(self, step: Any) -> None: ...
+    def append(self, step: TrajectoryStepRecord) -> None: ...
+
+    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStepRecord]: ...
 
 
 class TrajectoryStepProjectorPort(Protocol):
@@ -36,7 +38,7 @@ class TrajectoryStepProjectorPort(Protocol):
         self,
         event: TraceIngestEvent,
         span: TraceSpan | None = None,
-    ) -> Any: ...
+    ) -> TrajectoryStepRecord: ...
 
 
 class TraceProjectorPort(Protocol):

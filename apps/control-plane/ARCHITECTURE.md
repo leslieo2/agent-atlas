@@ -268,8 +268,9 @@ Observability rule:
 
 - Atlas-owned application services persist canonical trace spans first
 - OTLP export is a side channel from infrastructure adapters into observability tooling
-- Phoenix-specific query and deep-link behavior stays in infrastructure and does not become the
-  runtime contract
+- Phoenix-specific query and deep-link behavior stays behind the `app/agent_tracing/` backend
+  boundary; compatibility imports may still exist under infrastructure, but they are aliases and
+  not the ownership home
 - trajectory projection in feature-owned outbound adapters
 - eval gateway and agent lookup adapters in `evals/`
 - artifact export adapter in `artifacts.py`

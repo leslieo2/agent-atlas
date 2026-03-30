@@ -13,8 +13,9 @@ from app.modules.runs.application.ports import (
     TrajectoryRepository,
 )
 from app.modules.runs.application.services import RunSubmissionService
-from app.modules.runs.domain.models import RunCreateInput, RunRecord, TrajectoryStep
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.enums import RunStatus
+from app.modules.shared.domain.models import TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceSpan
 
 
@@ -76,7 +77,7 @@ class RunQueries:
     def get_run(self, run_id: str | UUID) -> RunRecord | None:
         return self.run_repository.get(run_id)
 
-    def get_trajectory(self, run_id: str | UUID) -> list[TrajectoryStep]:
+    def get_trajectory(self, run_id: str | UUID) -> list[TrajectoryStepRecord]:
         return self.trajectory_repository.list_for_run(run_id)
 
     def get_traces(self, run_id: str | UUID) -> list[TraceSpan]:

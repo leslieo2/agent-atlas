@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -11,7 +12,11 @@ from agent_atlas_contracts.runtime import (
 )
 from pydantic import BaseModel, Field
 
-from app.modules.shared.domain.enums import PolicyEffect, ScoringMode
+from app.modules.shared.domain.enums import PolicyEffect, ScoringMode, StepType
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
 
 
 def build_source_artifact_ref(agent_id: str, source_fingerprint: str) -> str:
@@ -130,6 +135,22 @@ class TracePointer(BaseModel):
     trace_id: str | None = None
     trace_url: str | None = None
     project_url: str | None = None
+
+
+class TrajectoryStepRecord(BaseModel):
+    id: str
+    run_id: UUID
+    step_type: StepType
+    parent_step_id: str | None = None
+    prompt: str
+    output: str
+    model: str | None = None
+    temperature: float = 0.0
+    latency_ms: int = 0
+    token_usage: int = 0
+    success: bool = True
+    tool_name: str | None = None
+    started_at: datetime = Field(default_factory=utc_now)
 
 
 class RunLineage(BaseModel):

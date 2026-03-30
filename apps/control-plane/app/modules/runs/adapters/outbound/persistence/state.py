@@ -3,7 +3,8 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.infrastructure.repositories.common import persistence, to_uuid
-from app.modules.runs.domain.models import RunRecord, TrajectoryStep
+from app.modules.runs.domain.models import RunRecord
+from app.modules.shared.domain.models import TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceSpan
 
 
@@ -19,10 +20,10 @@ class StateRunRepository:
 
 
 class StateTrajectoryRepository:
-    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStep]:
+    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStepRecord]:
         return persistence.list_trajectory(to_uuid(run_id))
 
-    def append(self, step: TrajectoryStep) -> None:
+    def append(self, step: TrajectoryStepRecord) -> None:
         persistence.append_trajectory_step(step)
 
 

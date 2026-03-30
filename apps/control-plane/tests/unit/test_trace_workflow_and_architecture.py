@@ -98,6 +98,18 @@ def test_agent_tracing_backends_do_not_import_run_domain_models() -> None:
     assert violations == []
 
 
+def test_agent_tracing_and_data_plane_do_not_import_run_domain_models() -> None:
+    tracing_violations = _collect_forbidden_imports(
+        base_dir=Path("app/agent_tracing"),
+        forbidden_prefixes=("app.modules.runs.domain.models",),
+    )
+    data_plane_violations = _collect_forbidden_imports(
+        base_dir=Path("app/data_plane"),
+        forbidden_prefixes=("app.modules.runs.domain.models",),
+    )
+    assert tracing_violations + data_plane_violations == []
+
+
 def test_app_does_not_import_legacy_execution_plane_package():
     violations = _collect_forbidden_imports(
         base_dir=Path("app"),
@@ -118,6 +130,17 @@ def test_execution_plane_does_not_import_run_telemetry_module():
             "app.tracing",
             "app.modules.runs.application.telemetry",
             "app.modules.runs.domain.policies",
+        ),
+    )
+    assert violations == []
+
+
+def test_execution_plane_does_not_import_framework_specific_runtime_packages() -> None:
+    violations = _collect_forbidden_imports(
+        base_dir=Path("app/execution"),
+        forbidden_prefixes=(
+            "agent_atlas_runner_openai_agents",
+            "agent_atlas_runner_langgraph",
         ),
     )
     assert violations == []

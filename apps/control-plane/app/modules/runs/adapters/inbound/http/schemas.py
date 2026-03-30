@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.modules.runs.domain.models import RunCreateInput, RunRecord, TrajectoryStep
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
@@ -15,6 +15,7 @@ from app.modules.shared.domain.models import (
     ToolsetConfig,
     TracePointer,
     TracingMetadata,
+    TrajectoryStepRecord,
 )
 from app.modules.shared.domain.traces import TraceSpan
 
@@ -110,7 +111,7 @@ class TrajectoryStepResponse(BaseModel):
     started_at: datetime
 
     @classmethod
-    def from_domain(cls, step: TrajectoryStep) -> TrajectoryStepResponse:
+    def from_domain(cls, step: TrajectoryStepRecord) -> TrajectoryStepResponse:
         return cls.model_validate(step.model_dump())
 
 

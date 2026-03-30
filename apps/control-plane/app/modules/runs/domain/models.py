@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from agent_atlas_contracts.runtime import RuntimeExecutionResult as SharedRuntimeExecutionResult
 from pydantic import BaseModel, Field
 
-from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
+from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
@@ -16,9 +16,11 @@ from app.modules.shared.domain.models import (
     PromptConfig,
     ProvenanceMetadata,
     RunLineage,
+    TrajectoryStepRecord,
     ToolsetConfig,
     TracePointer,
     TracingMetadata,
+    utc_now,
 )
 
 
@@ -83,11 +85,6 @@ class ExecutionMetrics(BaseModel):
 
 
 RuntimeExecutionResult = SharedRuntimeExecutionResult
-
-
-def utc_now() -> datetime:
-    return datetime.now(UTC)
-
 
 class RunRecord(BaseModel):
     run_id: UUID = Field(default_factory=uuid4)
@@ -205,17 +202,4 @@ class RunRecord(BaseModel):
         )
 
 
-class TrajectoryStep(BaseModel):
-    id: str
-    run_id: UUID
-    step_type: StepType
-    parent_step_id: str | None = None
-    prompt: str
-    output: str
-    model: str | None = None
-    temperature: float = 0.0
-    latency_ms: int = 0
-    token_usage: int = 0
-    success: bool = True
-    tool_name: str | None = None
-    started_at: datetime = Field(default_factory=utc_now)
+TrajectoryStep = TrajectoryStepRecord

@@ -9,13 +9,14 @@ from app.modules.runs.application.results import (
     PublishedRunExecutionResult,
     RunnerExecutionResult,
 )
-from app.modules.runs.domain.models import RunRecord, RunSpec, TrajectoryStep
+from app.modules.runs.domain.models import RunRecord, RunSpec
 from app.modules.shared.application.contracts import (
     RunObservationSinkPort as SharedRunObservationSinkPort,
 )
 from app.modules.shared.application.contracts import (
     TraceExportPort,
     TraceQueryPort,
+    TrajectoryRepository as SharedTrajectoryRepository,
 )
 from app.modules.shared.application.contracts import (
     TraceIngestionPort as SharedTraceIngestionPort,
@@ -29,6 +30,7 @@ from app.modules.shared.application.contracts import (
 from app.modules.shared.application.contracts import (
     TrajectoryStepProjectorPort as SharedTrajectoryStepProjectorPort,
 )
+from app.modules.shared.domain.models import TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceSpan
 
 
@@ -50,10 +52,10 @@ class TraceRepository(SharedTraceRepository, Protocol):
     def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]: ...
 
 
-class TrajectoryRepository(Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStep]: ...
+class TrajectoryRepository(SharedTrajectoryRepository, Protocol):
+    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStepRecord]: ...
 
-    def append(self, step: TrajectoryStep) -> None: ...
+    def append(self, step: TrajectoryStepRecord) -> None: ...
 
 
 TrajectoryStepProjectorPort = SharedTrajectoryStepProjectorPort

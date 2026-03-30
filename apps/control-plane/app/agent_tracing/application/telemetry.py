@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import cast
 from uuid import UUID
 
-from app.modules.runs.domain.models import TrajectoryStep
 from app.modules.shared.application.contracts import (
     RunObservationSinkPort,
     RunTracingStatePort,
@@ -13,7 +12,7 @@ from app.modules.shared.application.contracts import (
     TrajectoryRepository,
     TrajectoryStepProjectorPort,
 )
-from app.modules.shared.domain.models import TracingMetadata
+from app.modules.shared.domain.models import TracingMetadata, TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
@@ -51,8 +50,8 @@ class TrajectoryRecorder:
         self,
         event: TraceIngestEvent,
         span: TraceSpan | None = None,
-    ) -> TrajectoryStep:
-        step = cast(TrajectoryStep, self.step_projector.project(event=event, span=span))
+    ) -> TrajectoryStepRecord:
+        step = self.step_projector.project(event=event, span=span)
         self.trajectory_repository.append(step)
         return step
 
@@ -60,7 +59,7 @@ class TrajectoryRecorder:
         self,
         events: list[TraceIngestEvent],
         spans: list[TraceSpan],
-    ) -> list[TrajectoryStep]:
+    ) -> list[TrajectoryStepRecord]:
         return [
             self.record(event=event, span=span) for event, span in zip(events, spans, strict=True)
         ]

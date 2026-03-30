@@ -6,8 +6,9 @@ from uuid import uuid4
 
 from app.db.persistence import StatePersistence
 from app.modules.exports.domain.models import ArtifactMetadata
-from app.modules.runs.domain.models import RunRecord, TrajectoryStep
+from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, ArtifactFormat, RunStatus, StepType
+from app.modules.shared.domain.models import TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceSpan
 
 
@@ -38,7 +39,7 @@ def test_storage_ownership_uses_plane_prefixed_tables_in_shared_sqlite_db(tmp_pa
 
         persistence.save_run(run)
         persistence.append_trajectory_step(
-            TrajectoryStep(
+            TrajectoryStepRecord(
                 id="step-1",
                 run_id=run.run_id,
                 step_type=StepType.LLM,

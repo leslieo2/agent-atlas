@@ -1,3 +1,5 @@
+"""Compatibility exports for callers that still import Phoenix helpers from infrastructure."""
+
 from app.agent_tracing.backends.phoenix import (
     PhoenixTraceBackend,
     PhoenixTraceLinkResolver,

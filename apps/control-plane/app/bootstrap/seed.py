@@ -7,9 +7,9 @@ from app.bootstrap.container import AppContainer, get_container
 from app.core.errors import AgentValidationFailedError
 from app.modules.datasets.domain.models import Dataset, DatasetSample, DatasetVersion
 from app.modules.policies.domain.models import ApprovalPolicyRecord
-from app.modules.runs.domain.models import RunRecord, TrajectoryStep
+from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, PolicyEffect, RunStatus, StepType
-from app.modules.shared.domain.models import ToolPolicyRule
+from app.modules.shared.domain.models import ToolPolicyRule, TrajectoryStepRecord
 
 
 def seed_demo_state(container: AppContainer | None = None) -> None:
@@ -106,7 +106,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
     ]
     seeded_steps = {
         UUID("a6f3f2a1-1111-4f8d-9999-111111111111"): [
-            TrajectoryStep(
+            TrajectoryStepRecord(
                 id="seed-step-001",
                 run_id=UUID("a6f3f2a1-1111-4f8d-9999-111111111111"),
                 step_type=StepType.PLANNER,
@@ -119,7 +119,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
                 token_usage=220,
                 success=True,
             ),
-            TrajectoryStep(
+            TrajectoryStepRecord(
                 id="seed-step-002",
                 run_id=UUID("a6f3f2a1-1111-4f8d-9999-111111111111"),
                 step_type=StepType.TOOL,
@@ -136,7 +136,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
                 success=True,
                 tool_name="crm_lookup",
             ),
-            TrajectoryStep(
+            TrajectoryStepRecord(
                 id="seed-step-003",
                 run_id=UUID("a6f3f2a1-1111-4f8d-9999-111111111111"),
                 step_type=StepType.LLM,
@@ -149,7 +149,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
                 token_usage=310,
                 success=True,
             ),
-            TrajectoryStep(
+            TrajectoryStepRecord(
                 id="seed-step-004",
                 run_id=UUID("a6f3f2a1-1111-4f8d-9999-111111111111"),
                 step_type=StepType.TOOL,
@@ -165,7 +165,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
             ),
         ],
         UUID("a6f3f2a1-5555-4f8d-9999-111111111111"): [
-            TrajectoryStep(
+            TrajectoryStepRecord(
                 id="seed-step-fulfillment-001",
                 run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
                 step_type=StepType.LLM,
@@ -178,7 +178,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
                 token_usage=96,
                 success=True,
             ),
-            TrajectoryStep(
+            TrajectoryStepRecord(
                 id="seed-step-fulfillment-002",
                 run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
                 step_type=StepType.TOOL,
@@ -196,7 +196,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
                 success=True,
                 tool_name="lookup_order_status",
             ),
-            TrajectoryStep(
+            TrajectoryStepRecord(
                 id="seed-step-fulfillment-003",
                 run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
                 step_type=StepType.TOOL,
@@ -210,7 +210,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
                 success=True,
                 tool_name="lookup_inventory",
             ),
-            TrajectoryStep(
+            TrajectoryStepRecord(
                 id="seed-step-fulfillment-004",
                 run_id=UUID("a6f3f2a1-5555-4f8d-9999-111111111111"),
                 step_type=StepType.LLM,

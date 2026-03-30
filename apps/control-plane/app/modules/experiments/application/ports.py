@@ -4,7 +4,8 @@ from typing import Protocol
 from uuid import UUID
 
 from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
-from app.modules.runs.domain.models import RunRecord, TrajectoryStep
+from app.modules.runs.domain.models import RunRecord
+from app.modules.shared.domain.models import TrajectoryStepRecord
 
 
 class ExperimentRepository(Protocol):
@@ -34,6 +35,6 @@ class RunRepository(Protocol):
 
 
 class TrajectoryRepository(Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStep]: ...
+    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStepRecord]: ...
 
-    def append(self, step: TrajectoryStep) -> None: ...
+    def append(self, step: TrajectoryStepRecord) -> None: ...

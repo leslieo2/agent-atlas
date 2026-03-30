@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.modules.runs.domain.models import TrajectoryStep, utc_now
 from app.modules.shared.application.contracts import TrajectoryStepProjectorPort
+from app.modules.shared.domain.models import TrajectoryStepRecord, utc_now
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
@@ -13,7 +13,7 @@ class TraceEventTrajectoryProjector(TrajectoryStepProjectorPort):
         self,
         event: TraceIngestEvent,
         span: TraceSpan | None = None,
-    ) -> TrajectoryStep:
+    ) -> TrajectoryStepRecord:
         payload_input = span.input if span is not None else event.input
         payload_output = span.output if span is not None else event.output
         step_id = span.span_id if span is not None else event.span_id
@@ -25,7 +25,7 @@ class TraceEventTrajectoryProjector(TrajectoryStepProjectorPort):
         token_usage = span.token_usage if span is not None else event.token_usage
         started_at = span.received_at if span is not None else utc_now()
 
-        return TrajectoryStep(
+        return TrajectoryStepRecord(
             id=step_id,
             run_id=run_id,
             step_type=step_type,
