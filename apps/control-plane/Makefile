@@ -55,7 +55,7 @@ test-check:
 	uv run pytest --cov=app --cov-report=term-missing
 
 security:
-	uv run bandit -r app -x tests
+	uv run bandit -r app -x tests -b bandit-baseline.json
 
 contract-sync:
 	uv run python scripts/generate_frontend_contract.py

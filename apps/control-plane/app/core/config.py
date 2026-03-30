@@ -49,9 +49,23 @@ class Settings(BaseSettings):
     )
     database_url: str | None = Field(
         default=None,
-        description=(
-            "State backend URL. sqlite:///path works; " "otherwise startup falls back to memory."
-        ),
+        description=("Legacy shared database URL used when per-plane URLs are not configured."),
+    )
+    control_plane_database_url: str | None = Field(
+        default=None,
+        description=("Control plane database URL. Supports sqlite:///path and postgresql:// URLs."),
+    )
+    data_plane_database_url: str | None = Field(
+        default=None,
+        description=("Data plane database URL. Supports sqlite:///path and postgresql:// URLs."),
+    )
+    control_plane_database_schema: str = Field(
+        default="control_plane",
+        description="Schema name used for control-plane tables when PostgreSQL is configured.",
+    )
+    data_plane_database_schema: str = Field(
+        default="data_plane",
+        description="Schema name used for data-plane tables when PostgreSQL is configured.",
     )
     worker_name: str | None = Field(
         default=None,

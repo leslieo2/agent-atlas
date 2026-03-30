@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
+
 from app.core.errors import AppError
 from app.modules.runs.application.ports import (
     ArtifactResolverPort,
@@ -179,7 +181,9 @@ class RunExecutionProjector:
         result: PublishedRunExecutionResult,
     ) -> list[TraceIngestEvent]:
         runtime_result = result.runtime_result
-        trace_events = result.projected_trace_events()
+        trace_events = [
+            self._normalize_trace_event(event) for event in result.projected_trace_events()
+        ]
         if not trace_events:
             return [
                 self._build_event(
@@ -270,6 +274,14 @@ class RunExecutionProjector:
             )
             for event in trace_events
         ]
+
+    @staticmethod
+    def _normalize_trace_event(
+        event: ContractTraceIngestEvent | TraceIngestEvent,
+    ) -> TraceIngestEvent:
+        if isinstance(event, TraceIngestEvent):
+            return event
+        return TraceIngestEvent.model_validate(event.model_dump(mode="json"))
 
     def _build_event(
         self,

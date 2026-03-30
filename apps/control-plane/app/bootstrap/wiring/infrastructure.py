@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, cast
 
 from app.core.config import TraceBackendMode, settings
 from app.infrastructure.adapters.agent_catalog import (
@@ -113,19 +114,29 @@ def build_infrastructure() -> InfrastructureBundle:
     openai_loader = PublishedOpenAIAgentLoader(validator=openai_validator)
     langchain_validator = LangChainAgentContractValidator()
     langchain_loader = PublishedLangChainAgentLoader(validator=langchain_validator)
+    # The runner packages use mirrored contract models, so the runtime wiring needs an explicit
+    # cast at the backend boundary even though the call shape is intentionally the same.
+    openai_runtime = cast(
+        Any,
+        PublishedOpenAIAgentAdapter(agent_loader=cast(Any, openai_loader)),
+    )
+    langchain_runtime = cast(
+        Any,
+        PublishedLangChainAgentAdapter(agent_loader=cast(Any, langchain_loader)),
+    )
     framework_registry = FrameworkRegistry(
         plugins={
             "openai-agents-sdk": FrameworkPlugin(
                 framework="openai-agents-sdk",
                 validator=openai_validator,
                 loader=openai_loader,
-                runtime=PublishedOpenAIAgentAdapter(agent_loader=openai_loader),
+                runtime=openai_runtime,
             ),
             "langchain": FrameworkPlugin(
                 framework="langchain",
                 validator=langchain_validator,
                 loader=langchain_loader,
-                runtime=PublishedLangChainAgentAdapter(agent_loader=langchain_loader),
+                runtime=langchain_runtime,
             ),
         }
     )

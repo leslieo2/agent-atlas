@@ -89,9 +89,7 @@ def test_runner_output_writer_loads_from_environment_and_persists_contract_files
         encoding="utf-8"
     )
     persisted_event = json.loads(writer.files.events_path.read_text(encoding="utf-8").strip())
-    persisted_terminal = json.loads(
-        writer.files.terminal_result_path.read_text(encoding="utf-8")
-    )
+    persisted_terminal = json.loads(writer.files.terminal_result_path.read_text(encoding="utf-8"))
     assert loaded.run_id == payload.run_id
     assert artifact_text == "done"
     assert persisted_event["event_id"] == "evt-1"
