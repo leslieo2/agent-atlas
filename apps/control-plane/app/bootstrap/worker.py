@@ -5,11 +5,11 @@ import time
 from uuid import uuid4
 
 from app.core.config import settings
+from app.execution_plane.service import RunExecutionService
 from app.modules.experiments.application.execution import (
     ExperimentAggregationService,
     ExperimentOrchestrator,
 )
-from app.modules.runs.application.execution import RunExecutionService
 from app.modules.runs.domain.models import RunSpec
 from app.modules.shared.application.ports import TaskQueuePort
 from app.modules.shared.domain.tasks import QueuedTask, TaskType

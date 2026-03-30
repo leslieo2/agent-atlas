@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from app.infrastructure.adapters.phoenix import (
+from app.modules.shared.domain.models import TracingMetadata
+from app.tracing.backends.phoenix import (
     build_phoenix_project_url,
     build_phoenix_trace_url,
 )
 from app.infrastructure.repositories import StateTraceRepository
-from app.modules.shared.domain.models import ObservabilityMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
@@ -34,13 +34,13 @@ class FakeOtlpTraceExporter:
         self,
         events: list[TraceIngestEvent],
         spans: list[TraceSpan],
-    ) -> ObservabilityMetadata | None:
+    ) -> TracingMetadata | None:
         del spans
         if not events:
             return None
         first_event = events[0]
         trace_id = f"trace-{first_event.run_id}"
-        return ObservabilityMetadata(
+        return TracingMetadata(
             backend=self.backend_name_value,
             trace_id=trace_id,
             trace_url=build_phoenix_trace_url(

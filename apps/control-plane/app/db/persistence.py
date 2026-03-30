@@ -201,7 +201,7 @@ class _PlaneStore:
                 with self.conn.transaction():
                     cursor = self.conn.cursor()
                     cursor.execute(  # nosec B608
-                        f"""  # nosec B608
+                        f"""
                         SELECT *
                         FROM {tasks_table}
                         WHERE status = {self.placeholder}
@@ -224,7 +224,7 @@ class _PlaneStore:
                     if row_dict is None:
                         return None
                     cursor.execute(  # nosec B608
-                        f"""  # nosec B608
+                        f"""
                         UPDATE {tasks_table}
                         SET status = {self.placeholder},
                             attempts = attempts + 1,
@@ -257,7 +257,7 @@ class _PlaneStore:
             try:
                 cursor = self.conn.cursor()
                 cursor.execute(  # nosec B608
-                    f"""  # nosec B608
+                    f"""
                     SELECT *
                     FROM {tasks_table}
                     WHERE status = {self.placeholder}
@@ -281,7 +281,7 @@ class _PlaneStore:
                     self.conn.commit()
                     return None
                 cursor.execute(  # nosec B608
-                    f"""  # nosec B608
+                    f"""
                     UPDATE {tasks_table}
                     SET status = {self.placeholder},
                         attempts = attempts + 1,
@@ -501,7 +501,7 @@ class StatePersistence:
     ) -> None:
         placeholder = store.placeholder
         store.execute(  # nosec B608
-            f"""  # nosec B608
+            f"""
             INSERT INTO {store.table(table)} ({key_col}, payload, updated_at)
             VALUES ({placeholder}, {placeholder}, {placeholder})
             ON CONFLICT({key_col}) DO UPDATE SET
@@ -521,7 +521,7 @@ class StatePersistence:
         key_value: str,
     ) -> str | None:
         row = store.fetchone(  # nosec B608
-            f"""  # nosec B608
+            f"""
             SELECT payload
             FROM {store.table(table)}
             WHERE {key_col} = {store.placeholder}
@@ -615,7 +615,7 @@ class StatePersistence:
     def save_trajectory_step(self, step: TrajectoryStep, position: int) -> None:
         placeholder = self._data.placeholder
         self._data.execute(  # nosec B608
-            f"""  # nosec B608
+            f"""
             INSERT INTO {self._data.table('trajectory')} (run_id, step_id, position, payload)
             VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
             ON CONFLICT(run_id, step_id) DO UPDATE SET
@@ -628,7 +628,7 @@ class StatePersistence:
 
     def append_trajectory_step(self, step: TrajectoryStep) -> None:
         existing = self._data.fetchone(  # nosec B608
-            f"""  # nosec B608
+            f"""
             SELECT position
             FROM {self._data.table('trajectory')}
             WHERE run_id = {self._data.placeholder} AND step_id = {self._data.placeholder}
@@ -639,7 +639,7 @@ class StatePersistence:
             position = int(existing["position"])
         else:
             row = self._data.fetchone(  # nosec B608
-                f"""  # nosec B608
+                f"""
                 SELECT COALESCE(MAX(position), -1) + 1 AS next_position
                 FROM {self._data.table('trajectory')}
                 WHERE run_id = {self._data.placeholder}
@@ -652,7 +652,7 @@ class StatePersistence:
     def list_trajectory(self, run_id: UUID | str) -> list[TrajectoryStep]:
         payloads = self._fetch_payloads(  # nosec B608
             self._data,
-            f"""  # nosec B608
+            f"""
             SELECT payload
             FROM {self._data.table('trajectory')}
             WHERE run_id = {self._data.placeholder}
@@ -674,7 +674,7 @@ class StatePersistence:
     def save_trace_span(self, span: TraceSpan, position: int) -> None:
         placeholder = self._data.placeholder
         self._data.execute(
-            f"""  # nosec B608
+            f"""
             INSERT INTO {self._data.table('trace_spans')} (run_id, span_id, position, payload)
             VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
             ON CONFLICT(run_id, span_id) DO UPDATE SET
@@ -687,7 +687,7 @@ class StatePersistence:
 
     def append_trace_span(self, span: TraceSpan) -> None:
         existing = self._data.fetchone(  # nosec B608
-            f"""  # nosec B608
+            f"""
             SELECT position
             FROM {self._data.table('trace_spans')}
             WHERE run_id = {self._data.placeholder} AND span_id = {self._data.placeholder}
@@ -698,7 +698,7 @@ class StatePersistence:
             position = int(existing["position"])
         else:
             row = self._data.fetchone(  # nosec B608
-                f"""  # nosec B608
+                f"""
                 SELECT COALESCE(MAX(position), -1) + 1 AS next_position
                 FROM {self._data.table('trace_spans')}
                 WHERE run_id = {self._data.placeholder}
@@ -711,7 +711,7 @@ class StatePersistence:
     def list_trace_spans(self, run_id: UUID | str) -> list[TraceSpan]:
         payloads = self._fetch_payloads(  # nosec B608
             self._data,
-            f"""  # nosec B608
+            f"""
             SELECT payload
             FROM {self._data.table('trace_spans')}
             WHERE run_id = {self._data.placeholder}
@@ -744,7 +744,7 @@ class StatePersistence:
             updated_at=timestamp,
         )
         self._control.execute(  # nosec B608
-            f"""  # nosec B608
+            f"""
             DELETE FROM {self._control.table('dataset_versions')}
             WHERE dataset_name = {self._control.placeholder}
             """,
@@ -754,7 +754,7 @@ class StatePersistence:
         placeholder = self._control.placeholder
         for version in dataset.versions:
             self._control.execute(  # nosec B608
-                f"""  # nosec B608
+                f"""
                 INSERT INTO {self._control.table('dataset_versions')} (
                     dataset_version_id, dataset_name, payload, updated_at
                 )
@@ -794,7 +794,7 @@ class StatePersistence:
     def get_dataset_version(self, dataset_version_id: UUID | str) -> DatasetVersion | None:
         rows = self._fetch_payloads(  # nosec B608
             self._control,
-            f"""  # nosec B608
+            f"""
             SELECT payload
             FROM {self._control.table('dataset_versions')}
             WHERE dataset_version_id = {self._control.placeholder}
@@ -843,7 +843,7 @@ class StatePersistence:
     def save_run_evaluation(self, record: RunEvaluationRecord) -> None:
         placeholder = self._data.placeholder
         self._data.execute(  # nosec B608
-            f"""  # nosec B608
+            f"""
             INSERT INTO {self._data.table('run_evaluations')} (
                 run_id, experiment_id, dataset_sample_id, payload, updated_at
             )
@@ -867,7 +867,7 @@ class StatePersistence:
     def list_run_evaluations(self, experiment_id: UUID | str) -> list[RunEvaluationRecord]:
         payloads = self._fetch_payloads(  # nosec B608
             self._data,
-            f"""  # nosec B608
+            f"""
             SELECT payload
             FROM {self._data.table('run_evaluations')}
             WHERE experiment_id = {self._data.placeholder}
@@ -880,7 +880,7 @@ class StatePersistence:
     def get_run_evaluation_by_run(self, run_id: UUID | str) -> RunEvaluationRecord | None:
         payloads = self._fetch_payloads(  # nosec B608
             self._data,
-            f"""  # nosec B608
+            f"""
             SELECT payload
             FROM {self._data.table('run_evaluations')}
             WHERE run_id = {self._data.placeholder}
@@ -894,7 +894,7 @@ class StatePersistence:
 
     def delete_run_evaluations(self, experiment_id: UUID | str) -> None:
         self._data.execute(  # nosec B608
-            f"""  # nosec B608
+            f"""
             DELETE FROM {self._data.table('run_evaluations')}
             WHERE experiment_id = {self._data.placeholder}
             """,
@@ -913,7 +913,7 @@ class StatePersistence:
             updated_at=timestamp,
         )
         self._control.execute(  # nosec B608
-            f"""  # nosec B608
+            f"""
             DELETE FROM {self._control.table('tool_policies')}
             WHERE approval_policy_id = {self._control.placeholder}
             """,
@@ -923,7 +923,7 @@ class StatePersistence:
         placeholder = self._control.placeholder
         for rule in policy.tool_policies:
             self._control.execute(  # nosec B608
-                f"""  # nosec B608
+                f"""
                 INSERT INTO {self._control.table('tool_policies')} (
                     approval_policy_id, tool_name, payload, updated_at
                 )
@@ -993,7 +993,7 @@ class StatePersistence:
     def enqueue_task(self, task: QueuedTask) -> None:
         placeholder = self._control.placeholder
         self._control.execute(  # nosec B608
-            f"""  # nosec B608
+            f"""
             INSERT INTO {self._control.table('tasks')} (
                 task_id, task_type, target_id, payload, status, attempts, error,
                 claimed_by, claimed_at, created_at, updated_at
@@ -1043,7 +1043,7 @@ class StatePersistence:
         error: str | None = None,
     ) -> None:
         self._control.execute(  # nosec B608
-            f"""  # nosec B608
+            f"""
             UPDATE {self._control.table('tasks')}
             SET status = {self._control.placeholder},
                 error = {self._control.placeholder},

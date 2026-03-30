@@ -81,7 +81,7 @@ export type ApiEvalJob = {
   runtime_error_count: number;
   pass_rate: number;
   failure_distribution: Record<string, number>;
-  observability?: {
+  tracing?: {
     backend: string;
     project_url?: string | null;
   } | null;
@@ -110,7 +110,7 @@ export type ApiEvalSample = {
   runner_backend?: string | null;
   latency_ms?: number | null;
   tool_calls?: number | null;
-  phoenix_trace_url?: string | null;
+  trace_url?: string | null;
 };
 
 const json = async (route: Route, body: unknown, status = 200) =>
@@ -189,7 +189,7 @@ export const buildEvalJob = (overrides: Partial<ApiEvalJob> = {}): ApiEvalJob =>
   runtime_error_count: 1,
   pass_rate: 33.33,
   failure_distribution: { mismatch: 1, provider_call: 1 },
-  observability: null,
+  tracing: null,
   created_at: "2026-03-24T00:00:00Z",
   ...overrides
 });

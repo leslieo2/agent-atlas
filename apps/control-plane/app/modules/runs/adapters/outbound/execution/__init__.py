@@ -1,20 +1,14 @@
-from app.modules.runs.adapters.outbound.execution.control import (
+from app.execution_plane import (
     ExecutionControlRegistry,
     K8sJobExecutionAdapter,
-    LocalWorkerExecutionAdapter,
-)
-from app.modules.runs.adapters.outbound.execution.launchers import (
     K8sJobLaunchRequest,
     K8sLauncher,
-    LocalLauncher,
     LocalLaunchSession,
-)
-from app.modules.runs.adapters.outbound.execution.runner import (
+    LocalLauncher,
     LocalProcessRunner,
+    LocalWorkerExecutionAdapter,
     PublishedArtifactResolver,
     RunnerRegistry,
-)
-from app.modules.runs.adapters.outbound.execution.specs import (
     runner_run_spec_from_handoff,
     runner_run_spec_from_run_spec,
 )

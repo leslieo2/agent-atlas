@@ -6,7 +6,7 @@ import type {
   SampleJudgement,
   ScoringMode
 } from "@/src/shared/api/contract";
-import type { ObservabilityRecord } from "@/src/shared/api/observability";
+import type { TracingRecord } from "@/src/shared/api/tracing";
 
 export interface ExperimentRecord {
   experimentId: string;
@@ -26,7 +26,7 @@ export interface ExperimentRecord {
   runtimeErrorCount: number;
   passRate: number;
   failureDistribution: Record<string, number>;
-  observability?: ObservabilityRecord | null;
+  tracing?: TracingRecord | null;
   errorCode?: string | null;
   errorMessage?: string | null;
   createdAt: string;
@@ -57,7 +57,7 @@ export interface ExperimentRunRecord {
   executorBackend?: string | null;
   latencyMs?: number | null;
   toolCalls?: number | null;
-  phoenixTraceUrl?: string | null;
+  traceUrl?: string | null;
 }
 
 export interface CandidateRunSummaryRecord {

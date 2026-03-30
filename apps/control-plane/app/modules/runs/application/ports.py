@@ -16,8 +16,8 @@ from app.modules.runs.domain.models import (
     RunSpec,
     TrajectoryStep,
 )
-from app.modules.shared.domain.models import ObservabilityMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
+from app.tracing.ports import TraceExportPort, TraceQueryPort
 
 
 class RunRepository(Protocol):
@@ -48,18 +48,8 @@ class TrajectoryStepProjectorPort(Protocol):
     ) -> TrajectoryStep: ...
 
 
-class TraceBackendPort(Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]: ...
-
-    def backend_name(self) -> str: ...
-
-
-class TraceExporterPort(Protocol):
-    def export(
-        self,
-        events: list[TraceIngestEvent],
-        spans: list[TraceSpan],
-    ) -> ObservabilityMetadata | None: ...
+TraceBackendPort = TraceQueryPort
+TraceExporterPort = TraceExportPort
 
 
 class TraceProjectorPort(Protocol):

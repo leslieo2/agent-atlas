@@ -478,8 +478,8 @@ export default function ExperimentsWorkspace({
                 <MetricCard label="Completed" value={selectedExperiment.completedCount} />
                 <MetricCard label="Runtime errors" value={selectedExperiment.runtimeErrorCount} />
               </div>
-              {selectedExperiment.observability?.projectUrl ? (
-                <Button href={selectedExperiment.observability.projectUrl} variant="ghost">
+              {selectedExperiment.tracing?.projectUrl ? (
+                <Button href={selectedExperiment.tracing.projectUrl} variant="ghost">
                   Open Phoenix project <ArrowUpRight size={14} />
                 </Button>
               ) : null}
@@ -651,8 +651,8 @@ export default function ExperimentsWorkspace({
                     )}
                   </td>
                   <td>
-                    {run.phoenixTraceUrl ? (
-                      <Button href={run.phoenixTraceUrl} variant="ghost">
+                    {run.traceUrl ? (
+                      <Button href={run.traceUrl} variant="ghost">
                         Open Phoenix <ArrowUpRight size={14} />
                       </Button>
                     ) : (

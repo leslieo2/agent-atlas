@@ -3,6 +3,11 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.core.errors import ProviderAuthError
+from app.execution_plane.service import (
+    ExecutionRecorder,
+    RunExecutionContext,
+    RunExecutionProjector,
+)
 from app.infrastructure.repositories import (
     StateRunRepository,
     StateTraceRepository,
@@ -11,11 +16,6 @@ from app.infrastructure.repositories import (
 from app.modules.runs.adapters.outbound.telemetry.trace_projector import TraceIngestProjector
 from app.modules.runs.adapters.outbound.telemetry.trajectory_projector import (
     TraceEventTrajectoryProjector,
-)
-from app.modules.runs.application.execution import (
-    ExecutionRecorder,
-    RunExecutionContext,
-    RunExecutionProjector,
 )
 from app.modules.runs.application.results import (
     PublishedRunExecutionResult,
@@ -186,8 +186,8 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     assert run.latency_ms == 9
     assert run.token_cost == 13
     assert run.tool_calls == 0
-    assert run.observability is not None
-    assert run.observability.backend == "phoenix"
+    assert run.tracing is not None
+    assert run.tracing.backend == "phoenix"
     expected_span_ids = [f"span-{run_id}-1"]
     assert [step.id for step in steps] == expected_span_ids
     assert [step.parent_step_id for step in steps] == [None]
@@ -327,7 +327,7 @@ def test_run_execution_service_records_structured_failure_details():
         def execute(self, *_args, **_kwargs):
             raise ProviderAuthError("provider authentication failed")
 
-    from app.modules.runs.application.execution import RunExecutionService
+    from app.execution_plane.service import RunExecutionService
 
     service = RunExecutionService(
         run_repository=run_repository,
@@ -465,7 +465,7 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
                 ),
             )
 
-    from app.modules.runs.application.execution import RunExecutionService
+    from app.execution_plane.service import RunExecutionService
 
     service = RunExecutionService(
         run_repository=run_repository,

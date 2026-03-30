@@ -13,11 +13,11 @@ from app.modules.shared.domain.models import (
     EvaluatorConfig,
     ExecutorConfig,
     ModelConfig,
-    ObservabilityMetadata,
     PromptConfig,
     ProvenanceMetadata,
     RunLineage,
     ToolsetConfig,
+    TracingMetadata,
     TracePointer,
 )
 
@@ -283,7 +283,7 @@ class RunRecord(BaseModel):
     execution_backend: str | None = None
     container_image: str | None = None
     provenance: ProvenanceMetadata | None = None
-    observability: ObservabilityMetadata | None = None
+    tracing: TracingMetadata | None = None
     trace_pointer: TracePointer | None = None
     lineage: RunLineage | None = None
     resolved_model: str | None = None

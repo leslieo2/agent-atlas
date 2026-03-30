@@ -16,7 +16,7 @@ from app.modules.shared.domain.models import (
     EvaluatorConfig,
     ExecutorConfig,
     ModelConfig,
-    ObservabilityMetadata,
+    TracingMetadata,
     PromptConfig,
     ToolsetConfig,
 )
@@ -71,7 +71,7 @@ class ExperimentRecord(BaseModel):
     runtime_error_count: int = 0
     pass_rate: float = 0.0
     failure_distribution: dict[str, int] = Field(default_factory=dict)
-    observability: ObservabilityMetadata | None = None
+    tracing: TracingMetadata | None = None
     error_code: str | None = None
     error_message: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
@@ -165,4 +165,4 @@ class ExperimentRunDetail(BaseModel):
     executor_backend: str | None = None
     latency_ms: int | None = None
     tool_calls: int | None = None
-    phoenix_trace_url: str | None = None
+    trace_url: str | None = None

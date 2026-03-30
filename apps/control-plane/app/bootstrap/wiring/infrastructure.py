@@ -3,6 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, cast
 
+from app.execution_plane import (
+    ExecutionControlRegistry,
+    K8sJobExecutionAdapter,
+    K8sLauncher,
+    LocalLauncher,
+    LocalProcessRunner,
+    LocalWorkerExecutionAdapter,
+    PublishedArtifactResolver,
+    RunnerRegistry,
+)
 from app.core.config import TraceBackendMode, settings
 from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
@@ -16,17 +26,11 @@ from app.infrastructure.adapters.langchain import (
     PublishedLangChainAgentAdapter,
     PublishedLangChainAgentLoader,
 )
-from app.infrastructure.adapters.observability import (
-    NoopTraceExporter,
-    OtlpTraceExporter,
-    StateTraceBackend,
-)
 from app.infrastructure.adapters.openai_agents import (
     OpenAIAgentContractValidator,
     PublishedOpenAIAgentAdapter,
     PublishedOpenAIAgentLoader,
 )
-from app.infrastructure.adapters.phoenix import PhoenixTraceBackend
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.task_queue import StateTaskQueue
 from app.infrastructure.repositories import (
@@ -42,16 +46,6 @@ from app.modules.experiments.adapters.outbound.persistence import (
     StateRunEvaluationRepository,
 )
 from app.modules.exports.adapters.outbound.persistence import StateExportRepository
-from app.modules.runs.adapters.outbound.execution import (
-    ExecutionControlRegistry,
-    K8sJobExecutionAdapter,
-    K8sLauncher,
-    LocalLauncher,
-    LocalProcessRunner,
-    LocalWorkerExecutionAdapter,
-    PublishedArtifactResolver,
-    RunnerRegistry,
-)
 from app.modules.runs.adapters.outbound.persistence import (
     StateRunRepository,
     StateTraceRepository,
@@ -66,6 +60,13 @@ from app.modules.runs.application.ports import (
     RunnerPort,
     TraceBackendPort,
     TraceExporterPort,
+)
+from app.tracing import (
+    NoopTraceExporter,
+    OtlpTraceExporter,
+    PhoenixTraceBackend,
+    PhoenixTraceLinkResolver,
+    StateTraceBackend,
 )
 
 
@@ -180,6 +181,7 @@ def build_infrastructure() -> InfrastructureBundle:
     )
     trace_backend: TraceBackendPort
     trace_exporter: TraceExporterPort
+    trace_link_resolver = None
     phoenix_api_key = (
         settings.phoenix_api_key.get_secret_value() if settings.phoenix_api_key else None
     )
@@ -189,9 +191,14 @@ def build_infrastructure() -> InfrastructureBundle:
         trace_backend = PhoenixTraceBackend(
             run_repository=run_repository,
             base_url=settings.phoenix_base_url,
-            project_name=settings.observability_project_name,
+            project_name=settings.tracing_project_name,
             api_key=phoenix_api_key,
             query_limit=settings.phoenix_query_limit,
+        )
+        trace_link_resolver = PhoenixTraceLinkResolver(
+            base_url=settings.phoenix_base_url,
+            project_name=settings.tracing_project_name,
+            api_key=phoenix_api_key,
         )
     else:
         trace_backend = StateTraceBackend(
@@ -199,24 +206,21 @@ def build_infrastructure() -> InfrastructureBundle:
             backend_name=settings.trace_backend.value,
         )
 
-    observability_headers = dict(settings.observability_headers)
+    tracing_headers = dict(settings.tracing_headers)
     if (
         settings.trace_backend == TraceBackendMode.PHOENIX
         and phoenix_api_key is not None
-        and "api_key" not in observability_headers
+        and "api_key" not in tracing_headers
     ):
-        observability_headers["api_key"] = phoenix_api_key
+        tracing_headers["api_key"] = phoenix_api_key
 
-    if settings.observability_otlp_endpoint:
+    if settings.tracing_otlp_endpoint:
         trace_exporter = OtlpTraceExporter(
-            endpoint=settings.observability_otlp_endpoint,
-            project_name=settings.observability_project_name,
+            endpoint=settings.tracing_otlp_endpoint,
+            project_name=settings.tracing_project_name,
             backend_name=trace_backend.backend_name(),
-            base_url=settings.phoenix_base_url
-            if settings.trace_backend == TraceBackendMode.PHOENIX
-            else None,
-            headers=observability_headers,
-            api_key=phoenix_api_key,
+            headers=tracing_headers,
+            link_resolver=trace_link_resolver,
         )
     else:
         trace_exporter = NoopTraceExporter()

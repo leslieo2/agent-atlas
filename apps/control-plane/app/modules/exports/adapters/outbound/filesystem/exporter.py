@@ -232,7 +232,7 @@ class ExporterAdapter:
             "executor_backend": result.executor_backend,
             "latency_ms": result.latency_ms,
             "tool_calls": result.tool_calls,
-            "phoenix_trace_url": result.trace_url,
+            "trace_url": result.trace_url,
             "prompt_version": result.prompt_version,
             "image_digest": result.image_digest,
         }

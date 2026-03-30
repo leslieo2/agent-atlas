@@ -25,10 +25,10 @@ def reset_in_memory_state(monkeypatch) -> None:
     settings.seed_demo = True
     settings.trace_backend = TraceBackendMode.STATE
     settings.phoenix_base_url = "http://phoenix.test:6006"
-    settings.observability_otlp_endpoint = "http://phoenix.test:6006/v1/traces"
-    settings.observability_headers = {}
+    settings.tracing_otlp_endpoint = "http://phoenix.test:6006/v1/traces"
+    settings.tracing_headers = {}
     settings.phoenix_api_key = None
-    settings.observability_project_name = "agent-atlas-tests"
+    settings.tracing_project_name = "agent-atlas-tests"
     monkeypatch.setattr(infrastructure_wiring, "PhoenixTraceBackend", FakePhoenixTraceBackend)
     monkeypatch.setattr(infrastructure_wiring, "OtlpTraceExporter", FakeOtlpTraceExporter)
     _reset_state()

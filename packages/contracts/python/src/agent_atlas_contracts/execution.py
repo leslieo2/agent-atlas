@@ -111,16 +111,16 @@ class RunnerBootstrapPaths(BaseModel):
         ]
 
 
-class ObservabilityExportConfig(BaseModel):
+class TracingExportConfig(BaseModel):
     protocol: str = "otlp_http"
     endpoint: str | None = None
     headers: dict[str, str] = Field(default_factory=dict)
 
 
-class ObservabilityConfig(BaseModel):
+class TracingConfig(BaseModel):
     backend: str | None = None
     project_name: str | None = None
-    export: ObservabilityExportConfig | None = None
+    export: TracingExportConfig | None = None
 
 
 class RunSpec(BaseModel):
@@ -153,7 +153,7 @@ class RunSpec(BaseModel):
     artifact_ref: str | None = None
     image_ref: str | None = None
     trace_backend: str | None = None
-    observability: ObservabilityConfig | None = None
+    tracing: TracingConfig | None = None
     published_agent_snapshot: dict[str, Any]
     bootstrap: RunnerBootstrapPaths = Field(default_factory=RunnerBootstrapPaths)
 
@@ -213,8 +213,6 @@ class RunnerRunSpec(RunSpec):
 
 
 __all__ = [
-    "ObservabilityConfig",
-    "ObservabilityExportConfig",
     "ArtifactEntry",
     "ArtifactManifest",
     "EvalResult",
@@ -227,4 +225,6 @@ __all__ = [
     "RunnerRunSpec",
     "TerminalMetrics",
     "TerminalResult",
+    "TracingConfig",
+    "TracingExportConfig",
 ]

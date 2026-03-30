@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from agent_atlas_contracts.execution import RunnerBootstrapPaths
-from app.modules.runs.adapters.outbound.execution import runner_run_spec_from_run_spec
+from app.execution_plane.specs import runner_run_spec_from_run_spec
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.application.runtime_translation import (
     event_envelope_to_trace_event,
@@ -64,8 +64,8 @@ def test_runner_run_spec_can_be_built_from_legacy_run_spec():
     assert runner_spec.attempt == 2
     assert runner_spec.agent_type == AdapterKind.OPENAI_AGENTS.value
     assert runner_spec.published_agent_snapshot["manifest"]["agent_id"] == "triage-bot"
-    assert runner_spec.observability is not None
-    assert runner_spec.observability.export is not None
+    assert runner_spec.tracing is not None
+    assert runner_spec.tracing.export is not None
 
 
 def test_event_envelope_round_trips_to_trace_event():

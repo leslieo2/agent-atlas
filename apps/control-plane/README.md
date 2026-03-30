@@ -146,21 +146,16 @@ Important settings currently wired in code:
 Planned settings such as runner backend selection or artifact build controls should not be treated
 as live product behavior until they are backed by code.
 
-Observability settings:
+Tracing settings:
 
 - `AGENT_ATLAS_TRACE_BACKEND`: read-side trace backend (`state` by default, `phoenix` when you
   want Phoenix-backed trace queries)
-- `AGENT_ATLAS_OBSERVABILITY_OTLP_ENDPOINT`: OTLP collector endpoint used for neutral trace export
-- `AGENT_ATLAS_OBSERVABILITY_PROJECT_NAME`: logical observability project name
-- `AGENT_ATLAS_OBSERVABILITY_HEADERS`: optional OTLP export headers as JSON
+- `AGENT_ATLAS_TRACING_OTLP_ENDPOINT`: OTLP collector endpoint used for neutral trace export
+- `AGENT_ATLAS_TRACING_PROJECT_NAME`: logical tracing project name
+- `AGENT_ATLAS_TRACING_HEADERS`: optional OTLP export headers as JSON
 - `AGENT_ATLAS_PHOENIX_BASE_URL`: optional backend-owned Phoenix deep link base URL
 - `AGENT_ATLAS_PHOENIX_API_KEY`: optional Phoenix API key used for query access
 - `AGENT_ATLAS_PHOENIX_QUERY_LIMIT`: read-side span fetch cap for run trace reconstruction
-
-Backward compatibility:
-
-- `AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT` and `AGENT_ATLAS_PHOENIX_PROJECT_NAME` still map to the new
-  neutral observability settings
 
 Runtime mode notes:
 

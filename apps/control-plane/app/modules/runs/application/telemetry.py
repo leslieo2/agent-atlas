@@ -12,7 +12,7 @@ from app.modules.runs.application.ports import (
 )
 from app.modules.runs.domain.models import TrajectoryStep
 from app.modules.runs.domain.policies import RunAggregate
-from app.modules.shared.domain.models import ObservabilityMetadata, TracePointer
+from app.modules.shared.domain.models import TracePointer, TracingMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
@@ -54,9 +54,9 @@ class RunTelemetryIngestionService:
         span = self.trace_projector.project(event)
         self.trace_repository.append(span)
         self.trajectory_recorder.record(event=event, span=span)
-        observability = self.trace_exporter.export([event], [span])
-        if observability is not None:
-            self._record_observability(event.run_id, observability)
+        tracing = self.trace_exporter.export([event], [span])
+        if tracing is not None:
+            self._record_tracing(event.run_id, tracing)
         return span
 
     def ingest_many(self, events: list[TraceIngestEvent]) -> list[TraceSpan]:
@@ -64,27 +64,27 @@ class RunTelemetryIngestionService:
         for event, span in zip(events, spans, strict=True):
             self.trace_repository.append(span)
             self.trajectory_recorder.record(event=event, span=span)
-        observability = self.trace_exporter.export(events, spans)
-        if observability is not None and events:
-            self._record_observability(events[0].run_id, observability)
+        tracing = self.trace_exporter.export(events, spans)
+        if tracing is not None and events:
+            self._record_tracing(events[0].run_id, tracing)
         return spans
 
-    def _record_observability(
+    def _record_tracing(
         self,
         run_id: str | UUID,
-        observability: ObservabilityMetadata,
+        tracing: TracingMetadata,
     ) -> None:
         run = self.run_repository.get(run_id)
         if not run:
             return
         updated = RunAggregate.load(run)
-        updated.run.observability = observability
+        updated.run.tracing = tracing
         updated.run.trace_pointer = TracePointer(
-            backend=observability.backend,
-            trace_id=observability.trace_id,
-            trace_url=observability.trace_url,
-            project_url=observability.project_url,
+            backend=tracing.backend,
+            trace_id=tracing.trace_id,
+            trace_url=tracing.trace_url,
+            project_url=tracing.project_url,
         )
         if updated.run.provenance is not None:
-            updated.run.provenance.trace_backend = observability.backend
+            updated.run.provenance.trace_backend = tracing.backend
         self.run_repository.save(updated.run)

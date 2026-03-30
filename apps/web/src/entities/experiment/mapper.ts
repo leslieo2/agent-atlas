@@ -5,7 +5,7 @@ import type {
   ExperimentResponse,
   ExperimentRunResponse
 } from "@/src/shared/api/contract";
-import { mapObservability } from "@/src/shared/api/observability";
+import { mapTracing } from "@/src/shared/api/tracing";
 import type {
   CandidateRunSummaryRecord,
   ExperimentCompareRecord,
@@ -33,7 +33,7 @@ export function mapExperiment(record: ExperimentResponse): ExperimentRecord {
     runtimeErrorCount: record.runtime_error_count,
     passRate: record.pass_rate,
     failureDistribution: record.failure_distribution,
-    observability: mapObservability(record.observability),
+    tracing: mapTracing(record.tracing),
     errorCode: record.error_code ?? null,
     errorMessage: record.error_message ?? null,
     createdAt: record.created_at
@@ -66,7 +66,7 @@ export function mapExperimentRun(record: ExperimentRunResponse): ExperimentRunRe
     executorBackend: record.executor_backend ?? null,
     latencyMs: record.latency_ms ?? null,
     toolCalls: record.tool_calls ?? null,
-    phoenixTraceUrl: record.phoenix_trace_url ?? null
+    traceUrl: record.trace_url ?? null
   };
 }
 

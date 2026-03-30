@@ -169,7 +169,7 @@ export interface ExperimentResponse {
   "runtime_error_count": number;
   "pass_rate": number;
   "failure_distribution": Record<string, number>;
-  "observability"?: ObservabilityMetadata | null;
+  "tracing"?: TracingMetadata | null;
   "error_code"?: string | null;
   "error_message"?: string | null;
   "created_at": string;
@@ -199,7 +199,7 @@ export interface ExperimentRunResponse {
   "executor_backend"?: string | null;
   "latency_ms"?: number | null;
   "tool_calls"?: number | null;
-  "phoenix_trace_url"?: string | null;
+  "trace_url"?: string | null;
 }
 export interface ExperimentSpec {
   "dataset_version_id": string;
@@ -258,12 +258,6 @@ export interface ModelConfig {
   "model": string;
   "provider"?: string | null;
   "temperature"?: number;
-}
-export interface ObservabilityMetadata {
-  "backend": string;
-  "trace_id"?: string | null;
-  "trace_url"?: string | null;
-  "project_url"?: string | null;
 }
 export type PolicyEffect = "allow" | "deny";
 export interface PromptConfig {
@@ -332,7 +326,7 @@ export interface RunResponse {
   "execution_backend"?: string | null;
   "container_image"?: string | null;
   "provenance"?: ProvenanceMetadata | null;
-  "observability"?: ObservabilityMetadata | null;
+  "tracing"?: TracingMetadata | null;
   "trace_pointer"?: TracePointer | null;
   "lineage"?: RunLineage | null;
   "resolved_model"?: string | null;
@@ -365,6 +359,12 @@ export interface ToolsetConfig {
   "metadata"?: Record<string, unknown>;
 }
 export interface TracePointer {
+  "backend": string;
+  "trace_id"?: string | null;
+  "trace_url"?: string | null;
+  "project_url"?: string | null;
+}
+export interface TracingMetadata {
   "backend": string;
   "trace_id"?: string | null;
   "trace_url"?: string | null;

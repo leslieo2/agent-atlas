@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from app.modules.execution.domain.models import CancelRequest
-from app.modules.runs.adapters.outbound.execution import (
+from app.execution_plane import (
     K8sJobExecutionAdapter,
     K8sJobLaunchRequest,
     LocalWorkerExecutionAdapter,
 )
+from app.modules.execution.domain.models import CancelRequest
 from app.modules.runs.domain.models import RunRecord, RunSpec
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import AdapterKind, RunStatus

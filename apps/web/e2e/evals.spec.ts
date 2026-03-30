@@ -143,7 +143,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
       runtime_error_count: 0,
       pass_rate: 1,
       failure_distribution: {},
-      observability: { backend: "phoenix", project_url: "http://127.0.0.1:6006/projects/test/exp-001" },
+      tracing: { backend: "phoenix", project_url: "http://127.0.0.1:6006/projects/test/exp-001" },
       error_code: null,
       error_message: null,
       created_at: "2026-03-24T00:00:00Z"
@@ -167,7 +167,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
       runtime_error_count: 0,
       pass_rate: 0.5,
       failure_distribution: { mismatch: 1 },
-      observability: { backend: "phoenix", project_url: "http://127.0.0.1:6006/projects/test/exp-002" },
+      tracing: { backend: "phoenix", project_url: "http://127.0.0.1:6006/projects/test/exp-002" },
       error_code: null,
       error_message: null,
       created_at: "2026-03-25T00:00:00Z"
@@ -201,7 +201,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
         executor_backend: "k8s-job",
         latency_ms: 11,
         tool_calls: 0,
-        phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-001"
+        trace_url: "http://127.0.0.1:6006/projects/test/traces/run-001"
       }
     ],
     "exp-002": [
@@ -230,7 +230,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
         executor_backend: "k8s-job",
         latency_ms: 10,
         tool_calls: 0,
-        phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-002"
+        trace_url: "http://127.0.0.1:6006/projects/test/traces/run-002"
       },
       {
         run_id: "run-003",
@@ -257,7 +257,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
         executor_backend: "k8s-job",
         latency_ms: 12,
         tool_calls: 1,
-        phoenix_trace_url: "http://127.0.0.1:6006/projects/test/traces/run-003"
+        trace_url: "http://127.0.0.1:6006/projects/test/traces/run-003"
       }
     ],
     "exp-003": []
@@ -316,7 +316,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
         runtime_error_count: 0,
         pass_rate: 0,
         failure_distribution: {},
-        observability: { backend: "phoenix", project_url: "http://127.0.0.1:6006/projects/test/exp-003" },
+        tracing: { backend: "phoenix", project_url: "http://127.0.0.1:6006/projects/test/exp-003" },
         error_code: null,
         error_message: null,
         created_at: "2026-03-26T00:00:00Z"

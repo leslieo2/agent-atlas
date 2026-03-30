@@ -51,7 +51,7 @@ describe("Exports workspace", () => {
         runtimeErrorCount: 0,
         passRate: 0.5,
         failureDistribution: { mismatch: 1 },
-        observability: null,
+        tracing: null,
         errorCode: null,
         errorMessage: null,
         createdAt: "2026-03-25T00:00:00Z"
@@ -83,7 +83,7 @@ describe("Exports workspace", () => {
         executorBackend: "k8s-job",
         latencyMs: 12,
         toolCalls: 1,
-        phoenixTraceUrl: "http://phoenix.local/trace/run-001"
+        traceUrl: "http://phoenix.local/trace/run-001"
       }
     ]);
     (exportApi.listExports as unknown as MockedApiFn).mockResolvedValue([

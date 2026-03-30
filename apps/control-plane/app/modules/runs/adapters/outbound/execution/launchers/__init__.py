@@ -1,10 +1,8 @@
-from app.modules.runs.adapters.outbound.execution.launchers.k8s import (
+from app.execution_plane.launchers import (
     K8sJobLaunchRequest,
     K8sLauncher,
-)
-from app.modules.runs.adapters.outbound.execution.launchers.local import (
-    LocalLauncher,
     LocalLaunchSession,
+    LocalLauncher,
 )
 
 __all__ = [

@@ -7,12 +7,12 @@ from uuid import uuid4
 import pytest
 from app.bootstrap.wiring.infrastructure import build_infrastructure
 from app.core.config import TraceBackendMode, settings
-from app.infrastructure.adapters.phoenix import (
+from app.modules.runs.domain.models import RunRecord
+from app.tracing.backends.phoenix import (
     PhoenixTraceBackend,
     build_phoenix_project_url,
     build_phoenix_trace_url,
 )
-from app.modules.runs.domain.models import RunRecord
 
 
 class _RunRepository:
@@ -112,7 +112,7 @@ def test_phoenix_trace_backend_filters_and_maps_run_spans():
 def test_build_infrastructure_defaults_to_state_backend_without_phoenix(monkeypatch):
     monkeypatch.setattr(settings, "trace_backend", TraceBackendMode.STATE)
     monkeypatch.setattr(settings, "phoenix_base_url", None)
-    monkeypatch.setattr(settings, "observability_otlp_endpoint", None)
+    monkeypatch.setattr(settings, "tracing_otlp_endpoint", None)
 
     infrastructure = build_infrastructure()
 

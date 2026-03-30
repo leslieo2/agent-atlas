@@ -10,10 +10,10 @@ from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     ExecutorConfig,
-    ObservabilityMetadata,
     ProvenanceMetadata,
     RunLineage,
     ToolsetConfig,
+    TracingMetadata,
     TracePointer,
 )
 from app.modules.shared.domain.traces import TraceSpan
@@ -70,7 +70,7 @@ class RunResponse(BaseModel):
     execution_backend: str | None = None
     container_image: str | None = None
     provenance: ProvenanceMetadata | None = None
-    observability: ObservabilityMetadata | None = None
+    tracing: TracingMetadata | None = None
     trace_pointer: TracePointer | None = None
     lineage: RunLineage | None = None
     resolved_model: str | None = None
@@ -84,7 +84,7 @@ class RunResponse(BaseModel):
 
     @classmethod
     def from_domain(cls, run: RunRecord) -> RunResponse:
-        return cls.model_validate(run.model_dump())
+        return cls.model_validate(run.model_dump(mode="json"))
 
 
 class CancelRunResponse(BaseModel):

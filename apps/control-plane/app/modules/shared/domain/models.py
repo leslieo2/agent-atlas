@@ -57,7 +57,7 @@ class ProvenanceMetadata(BaseModel):
     executor: ExecutorConfig | None = None
 
 
-class ObservabilityMetadata(BaseModel):
+class TracingMetadata(BaseModel):
     backend: str
     trace_id: str | None = None
     trace_url: str | None = None

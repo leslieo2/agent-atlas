@@ -161,7 +161,7 @@ class ExperimentQueries:
                     else run.executor_backend,
                     latency_ms=evaluation.latency_ms if evaluation else run.latency_ms,
                     tool_calls=evaluation.tool_calls if evaluation else run.tool_calls,
-                    phoenix_trace_url=evaluation.trace_url
+                    trace_url=evaluation.trace_url
                     if evaluation
                     else (run.trace_pointer.trace_url if run.trace_pointer else None),
                 )

@@ -119,7 +119,7 @@ describe("Experiments workspace", () => {
         runtimeErrorCount: 0,
         passRate: 1,
         failureDistribution: {},
-        observability: { backend: "phoenix", projectUrl: "http://phoenix.local/project/exp-001" },
+        tracing: { backend: "phoenix", projectUrl: "http://phoenix.local/project/exp-001" },
         errorCode: null,
         errorMessage: null,
         createdAt: "2026-03-24T00:00:00Z"
@@ -142,7 +142,7 @@ describe("Experiments workspace", () => {
         runtimeErrorCount: 0,
         passRate: 0.5,
         failureDistribution: { mismatch: 1 },
-        observability: { backend: "phoenix", projectUrl: "http://phoenix.local/project/exp-002" },
+        tracing: { backend: "phoenix", projectUrl: "http://phoenix.local/project/exp-002" },
         errorCode: null,
         errorMessage: null,
         createdAt: "2026-03-25T00:00:00Z"
@@ -174,7 +174,7 @@ describe("Experiments workspace", () => {
         executorBackend: "k8s-job",
         latencyMs: 12,
         toolCalls: 1,
-        phoenixTraceUrl: "http://phoenix.local/trace/run-001"
+        traceUrl: "http://phoenix.local/trace/run-001"
       },
       {
         runId: "run-002",
@@ -201,7 +201,7 @@ describe("Experiments workspace", () => {
         executorBackend: "k8s-job",
         latencyMs: 15,
         toolCalls: 2,
-        phoenixTraceUrl: "http://phoenix.local/trace/run-002"
+        traceUrl: "http://phoenix.local/trace/run-002"
       }
     ]);
     (experimentApi.compareExperiments as unknown as MockedApiFn).mockResolvedValue({
@@ -258,7 +258,7 @@ describe("Experiments workspace", () => {
         executorBackend: "k8s-job",
         latencyMs: runId === "run-001" ? 12 : 15,
         toolCalls: runId === "run-001" ? 1 : 2,
-        phoenixTraceUrl: runId === "run-001" ? "http://phoenix.local/trace/run-001" : "http://phoenix.local/trace/run-002"
+        traceUrl: runId === "run-001" ? "http://phoenix.local/trace/run-001" : "http://phoenix.local/trace/run-002"
       })
     );
     (experimentApi.createExperiment as unknown as MockedApiFn).mockResolvedValue({
@@ -279,7 +279,7 @@ describe("Experiments workspace", () => {
       runtimeErrorCount: 0,
       passRate: 0,
       failureDistribution: {},
-      observability: null,
+      tracing: null,
       errorCode: null,
       errorMessage: null,
       createdAt: "2026-03-25T00:30:00Z"
@@ -302,7 +302,7 @@ describe("Experiments workspace", () => {
       runtimeErrorCount: 0,
       passRate: 0,
       failureDistribution: {},
-      observability: null,
+      tracing: null,
       errorCode: null,
       errorMessage: null,
       createdAt: "2026-03-25T00:30:00Z"
