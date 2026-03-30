@@ -22,7 +22,7 @@ from app.infrastructure.adapters.framework_registry import (
 from app.infrastructure.adapters.langchain.runtime import PublishedLangChainAgentAdapter
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.agents.domain.models import AgentBuildContext, AgentManifest, PublishedAgent
-from app.modules.runs.adapters.outbound.execution import runner_run_spec_from_run_spec
+from app.modules.execution.adapters.outbound.execution import runner_run_spec_from_run_spec
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
-from app.execution_plane.service import RunExecutionService
+from app.modules.execution.application import RunExecutionService
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.application.telemetry import (
     RunTelemetryIngestionService,

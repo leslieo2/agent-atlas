@@ -67,6 +67,15 @@ def test_non_run_feature_modules_do_not_import_run_application_ports():
     assert violations == []
 
 
+def test_non_execution_modules_do_not_import_execution_plane_package():
+    violations = _collect_forbidden_imports(
+        base_dir=Path("app/modules"),
+        forbidden_prefixes=("app.execution_plane",),
+        allowed_paths=(Path("app/modules/execution"),),
+    )
+    assert violations == []
+
+
 def test_feature_modules_do_not_import_other_feature_use_cases_or_execution():
     violations = _collect_cross_feature_application_imports(base_dir=Path("app/modules"))
     assert violations == []

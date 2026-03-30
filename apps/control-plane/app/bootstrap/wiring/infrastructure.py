@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, cast
 
-from app.execution_plane import (
+from app.modules.execution.adapters.outbound.execution import (
     ExecutionControlRegistry,
     K8sJobExecutionAdapter,
     K8sLauncher,

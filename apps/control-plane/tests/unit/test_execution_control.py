@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from app.execution_plane import (
+from app.modules.execution.adapters.outbound.execution import (
     K8sJobExecutionAdapter,
     K8sJobLaunchRequest,
     LocalWorkerExecutionAdapter,

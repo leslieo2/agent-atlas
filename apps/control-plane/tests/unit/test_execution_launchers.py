@@ -4,7 +4,7 @@ import json
 from uuid import uuid4
 
 from agent_atlas_contracts.execution import ExecutionHandoff, RunnerRunSpec
-from app.execution_plane import (
+from app.modules.execution.adapters.outbound.execution import (
     K8sLauncher,
     LocalLauncher,
     LocalProcessRunner,

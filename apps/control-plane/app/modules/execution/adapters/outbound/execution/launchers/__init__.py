@@ -1,6 +1,8 @@
-from app.execution_plane.launchers import (
+from app.modules.execution.adapters.outbound.execution.launchers.k8s import (
     K8sJobLaunchRequest,
     K8sLauncher,
+)
+from app.modules.execution.adapters.outbound.execution.launchers.local import (
     LocalLaunchSession,
     LocalLauncher,
 )

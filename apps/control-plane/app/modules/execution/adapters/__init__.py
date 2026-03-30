@@ -1,13 +1,3 @@
-from app.modules.execution.application import (
-    ExecutionControlPort,
-    ExecutionRecorder,
-    ProjectedExecutionRecord,
-    RunExecutionContext,
-    RunExecutionProjector,
-    RunExecutionService,
-    failure_from_trace_events,
-    normalize_run_failure,
-)
 from app.modules.execution.adapters.outbound.execution import (
     ExecutionControlRegistry,
     K8sJobExecutionAdapter,
@@ -25,11 +15,8 @@ from app.modules.execution.adapters.outbound.execution import (
 )
 
 __all__ = [
-    "ExecutionControlPort",
     "ExecutionControlRegistry",
-    "ExecutionRecorder",
     "execution_handoff_from_run_spec",
-    "failure_from_trace_events",
     "K8sJobExecutionAdapter",
     "K8sJobLaunchRequest",
     "K8sLauncher",
@@ -37,12 +24,7 @@ __all__ = [
     "LocalLauncher",
     "LocalProcessRunner",
     "LocalWorkerExecutionAdapter",
-    "normalize_run_failure",
-    "ProjectedExecutionRecord",
     "PublishedArtifactResolver",
-    "RunExecutionContext",
-    "RunExecutionProjector",
-    "RunExecutionService",
     "RunnerRegistry",
     "runner_run_spec_from_handoff",
     "runner_run_spec_from_run_spec",

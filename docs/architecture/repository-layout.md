@@ -131,6 +131,10 @@ The rule is:
 - split the control plane by business module
 - split each control-plane module internally by domain, application, and adapters
 
+Execution-specific control-plane code should now be consumed through `app/modules/execution/`.
+`app/execution_plane/` remains a migration-stage implementation area and should not be imported by
+other feature modules directly.
+
 ## What Does Not Use Hexagonal Design
 
 Execution, ingestion, and other pipeline-oriented subsystems should not be forced into the same
