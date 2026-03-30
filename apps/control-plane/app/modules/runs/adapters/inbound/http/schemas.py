@@ -13,8 +13,8 @@ from app.modules.shared.domain.models import (
     ProvenanceMetadata,
     RunLineage,
     ToolsetConfig,
-    TracingMetadata,
     TracePointer,
+    TracingMetadata,
 )
 from app.modules.shared.domain.traces import TraceSpan
 

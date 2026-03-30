@@ -10,13 +10,15 @@ entire product platform.
 
 ## Summary
 
-The backend is a modular monolith built with FastAPI and organized around feature modules.
+The backend is a modular monolith built with FastAPI and organized around feature modules plus a
+small number of dedicated subsystems.
 
 Primary locations:
 
 - `app/api/routes/`: thin HTTP entrypoints that re-export module-local routers
 - `app/modules/*`: feature-owned business code
 - `app/modules/*/adapters/`: module-local inbound and outbound adapters
+- `app/execution/`: execution orchestration subsystem
 - `app/infrastructure/repositories/`: persistence implementations
 - `app/infrastructure/adapters/`: non-persistence infrastructure adapters
 - `app/bootstrap/container.py`: composition root entrypoint
@@ -43,9 +45,10 @@ app/infrastructure/* -> app/modules/* application ports and domain models
 ```
 
 Business logic belongs in feature modules. Core feature adapters now live with the module when
-they are strongly feature-owned. `app/infrastructure/` is reserved for cross-feature services,
-legacy compatibility entrypoints, and vendor integrations that are not naturally owned by one
-feature. Routes handle HTTP concerns only.
+they are strongly feature-owned. `app/execution/` is reserved for execution orchestration that is
+broader than one feature and narrower than a separate service. `app/infrastructure/` is reserved
+for cross-feature services and vendor integrations that are not naturally owned by one feature.
+Routes handle HTTP concerns only.
 
 The module boundaries are enforced by architecture tests under `apps/control-plane/tests/unit/`.
 
@@ -198,7 +201,29 @@ Non-responsibilities:
 Not every feature needs a rich domain layer. Some modules are mostly application-oriented and use
 domain models only as contracts.
 
-### 4. Infrastructure layer
+### 4. Execution subsystem
+
+Location: `app/execution/`
+
+Responsibilities:
+
+- submit, cancel, retry, and status orchestration
+- translation from control-plane run intent into execution handoff contracts
+- runner backend selection and launcher integration
+- carrier-specific launch request generation for local and Kubernetes execution
+
+Non-responsibilities:
+
+- owning run business semantics
+- owning experiment batching logic
+- embedding framework-specific runtime SDK logic
+- becoming a second generic infrastructure bucket
+
+`app/execution/` should be treated as a dedicated orchestration subsystem. It uses lightweight
+`application`, `domain`, and `adapters` layering internally, but it is not a normal feature module
+under `app/modules/`.
+
+### 5. Infrastructure layer
 
 Location: `app/infrastructure/`
 

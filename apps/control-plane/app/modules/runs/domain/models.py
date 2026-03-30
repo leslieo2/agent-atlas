@@ -17,8 +17,8 @@ from app.modules.shared.domain.models import (
     ProvenanceMetadata,
     RunLineage,
     ToolsetConfig,
-    TracingMetadata,
     TracePointer,
+    TracingMetadata,
 )
 
 

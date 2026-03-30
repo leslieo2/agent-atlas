@@ -1,5 +1,4 @@
-from app.modules.execution.application.ports import ExecutionControlPort
-from app.modules.execution.application.execution import (
+from app.execution.service import (
     ExecutionRecorder,
     ProjectedExecutionRecord,
     RunExecutionContext,
@@ -10,7 +9,6 @@ from app.modules.execution.application.execution import (
 )
 
 __all__ = [
-    "ExecutionControlPort",
     "ExecutionRecorder",
     "ProjectedExecutionRecord",
     "RunExecutionContext",

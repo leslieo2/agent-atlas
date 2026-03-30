@@ -7,11 +7,11 @@ from agent_atlas_contracts.execution import ExecutionHandoff
 from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
 
 from app.core.errors import AppError
-from app.execution_plane.specs import execution_handoff_from_run_spec
+from app.execution.adapters.specs import execution_handoff_from_run_spec
 from app.modules.runs.application.ports import (
     ArtifactResolverPort,
-    RunRepository,
     RunnerPort,
+    RunRepository,
 )
 from app.modules.runs.application.results import (
     PublishedRunExecutionResult,

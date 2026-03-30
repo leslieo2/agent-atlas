@@ -82,10 +82,14 @@ def runner_run_spec_from_run_spec(
         artifact_ref=provenance.artifact_ref if provenance is not None else None,
         image_ref=provenance.image_ref if provenance is not None else None,
         trace_backend=provenance.trace_backend if provenance is not None else None,
-        tracing=_runner_tracing_config(provenance.trace_backend if provenance is not None else None),
+        tracing=_runner_tracing_config(
+            provenance.trace_backend if provenance is not None else None
+        ),
         published_agent_snapshot=published_agent_snapshot,
         bootstrap=bootstrap or RunnerBootstrapPaths(),
     )
+
+
 def execution_handoff_from_run_spec(
     *,
     run_id: UUID,

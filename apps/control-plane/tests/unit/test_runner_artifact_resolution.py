@@ -5,15 +5,13 @@ from uuid import uuid4
 import pytest
 from agent_atlas_contracts.execution import ExecutionArtifact, ExecutionHandoff, RunnerRunSpec
 from app.core.errors import AgentLoadFailedError
-from app.modules.execution.adapters.outbound.execution import (
+from app.execution.adapters import (
+    LocalProcessRunner,
+    PublishedArtifactResolver,
     execution_handoff_from_run_spec,
     runner_run_spec_from_handoff,
 )
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
-from app.modules.execution.adapters.outbound.execution import (
-    LocalProcessRunner,
-    PublishedArtifactResolver,
-)
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind

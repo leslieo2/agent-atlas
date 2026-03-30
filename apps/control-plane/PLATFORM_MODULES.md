@@ -50,7 +50,7 @@ subsystems instead of forcing them into a ports-and-adapters mental model.
 
 Location:
 
-- `app/execution_plane/`
+- `app/execution/`
 
 Primary concerns:
 
@@ -92,16 +92,13 @@ Use this split when adding code:
 
 - Atlas business workflows: `app/modules/*`
 - feature-local inbound and outbound adapters: `app/modules/<feature>/adapters/*`
-- execution runtime contracts and launchers: `app/execution_plane/*`
+- execution orchestration, runtime contracts, and launchers: `app/execution/*`
 - vendor or backend integrations: `app/infrastructure/adapters/*`
 - persistence implementations: `app/infrastructure/repositories/*`
 
 ## Direction
 
-The current codebase is still transitional in a few places:
-
-- `app/modules/runs/application/execution.py` still contains hot-path execution orchestration
-- `app/modules/traces/` still mixes control-plane and ingestion concerns
-
-Directionally, those hot-path and ingestion-heavy pieces should keep moving toward dedicated
-execution-plane and pipeline-oriented subsystems.
+The current codebase is still transitional in a few places, especially around tracing and
+ingestion-heavy flows. Directionally, orchestration-heavy execution code belongs in
+`app/execution/`, while ingestion-heavy pieces should keep moving toward dedicated
+pipeline-oriented subsystems.

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
+from app.execution.adapters import runner_run_spec_from_run_spec
 from app.infrastructure.adapters.agent_catalog import (
     AgentModuleSource,
     FilesystemAgentDiscovery,
@@ -25,7 +26,6 @@ from app.modules.agents.domain.models import (
     DiscoveredAgent,
     PublishedAgent,
 )
-from app.modules.execution.adapters.outbound.execution import runner_run_spec_from_run_spec
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind

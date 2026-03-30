@@ -5,7 +5,7 @@ import time
 from uuid import uuid4
 
 from app.core.config import settings
-from app.modules.execution.application import RunExecutionService
+from app.execution.application import RunExecutionService
 from app.modules.experiments.application.execution import (
     ExperimentAggregationService,
     ExperimentOrchestrator,

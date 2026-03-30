@@ -49,6 +49,7 @@ This backend is a modular monolith built with FastAPI.
 
 - `app/api/routes/`: thin compatibility entrypoints that mount module-local routers
 - `app/modules/`: feature-level `domain`, `application`, and module-local `adapters`
+- `app/execution/`: execution orchestration subsystem for handoff, runner dispatch, and launchers
 - `app/infrastructure/`: cross-feature or legacy compatibility adapters
 - `app/bootstrap/container.py`: composition root
 
@@ -63,7 +64,8 @@ storage implementations change.
 Read the full architecture rules in [ARCHITECTURE.md](./ARCHITECTURE.md). Contributor and layering
 guidance lives in [AGENTS.md](./AGENTS.md). Module ownership and the split between hexagonal
 control-plane code and non-hex execution or pipeline code is documented in
-[PLATFORM_MODULES.md](./PLATFORM_MODULES.md).
+[PLATFORM_MODULES.md](./PLATFORM_MODULES.md). Execution subsystem boundaries are documented in
+[EXECUTION_ARCHITECTURE.md](./EXECUTION_ARCHITECTURE.md).
 
 ## Local Setup
 
@@ -93,6 +95,7 @@ Current runtime model:
 
 - API requests create run records immediately and submit them through `ExecutionControlPort`
 - the current local backend maps that contract to queued worker tasks
+- `app/execution/` owns the control-plane to runner handoff and launcher-side orchestration
 - `app.worker` is a separate process that claims queued jobs and executes them
 - run both `make run-api` and `make run-worker` during development if you want runs to advance past
   `queued`

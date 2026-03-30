@@ -1,4 +1,4 @@
-from app.execution_plane.service import (
+from app.execution.application.execution import (
     ExecutionRecorder,
     ProjectedExecutionRecord,
     RunExecutionContext,
@@ -7,8 +7,10 @@ from app.execution_plane.service import (
     failure_from_trace_events,
     normalize_run_failure,
 )
+from app.execution.application.ports import ExecutionControlPort
 
 __all__ = [
+    "ExecutionControlPort",
     "ExecutionRecorder",
     "ProjectedExecutionRecord",
     "RunExecutionContext",

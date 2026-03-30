@@ -72,6 +72,24 @@ class FrameworkRegistry:
         )
         return plugin.loader.build_agent(published_agent=published_agent, context=context)
 
+    def _plugin_for_framework(
+        self,
+        framework: str,
+        *,
+        agent_id: str | None = None,
+    ) -> FrameworkPlugin:
+        normalized = framework.strip().lower()
+        plugin = self.plugins.get(normalized)
+        if plugin is None:
+            if agent_id is not None:
+                raise AgentLoadFailedError(
+                    f"published agent framework '{framework}' is not supported",
+                    agent_id=agent_id,
+                    framework=framework,
+                )
+            raise ValueError(f"unsupported published agent framework '{framework}'")
+        return plugin
+
     @staticmethod
     def _framework_for_source(source: AgentModuleSource) -> str:
         module = FrameworkRegistry._safe_import(source.module_name)

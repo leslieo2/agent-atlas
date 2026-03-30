@@ -22,8 +22,8 @@ from app.modules.shared.domain.models import (
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
-    TracingMetadata,
     ToolsetConfig,
+    TracingMetadata,
 )
 
 

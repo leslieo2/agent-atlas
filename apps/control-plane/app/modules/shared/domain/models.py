@@ -5,6 +5,8 @@ from uuid import UUID
 
 from agent_atlas_contracts.runtime import (
     RuntimeArtifactMetadata as ContractRuntimeArtifactMetadata,
+)
+from agent_atlas_contracts.runtime import (
     TraceTelemetryMetadata as ContractTraceTelemetryMetadata,
 )
 from pydantic import BaseModel, Field

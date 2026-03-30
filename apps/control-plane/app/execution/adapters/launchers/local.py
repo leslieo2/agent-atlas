@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from agent_atlas_runner_base.launchers import (
-    LocalLaunchSession,
     LocalLauncher as RunnerBaseLocalLauncher,
+)
+from agent_atlas_runner_base.launchers import (
+    LocalLaunchSession,
 )
 from agent_atlas_runner_base.outputs import RunnerOutputWriter
 
@@ -76,4 +78,4 @@ class LocalLauncher(RunnerBaseLocalLauncher):
         writer.write_artifact_manifest(artifact_manifest)
 
 
-__all__ = ["LocalLauncher", "LocalLaunchSession"]
+__all__ = ["LocalLaunchSession", "LocalLauncher"]

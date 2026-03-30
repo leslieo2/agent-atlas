@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from agent_atlas_contracts.execution import RunnerBootstrapPaths
-from app.modules.execution.adapters.outbound.execution import runner_run_spec_from_run_spec
+from app.execution.adapters import runner_run_spec_from_run_spec
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.application.runtime_translation import (
     event_envelope_to_trace_event,

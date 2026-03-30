@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, cast
 
-from app.modules.execution.adapters.outbound.execution import (
+from app.core.config import TraceBackendMode, settings
+from app.execution.adapters import (
     ExecutionControlRegistry,
     K8sJobExecutionAdapter,
     K8sLauncher,
@@ -13,7 +14,7 @@ from app.modules.execution.adapters.outbound.execution import (
     PublishedArtifactResolver,
     RunnerRegistry,
 )
-from app.core.config import TraceBackendMode, settings
+from app.execution.application.ports import ExecutionControlPort
 from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
@@ -48,7 +49,6 @@ from app.modules.agents.application.ports import (
     PublishedAgentExecutionPort,
 )
 from app.modules.datasets.adapters.outbound.persistence import StateDatasetRepository
-from app.modules.execution.application.ports import ExecutionControlPort
 from app.modules.experiments.adapters.outbound.persistence import (
     StateExperimentRepository,
     StateRunEvaluationRepository,

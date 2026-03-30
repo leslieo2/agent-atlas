@@ -12,7 +12,7 @@ from app.modules.shared.domain.models import TraceTelemetryMetadata
 
 
 class TraceIngestEvent(ContractTraceIngestEvent):
-    step_type: StepType = StepType.LLM
+    step_type: StepType = StepType.LLM  # type: ignore[assignment]
     metadata: TraceTelemetryMetadata | None = None
 
 

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from app.execution.application.ports import ExecutionControlPort
 from app.modules.agents.application.ports import RunnableAgentCatalogPort
 from app.modules.datasets.application.ports import DatasetRepository
-from app.modules.execution.application.ports import ExecutionControlPort
 from app.modules.experiments.application.ports import (
     ExperimentRepository,
     RunEvaluationRepository,

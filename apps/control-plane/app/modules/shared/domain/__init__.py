@@ -8,8 +8,8 @@ from app.modules.shared.domain.models import (
     ProvenanceMetadata,
     RuntimeArtifactBuildResult,
     RuntimeArtifactMetadata,
-    TracingMetadata,
     TraceTelemetryMetadata,
+    TracingMetadata,
     build_source_artifact_ref,
     build_source_runtime_artifact,
 )
@@ -23,10 +23,10 @@ __all__ = [
     "RuntimeArtifactBuildResult",
     "RuntimeArtifactMetadata",
     "StepType",
-    "TracingMetadata",
     "TraceIngestEvent",
     "TraceSpan",
     "TraceTelemetryMetadata",
+    "TracingMetadata",
     "build_source_artifact_ref",
     "build_source_runtime_artifact",
 ]

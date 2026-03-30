@@ -67,11 +67,10 @@ def test_non_run_feature_modules_do_not_import_run_application_ports():
     assert violations == []
 
 
-def test_non_execution_modules_do_not_import_execution_plane_package():
+def test_app_does_not_import_legacy_execution_plane_package():
     violations = _collect_forbidden_imports(
-        base_dir=Path("app/modules"),
+        base_dir=Path("app"),
         forbidden_prefixes=("app.execution_plane",),
-        allowed_paths=(Path("app/modules/execution"),),
     )
     assert violations == []
 

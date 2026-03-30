@@ -16,9 +16,9 @@ from app.modules.shared.domain.models import (
     EvaluatorConfig,
     ExecutorConfig,
     ModelConfig,
-    TracingMetadata,
     PromptConfig,
     ToolsetConfig,
+    TracingMetadata,
 )
 from pydantic import BaseModel, Field
 

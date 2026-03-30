@@ -189,9 +189,7 @@ class PhoenixTraceBackend:
         output_payload = _safe_json_loads(attributes.get("atlas.output_json"))
         received_at = attributes.get("atlas.received_at") or record.get("end_time")
         parsed_received_at = (
-            datetime.fromisoformat(str(received_at))
-            if received_at
-            else datetime.now(UTC)
+            datetime.fromisoformat(str(received_at)) if received_at else datetime.now(UTC)
         )
 
         return TraceSpan(

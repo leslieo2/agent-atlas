@@ -6,11 +6,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
 from agent_atlas_contracts.runtime import (
     AgentBuildContext as ContractAgentBuildContext,
+)
+from agent_atlas_contracts.runtime import (
     AgentManifest as ContractAgentManifest,
+)
+from agent_atlas_contracts.runtime import (
     PublishedAgent as ContractPublishedAgent,
 )
 from pydantic import BaseModel, Field
@@ -133,7 +136,9 @@ class PublishedAgent(ContractPublishedAgent):
                 entrypoint=self.entrypoint,
             )
 
-        runtime_artifact = self.runtime_artifact.model_copy(deep=True)
+        runtime_artifact = RuntimeArtifactMetadata.model_validate(
+            self.runtime_artifact.model_dump(mode="json")
+        )
         if runtime_artifact.source_fingerprint is None:
             runtime_artifact.source_fingerprint = self.effective_source_fingerprint()
         if runtime_artifact.framework is None:

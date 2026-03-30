@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 from app.core.errors import AgentFrameworkMismatchError
+from app.execution.domain.models import RunHandle
 from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
-from app.modules.execution.domain.models import RunHandle
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord, RunSpec
 from app.modules.shared.domain.enums import AdapterKind

@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from agent_atlas_contracts.execution import ExecutionArtifact
 from app.core.errors import ProviderAuthError
-from app.modules.execution.application import (
+from app.execution.application import (
     ExecutionRecorder,
     RunExecutionContext,
     RunExecutionProjector,
@@ -323,7 +323,7 @@ def test_run_execution_service_records_structured_failure_details():
         def execute(self, *_args, **_kwargs):
             raise ProviderAuthError("provider authentication failed")
 
-    from app.modules.execution.application import RunExecutionService
+    from app.execution.application import RunExecutionService
 
     service = RunExecutionService(
         run_repository=run_repository,
@@ -461,7 +461,7 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
                 ),
             )
 
-    from app.modules.execution.application import RunExecutionService
+    from app.execution.application import RunExecutionService
 
     service = RunExecutionService(
         run_repository=run_repository,

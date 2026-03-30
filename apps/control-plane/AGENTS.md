@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This backend is a FastAPI service rooted in `app/`. Feature code lives under `app/modules/<feature>/` and is organized as `domain`, `application`, and module-local `adapters`. Shared wiring and cross-cutting concerns live in `app/api`, `app/bootstrap`, `app/core`, `app/db`, and `app/infrastructure`. Cross-plane runner/event contracts live in `../../packages/contracts/python`. Tests live in `tests/` and follow backend features rather than frontend-style colocated specs. Keep generated artifacts such as `.venv/`, `.uv_cache/`, and `coverage.xml` out of commits.
+This backend is a FastAPI service rooted in `app/`. Feature code lives under `app/modules/<feature>/` and is organized as `domain`, `application`, and module-local `adapters`. Execution orchestration lives in the dedicated subsystem under `app/execution/`. Shared wiring and cross-cutting concerns live in `app/api`, `app/bootstrap`, `app/core`, `app/db`, and `app/infrastructure`. Cross-plane runner/event contracts live in `../../packages/contracts/python`. Tests live in `tests/` and follow backend features rather than frontend-style colocated specs. Keep generated artifacts such as `.venv/`, `.uv_cache/`, and `coverage.xml` out of commits.
 
 ## Build, Test, and Development Commands
 Run commands from `apps/control-plane/`.
