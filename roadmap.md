@@ -18,7 +18,7 @@ top-level description for the entire platform.
 The target product loop is:
 
 ```text
-Published Agent -> Dataset -> Eval Job -> Curation -> Export
+Published Agent -> Dataset -> Experiment -> Curation -> Export
 ```
 
 Atlas should get stronger at producing governed RL-ready data and weaker at features that Phoenix
@@ -31,7 +31,7 @@ already owns well.
 - repository-local agent discovery and publish gate
 - published snapshot, artifact, image, and runner provenance
 - dataset and sample identity
-- eval job orchestration
+- experiment orchestration
 - sample-level outcomes and compare views that support curation
 - RL-ready offline export
 
@@ -61,7 +61,7 @@ What exists today:
 - repository-local discovery and publish / unpublish workflow
 - worker-backed run execution and run lifecycle tracking
 - legacy run, trajectory, and playground surfaces from the old workbench story
-- dataset CRUD and dataset-driven eval jobs
+- dataset CRUD and experiment-driven batch runs
 - artifact export for downstream analysis
 - Phoenix-backed raw trace integration
 
@@ -86,7 +86,7 @@ Scope:
 - remove `Runs` as a primary navigation destination
 - remove Atlas-native raw trace browsing as a primary experience
 - keep only Phoenix deep links and lightweight observability summaries where needed
-- converge the primary navigation on `Agents`, `Datasets`, `Evals`, and `Exports`
+- converge the primary navigation on `Agents`, `Datasets`, `Experiments`, and `Exports`
 
 Acceptance direction:
 - Atlas no longer presents itself as a general agent workbench
@@ -109,15 +109,15 @@ Acceptance direction:
 - operators can decide which dataset slices and sample outcomes should move toward export without
   relying on Phoenix as the source of truth
 
-### 3. Eval jobs as the production engine
+### 3. Experiments as the production engine
 
 Priority: High
 
 Goal:
-- make eval jobs the primary way Atlas produces RL candidate data
+- make experiment batches the primary way Atlas produces RL candidate data
 
 Scope:
-- treat runs as supporting internal records under eval workflows
+- treat runs as supporting internal records under experiment workflows
 - support comparing published agent snapshots against the same dataset or slice
 - expose sample-level outcomes, failure buckets, and regression slices
 - keep orchestration focused on batch production, not manual experimentation
@@ -134,7 +134,7 @@ Goal:
 - make exports the main product output
 
 Scope:
-- extend export rows with agent snapshot, eval job, dataset sample, artifact, image, runner, and
+- extend export rows with agent snapshot, experiment, dataset sample, artifact, image, runner, and
   failure provenance
 - support export filtering by success, failure type, slice, and compare outcome
 - keep the export endpoint stable while expanding row richness

@@ -14,7 +14,6 @@ from uuid import UUID
 from app.core.config import settings
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.datasets.domain.models import Dataset, DatasetVersion
-from app.modules.evals.domain.models import EvalJobRecord, EvalSampleResult
 from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
 from app.modules.exports.domain.models import ArtifactMetadata
 from app.modules.policies.domain.models import ApprovalPolicyRecord
@@ -447,8 +446,6 @@ class StatePersistence:
     def _init_data_schema(self) -> None:
         trajectory = self._data.table("trajectory")
         trace_spans = self._data.table("trace_spans")
-        eval_jobs = self._data.table("eval_jobs")
-        eval_sample_results = self._data.table("eval_sample_results")
         run_evaluations = self._data.table("run_evaluations")
         artifacts = self._data.table("artifacts")
 
@@ -469,22 +466,6 @@ class StatePersistence:
                 position INTEGER NOT NULL,
                 payload TEXT NOT NULL,
                 PRIMARY KEY (run_id, span_id)
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {eval_jobs} (
-                eval_job_id TEXT PRIMARY KEY,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {eval_sample_results} (
-                eval_job_id TEXT NOT NULL,
-                dataset_sample_id TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                PRIMARY KEY (eval_job_id, dataset_sample_id)
             )
             """,
             f"""
@@ -825,98 +806,6 @@ class StatePersistence:
             return None
         return DatasetVersion.model_validate(json.loads(rows[0]))
 
-    def save_eval_job(self, job: EvalJobRecord) -> None:
-        self._upsert_payload(
-            self._data,
-            table="eval_jobs",
-            key_col="eval_job_id",
-            key_value=str(job.eval_job_id),
-            payload=serialize_model(job),
-            updated_at=datetime.now(UTC).isoformat(),
-        )
-
-    def get_eval_job(self, eval_job_id: UUID | str) -> EvalJobRecord | None:
-        payload = self._fetch_payload(
-            self._data,
-            table="eval_jobs",
-            key_col="eval_job_id",
-            key_value=str(to_uuid(eval_job_id)),
-        )
-        if payload is None:
-            return None
-        return EvalJobRecord.model_validate(json.loads(payload))
-
-    def list_eval_jobs(self) -> list[EvalJobRecord]:
-        payloads = self._fetch_payloads(
-            self._data,
-            f"SELECT payload FROM {self._data.table('eval_jobs')} ORDER BY updated_at DESC",  # nosec B608
-        )
-        return [EvalJobRecord.model_validate(json.loads(payload)) for payload in payloads]
-
-    def save_eval_sample_result(self, result: EvalSampleResult) -> None:
-        placeholder = self._data.placeholder
-        self._data.execute(  # nosec B608
-            f"""  # nosec B608
-            INSERT INTO {self._data.table('eval_sample_results')} (
-                eval_job_id, dataset_sample_id, payload, updated_at
-            )
-            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
-            ON CONFLICT(eval_job_id, dataset_sample_id) DO UPDATE SET
-                payload = excluded.payload,
-                updated_at = excluded.updated_at
-            """,
-            (
-                str(result.eval_job_id),
-                result.dataset_sample_id,
-                serialize_model(result),
-                datetime.now(UTC).isoformat(),
-            ),
-            commit=True,
-        )
-
-    def list_eval_sample_results(self, eval_job_id: UUID | str) -> list[EvalSampleResult]:
-        payloads = self._fetch_payloads(  # nosec B608
-            self._data,
-            f"""  # nosec B608
-            SELECT payload
-            FROM {self._data.table('eval_sample_results')}
-            WHERE eval_job_id = {self._data.placeholder}
-            ORDER BY dataset_sample_id ASC
-            """,
-            (str(to_uuid(eval_job_id)),),
-        )
-        return [EvalSampleResult.model_validate(json.loads(payload)) for payload in payloads]
-
-    def get_eval_sample_result(
-        self,
-        eval_job_id: UUID | str,
-        dataset_sample_id: str,
-    ) -> EvalSampleResult | None:
-        payloads = self._fetch_payloads(  # nosec B608
-            self._data,
-            f"""  # nosec B608
-            SELECT payload
-            FROM {self._data.table('eval_sample_results')}
-            WHERE eval_job_id = {self._data.placeholder}
-              AND dataset_sample_id = {self._data.placeholder}
-            LIMIT 1
-            """,
-            (str(to_uuid(eval_job_id)), dataset_sample_id),
-        )
-        if not payloads:
-            return None
-        return EvalSampleResult.model_validate(json.loads(payloads[0]))
-
-    def delete_eval_sample_results(self, eval_job_id: UUID | str) -> None:
-        self._data.execute(  # nosec B608
-            f"""  # nosec B608
-            DELETE FROM {self._data.table('eval_sample_results')}
-            WHERE eval_job_id = {self._data.placeholder}
-            """,
-            (str(to_uuid(eval_job_id)),),
-            commit=True,
-        )
-
     def save_experiment(self, experiment: ExperimentRecord) -> None:
         self._upsert_payload(
             self._control,
@@ -1214,8 +1103,6 @@ class StatePersistence:
             [
                 "trace_spans",
                 "trajectory",
-                "eval_sample_results",
-                "eval_jobs",
                 "run_evaluations",
                 "artifacts",
             ]

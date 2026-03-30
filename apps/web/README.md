@@ -71,7 +71,7 @@ starting the dev server.
 
 - Agents: discover, validate, publish, and inspect repository-local agent plugins
 - Datasets: upload and manage sample sets
-- Evals: create eval jobs and inspect result summaries and failures
+- Experiments: create batch runs and inspect result summaries and failures
 - Export actions: download offline artifacts from run and eval workflows
 
 Legacy surfaces still present in the codebase but being downscoped:
@@ -84,7 +84,7 @@ Legacy surfaces still present in the codebase but being downscoped:
 
 The frontend should evolve in a way that reinforces Atlas as the control plane:
 
-- center the IA on `Agents`, `Datasets`, `Evals`, and `Exports`
+- center the IA on `Agents`, `Datasets`, `Experiments`, and `Exports`
 - show framework, publication, build, runner, and provenance state inside Atlas
 - keep raw-trace and experiment-heavy flows Phoenix-backed through Atlas-owned APIs or deep links
 - avoid rebuilding a complete observability product inside the frontend

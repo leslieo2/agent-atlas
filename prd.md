@@ -37,7 +37,7 @@ Training teams need a reliable way to answer these questions:
 
 - which published agent version produced this data
 - which dataset and sample produced this outcome
-- which eval job generated it
+- which experiment generated it
 - which artifact, image, and runner were involved
 - which outcomes are useful for downstream RL or fine-tuning workflows
 
@@ -75,7 +75,7 @@ Required outcomes:
 - linkage from sample to eval result and export row
 - export eligibility and curation state
 
-### 3. Orchestrate batch production through eval jobs
+### 3. Orchestrate batch production through experiments
 
 Atlas should make it easy to run one or more published agent snapshots across one or more dataset
 slices and collect sample-level outcomes.
@@ -121,8 +121,8 @@ not recreate those products.
 - `PublishedAgent`
 - `Dataset`
 - `DatasetSample`
-- `EvalJob`
-- `EvalSampleResult`
+- `Experiment`
+- `RunEvaluation`
 - `ExportArtifact`
 
 ### Supporting internal objects
@@ -131,7 +131,7 @@ not recreate those products.
 - `TracePointer`
 - `ObservabilityMetadata`
 
-Runs still matter for provenance and execution state, but they are supporting records beneath evals
+Runs still matter for provenance and execution state, but they are supporting records beneath experiments
 and exports, not the center of the product.
 
 ## Product Boundary With Phoenix
@@ -140,7 +140,7 @@ and exports, not the center of the product.
 
 - published agent identity and governance
 - dataset identity and curation state
-- eval job orchestration
+- experiment orchestration
 - run provenance
 - export eligibility
 - RL-ready offline export
@@ -152,11 +152,11 @@ and exports, not the center of the product.
 - prompts
 - evaluators
 - playground
-- experiments and analysis
+- trace-centric experiment analysis
 
 ### Relationship model
 
-- Atlas is the source of truth for datasets, samples, eval jobs, and exports.
+- Atlas is the source of truth for datasets, samples, experiments, and exports.
 - Phoenix is the analysis plane.
 - Atlas stores Phoenix pointers and deep links where useful.
 - Atlas should not maintain a second product-level trace browser or experiment workbench.
@@ -167,12 +167,12 @@ The target first-class product surfaces are:
 
 - `Agents`
 - `Datasets`
-- `Evals`
+- `Experiments`
 - `Exports`
 
 Supporting drill-downs:
 
-- run detail as a child view within eval workflows
+- run detail as a child view within experiment workflows
 - Phoenix deep links for trace inspection
 
 Surfaces to remove or downscope:
@@ -186,7 +186,7 @@ Surfaces to remove or downscope:
 ```text
 Published Agent
   -> Dataset / Slice
-  -> Eval Job
+  -> Experiment
   -> Sample-level Results
   -> Curation / Compare
   -> RL-ready Export
@@ -198,7 +198,7 @@ Phoenix supports debugging and inspection around that loop, but Atlas owns the l
 
 The product is succeeding when:
 
-- every exported row can be traced back to a published agent snapshot, dataset sample, and eval job
+- every exported row can be traced back to a published agent snapshot, dataset sample, and experiment
 - training teams can filter or select export slices without leaving Atlas
 - operators use Phoenix for debugging, not Atlas-native trace tooling
 - Atlas remains narrow and does not grow a second observability or experiment product

@@ -47,7 +47,7 @@ Agent Atlas is not trying to become another hosted observability or experimentat
 
 The product boundary is:
 
-- Agent Atlas owns published agent governance, datasets, eval jobs, provenance, curation, and
+- Agent Atlas owns published agent governance, datasets, experiments, provenance, curation, and
   export semantics
 - Phoenix owns raw traces, playground, prompts, evaluators, and experiment analysis
 - RL integration starts with offline export first, not direct training orchestration
@@ -56,7 +56,7 @@ The target first-class Atlas surfaces are:
 
 - `Agents`
 - `Datasets`
-- `Evals`
+- `Experiments`
 - `Exports`
 
 This means the long-term shape is:
@@ -75,7 +75,7 @@ application.
 
 The platform planes are:
 
-- control plane: governs datasets, experiments or eval jobs, runs, provenance, curation, and
+- control plane: governs datasets, experiments, runs, provenance, curation, and
   export contracts
 - execution plane: runs agents in isolated carriers such as local workers, containers, or
   Kubernetes jobs

@@ -2,11 +2,11 @@
 
 The backend is the control plane for Agent Atlas. It provides the HTTP API, persists Atlas-owned
 state, submits run intent through a neutral execution-control contract, manages repository-local
-agent publication, coordinates datasets and eval jobs, and produces export artifacts.
+agent publication, coordinates datasets and experiment batches, and produces export artifacts.
 
 Strategically, the backend is moving toward a split where:
 
-- Atlas remains the source of truth for published agents, datasets, eval jobs, provenance, and
+- Atlas remains the source of truth for published agents, datasets, experiments, provenance, and
   exports
 - Phoenix is an optional trace inspection backend for experiment-heavy debugging workflows
 - immutable artifacts or images and runner orchestration become the execution handoff
@@ -24,7 +24,7 @@ Today:
 - background job processing through the worker
 - trajectory and trace ingestion and normalization behind backend-owned ports
 - dataset CRUD
-- eval job fan-out and aggregation
+- experiment fan-out and aggregation
 - artifact export metadata and download flow
 - local development defaults backed by SQLite
 
@@ -104,7 +104,7 @@ Planned runtime direction:
 - runner orchestration is added behind infrastructure ports
 - runtime and control-plane trace export flows use OTLP without making Phoenix the runtime
   contract
-- eval jobs, datasets, and exports become the primary product loop while runs remain supporting
+- experiments, datasets, and exports become the primary product loop while runs remain supporting
   execution records
 
 ## Dependency Management
@@ -215,11 +215,14 @@ Current backend endpoints include:
 - Datasets:
   - `GET /api/v1/datasets`
   - `POST /api/v1/datasets`
-- Eval jobs:
-  - `GET /api/v1/eval-jobs`
-  - `POST /api/v1/eval-jobs`
-  - `GET /api/v1/eval-jobs/{eval_job_id}`
-  - `GET /api/v1/eval-jobs/{eval_job_id}/samples`
+- Experiments:
+  - `GET /api/v1/experiments`
+  - `POST /api/v1/experiments`
+  - `GET /api/v1/experiments/{experiment_id}`
+  - `POST /api/v1/experiments/{experiment_id}/start`
+  - `POST /api/v1/experiments/{experiment_id}/cancel`
+  - `GET /api/v1/experiments/{experiment_id}/runs`
+  - `PATCH /api/v1/experiments/{experiment_id}/runs/{run_id}`
 - Exports:
   - `GET /api/v1/exports`
   - `POST /api/v1/exports`

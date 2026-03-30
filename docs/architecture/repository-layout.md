@@ -96,7 +96,6 @@ apps/control-plane/
 │  │  ├─ exports/
 │  │  ├─ policies/
 │  │  ├─ runs/
-│  │  ├─ evals/                    # transitional control-plane eval workflow
 │  │  ├─ execution/                # execution-plane bridge during migration
 │  │  ├─ health/
 │  │  └─ shared/

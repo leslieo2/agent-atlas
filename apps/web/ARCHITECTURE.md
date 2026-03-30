@@ -20,7 +20,7 @@ External backend rule:
 
 - observability or evaluation vendors such as Phoenix stay behind backend-owned APIs, summaries, and deep links
 - frontend entities should not call vendor APIs directly
-- first-class Atlas workspaces should converge on `Agents`, `Datasets`, `Evals`, and `Exports`
+- first-class Atlas workspaces should converge on `Agents`, `Datasets`, `Experiments`, and `Exports`
 - runs, tracing, and manual execution are supporting drill-downs, not the target product center
 
 ## Current Conventions
