@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -20,7 +20,7 @@ class ProducerInfo(BaseModel):
 
 
 class EventEnvelope(BaseModel):
-    schema_version: str = "runner-event.v1"
+    schema_version: Literal["runner-event.v1"] = "runner-event.v1"
     run_id: UUID
     experiment_id: UUID | None = None
     attempt: int = 1
@@ -45,7 +45,9 @@ class ArtifactEntry(BaseModel):
 
 
 class ArtifactManifest(BaseModel):
-    schema_version: str = "runner-artifact-manifest.v1"
+    schema_version: Literal["runner-artifact-manifest.v1"] = (
+        "runner-artifact-manifest.v1"
+    )
     run_id: UUID
     experiment_id: UUID | None = None
     attempt: int = 1
@@ -61,7 +63,7 @@ class TerminalMetrics(BaseModel):
 
 
 class TerminalResult(BaseModel):
-    schema_version: str = "runner-terminal-result.v1"
+    schema_version: Literal["runner-terminal-result.v1"] = "runner-terminal-result.v1"
     run_id: UUID
     experiment_id: UUID | None = None
     attempt: int = 1
@@ -121,8 +123,8 @@ class ObservabilityConfig(BaseModel):
     export: ObservabilityExportConfig | None = None
 
 
-class RunnerRunSpec(BaseModel):
-    schema_version: str = "runner-run-spec.v1"
+class RunSpec(BaseModel):
+    schema_version: Literal["run-spec.v1"] = "run-spec.v1"
     run_id: UUID
     experiment_id: UUID | None = None
     dataset_version_id: UUID | None = None
@@ -156,13 +158,71 @@ class RunnerRunSpec(BaseModel):
     bootstrap: RunnerBootstrapPaths = Field(default_factory=RunnerBootstrapPaths)
 
 
+class EvalResult(BaseModel):
+    schema_version: Literal["eval-result.v1"] = "eval-result.v1"
+    run_id: UUID
+    experiment_id: UUID | None = None
+    dataset_version_id: UUID | None = None
+    dataset_sample_id: str | None = None
+    attempt: int = 1
+    attempt_id: UUID | None = None
+    status: str = "completed"
+    judgement: str | None = None
+    score: float | None = None
+    evaluator_name: str | None = None
+    evaluator_version: str | None = None
+    trace_uri: str | None = None
+    failure_reason: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+    ts: datetime = Field(default_factory=utc_now)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    labels: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExportShard(BaseModel):
+    uri: str
+    row_count: int = 0
+    size_bytes: int | None = None
+    sha256: str | None = None
+    partition: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExportManifest(BaseModel):
+    schema_version: Literal["export-manifest.v1"] = "export-manifest.v1"
+    export_id: UUID
+    created_at: datetime = Field(default_factory=utc_now)
+    format: str
+    row_schema_version: str | None = None
+    dataset_version_id: UUID | None = None
+    source_experiment_id: UUID | None = None
+    baseline_experiment_id: UUID | None = None
+    candidate_experiment_id: UUID | None = None
+    row_count: int = 0
+    shards: list[ExportShard] = Field(default_factory=list)
+    filters_summary: dict[str, Any] = Field(default_factory=dict)
+    lineage: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class RunnerRunSpec(RunSpec):
+    # Compatibility alias while the repo migrates to the neutral RunSpec name.
+    schema_version: Literal["runner-run-spec.v1", "run-spec.v1"] = "runner-run-spec.v1"
+
+
 __all__ = [
     "ObservabilityConfig",
     "ObservabilityExportConfig",
     "ArtifactEntry",
     "ArtifactManifest",
+    "EvalResult",
     "EventEnvelope",
+    "ExportManifest",
+    "ExportShard",
     "ProducerInfo",
+    "RunSpec",
     "RunnerBootstrapPaths",
     "RunnerRunSpec",
     "TerminalMetrics",

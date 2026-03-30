@@ -1,0 +1,180 @@
+{
+  "$defs": {
+    "ExportShard": {
+      "properties": {
+        "metadata": {
+          "title": "Metadata",
+          "type": "object"
+        },
+        "partition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition"
+        },
+        "row_count": {
+          "default": 0,
+          "title": "Row Count",
+          "type": "integer"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "size_bytes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Bytes"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uri"
+      ],
+      "title": "ExportShard",
+      "type": "object"
+    }
+  },
+  "$id": "https://agent-atlas.dev/schemas/jsonschema/export-manifest.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "baseline_experiment_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Baseline Experiment Id"
+    },
+    "candidate_experiment_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Candidate Experiment Id"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "dataset_version_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dataset Version Id"
+    },
+    "export_id": {
+      "format": "uuid",
+      "title": "Export Id",
+      "type": "string"
+    },
+    "filters_summary": {
+      "title": "Filters Summary",
+      "type": "object"
+    },
+    "format": {
+      "title": "Format",
+      "type": "string"
+    },
+    "lineage": {
+      "title": "Lineage",
+      "type": "object"
+    },
+    "metadata": {
+      "title": "Metadata",
+      "type": "object"
+    },
+    "row_count": {
+      "default": 0,
+      "title": "Row Count",
+      "type": "integer"
+    },
+    "row_schema_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Row Schema Version"
+    },
+    "schema_version": {
+      "const": "export-manifest.v1",
+      "default": "export-manifest.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "shards": {
+      "items": {
+        "$ref": "#/$defs/ExportShard"
+      },
+      "title": "Shards",
+      "type": "array"
+    },
+    "source_experiment_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Experiment Id"
+    }
+  },
+  "required": [
+    "export_id",
+    "format"
+  ],
+  "title": "ExportManifest",
+  "type": "object"
+}
