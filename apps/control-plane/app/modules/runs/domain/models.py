@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from agent_atlas_contracts.runtime import RuntimeExecutionResult as SharedRuntimeExecutionResult
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
@@ -81,14 +82,7 @@ class ExecutionMetrics(BaseModel):
     tool_calls: int = 0
 
 
-class RuntimeExecutionResult(BaseModel):
-    output: str
-    latency_ms: int
-    token_usage: int
-    provider: str
-    execution_backend: str | None = None
-    container_image: str | None = None
-    resolved_model: str | None = None
+RuntimeExecutionResult = SharedRuntimeExecutionResult
 
 
 class ResolvedRunArtifact(BaseModel):

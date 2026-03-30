@@ -3,28 +3,36 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from typing import Any
+from typing import Any, Protocol
 
 from agent_atlas_contracts.execution import RunnerRunSpec
-from pydantic import SecretStr
-
-from agent_atlas_runner_openai_agents.trace_mapper import build_trace_events_from_agent_run
-from app.core.errors import AgentLoadFailedError
-from app.infrastructure.adapters.openai_agents.catalog import PublishedOpenAIAgentLoader
-from app.infrastructure.adapters.runtime import RuntimeAdapter
-from app.infrastructure.adapters.runtime_utils import usage_total_tokens
-from app.modules.agents.domain.models import AgentBuildContext, PublishedAgent
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.application.runtime_translation import (
+from agent_atlas_contracts.runtime import (
+    AgentBuildContext,
+    AgentLoadFailedError,
+    PublishedAgent,
+    PublishedRunExecutionResult,
+    RuntimeExecutionResult,
     empty_artifact_manifest,
     producer_for_runtime,
     terminal_result_from_runtime_result,
     trace_event_to_event_envelope,
+    usage_total_tokens,
 )
-from app.modules.runs.domain.models import RuntimeExecutionResult
+from pydantic import SecretStr
+
+from agent_atlas_runner_openai_agents.trace_mapper import build_trace_events_from_agent_run
 
 
-class OpenAIAgentsSdkAdapter(RuntimeAdapter):
+class PublishedOpenAIAgentLoader(Protocol):
+    def build_agent(
+        self,
+        *,
+        published_agent: PublishedAgent,
+        context: AgentBuildContext,
+    ) -> Any: ...
+
+
+class OpenAIAgentsSdkAdapter:
     _instructions = "You are a concise assistant inside Agent Atlas. Return the best direct answer."
 
     async def _run_async(

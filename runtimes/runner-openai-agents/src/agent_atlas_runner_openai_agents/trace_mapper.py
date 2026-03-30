@@ -5,9 +5,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from app.infrastructure.adapters.runtime_utils import extract_error_message, usage_total_tokens
-from app.modules.shared.domain.enums import StepType
-from app.modules.shared.domain.traces import TraceIngestEvent
+from agent_atlas_contracts.runtime import (
+    StepType,
+    TraceIngestEvent,
+    extract_error_message,
+    usage_total_tokens,
+)
 
 
 def _dump_json(value: object) -> str:

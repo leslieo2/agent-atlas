@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.modules.shared.domain.enums import StepType
-from app.modules.shared.domain.traces import TraceIngestEvent
+from agent_atlas_contracts.runtime import StepType, TraceIngestEvent
 
 
 def _stringify_output(value: Any) -> str:
