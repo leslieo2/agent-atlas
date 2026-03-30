@@ -1,19 +1,19 @@
 from __future__ import annotations
 
+from typing import cast
 from uuid import UUID
 
+from app.modules.runs.domain.models import TrajectoryStep
 from app.modules.shared.application.contracts import (
     RunObservationSinkPort,
-    RunRepository,
+    RunTracingStatePort,
     TraceExportPort,
     TraceProjectorPort,
     TraceRepository,
     TrajectoryRepository,
     TrajectoryStepProjectorPort,
 )
-from app.modules.runs.domain.models import TrajectoryStep
-from app.modules.runs.domain.policies import RunAggregate
-from app.modules.shared.domain.models import TracePointer, TracingMetadata
+from app.modules.shared.domain.models import TracingMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
@@ -52,7 +52,7 @@ class TrajectoryRecorder:
         event: TraceIngestEvent,
         span: TraceSpan | None = None,
     ) -> TrajectoryStep:
-        step = self.step_projector.project(event=event, span=span)
+        step = cast(TrajectoryStep, self.step_projector.project(event=event, span=span))
         self.trajectory_repository.append(step)
         return step
 
@@ -62,34 +62,20 @@ class TrajectoryRecorder:
         spans: list[TraceSpan],
     ) -> list[TrajectoryStep]:
         return [
-            self.record(event=event, span=span)
-            for event, span in zip(events, spans, strict=True)
+            self.record(event=event, span=span) for event, span in zip(events, spans, strict=True)
         ]
 
 
 class RunTraceMetadataRecorder:
-    def __init__(self, run_repository: RunRepository) -> None:
-        self.run_repository = run_repository
+    def __init__(self, run_tracing_state: RunTracingStatePort) -> None:
+        self.run_tracing_state = run_tracing_state
 
     def record(
         self,
         run_id: str | UUID,
         tracing: TracingMetadata,
     ) -> None:
-        run = self.run_repository.get(run_id)
-        if not run:
-            return
-        updated = RunAggregate.load(run)
-        updated.run.tracing = tracing
-        updated.run.trace_pointer = TracePointer(
-            backend=tracing.backend,
-            trace_id=tracing.trace_id,
-            trace_url=tracing.trace_url,
-            project_url=tracing.project_url,
-        )
-        if updated.run.provenance is not None:
-            updated.run.provenance.trace_backend = tracing.backend
-        self.run_repository.save(updated.run)
+        self.run_tracing_state.record_tracing(run_id, tracing)
 
 
 class TraceExportCoordinator:

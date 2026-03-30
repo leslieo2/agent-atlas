@@ -25,6 +25,7 @@ from app.infrastructure.repositories import (
     StateTrajectoryRepository,
 )
 from app.modules.runs.adapters.outbound.execution.state_sink import RunExecutionStateSink
+from app.modules.runs.adapters.outbound.telemetry import RunTracingStateRecorder
 from app.modules.runs.application.results import (
     PublishedRunExecutionResult,
     RunnerExecutionResult,
@@ -57,7 +58,9 @@ def _build_telemetry_ingestor(
                 base_url="http://phoenix.test:6006",
             ),
             trace_metadata_recorder=RunTraceMetadataRecorder(
-                run_repository=run_repository,
+                run_tracing_state=RunTracingStateRecorder(
+                    run_repository=run_repository,
+                ),
             ),
         ),
     )

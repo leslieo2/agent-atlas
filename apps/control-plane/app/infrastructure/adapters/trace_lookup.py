@@ -1,10 +1,23 @@
 from __future__ import annotations
 
-from app.modules.shared.application.contracts import RunRepository, RunTraceLookup
+from datetime import datetime
+from typing import Protocol
+from uuid import UUID
+
+from app.modules.shared.application.contracts import RunTraceLookup
+
+
+class _RunRecordView(Protocol):
+    run_id: UUID
+    created_at: datetime
+
+
+class _RunReader(Protocol):
+    def get(self, run_id: str | UUID) -> _RunRecordView | None: ...
 
 
 class StateRunTraceLookup:
-    def __init__(self, run_repository: RunRepository) -> None:
+    def __init__(self, run_repository: _RunReader) -> None:
         self.run_repository = run_repository
 
     def get(self, run_id):

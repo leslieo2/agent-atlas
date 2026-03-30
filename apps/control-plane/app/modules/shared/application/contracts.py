@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
-from app.modules.runs.domain.models import RunRecord, TrajectoryStep
 from app.modules.shared.domain.models import TracingMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
@@ -24,24 +23,12 @@ class TraceExportPort(Protocol):
     ) -> TracingMetadata | None: ...
 
 
-class RunRepository(Protocol):
-    def get(self, run_id: str | UUID) -> RunRecord | None: ...
-
-    def list(self) -> list[RunRecord]: ...
-
-    def save(self, run: RunRecord) -> None: ...
+class TraceRepository(Protocol):
+    def append(self, span: TraceSpan) -> None: ...
 
 
 class TrajectoryRepository(Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStep]: ...
-
-    def append(self, step: TrajectoryStep) -> None: ...
-
-
-class TraceRepository(Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]: ...
-
-    def append(self, span: TraceSpan) -> None: ...
+    def append(self, step: Any) -> None: ...
 
 
 class TrajectoryStepProjectorPort(Protocol):
@@ -49,7 +36,7 @@ class TrajectoryStepProjectorPort(Protocol):
         self,
         event: TraceIngestEvent,
         span: TraceSpan | None = None,
-    ) -> TrajectoryStep: ...
+    ) -> Any: ...
 
 
 class TraceProjectorPort(Protocol):
@@ -72,6 +59,14 @@ class RunObservationSinkPort(Protocol):
     def ingest_many(self, events: list[TraceIngestEvent]) -> list[TraceSpan]: ...
 
 
+class RunTracingStatePort(Protocol):
+    def record_tracing(
+        self,
+        run_id: str | UUID,
+        tracing: TracingMetadata,
+    ) -> None: ...
+
+
 @dataclass(frozen=True)
 class RunTraceLookup:
     run_id: UUID
@@ -84,9 +79,9 @@ class RunTraceLookupPort(Protocol):
 
 __all__ = [
     "RunObservationSinkPort",
-    "RunRepository",
     "RunTraceLookup",
     "RunTraceLookupPort",
+    "RunTracingStatePort",
     "TraceExportPort",
     "TraceIngestionPort",
     "TraceProjectorPort",

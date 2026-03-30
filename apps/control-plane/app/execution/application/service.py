@@ -395,8 +395,8 @@ __all__ = [
     "ProjectedExecutionRecord",
     "RunExecutionContext",
     "RunExecutionProjector",
-    "RunFailureDetails",
     "RunExecutionService",
+    "RunFailureDetails",
     "failure_from_trace_events",
     "normalize_run_failure",
 ]
