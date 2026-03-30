@@ -35,6 +35,7 @@ from app.infrastructure.adapters.framework_registry import (
 )
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.task_queue import StateTaskQueue
+from app.infrastructure.adapters.trace_lookup import StateRunTraceLookup
 from app.infrastructure.repositories import (
     StateApprovalPolicyRepository,
     StatePublishedAgentRepository,
@@ -157,7 +158,7 @@ def build_infrastructure() -> InfrastructureBundle:
         if not settings.phoenix_base_url:
             raise RuntimeError("Phoenix trace queries require AGENT_ATLAS_PHOENIX_BASE_URL.")
         trace_backend = PhoenixTraceBackend(
-            run_repository=run_repository,
+            run_lookup=StateRunTraceLookup(run_repository),
             base_url=settings.phoenix_base_url,
             project_name=settings.tracing_project_name,
             api_key=phoenix_api_key,

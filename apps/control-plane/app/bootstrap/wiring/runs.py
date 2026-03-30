@@ -2,18 +2,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.agent_tracing.application import RunTelemetryIngestionService, TrajectoryRecorder
+from app.agent_tracing.application import (
+    RunObservationService,
+    RunTraceMetadataRecorder,
+    TraceExportCoordinator,
+    TraceSpanRecorder,
+    TrajectoryRecorder,
+)
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.execution.application import RunExecutionService
 from app.modules.runs.adapters.outbound.execution.state_sink import RunExecutionStateSink
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
+from app.modules.shared.application.contracts import RunObservationSinkPort
 
 
 @dataclass(frozen=True)
 class RunModuleBundle:
     run_submission: RunSubmissionService
-    telemetry_ingestor: RunTelemetryIngestionService
+    telemetry_ingestor: RunObservationSinkPort
     run_queries: RunQueries
     run_commands: RunCommands
     run_execution_service: RunExecutionService
@@ -27,14 +34,20 @@ def build_run_module(
         execution_control=infra.execution_control,
         default_trace_backend=infra.trace_backend.backend_name(),
     )
-    telemetry_ingestor = RunTelemetryIngestionService(
-        run_repository=infra.run_repository,
-        trace_repository=infra.trace_repository,
-        trace_projector=infra.trace_projector,
-        trace_exporter=infra.trace_exporter,
+    telemetry_ingestor = RunObservationService(
+        trace_span_recorder=TraceSpanRecorder(
+            trace_repository=infra.trace_repository,
+            trace_projector=infra.trace_projector,
+        ),
         trajectory_recorder=TrajectoryRecorder(
             trajectory_repository=infra.trajectory_repository,
             step_projector=infra.trajectory_step_projector,
+        ),
+        trace_export_coordinator=TraceExportCoordinator(
+            trace_exporter=infra.trace_exporter,
+            trace_metadata_recorder=RunTraceMetadataRecorder(
+                run_repository=infra.run_repository,
+            ),
         ),
     )
     run_queries = RunQueries(
@@ -53,7 +66,7 @@ def build_run_module(
         runner=infra.runner,
         sink=RunExecutionStateSink(
             run_repository=infra.run_repository,
-            telemetry_ingestor=telemetry_ingestor,
+            observation_sink=telemetry_ingestor,
         ),
         default_runner_backend=infra.default_runner_backend,
     )

@@ -5,7 +5,11 @@ from uuid import uuid4
 from agent_atlas_contracts.execution import ExecutionArtifact
 from app.agent_tracing.adapters.trace_projector import TraceIngestProjector
 from app.agent_tracing.application import (
+    RunObservationService,
     RunTelemetryIngestionService,
+    RunTraceMetadataRecorder,
+    TraceExportCoordinator,
+    TraceSpanRecorder,
     TrajectoryRecorder,
 )
 from app.core.errors import ProviderAuthError
@@ -36,19 +40,25 @@ def _build_telemetry_ingestor(
     trace_repository: StateTraceRepository,
     trajectory_repository: StateTrajectoryRepository,
 ) -> RunTelemetryIngestionService:
-    return RunTelemetryIngestionService(
-        run_repository=run_repository,
-        trace_repository=trace_repository,
-        trace_projector=TraceIngestProjector(),
-        trace_exporter=FakeOtlpTraceExporter(
-            endpoint="http://phoenix.test:6006/v1/traces",
-            project_name="agent-atlas-tests",
-            backend_name="phoenix",
-            base_url="http://phoenix.test:6006",
+    return RunObservationService(
+        trace_span_recorder=TraceSpanRecorder(
+            trace_repository=trace_repository,
+            trace_projector=TraceIngestProjector(),
         ),
         trajectory_recorder=TrajectoryRecorder(
             trajectory_repository=trajectory_repository,
             step_projector=TraceEventTrajectoryProjector(),
+        ),
+        trace_export_coordinator=TraceExportCoordinator(
+            trace_exporter=FakeOtlpTraceExporter(
+                endpoint="http://phoenix.test:6006/v1/traces",
+                project_name="agent-atlas-tests",
+                backend_name="phoenix",
+                base_url="http://phoenix.test:6006",
+            ),
+            trace_metadata_recorder=RunTraceMetadataRecorder(
+                run_repository=run_repository,
+            ),
         ),
     )
 
@@ -152,7 +162,7 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     recorder = ExecutionRecorder(
         sink=RunExecutionStateSink(
             run_repository=run_repository,
-            telemetry_ingestor=_build_telemetry_ingestor(
+            observation_sink=_build_telemetry_ingestor(
                 run_repository=run_repository,
                 trace_repository=trace_repository,
                 trajectory_repository=trajectory_repository,
@@ -224,7 +234,7 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
     recorder = ExecutionRecorder(
         sink=RunExecutionStateSink(
             run_repository=run_repository,
-            telemetry_ingestor=_build_telemetry_ingestor(
+            observation_sink=_build_telemetry_ingestor(
                 run_repository=run_repository,
                 trace_repository=trace_repository,
                 trajectory_repository=trajectory_repository,
@@ -333,7 +343,7 @@ def test_run_execution_service_records_structured_failure_details():
         runner=ExplodingPublishedRuntime(),
         sink=RunExecutionStateSink(
             run_repository=run_repository,
-            telemetry_ingestor=_build_telemetry_ingestor(
+            observation_sink=_build_telemetry_ingestor(
                 run_repository=run_repository,
                 trace_repository=trace_repository,
                 trajectory_repository=trajectory_repository,
@@ -473,7 +483,7 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
         runner=FailedToolPublishedRuntime(),
         sink=RunExecutionStateSink(
             run_repository=run_repository,
-            telemetry_ingestor=_build_telemetry_ingestor(
+            observation_sink=_build_telemetry_ingestor(
                 run_repository=run_repository,
                 trace_repository=trace_repository,
                 trajectory_repository=trajectory_repository,

@@ -16,8 +16,9 @@ It combines:
 - `apps/web/`: operator-facing web UI
 - `apps/control-plane/`: FastAPI control plane, worker process, feature modules, tests, and
   backend-specific tooling
-- `apps/data-ingestion/`, `apps/export-worker/`, `apps/eval-worker/`, `apps/executor-gateway/`,
-  `apps/data-plane-api/`: scaffolded product-plane services for the next split
+- planned product-plane services such as `apps/data-ingestion/`, `apps/export-worker/`,
+  `apps/eval-worker/`, `apps/executor-gateway/`, and `apps/data-plane-api/`: target landing zones
+  for the next split, not directories that exist in this checkout today
 - `packages/contracts/`: neutral cross-plane contract package
 - `runtimes/`: execution-side runtime packages, including shared runner bootstrap and launcher code
 - `infra/`, `schemas/`, and `docs/`: deployment assets, shared schemas, and architecture docs
@@ -108,6 +109,8 @@ Hexagonal architecture is still useful, but only locally:
   product code follows `app -> widgets -> features -> entities -> shared` in `apps/web/src`.
 - Shared contracts: the long-term neutral boundary for `RunSpec`, event envelopes, artifact
   manifests, and related cross-plane contracts lives under `packages/contracts/`.
+- Planned packages and worker apps described elsewhere in the docs are directional landing zones
+  unless the directory exists in the repository today.
 - External backend direction: Atlas keeps control-plane truth while Phoenix remains the required
   analysis plane for raw traces and experiment-heavy debugging workflows.
 

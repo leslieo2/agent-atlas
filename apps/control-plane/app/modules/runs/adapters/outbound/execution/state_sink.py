@@ -3,10 +3,9 @@ from __future__ import annotations
 from uuid import UUID
 
 from agent_atlas_contracts.execution import ExecutionHandoff
-from app.agent_tracing.application import RunTelemetryIngestionService
 from app.execution.application.ports import ExecutionAttempt, ExecutionOutcomeSinkPort
-from app.execution.service import ProjectedExecutionRecord, RunFailureDetails
-from app.modules.runs.application.ports import RunRepository
+from app.execution.application.service import ProjectedExecutionRecord, RunFailureDetails
+from app.modules.runs.application.ports import RunObservationSinkPort, RunRepository
 from app.modules.runs.application.results import RunnerExecutionResult
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus
@@ -16,10 +15,10 @@ class RunExecutionStateSink(ExecutionOutcomeSinkPort):
     def __init__(
         self,
         run_repository: RunRepository,
-        telemetry_ingestor: RunTelemetryIngestionService,
+        observation_sink: RunObservationSinkPort,
     ) -> None:
         self.run_repository = run_repository
-        self.telemetry_ingestor = telemetry_ingestor
+        self.observation_sink = observation_sink
 
     def load_attempt(self, run_id: UUID) -> ExecutionAttempt:
         run = self.run_repository.get(run_id)
@@ -110,7 +109,7 @@ class RunExecutionStateSink(ExecutionOutcomeSinkPort):
         record: ProjectedExecutionRecord,
     ) -> None:
         if record.events:
-            self.telemetry_ingestor.ingest_many(record.events)
+            self.observation_sink.ingest_many(record.events)
 
         run = self.run_repository.get(run_id)
         if not run:

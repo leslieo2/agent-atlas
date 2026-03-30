@@ -1,8 +1,9 @@
-from app.execution.service import (
+from app.execution.application.service import (
     ExecutionRecorder,
     ProjectedExecutionRecord,
     RunExecutionContext,
     RunExecutionProjector,
+    RunFailureDetails,
     RunExecutionService,
     failure_from_trace_events,
     normalize_run_failure,
@@ -13,6 +14,7 @@ __all__ = [
     "ProjectedExecutionRecord",
     "RunExecutionContext",
     "RunExecutionProjector",
+    "RunFailureDetails",
     "RunExecutionService",
     "failure_from_trace_events",
     "normalize_run_failure",

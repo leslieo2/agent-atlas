@@ -1,25 +1,8 @@
 from __future__ import annotations
 
 from typing import Protocol
-from uuid import UUID
 
-from app.modules.shared.domain.models import TracingMetadata
-from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
-
-
-class TraceQueryPort(Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]: ...
-
-    def backend_name(self) -> str: ...
-
-
-class TraceExportPort(Protocol):
-    def export(
-        self,
-        events: list[TraceIngestEvent],
-        spans: list[TraceSpan],
-    ) -> TracingMetadata | None: ...
-
+from app.modules.shared.application.contracts import TraceExportPort, TraceQueryPort
 
 class TraceLinkResolverPort(Protocol):
     def build_trace_url(self, trace_id: str | None) -> str | None: ...

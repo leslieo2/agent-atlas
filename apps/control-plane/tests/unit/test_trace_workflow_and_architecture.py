@@ -69,6 +69,35 @@ def test_non_run_feature_modules_do_not_import_run_application_ports():
     assert violations == []
 
 
+def test_runs_module_does_not_import_agent_tracing_ports() -> None:
+    violations = _collect_forbidden_imports(
+        base_dir=Path("app/modules/runs"),
+        forbidden_prefixes=("app.agent_tracing.ports",),
+    )
+    assert violations == []
+
+
+def test_agent_tracing_and_data_plane_do_not_import_run_module_ports() -> None:
+    violations = _collect_forbidden_imports(
+        base_dir=Path("app"),
+        forbidden_prefixes=("app.modules.runs.application.ports",),
+        allowed_paths=(
+            Path("app/modules/runs"),
+            Path("app/execution"),
+            Path("app/bootstrap/wiring"),
+        ),
+    )
+    assert violations == []
+
+
+def test_agent_tracing_backends_do_not_import_run_domain_models() -> None:
+    violations = _collect_forbidden_imports(
+        base_dir=Path("app/agent_tracing/backends"),
+        forbidden_prefixes=("app.modules.runs.domain.models",),
+    )
+    assert violations == []
+
+
 def test_app_does_not_import_legacy_execution_plane_package():
     violations = _collect_forbidden_imports(
         base_dir=Path("app"),
@@ -90,6 +119,15 @@ def test_execution_plane_does_not_import_run_telemetry_module():
             "app.modules.runs.application.telemetry",
             "app.modules.runs.domain.policies",
         ),
+    )
+    assert violations == []
+
+
+def test_non_execution_packages_do_not_import_execution_service_compatibility_module():
+    violations = _collect_forbidden_imports(
+        base_dir=Path("app"),
+        forbidden_prefixes=("app.execution.service",),
+        allowed_paths=(Path("app/execution"),),
     )
     assert violations == []
 

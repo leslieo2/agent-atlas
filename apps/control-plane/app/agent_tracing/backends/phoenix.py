@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any, Protocol, cast
+from typing import Any, cast
 from urllib.parse import quote, urlencode
 from uuid import UUID
 
-from app.modules.runs.domain.models import RunRecord
+from app.modules.shared.application.contracts import RunTraceLookupPort
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.traces import TraceSpan
 
@@ -79,10 +79,6 @@ def build_phoenix_trace_url(
     return f"{normalized_base_url}/projects/{project_path}/traces/{trace_path}"
 
 
-class _RunRepository(Protocol):
-    def get(self, run_id: str | UUID) -> RunRecord | None: ...
-
-
 class PhoenixTraceLinkResolver:
     def __init__(
         self,
@@ -141,7 +137,7 @@ class PhoenixTraceBackend:
     def __init__(
         self,
         *,
-        run_repository: _RunRepository,
+        run_lookup: RunTraceLookupPort,
         base_url: str,
         project_name: str,
         api_key: str | None = None,
@@ -149,13 +145,13 @@ class PhoenixTraceBackend:
     ) -> None:
         from phoenix.client import Client
 
-        self.run_repository = run_repository
+        self.run_lookup = run_lookup
         self.client = Client(base_url=base_url, api_key=api_key)
         self.project_name = project_name
         self.query_limit = query_limit
 
     def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]:
-        run = self.run_repository.get(run_id)
+        run = self.run_lookup.get(run_id)
         start_time = run.created_at if run else None
         raw_spans = [
             self._coerce_raw_span(raw_span)

@@ -14,7 +14,7 @@ surfaces in one repository reduces coordination friction.
 
 ## Top-Level Layout
 
-The current repository layout is:
+The target repository layout is:
 
 ```text
 agent-atlas/
@@ -55,6 +55,10 @@ agent-atlas/
 └─ .github/
 ```
 
+Today, this checkout primarily contains `apps/control-plane/`, `apps/web/`, `packages/contracts/`,
+and the `runtimes/runner-*` packages. The additional `apps/*` and `packages/*` entries shown above
+are planned landing zones, not directories that already exist locally.
+
 Interpret the top level as follows:
 
 - `apps/` contains product-facing services and platform workers.
@@ -88,7 +92,8 @@ For the runtime-to-observability boundary specifically:
 
 - runtime-owned code should emit telemetry through neutral OTLP configuration, not through a
   Phoenix-specific runtime contract
-- `packages/runtime-sdk/` is the landing zone for shared runtime bootstrap and OTLP-side helpers
+- `packages/runtime-sdk/` is the planned landing zone for shared runtime bootstrap and OTLP-side
+  helpers; the current shared bootstrap still lives in `runtimes/runner-base/`
 - `infra/observability/` is where collector and backend wiring belongs
 - Phoenix remains a tooling backend for trace inspection and links, not the canonical runtime
   contract
@@ -221,8 +226,8 @@ few places:
 
 - `apps/control-plane/` and `apps/web/` are the most active applications
 - `packages/contracts/python/` is the concrete shared contracts package in use today
-- `runtimes/` and several worker apps exist as explicit landing zones so new execution or
-  data-plane code does not drift back into the control-plane service
+- `runtimes/` exists today as the execution-side landing zone; several worker apps and extra shared
+  packages remain planned follow-on splits
 - some control-plane execution and eval concerns still live in transitional modules while the
   runtime and pipeline boundaries continue to sharpen
 

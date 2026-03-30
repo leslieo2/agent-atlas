@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from app.modules.runs.application.ports import (
+from app.modules.shared.application.contracts import (
+    RunObservationSinkPort,
     RunRepository,
-    TraceExporterPort,
+    TraceExportPort,
     TraceProjectorPort,
     TraceRepository,
     TrajectoryRepository,
@@ -14,6 +15,27 @@ from app.modules.runs.domain.models import TrajectoryStep
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.models import TracePointer, TracingMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
+
+
+class TraceSpanRecorder:
+    def __init__(
+        self,
+        trace_repository: TraceRepository,
+        trace_projector: TraceProjectorPort,
+    ) -> None:
+        self.trace_repository = trace_repository
+        self.trace_projector = trace_projector
+
+    def record(self, event: TraceIngestEvent) -> TraceSpan:
+        span = self.trace_projector.project(event)
+        self.trace_repository.append(span)
+        return span
+
+    def record_many(self, events: list[TraceIngestEvent]) -> list[TraceSpan]:
+        spans = [self.trace_projector.project(event) for event in events]
+        for span in spans:
+            self.trace_repository.append(span)
+        return spans
 
 
 class TrajectoryRecorder:
@@ -34,42 +56,22 @@ class TrajectoryRecorder:
         self.trajectory_repository.append(step)
         return step
 
-
-class RunTelemetryIngestionService:
-    def __init__(
+    def record_many(
         self,
-        run_repository: RunRepository,
-        trace_repository: TraceRepository,
-        trace_projector: TraceProjectorPort,
-        trace_exporter: TraceExporterPort,
-        trajectory_recorder: TrajectoryRecorder,
-    ) -> None:
+        events: list[TraceIngestEvent],
+        spans: list[TraceSpan],
+    ) -> list[TrajectoryStep]:
+        return [
+            self.record(event=event, span=span)
+            for event, span in zip(events, spans, strict=True)
+        ]
+
+
+class RunTraceMetadataRecorder:
+    def __init__(self, run_repository: RunRepository) -> None:
         self.run_repository = run_repository
-        self.trace_repository = trace_repository
-        self.trace_projector = trace_projector
-        self.trace_exporter = trace_exporter
-        self.trajectory_recorder = trajectory_recorder
 
-    def ingest(self, event: TraceIngestEvent) -> TraceSpan:
-        span = self.trace_projector.project(event)
-        self.trace_repository.append(span)
-        self.trajectory_recorder.record(event=event, span=span)
-        tracing = self.trace_exporter.export([event], [span])
-        if tracing is not None:
-            self._record_tracing(event.run_id, tracing)
-        return span
-
-    def ingest_many(self, events: list[TraceIngestEvent]) -> list[TraceSpan]:
-        spans = [self.trace_projector.project(event) for event in events]
-        for event, span in zip(events, spans, strict=True):
-            self.trace_repository.append(span)
-            self.trajectory_recorder.record(event=event, span=span)
-        tracing = self.trace_exporter.export(events, spans)
-        if tracing is not None and events:
-            self._record_tracing(events[0].run_id, tracing)
-        return spans
-
-    def _record_tracing(
+    def record(
         self,
         run_id: str | UUID,
         tracing: TracingMetadata,
@@ -88,3 +90,72 @@ class RunTelemetryIngestionService:
         if updated.run.provenance is not None:
             updated.run.provenance.trace_backend = tracing.backend
         self.run_repository.save(updated.run)
+
+
+class TraceExportCoordinator:
+    def __init__(
+        self,
+        trace_exporter: TraceExportPort,
+        trace_metadata_recorder: RunTraceMetadataRecorder,
+    ) -> None:
+        self.trace_exporter = trace_exporter
+        self.trace_metadata_recorder = trace_metadata_recorder
+
+    def export(
+        self,
+        *,
+        run_id: str | UUID,
+        events: list[TraceIngestEvent],
+        spans: list[TraceSpan],
+    ) -> TracingMetadata | None:
+        tracing = self.trace_exporter.export(events, spans)
+        if tracing is not None:
+            self.trace_metadata_recorder.record(run_id, tracing)
+        return tracing
+
+
+class RunObservationService(RunObservationSinkPort):
+    def __init__(
+        self,
+        trace_span_recorder: TraceSpanRecorder,
+        trajectory_recorder: TrajectoryRecorder,
+        trace_export_coordinator: TraceExportCoordinator,
+    ) -> None:
+        self.trace_span_recorder = trace_span_recorder
+        self.trajectory_recorder = trajectory_recorder
+        self.trace_export_coordinator = trace_export_coordinator
+
+    def ingest(self, event: TraceIngestEvent) -> TraceSpan:
+        span = self.trace_span_recorder.record(event)
+        self.trajectory_recorder.record(event=event, span=span)
+        self.trace_export_coordinator.export(
+            run_id=event.run_id,
+            events=[event],
+            spans=[span],
+        )
+        return span
+
+    def ingest_many(self, events: list[TraceIngestEvent]) -> list[TraceSpan]:
+        if not events:
+            return []
+        spans = self.trace_span_recorder.record_many(events)
+        self.trajectory_recorder.record_many(events, spans)
+        self.trace_export_coordinator.export(
+            run_id=events[0].run_id,
+            events=events,
+            spans=spans,
+        )
+        return spans
+
+
+RunTelemetryIngestionService = RunObservationService
+
+
+__all__ = [
+    "RunObservationService",
+    "RunTelemetryIngestionService",
+    "RunTraceMetadataRecorder",
+    "TraceExportCoordinator",
+    "TraceSpanRecorder",
+    "TrajectoryRecorder",
+]

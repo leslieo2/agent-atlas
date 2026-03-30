@@ -12,11 +12,11 @@ from app.agent_tracing.backends.phoenix import (
 )
 from app.bootstrap.wiring.infrastructure import build_infrastructure
 from app.core.config import TraceBackendMode, settings
-from app.modules.runs.domain.models import RunRecord
+from app.modules.shared.application.contracts import RunTraceLookup
 
 
-class _RunRepository:
-    def __init__(self, run: RunRecord) -> None:
+class _RunLookup:
+    def __init__(self, run: RunTraceLookup) -> None:
         self.run = run
 
     def get(self, run_id):
@@ -54,12 +54,8 @@ def test_build_phoenix_project_url_falls_back_to_home_without_project_id():
 
 def test_phoenix_trace_backend_filters_and_maps_run_spans():
     run_id = uuid4()
-    run = RunRecord(
+    run = RunTraceLookup(
         run_id=run_id,
-        input_summary="phoenix trace",
-        project="control-plane",
-        model="gpt-5.4-mini",
-        agent_type="openai-agents-sdk",
         created_at=datetime(2026, 3, 29, 8, 0, tzinfo=UTC),
     )
     raw_span = {
@@ -90,7 +86,7 @@ def test_phoenix_trace_backend_filters_and_maps_run_spans():
     }
 
     backend = object.__new__(PhoenixTraceBackend)
-    backend.run_repository = _RunRepository(run)
+    backend.run_lookup = _RunLookup(run)
     backend.client = SimpleNamespace(
         spans=SimpleNamespace(
             get_spans=lambda **_kwargs: [other_span, raw_span],

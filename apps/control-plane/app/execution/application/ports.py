@@ -17,7 +17,7 @@ from app.modules.runs.domain.models import RunSpec
 from app.modules.shared.domain.enums import RunStatus
 
 if TYPE_CHECKING:
-    from app.execution.service import ProjectedExecutionRecord, RunFailureDetails
+    from app.execution.application.service import ProjectedExecutionRecord, RunFailureDetails
 
 
 @dataclass(frozen=True)
