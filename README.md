@@ -19,7 +19,7 @@ It combines:
 - `apps/data-ingestion/`, `apps/export-worker/`, `apps/eval-worker/`, `apps/executor-gateway/`,
   `apps/data-plane-api/`: scaffolded product-plane services for the next split
 - `packages/contracts/`: neutral cross-plane contract package
-- `runtimes/`: runner scaffolds for framework-specific execution adapters
+- `runtimes/`: execution-side runtime packages, including shared runner bootstrap and launcher code
 - `infra/`, `schemas/`, and `docs/`: deployment assets, shared schemas, and architecture docs
 - `Makefile`: root entrypoint for installing dependencies and running the common full-stack
   workflows

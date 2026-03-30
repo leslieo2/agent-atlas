@@ -45,6 +45,7 @@ htmlcov/
 **/.venv/
 **/.venv-uv/
 **/.uv_cache/
+**.egg-info/
 
 # Node / frontend local artifacts
 **/node_modules/

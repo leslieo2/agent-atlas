@@ -4,11 +4,17 @@ install:
 	uv venv --clear .venv
 	uv pip install --python .venv/bin/python3 ".[dev]"
 	uv pip install --python .venv/bin/python3 -e ../../packages/contracts/python
+	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-base
+	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-openai-agents
+	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-langgraph
 
 sync:
 	uv venv --clear .venv
 	uv sync --project .
 	uv pip install --python .venv/bin/python3 -e ../../packages/contracts/python
+	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-base
+	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-openai-agents
+	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-langgraph
 
 install-export:
 	uv pip install --python .venv/bin/python3 ".[export]"

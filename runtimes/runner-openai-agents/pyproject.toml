@@ -1,0 +1,22 @@
+[project]
+name = "agent-atlas-runner-openai-agents"
+version = "0.1.0"
+description = "OpenAI Agents SDK runtime adapter for Agent Atlas runners."
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.10,<2.11",
+  "agent-atlas-contracts",
+]
+
+[build-system]
+requires = ["setuptools>=70.0,<71.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agent_atlas_runner_openai_agents = ["py.typed"]
