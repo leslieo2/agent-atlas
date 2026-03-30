@@ -16,10 +16,10 @@ from app.modules.shared.domain.models import (
     PromptConfig,
     ProvenanceMetadata,
     RunLineage,
-    TrajectoryStepRecord,
     ToolsetConfig,
     TracePointer,
     TracingMetadata,
+    TrajectoryStepRecord,
     utc_now,
 )
 
@@ -85,6 +85,7 @@ class ExecutionMetrics(BaseModel):
 
 
 RuntimeExecutionResult = SharedRuntimeExecutionResult
+
 
 class RunRecord(BaseModel):
     run_id: UUID = Field(default_factory=uuid4)

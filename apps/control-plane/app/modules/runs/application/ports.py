@@ -16,7 +16,6 @@ from app.modules.shared.application.contracts import (
 from app.modules.shared.application.contracts import (
     TraceExportPort,
     TraceQueryPort,
-    TrajectoryRepository as SharedTrajectoryRepository,
 )
 from app.modules.shared.application.contracts import (
     TraceIngestionPort as SharedTraceIngestionPort,
@@ -26,6 +25,9 @@ from app.modules.shared.application.contracts import (
 )
 from app.modules.shared.application.contracts import (
     TraceRepository as SharedTraceRepository,
+)
+from app.modules.shared.application.contracts import (
+    TrajectoryRepository as SharedTrajectoryRepository,
 )
 from app.modules.shared.application.contracts import (
     TrajectoryStepProjectorPort as SharedTrajectoryStepProjectorPort,

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import cast
 from uuid import UUID
 
 from app.modules.shared.application.contracts import (
