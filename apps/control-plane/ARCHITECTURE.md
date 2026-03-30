@@ -173,7 +173,7 @@ Planned additions should follow the same rule:
 
 - framework registry orchestration stays in feature-owned application code
 - runner selection stays behind application-owned ports
-- Phoenix or OTLP clients stay in infrastructure
+- OTLP exporters and Phoenix query clients stay in infrastructure
 
 ### 3. Domain layer
 
@@ -237,8 +237,15 @@ record persistence:
 - OpenAI Agents SDK integration in `openai_agents/`
 - LangChain runtime integration in `langchain/`
 - task queue implementation in `task_queue.py`
-- trace projection in `trace_projection/`
-- trajectory projection in `trajectory_projection.py`
+- trace projection in feature-owned outbound adapters
+
+Observability rule:
+
+- Atlas-owned application services persist canonical trace spans first
+- OTLP export is a side channel from infrastructure adapters into observability tooling
+- Phoenix-specific query and deep-link behavior stays in infrastructure and does not become the
+  runtime contract
+- trajectory projection in feature-owned outbound adapters
 - eval gateway and agent lookup adapters in `evals/`
 - artifact export adapter in `artifacts.py`
 - filesystem agent discovery and runnable catalog assembly in `agent_catalog.py`
@@ -502,7 +509,8 @@ POST /runs
   -> RunTelemetryIngestionService.ingest(...)
   -> TrajectoryStepProjectorPort.project(...)
   -> TrajectoryRepository.append(...)
-  -> TraceExporterPort.export(...) -> Phoenix
+  -> TraceRepository.append(...)
+  -> TraceExporterPort.export(...) -> OTLP collector
   -> RunRepository.save(updated status/metrics)
 ```
 
@@ -535,8 +543,8 @@ POST /runs
   -> resolve published snapshot -> artifact/image reference
   -> enqueue execution work
   -> worker or runner adapter executes selected artifact/image
-  -> telemetry export adapter emits spans via OTel/OpenInference
-  -> Phoenix stores raw spans
+  -> telemetry export adapter emits spans via OTLP/OpenInference
+  -> collector routes raw spans to Phoenix or another observability backend
   -> Atlas persists run status, trajectory projection, provenance, and export metadata
   -> Atlas returns stable control-plane contracts for eval and export workflows
 ```
@@ -590,9 +598,8 @@ Examples:
 
 - a Phoenix trace reader belongs in `app/infrastructure/adapters/phoenix/` and implements a
   feature-owned port for run-scoped trace retrieval
-- a Phoenix SDK exporter belongs in `app/infrastructure/adapters/phoenix/` and emits spans through
-  `phoenix.otel.register(...)`, while feature modules continue to deal only in Atlas trace events
-  and stable REST contracts
+- an OTLP exporter belongs in infrastructure and emits spans through neutral OpenTelemetry clients,
+  while Phoenix-specific query and deep-link behavior stays behind separate infrastructure adapters
 - a Docker runner belongs in infrastructure and is selected through a runner port, not by letting
   `RunExecutionService` import Docker SDKs directly
 

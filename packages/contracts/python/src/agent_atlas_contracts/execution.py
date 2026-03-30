@@ -109,6 +109,18 @@ class RunnerBootstrapPaths(BaseModel):
         ]
 
 
+class ObservabilityExportConfig(BaseModel):
+    protocol: str = "otlp_http"
+    endpoint: str | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
+
+
+class ObservabilityConfig(BaseModel):
+    backend: str | None = None
+    project_name: str | None = None
+    export: ObservabilityExportConfig | None = None
+
+
 class RunnerRunSpec(BaseModel):
     schema_version: str = "runner-run-spec.v1"
     run_id: UUID
@@ -139,11 +151,14 @@ class RunnerRunSpec(BaseModel):
     artifact_ref: str | None = None
     image_ref: str | None = None
     trace_backend: str | None = None
+    observability: ObservabilityConfig | None = None
     published_agent_snapshot: dict[str, Any]
     bootstrap: RunnerBootstrapPaths = Field(default_factory=RunnerBootstrapPaths)
 
 
 __all__ = [
+    "ObservabilityConfig",
+    "ObservabilityExportConfig",
     "ArtifactEntry",
     "ArtifactManifest",
     "EventEnvelope",

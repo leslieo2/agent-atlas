@@ -1,9 +1,0 @@
-pyproject.toml
-src/agent_atlas_contracts/__init__.py
-src/agent_atlas_contracts/execution.py
-src/agent_atlas_contracts/py.typed
-src/agent_atlas_contracts.egg-info/PKG-INFO
-src/agent_atlas_contracts.egg-info/SOURCES.txt
-src/agent_atlas_contracts.egg-info/dependency_links.txt
-src/agent_atlas_contracts.egg-info/requires.txt
-src/agent_atlas_contracts.egg-info/top_level.txt

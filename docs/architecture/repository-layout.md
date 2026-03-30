@@ -36,7 +36,7 @@ agent-atlas/
 │  ├─ contracts/
 │  │  └─ python/                   # current shared contracts package
 │  ├─ config/
-│  ├─ runtime-sdk/
+│  ├─ runtime-sdk/                 # runtime bootstrap and neutral observability helpers
 │  ├─ tool-gateway-sdk/
 │  ├─ model-gateway-sdk/
 │  └─ testkit/
@@ -45,7 +45,7 @@ agent-atlas/
 │  ├─ terraform/
 │  ├─ docker/
 │  ├─ compose/
-│  └─ observability/
+│  └─ observability/               # OTLP collector and vendor-specific observability backends
 ├─ schemas/
 │  ├─ jsonschema/
 │  ├─ openapi/
@@ -64,6 +64,15 @@ Interpret the top level as follows:
 - `infra/` contains deployment, local compose, container, and observability assets.
 - `schemas/` is the neutral source-of-truth area for platform contracts that should not become
   control-plane internals.
+
+For the runtime-to-observability boundary specifically:
+
+- runtime-owned code should emit telemetry through neutral OTLP configuration, not through a
+  Phoenix-specific runtime contract
+- `packages/runtime-sdk/` is the landing zone for shared runtime bootstrap and OTLP-side helpers
+- `infra/observability/` is where collector and backend wiring belongs
+- Phoenix remains a tooling backend for trace inspection and links, not the canonical runtime
+  contract
 
 ## What Uses Hexagonal Design
 
@@ -152,6 +161,10 @@ Current implementation:
 Directionally, contracts such as `RunSpec`, event envelopes, artifact metadata, eval results, and
 export manifests should live in shared packages or schemas, not as private control-plane models and
 not as runtime-specific SDK objects.
+
+That includes observability handoff. Runtime payloads may carry neutral observability configuration,
+but runtimes should still treat OTLP as the transport boundary and keep vendor-specific read-side
+linking outside the runtime layer.
 
 ## Web And Frontend Layout
 

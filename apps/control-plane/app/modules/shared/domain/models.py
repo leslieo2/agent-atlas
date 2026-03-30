@@ -131,7 +131,7 @@ class ExecutorConfig(BaseModel):
     max_steps: int = 32
     concurrency: int = 1
     resources: ExecutorResources = Field(default_factory=ExecutorResources)
-    tracing_backend: str = "phoenix"
+    tracing_backend: str = "state"
     artifact_path: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 

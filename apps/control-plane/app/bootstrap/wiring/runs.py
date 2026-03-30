@@ -31,6 +31,7 @@ def build_run_module(
     )
     telemetry_ingestor = RunTelemetryIngestionService(
         run_repository=infra.run_repository,
+        trace_repository=infra.trace_repository,
         trace_projector=infra.trace_projector,
         trace_exporter=infra.trace_exporter,
         trajectory_recorder=TrajectoryRecorder(

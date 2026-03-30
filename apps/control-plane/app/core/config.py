@@ -13,6 +13,7 @@ class RuntimeMode(StrEnum):
 
 
 class TraceBackendMode(StrEnum):
+    STATE = "state"
     PHOENIX = "phoenix"
 
 
@@ -65,25 +66,37 @@ class Settings(BaseSettings):
         description="Lease duration before a running task can be reclaimed by another worker.",
     )
     trace_backend: TraceBackendMode = Field(
-        default=TraceBackendMode.PHOENIX,
-        description="Raw trace backend mode: phoenix.",
+        default=TraceBackendMode.STATE,
+        description="Read-side trace backend mode: state|phoenix.",
+    )
+    observability_otlp_endpoint: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AGENT_ATLAS_OBSERVABILITY_OTLP_ENDPOINT",
+            "AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT",
+        ),
+        description="OTLP endpoint used for neutral runtime/control-plane trace export.",
+    )
+    observability_headers: dict[str, str] = Field(
+        default_factory=dict,
+        description="Optional OTLP export headers.",
+    )
+    observability_project_name: str = Field(
+        default="agent-atlas",
+        validation_alias=AliasChoices(
+            "AGENT_ATLAS_OBSERVABILITY_PROJECT_NAME",
+            "AGENT_ATLAS_PHOENIX_PROJECT_NAME",
+        ),
+        description="Logical observability project name used for exported Atlas traces.",
     )
     phoenix_base_url: str | None = Field(
         default=None,
         description="Phoenix application base URL used to build backend-owned deep links.",
     )
-    phoenix_otlp_endpoint: str | None = Field(
-        default=None,
-        description="Phoenix OTLP endpoint used for trace export.",
-    )
     phoenix_api_key: SecretStr | None = Field(
         default=None,
         repr=False,
         description="Optional Phoenix API key used for export and query clients.",
-    )
-    phoenix_project_name: str = Field(
-        default="default",
-        description="Phoenix project name used for exported Agent Atlas traces.",
     )
     phoenix_query_limit: int = Field(
         default=500,

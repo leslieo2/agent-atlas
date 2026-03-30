@@ -12,35 +12,36 @@ from app.modules.shared.domain.models import ObservabilityMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
-class FakePhoenixTraceExporter:
+class FakeOtlpTraceExporter:
     def __init__(
         self,
         *,
         endpoint: str,
         project_name: str,
+        backend_name: str = "phoenix",
         base_url: str | None = None,
+        headers: dict[str, str] | None = None,
         api_key: str | None = None,
-        repository: StateTraceRepository | None = None,
+        service_name: str = "agent-atlas-control-plane",
     ) -> None:
-        del endpoint, api_key
-        self.repository = repository or StateTraceRepository()
+        del endpoint, headers, api_key, service_name
         self.base_url = base_url.rstrip("/") if base_url else None
         self.project_name = project_name
         self.project_id = f"project-{project_name}"
+        self.backend_name_value = backend_name
 
     def export(
         self,
         events: list[TraceIngestEvent],
         spans: list[TraceSpan],
     ) -> ObservabilityMetadata | None:
-        for span in spans:
-            self.repository.append(span.model_copy(update={"trace_backend": "phoenix"}))
+        del spans
         if not events:
             return None
         first_event = events[0]
         trace_id = f"trace-{first_event.run_id}"
         return ObservabilityMetadata(
-            backend="phoenix",
+            backend=self.backend_name_value,
             trace_id=trace_id,
             trace_url=build_phoenix_trace_url(
                 base_url=self.base_url,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
 
 from app.core.config import TraceBackendMode, settings
 from app.infrastructure.adapters.agent_catalog import (
@@ -16,15 +15,17 @@ from app.infrastructure.adapters.langchain import (
     PublishedLangChainAgentAdapter,
     PublishedLangChainAgentLoader,
 )
+from app.infrastructure.adapters.observability import (
+    NoopTraceExporter,
+    OtlpTraceExporter,
+    StateTraceBackend,
+)
 from app.infrastructure.adapters.openai_agents import (
     OpenAIAgentContractValidator,
     PublishedOpenAIAgentAdapter,
     PublishedOpenAIAgentLoader,
 )
-from app.infrastructure.adapters.phoenix import (
-    PhoenixTraceBackend,
-    PhoenixTraceExporter,
-)
+from app.infrastructure.adapters.phoenix import PhoenixTraceBackend
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.task_queue import StateTaskQueue
 from app.infrastructure.repositories import (
@@ -65,24 +66,6 @@ from app.modules.runs.application.ports import (
     TraceBackendPort,
     TraceExporterPort,
 )
-
-
-def _require_phoenix_configuration() -> tuple[str, str]:
-    missing: list[str] = []
-    if not settings.phoenix_base_url:
-        missing.append("AGENT_ATLAS_PHOENIX_BASE_URL")
-    if not settings.phoenix_otlp_endpoint:
-        missing.append("AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT")
-    if missing:
-        missing_fields = ", ".join(missing)
-        raise RuntimeError(
-            "Phoenix-backed raw tracing is required. Configure "
-            f"{missing_fields} before starting Agent Atlas."
-        )
-    return (
-        cast("str", settings.phoenix_base_url),
-        cast("str", settings.phoenix_otlp_endpoint),
-    )
 
 
 @dataclass(frozen=True)
@@ -146,7 +129,7 @@ def build_infrastructure() -> InfrastructureBundle:
             ),
         }
     )
-    artifact_builder = SourceArtifactBuilder(default_trace_backend=TraceBackendMode.PHOENIX.value)
+    artifact_builder = SourceArtifactBuilder(default_trace_backend=settings.trace_backend.value)
     agent_discovery = FilesystemAgentDiscovery(
         source_catalog=agent_source_catalog,
         validator=framework_registry,
@@ -186,23 +169,46 @@ def build_infrastructure() -> InfrastructureBundle:
     )
     trace_backend: TraceBackendPort
     trace_exporter: TraceExporterPort
-    phoenix_base_url, phoenix_otlp_endpoint = _require_phoenix_configuration()
     phoenix_api_key = (
         settings.phoenix_api_key.get_secret_value() if settings.phoenix_api_key else None
     )
-    trace_backend = PhoenixTraceBackend(
-        run_repository=run_repository,
-        base_url=phoenix_base_url,
-        project_name=settings.phoenix_project_name,
-        api_key=phoenix_api_key,
-        query_limit=settings.phoenix_query_limit,
-    )
-    trace_exporter = PhoenixTraceExporter(
-        endpoint=phoenix_otlp_endpoint,
-        project_name=settings.phoenix_project_name,
-        base_url=phoenix_base_url,
-        api_key=phoenix_api_key,
-    )
+    if settings.trace_backend == TraceBackendMode.PHOENIX:
+        if not settings.phoenix_base_url:
+            raise RuntimeError("Phoenix trace queries require AGENT_ATLAS_PHOENIX_BASE_URL.")
+        trace_backend = PhoenixTraceBackend(
+            run_repository=run_repository,
+            base_url=settings.phoenix_base_url,
+            project_name=settings.observability_project_name,
+            api_key=phoenix_api_key,
+            query_limit=settings.phoenix_query_limit,
+        )
+    else:
+        trace_backend = StateTraceBackend(
+            repository=trace_repository,
+            backend_name=settings.trace_backend.value,
+        )
+
+    observability_headers = dict(settings.observability_headers)
+    if (
+        settings.trace_backend == TraceBackendMode.PHOENIX
+        and phoenix_api_key is not None
+        and "api_key" not in observability_headers
+    ):
+        observability_headers["api_key"] = phoenix_api_key
+
+    if settings.observability_otlp_endpoint:
+        trace_exporter = OtlpTraceExporter(
+            endpoint=settings.observability_otlp_endpoint,
+            project_name=settings.observability_project_name,
+            backend_name=trace_backend.backend_name(),
+            base_url=settings.phoenix_base_url
+            if settings.trace_backend == TraceBackendMode.PHOENIX
+            else None,
+            headers=observability_headers,
+            api_key=phoenix_api_key,
+        )
+    else:
+        trace_exporter = NoopTraceExporter()
     trace_projector = TraceIngestProjector()
     trajectory_step_projector = TraceEventTrajectoryProjector()
 

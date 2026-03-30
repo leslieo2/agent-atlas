@@ -6,6 +6,7 @@ from app.modules.runs.application.ports import (
     RunRepository,
     TraceExporterPort,
     TraceProjectorPort,
+    TraceRepository,
     TrajectoryRepository,
     TrajectoryStepProjectorPort,
 )
@@ -38,17 +39,20 @@ class RunTelemetryIngestionService:
     def __init__(
         self,
         run_repository: RunRepository,
+        trace_repository: TraceRepository,
         trace_projector: TraceProjectorPort,
         trace_exporter: TraceExporterPort,
         trajectory_recorder: TrajectoryRecorder,
     ) -> None:
         self.run_repository = run_repository
+        self.trace_repository = trace_repository
         self.trace_projector = trace_projector
         self.trace_exporter = trace_exporter
         self.trajectory_recorder = trajectory_recorder
 
     def ingest(self, event: TraceIngestEvent) -> TraceSpan:
         span = self.trace_projector.project(event)
+        self.trace_repository.append(span)
         self.trajectory_recorder.record(event=event, span=span)
         observability = self.trace_exporter.export([event], [span])
         if observability is not None:
@@ -58,6 +62,7 @@ class RunTelemetryIngestionService:
     def ingest_many(self, events: list[TraceIngestEvent]) -> list[TraceSpan]:
         spans = [self.trace_projector.project(event) for event in events]
         for event, span in zip(events, spans, strict=True):
+            self.trace_repository.append(span)
             self.trajectory_recorder.record(event=event, span=span)
         observability = self.trace_exporter.export(events, spans)
         if observability is not None and events:

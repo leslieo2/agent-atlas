@@ -8,7 +8,7 @@ Strategically, the backend is moving toward a split where:
 
 - Atlas remains the source of truth for published agents, datasets, eval jobs, provenance, and
   exports
-- Phoenix is the required backend for raw trace inspection and experiment-heavy debugging workflows
+- Phoenix is an optional trace inspection backend for experiment-heavy debugging workflows
 - immutable artifacts or images and runner orchestration become the execution handoff
 - RL integration starts with offline export contracts
 
@@ -102,8 +102,8 @@ Planned runtime direction:
 - published agents remain repo-local and governed by Atlas
 - execution resolves from published snapshot toward immutable artifact or image references
 - runner orchestration is added behind infrastructure ports
-- raw trace and evaluation observability run through Phoenix without making Phoenix the control
-  plane
+- runtime and control-plane trace export flows use OTLP without making Phoenix the runtime
+  contract
 - eval jobs, datasets, and exports become the primary product loop while runs remain supporting
   execution records
 
@@ -146,13 +146,21 @@ Important settings currently wired in code:
 Planned settings such as runner backend selection or artifact build controls should not be treated
 as live product behavior until they are backed by code.
 
-Phoenix tracing is now required in code:
+Observability settings:
 
-- `AGENT_ATLAS_PHOENIX_BASE_URL`: backend-owned Phoenix deep link base URL
-- `AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT`: OTLP collector endpoint used by the Phoenix SDK
-- `AGENT_ATLAS_PHOENIX_PROJECT_NAME`: project name used for Atlas-exported traces
-- `AGENT_ATLAS_PHOENIX_API_KEY`: optional API key for Phoenix export/query access
+- `AGENT_ATLAS_TRACE_BACKEND`: read-side trace backend (`state` by default, `phoenix` when you
+  want Phoenix-backed trace queries)
+- `AGENT_ATLAS_OBSERVABILITY_OTLP_ENDPOINT`: OTLP collector endpoint used for neutral trace export
+- `AGENT_ATLAS_OBSERVABILITY_PROJECT_NAME`: logical observability project name
+- `AGENT_ATLAS_OBSERVABILITY_HEADERS`: optional OTLP export headers as JSON
+- `AGENT_ATLAS_PHOENIX_BASE_URL`: optional backend-owned Phoenix deep link base URL
+- `AGENT_ATLAS_PHOENIX_API_KEY`: optional Phoenix API key used for query access
 - `AGENT_ATLAS_PHOENIX_QUERY_LIMIT`: read-side span fetch cap for run trace reconstruction
+
+Backward compatibility:
+
+- `AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT` and `AGENT_ATLAS_PHOENIX_PROJECT_NAME` still map to the new
+  neutral observability settings
 
 Runtime mode notes:
 

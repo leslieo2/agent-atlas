@@ -9,7 +9,7 @@ from app.modules.shared.domain.models import (
 
 
 class SourceArtifactBuilder:
-    def __init__(self, default_trace_backend: str = "phoenix") -> None:
+    def __init__(self, default_trace_backend: str = "state") -> None:
         self.default_trace_backend = default_trace_backend
 
     def build(self, published_agent: PublishedAgent) -> RuntimeArtifactBuildResult:

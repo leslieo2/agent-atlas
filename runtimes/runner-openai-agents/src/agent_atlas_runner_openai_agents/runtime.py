@@ -18,6 +18,7 @@ from agent_atlas_contracts.runtime import (
     trace_event_to_event_envelope,
     usage_total_tokens,
 )
+from agent_atlas_runner_base import emit_trace_events_to_otlp
 from pydantic import SecretStr
 
 from agent_atlas_runner_openai_agents.trace_mapper import build_trace_events_from_agent_run
@@ -182,6 +183,11 @@ class PublishedOpenAIAgentAdapter(OpenAIAgentsSdkAdapter):
             model=effective_model,
             provider="openai-agents-sdk",
             result=result,
+        )
+        emit_trace_events_to_otlp(
+            payload=payload,
+            events=trace_events,
+            service_name="agent-atlas-runner-openai-agents",
         )
         return PublishedRunExecutionResult(
             runtime_result=runtime_result,

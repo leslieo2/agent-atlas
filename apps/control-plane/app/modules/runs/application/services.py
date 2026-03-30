@@ -66,7 +66,7 @@ def _resolved_submission_provenance(
     provenance.artifact_ref = runtime_artifact.artifact_ref
     provenance.image_ref = runtime_artifact.image_ref
     if provenance.trace_backend is None:
-        provenance.trace_backend = "phoenix"
+        provenance.trace_backend = "state"
     return provenance
 
 
@@ -75,7 +75,7 @@ class RunSubmissionService:
         self,
         run_repository: RunRepository,
         execution_control: ExecutionControlPort,
-        default_trace_backend: str = "phoenix",
+        default_trace_backend: str = "state",
     ) -> None:
         self.run_repository = run_repository
         self.execution_control = execution_control

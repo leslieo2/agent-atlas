@@ -16,6 +16,7 @@ from agent_atlas_contracts.runtime import (
     trace_event_to_event_envelope,
     usage_total_tokens,
 )
+from agent_atlas_runner_base import emit_trace_events_to_otlp
 from pydantic import SecretStr
 
 from agent_atlas_runner_langgraph.trace_mapper import build_trace_events_from_langgraph_run
@@ -101,6 +102,11 @@ class PublishedLangChainAgentAdapter:
             result=result,
             token_usage=token_usage,
             latency_ms=latency_ms,
+        )
+        emit_trace_events_to_otlp(
+            payload=payload,
+            events=trace_events,
+            service_name="agent-atlas-runner-langgraph",
         )
         return PublishedRunExecutionResult(
             runtime_result=runtime_result,

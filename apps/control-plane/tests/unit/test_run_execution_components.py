@@ -33,7 +33,7 @@ from app.modules.runs.domain.models import (
 )
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 from app.modules.shared.domain.traces import TraceIngestEvent
-from tests.support.fake_phoenix import FakePhoenixTraceExporter
+from tests.support.fake_phoenix import FakeOtlpTraceExporter
 
 
 def _build_telemetry_ingestor(
@@ -43,12 +43,13 @@ def _build_telemetry_ingestor(
 ) -> RunTelemetryIngestionService:
     return RunTelemetryIngestionService(
         run_repository=run_repository,
+        trace_repository=trace_repository,
         trace_projector=TraceIngestProjector(),
-        trace_exporter=FakePhoenixTraceExporter(
+        trace_exporter=FakeOtlpTraceExporter(
             endpoint="http://phoenix.test:6006/v1/traces",
             project_name="agent-atlas-tests",
+            backend_name="phoenix",
             base_url="http://phoenix.test:6006",
-            repository=trace_repository,
         ),
         trajectory_recorder=TrajectoryRecorder(
             trajectory_repository=trajectory_repository,

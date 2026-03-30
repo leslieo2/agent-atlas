@@ -10,7 +10,7 @@ from app.bootstrap.wiring import infrastructure as infrastructure_wiring
 from app.core.config import RuntimeMode, TraceBackendMode, settings
 from app.infrastructure.repositories import reset_state
 from fastapi.testclient import TestClient
-from tests.support.fake_phoenix import FakePhoenixTraceBackend, FakePhoenixTraceExporter
+from tests.support.fake_phoenix import FakeOtlpTraceExporter, FakePhoenixTraceBackend
 
 
 def _reset_state() -> None:
@@ -23,13 +23,14 @@ def reset_in_memory_state(monkeypatch) -> None:
     settings.runtime_mode = RuntimeMode.AUTO
     settings.openai_api_key = None
     settings.seed_demo = True
-    settings.trace_backend = TraceBackendMode.PHOENIX
+    settings.trace_backend = TraceBackendMode.STATE
     settings.phoenix_base_url = "http://phoenix.test:6006"
-    settings.phoenix_otlp_endpoint = "http://phoenix.test:6006/v1/traces"
+    settings.observability_otlp_endpoint = "http://phoenix.test:6006/v1/traces"
+    settings.observability_headers = {}
     settings.phoenix_api_key = None
-    settings.phoenix_project_name = "agent-atlas-tests"
+    settings.observability_project_name = "agent-atlas-tests"
     monkeypatch.setattr(infrastructure_wiring, "PhoenixTraceBackend", FakePhoenixTraceBackend)
-    monkeypatch.setattr(infrastructure_wiring, "PhoenixTraceExporter", FakePhoenixTraceExporter)
+    monkeypatch.setattr(infrastructure_wiring, "OtlpTraceExporter", FakeOtlpTraceExporter)
     _reset_state()
     yield
     _reset_state()

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 from app.bootstrap.wiring.infrastructure import build_infrastructure
-from app.core.config import settings
+from app.core.config import TraceBackendMode, settings
 from app.infrastructure.adapters.phoenix import (
     PhoenixTraceBackend,
     build_phoenix_project_url,
@@ -109,9 +109,19 @@ def test_phoenix_trace_backend_filters_and_maps_run_spans():
     assert spans[0].trace_backend == "phoenix"
 
 
-def test_build_infrastructure_requires_phoenix_configuration(monkeypatch):
+def test_build_infrastructure_defaults_to_state_backend_without_phoenix(monkeypatch):
+    monkeypatch.setattr(settings, "trace_backend", TraceBackendMode.STATE)
     monkeypatch.setattr(settings, "phoenix_base_url", None)
-    monkeypatch.setattr(settings, "phoenix_otlp_endpoint", None)
+    monkeypatch.setattr(settings, "observability_otlp_endpoint", None)
 
-    with pytest.raises(RuntimeError, match="Phoenix-backed raw tracing is required"):
+    infrastructure = build_infrastructure()
+
+    assert infrastructure.trace_backend.backend_name() == "state"
+
+
+def test_build_infrastructure_requires_base_url_for_phoenix_backend(monkeypatch):
+    monkeypatch.setattr(settings, "trace_backend", TraceBackendMode.PHOENIX)
+    monkeypatch.setattr(settings, "phoenix_base_url", None)
+
+    with pytest.raises(RuntimeError, match="AGENT_ATLAS_PHOENIX_BASE_URL"):
         build_infrastructure()

@@ -34,6 +34,12 @@ class TrajectoryRepository(Protocol):
     def append(self, step: TrajectoryStep) -> None: ...
 
 
+class TraceRepository(Protocol):
+    def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]: ...
+
+    def append(self, span: TraceSpan) -> None: ...
+
+
 class TrajectoryStepProjectorPort(Protocol):
     def project(
         self,

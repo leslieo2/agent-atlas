@@ -2,9 +2,28 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from agent_atlas_contracts.execution import RunnerBootstrapPaths, RunnerRunSpec
+from agent_atlas_contracts.execution import (
+    ObservabilityConfig,
+    ObservabilityExportConfig,
+    RunnerBootstrapPaths,
+    RunnerRunSpec,
+)
 
+from app.core.config import settings
 from app.modules.runs.domain.models import RunnerExecutionHandoff, RunSpec
+
+
+def _runner_observability_config(trace_backend: str | None) -> ObservabilityConfig | None:
+    if not settings.observability_otlp_endpoint:
+        return None
+    return ObservabilityConfig(
+        backend=trace_backend,
+        project_name=settings.observability_project_name,
+        export=ObservabilityExportConfig(
+            endpoint=settings.observability_otlp_endpoint,
+            headers=dict(settings.observability_headers),
+        ),
+    )
 
 
 def runner_run_spec_from_run_spec(
@@ -61,6 +80,9 @@ def runner_run_spec_from_run_spec(
         artifact_ref=provenance.artifact_ref if provenance is not None else None,
         image_ref=provenance.image_ref if provenance is not None else None,
         trace_backend=provenance.trace_backend if provenance is not None else None,
+        observability=_runner_observability_config(
+            provenance.trace_backend if provenance is not None else None
+        ),
         published_agent_snapshot=published_agent_snapshot,
         bootstrap=bootstrap or RunnerBootstrapPaths(),
     )
@@ -108,6 +130,7 @@ def runner_run_spec_from_handoff(handoff: RunnerExecutionHandoff) -> RunnerRunSp
         artifact_ref=handoff.artifact_ref,
         image_ref=handoff.image_ref,
         trace_backend=handoff.trace_backend,
+        observability=_runner_observability_config(handoff.trace_backend),
         published_agent_snapshot=handoff.published_agent_snapshot,
     )
 

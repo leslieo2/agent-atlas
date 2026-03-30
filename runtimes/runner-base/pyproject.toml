@@ -6,6 +6,8 @@ requires-python = ">=3.12"
 dependencies = [
   "pydantic>=2.10,<2.11",
   "agent-atlas-contracts",
+  "opentelemetry-sdk>=1.40,<2",
+  "opentelemetry-exporter-otlp>=1.40,<2",
 ]
 
 [build-system]
