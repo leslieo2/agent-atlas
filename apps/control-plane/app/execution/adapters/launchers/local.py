@@ -7,14 +7,14 @@ from agent_atlas_runner_base.launchers import (
     LocalLaunchSession,
 )
 from agent_atlas_runner_base.outputs import RunnerOutputWriter
-
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.application.runtime_translation import (
+from agent_atlas_contracts.runtime import (
     empty_artifact_manifest,
     producer_for_runtime,
     terminal_result_from_runtime_result,
     trace_event_to_event_envelope,
 )
+
+from app.modules.runs.application.results import PublishedRunExecutionResult
 
 
 class LocalLauncher(RunnerBaseLocalLauncher):

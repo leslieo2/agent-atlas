@@ -7,6 +7,9 @@ dependencies = [
   "pydantic>=2.10,<2.11",
   "agent-atlas-contracts",
   "agent-atlas-runner-base",
+  "langgraph>=0.2.60,<0.4",
+  "langchain-core>=0.3.50,<0.4",
+  "langchain-openai>=0.3.10,<0.4",
 ]
 
 [build-system]
@@ -21,3 +24,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 agent_atlas_runner_langgraph = ["py.typed"]
+
+[project.entry-points."agent_atlas.framework_plugins"]
+langchain = "agent_atlas_runner_langgraph.plugin:build_framework_plugin"

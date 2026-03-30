@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import pkgutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import import_module
+from importlib.metadata import entry_points
 from typing import Any, Protocol
 
 from agent_atlas_contracts.execution import RunnerRunSpec
@@ -139,25 +139,40 @@ class FrameworkRegistry:
         )
 
 
+FRAMEWORK_PLUGIN_ENTRY_POINT_GROUP = "agent_atlas.framework_plugins"
+BUILTIN_FRAMEWORK_PLUGIN_MODULES = (
+    "app.infrastructure.adapters.openai_agents",
+    "app.infrastructure.adapters.langchain",
+)
+
+
 def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
     plugins: dict[str, FrameworkPlugin] = {}
-    package = import_module("app.infrastructure.adapters")
-    package_path = getattr(package, "__path__", None)
-    if package_path is None:
-        return plugins
-
-    for module_info in pkgutil.iter_modules(package_path):
-        if not module_info.ispkg:
+    for plugin_entry in entry_points().select(group=FRAMEWORK_PLUGIN_ENTRY_POINT_GROUP):
+        try:
+            builder = plugin_entry.load()
+        except Exception:
             continue
-        module_name = f"{package.__name__}.{module_info.name}"
+        if not callable(builder):
+            continue
+        try:
+            plugin = builder()
+        except Exception:
+            continue
+        plugins[plugin.framework.strip().lower()] = plugin
+
+    for module_name in BUILTIN_FRAMEWORK_PLUGIN_MODULES:
         module = FrameworkRegistry._safe_import(module_name)
         if module is None:
             continue
         builder = getattr(module, "build_framework_plugin", None)
         if not callable(builder):
             continue
-        plugin = builder()
-        plugins[plugin.framework.strip().lower()] = plugin
+        try:
+            plugin = builder()
+        except Exception:
+            continue
+        plugins.setdefault(plugin.framework.strip().lower(), plugin)
 
     return plugins
 

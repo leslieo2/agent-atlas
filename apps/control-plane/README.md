@@ -126,10 +126,19 @@ make sync
 ```
 
 - `make install`: create `.venv` and install dev dependencies
-- `make sync`: create `.venv` and install from `uv.lock`
-- `make install-export`: install optional export dependencies such as Parquet support
+- `make sync`: recreate `.venv` exactly from `uv.lock`
+- `make install-export`: sync dev plus optional export dependencies such as Parquet support
 
-The production image installs from `pyproject.toml` via [Dockerfile](./Dockerfile).
+The backend environment is locked together with the local contracts and `runner-*` packages through
+`uv.lock`; `make sync` does not perform any lock-external `uv pip install` steps.
+
+The production image installs the backend plus local contracts and runner packages via
+[Dockerfile](./Dockerfile). Build it from the repository root so those paths are in the Docker
+context:
+
+```bash
+docker build -f apps/control-plane/Dockerfile .
+```
 
 ## Configuration
 

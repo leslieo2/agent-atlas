@@ -7,6 +7,8 @@ dependencies = [
   "pydantic>=2.10,<2.11",
   "agent-atlas-contracts",
   "agent-atlas-runner-base",
+  "openai>=1.68,<2",
+  "openai-agents",
 ]
 
 [build-system]
@@ -21,3 +23,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 agent_atlas_runner_openai_agents = ["py.typed"]
+
+[project.entry-points."agent_atlas.framework_plugins"]
+openai-agents-sdk = "agent_atlas_runner_openai_agents.plugin:build_framework_plugin"

@@ -3,13 +3,13 @@ from __future__ import annotations
 from uuid import uuid4
 
 from agent_atlas_contracts.execution import RunnerBootstrapPaths
-from app.execution.adapters import runner_run_spec_from_run_spec
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.application.runtime_translation import (
+from agent_atlas_contracts.runtime import (
     event_envelope_to_trace_event,
     producer_for_runtime,
     trace_event_to_event_envelope,
 )
+from app.execution.adapters import runner_run_spec_from_run_spec
+from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind, StepType
 from app.modules.shared.domain.models import ProvenanceMetadata

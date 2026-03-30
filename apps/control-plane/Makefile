@@ -1,23 +1,15 @@
 .PHONY: install install-export sync lint fmt typecheck test test-unit test-integration test-e2e test-e2e-live test-tdd-unit test-tdd-integration test-check security contract-sync contract-check run-api run-worker ci
 
 install:
-	uv venv --clear .venv
-	uv pip install --python .venv/bin/python3 ".[dev]"
-	uv pip install --python .venv/bin/python3 -e ../../packages/contracts/python
-	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-base
-	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-openai-agents
-	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-langgraph
+	rm -rf .venv
+	uv sync --extra dev
 
 sync:
-	uv venv --clear .venv
-	uv sync --project .
-	uv pip install --python .venv/bin/python3 -e ../../packages/contracts/python
-	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-base
-	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-openai-agents
-	uv pip install --python .venv/bin/python3 -e ../../runtimes/runner-langgraph
+	rm -rf .venv
+	uv sync --frozen --extra dev
 
 install-export:
-	uv pip install --python .venv/bin/python3 ".[export]"
+	uv sync --extra dev --extra export
 
 fmt:
 	uv run ruff format app tests

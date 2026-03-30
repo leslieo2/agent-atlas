@@ -146,6 +146,14 @@ def test_execution_plane_does_not_import_framework_specific_runtime_packages() -
     assert violations == []
 
 
+def test_execution_plane_does_not_import_run_runtime_translation_helpers() -> None:
+    violations = _collect_forbidden_imports(
+        base_dir=Path("app/execution"),
+        forbidden_prefixes=("app.modules.runs.application.runtime_translation",),
+    )
+    assert violations == []
+
+
 def test_non_execution_packages_do_not_import_execution_service_compatibility_module():
     violations = _collect_forbidden_imports(
         base_dir=Path("app"),

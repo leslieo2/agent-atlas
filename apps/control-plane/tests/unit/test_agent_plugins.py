@@ -240,33 +240,113 @@ def test_framework_registry_dispatches_discovery_by_manifest_framework(monkeypat
 
 
 def test_framework_plugin_discovery_loads_package_manifests(monkeypatch) -> None:
-    class StubModuleInfo:
-        def __init__(self, name: str) -> None:
-            self.name = name
-            self.ispkg = True
+    class StubEntryPoint:
+        def __init__(self, builder) -> None:
+            self._builder = builder
 
-    package = SimpleNamespace(__name__="app.infrastructure.adapters", __path__=["/tmp/adapters"])
+        def load(self):
+            return self._builder
+
     plugin = FrameworkPlugin(
         framework=AdapterKind.LANGCHAIN.value,
         validator=SimpleNamespace(),
         loader=SimpleNamespace(),
         runtime=SimpleNamespace(),
     )
-    modules = {
-        "app.infrastructure.adapters": package,
-        "app.infrastructure.adapters.langchain": SimpleNamespace(
-            build_framework_plugin=lambda: plugin
+
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.framework_registry.entry_points",
+        lambda: SimpleNamespace(
+            select=lambda **kwargs: (
+                [
+                    StubEntryPoint(lambda: plugin),
+                    StubEntryPoint(object()),
+                ]
+                if kwargs["group"] == "agent_atlas.framework_plugins"
+                else []
+            )
         ),
-        "app.infrastructure.adapters.not_a_plugin": SimpleNamespace(),
+    )
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.framework_registry.import_module",
+        lambda module_name: (_ for _ in ()).throw(ImportError(module_name)),
+    )
+
+    discovered = discover_framework_plugins()
+
+    assert discovered == {AdapterKind.LANGCHAIN.value: plugin}
+
+
+def test_framework_plugin_discovery_falls_back_to_builtin_modules(monkeypatch) -> None:
+    openai_plugin = FrameworkPlugin(
+        framework=AdapterKind.OPENAI_AGENTS.value,
+        validator=SimpleNamespace(),
+        loader=SimpleNamespace(),
+        runtime=SimpleNamespace(),
+    )
+    langchain_plugin = FrameworkPlugin(
+        framework=AdapterKind.LANGCHAIN.value,
+        validator=SimpleNamespace(),
+        loader=SimpleNamespace(),
+        runtime=SimpleNamespace(),
+    )
+    modules = {
+        "app.infrastructure.adapters.openai_agents": SimpleNamespace(
+            build_framework_plugin=lambda: openai_plugin
+        ),
+        "app.infrastructure.adapters.langchain": SimpleNamespace(
+            build_framework_plugin=lambda: langchain_plugin
+        ),
     }
 
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.framework_registry.entry_points",
+        lambda: SimpleNamespace(select=lambda **_kwargs: []),
+    )
     monkeypatch.setattr(
         "app.infrastructure.adapters.framework_registry.import_module",
         lambda module_name: modules[module_name],
     )
+
+    discovered = discover_framework_plugins()
+
+    assert discovered == {
+        AdapterKind.OPENAI_AGENTS.value: openai_plugin,
+        AdapterKind.LANGCHAIN.value: langchain_plugin,
+    }
+
+
+def test_framework_plugin_discovery_skips_broken_entry_point_factories(monkeypatch) -> None:
+    class StubEntryPoint:
+        def __init__(self, builder) -> None:
+            self._builder = builder
+
+        def load(self):
+            return self._builder
+
+    plugin = FrameworkPlugin(
+        framework=AdapterKind.LANGCHAIN.value,
+        validator=SimpleNamespace(),
+        loader=SimpleNamespace(),
+        runtime=SimpleNamespace(),
+    )
+
     monkeypatch.setattr(
-        "app.infrastructure.adapters.framework_registry.pkgutil.iter_modules",
-        lambda _paths: [StubModuleInfo("langchain"), StubModuleInfo("not_a_plugin")],
+        "app.infrastructure.adapters.framework_registry.entry_points",
+        lambda: SimpleNamespace(
+            select=lambda **kwargs: (
+                [
+                    StubEntryPoint(lambda: (_ for _ in ()).throw(RuntimeError("broken factory"))),
+                    StubEntryPoint(lambda: plugin),
+                ]
+                if kwargs["group"] == "agent_atlas.framework_plugins"
+                else []
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.framework_registry.import_module",
+        lambda module_name: (_ for _ in ()).throw(ImportError(module_name)),
     )
 
     discovered = discover_framework_plugins()
