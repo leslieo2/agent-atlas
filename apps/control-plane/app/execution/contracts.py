@@ -3,8 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
-
 from agent_atlas_contracts.execution import (
     ExecutionArtifact,
     ExecutionHandoff,
@@ -13,6 +11,7 @@ from agent_atlas_contracts.execution import (
     TracingConfig,
     TracingExportConfig,
 )
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.modules.runs.domain.models import RunSpec

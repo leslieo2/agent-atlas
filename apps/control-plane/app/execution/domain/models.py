@@ -5,13 +5,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.execution.contracts import (
-    CancelRequest,
-    ExecutionCapability,
-    RunHandle,
-    RunStatusSnapshot,
-    RunTerminalSummary,
-)
 from app.modules.shared.domain.enums import RunStatus
 
 
@@ -29,4 +22,3 @@ class Heartbeat(BaseModel):
     lease_expires_at: datetime | None = None
     last_progress_at: datetime | None = None
     phase_hint: str | None = None
-

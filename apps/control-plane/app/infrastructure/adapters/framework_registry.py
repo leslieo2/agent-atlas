@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from importlib import import_module
 from importlib.metadata import entry_points
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from agent_atlas_contracts.execution import RunnerRunSpec
 from pydantic import SecretStr
@@ -53,6 +53,9 @@ class FrameworkPlugin:
     validator: FrameworkDiscoveryValidator
     loader: PublishedAgentLoader
     runtime: PublishedRuntimeExecutor
+
+
+FrameworkPluginBuilder = Callable[[], FrameworkPlugin]
 
 
 class FrameworkRegistry:
@@ -146,18 +149,31 @@ BUILTIN_FRAMEWORK_PLUGIN_MODULES = (
 )
 
 
+def _load_plugin_builder_from_entry_point(plugin_entry: Any) -> FrameworkPluginBuilder | None:
+    try:
+        builder = plugin_entry.load()
+    except Exception:
+        return None
+    if not callable(builder):
+        return None
+    return cast(FrameworkPluginBuilder, builder)
+
+
+def _build_plugin(builder: FrameworkPluginBuilder) -> FrameworkPlugin | None:
+    try:
+        return builder()
+    except Exception:
+        return None
+
+
 def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
     plugins: dict[str, FrameworkPlugin] = {}
     for plugin_entry in entry_points().select(group=FRAMEWORK_PLUGIN_ENTRY_POINT_GROUP):
-        try:
-            builder = plugin_entry.load()
-        except Exception:
+        builder = _load_plugin_builder_from_entry_point(plugin_entry)
+        if builder is None:
             continue
-        if not callable(builder):
-            continue
-        try:
-            plugin = builder()
-        except Exception:
+        plugin = _build_plugin(builder)
+        if plugin is None:
             continue
         plugins[plugin.framework.strip().lower()] = plugin
 
@@ -168,9 +184,8 @@ def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
         builder = getattr(module, "build_framework_plugin", None)
         if not callable(builder):
             continue
-        try:
-            plugin = builder()
-        except Exception:
+        plugin = _build_plugin(builder)
+        if plugin is None:
             continue
         plugins.setdefault(plugin.framework.strip().lower(), plugin)
 
