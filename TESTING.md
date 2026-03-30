@@ -52,14 +52,14 @@ They may retain historical tests where needed, but they do not define the primar
 
 ## Backend Commands
 
-- Full suite: `cd backend && make test`
-- Unit only: `cd backend && make test-unit`
-- Integration only: `cd backend && make test-integration`
-- E2E only: `cd backend && make test-e2e`
-- TDD fast loop for unit work: `cd backend && make test-tdd-unit`
-- TDD fast loop for integration work: `cd backend && make test-tdd-integration`
+- Full suite: `cd apps/control-plane && make test`
+- Unit only: `cd apps/control-plane && make test-unit`
+- Integration only: `cd apps/control-plane && make test-integration`
+- E2E only: `cd apps/control-plane && make test-e2e`
+- TDD fast loop for unit work: `cd apps/control-plane && make test-tdd-unit`
+- TDD fast loop for integration work: `cd apps/control-plane && make test-tdd-integration`
 
-`backend/tests/conftest.py` auto-labels tests by directory:
+`apps/control-plane/tests/conftest.py` auto-labels tests by directory:
 
 - `tests/unit/**` => `@pytest.mark.unit`
 - `tests/integration/**` => `@pytest.mark.integration`
@@ -72,19 +72,19 @@ Files kept at the test root are also classified:
 
 ## Frontend Commands
 
-- Full Vitest suite: `cd frontend && npm run test`
-- Unit only: `cd frontend && npm run test:unit`
-- Integration only: `cd frontend && npm run test:integration`
-- E2E only: `cd frontend && npm run test:e2e`
-- Interactive e2e debugging: `cd frontend && npm run test:e2e:ui`
-- TDD loop for component and utility work: `cd frontend && npm run test:tdd`
-- TDD loop for isolated unit work: `cd frontend && npm run test:tdd:unit`
-- TDD loop for component integration work: `cd frontend && npm run test:tdd:integration`
-- Full verification gate: `cd frontend && npm run verify:full`
+- Full Vitest suite: `cd apps/web && npm run test`
+- Unit only: `cd apps/web && npm run test:unit`
+- Integration only: `cd apps/web && npm run test:integration`
+- E2E only: `cd apps/web && npm run test:e2e`
+- Interactive e2e debugging: `cd apps/web && npm run test:e2e:ui`
+- TDD loop for component and utility work: `cd apps/web && npm run test:tdd`
+- TDD loop for isolated unit work: `cd apps/web && npm run test:tdd:unit`
+- TDD loop for component integration work: `cd apps/web && npm run test:tdd:integration`
+- Full verification gate: `cd apps/web && npm run verify:full`
 
-`frontend/test/setup.ts` provides stable browser shims for `matchMedia`, `ResizeObserver`, and `IntersectionObserver`, which avoids false failures in jsdom-based integration tests.
+`apps/web/test/setup.ts` provides stable browser shims for `matchMedia`, `ResizeObserver`, and `IntersectionObserver`, which avoids false failures in jsdom-based integration tests.
 
-`frontend/e2e/support/mockApi.ts` centralizes Playwright API fixtures so new agent discovery, publication, and run flows can be added without repeating raw `page.route` boilerplate.
+`apps/web/e2e/support/mockApi.ts` centralizes Playwright API fixtures so new agent discovery, publication, and run flows can be added without repeating raw `page.route` boilerplate.
 
 ## TDD Workflow
 

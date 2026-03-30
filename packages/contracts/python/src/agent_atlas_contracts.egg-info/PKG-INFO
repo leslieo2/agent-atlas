@@ -1,0 +1,6 @@
+Metadata-Version: 2.1
+Name: agent-atlas-contracts
+Version: 0.1.0
+Summary: Shared runner and event contracts for Agent Atlas.
+Requires-Python: >=3.12
+Requires-Dist: pydantic<2.11,>=2.10

@@ -13,9 +13,14 @@ It combines:
 
 ## What Is In This Repository
 
-- `backend/`: FastAPI service, worker process, feature modules, backend tests, and backend-specific
-  tooling
-- `frontend/`: Next.js App Router application, layered product code, and frontend tests
+- `apps/web/`: operator-facing web UI
+- `apps/control-plane/`: FastAPI control plane, worker process, feature modules, tests, and
+  backend-specific tooling
+- `apps/data-ingestion/`, `apps/export-worker/`, `apps/eval-worker/`, `apps/executor-gateway/`,
+  `apps/data-plane-api/`: scaffolded product-plane services for the next split
+- `packages/contracts/`: neutral cross-plane contract package
+- `runtimes/`: runner scaffolds for framework-specific execution adapters
+- `infra/`, `schemas/`, and `docs/`: deployment assets, shared schemas, and architecture docs
 - `Makefile`: root entrypoint for installing dependencies and running the common full-stack
   workflows
 
@@ -90,11 +95,14 @@ Hexagonal architecture is still useful, but only locally:
 
 ## Architecture At A Glance
 
-- Backend: a modular monolith built with FastAPI. HTTP routes stay thin, feature logic lives under
-  `backend/app/modules`, infrastructure adapters live under `backend/app/infrastructure`, and
-  wiring happens in `backend/app/bootstrap/container.py`.
-- Frontend: a layered Next.js App Router app. Route entrypoints live in `frontend/app`, while
-  product code follows `app -> widgets -> features -> entities -> shared` in `frontend/src`.
+- Control plane: a modular monolith built with FastAPI. HTTP routes stay thin, feature logic lives
+  under `apps/control-plane/app/modules`, infrastructure adapters live under
+  `apps/control-plane/app/infrastructure`, and wiring happens in
+  `apps/control-plane/app/bootstrap/container.py`.
+- Web app: a layered Next.js App Router app. Route entrypoints live in `apps/web/app`, while
+  product code follows `app -> widgets -> features -> entities -> shared` in `apps/web/src`.
+- Shared contracts: the long-term neutral boundary for `RunSpec`, event envelopes, artifact
+  manifests, and related cross-plane contracts lives under `packages/contracts/`.
 - External backend direction: Atlas keeps control-plane truth while Phoenix remains the required
   analysis plane for raw traces and experiment-heavy debugging workflows.
 
@@ -102,13 +110,14 @@ Use the subsystem docs for the full architecture rules:
 
 - [prd.md](prd.md)
 - [roadmap.md](roadmap.md)
-- [backend/README.md](backend/README.md)
-- [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
-- [backend/PLATFORM_MODULES.md](backend/PLATFORM_MODULES.md)
-- [backend/AGENTS.md](backend/AGENTS.md)
-- [frontend/README.md](frontend/README.md)
-- [frontend/ARCHITECTURE.md](frontend/ARCHITECTURE.md)
-- [frontend/AGENTS.md](frontend/AGENTS.md)
+- [docs/architecture/repository-layout.md](docs/architecture/repository-layout.md)
+- [apps/control-plane/README.md](apps/control-plane/README.md)
+- [apps/control-plane/ARCHITECTURE.md](apps/control-plane/ARCHITECTURE.md)
+- [apps/control-plane/PLATFORM_MODULES.md](apps/control-plane/PLATFORM_MODULES.md)
+- [apps/control-plane/AGENTS.md](apps/control-plane/AGENTS.md)
+- [apps/web/README.md](apps/web/README.md)
+- [apps/web/ARCHITECTURE.md](apps/web/ARCHITECTURE.md)
+- [apps/web/AGENTS.md](apps/web/AGENTS.md)
 
 ## Prerequisites
 
@@ -125,8 +134,8 @@ From the repository root:
 
 ```bash
 make install
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env.local
+cp apps/control-plane/.env.example apps/control-plane/.env
+cp apps/web/.env.example apps/web/.env.local
 make dev
 ```
 
@@ -174,15 +183,15 @@ What they do:
 - `make typecheck`: run backend mypy and frontend TypeScript checks
 - `make test`: run backend pytest and frontend Vitest suites
 - `make build`: run the frontend production build
-- `make backend-ci`: run backend CI checks from `backend/Makefile`
-- `make frontend-ci`: run frontend CI checks from `frontend/package.json`
+- `make backend-ci`: run control-plane CI checks from `apps/control-plane/Makefile`
+- `make frontend-ci`: run web CI checks from `apps/web/package.json`
 - `make ci`: run both backend and frontend CI flows
 
 ## Environment Configuration
 
 ### Backend
 
-Copy `backend/.env.example` to `backend/.env`.
+Copy `apps/control-plane/.env.example` to `apps/control-plane/.env`.
 
 Key settings currently wired in the backend:
 
@@ -206,7 +215,7 @@ Phoenix-backed tracing is now required behind backend-owned settings:
 
 ### Frontend
 
-Copy `frontend/.env.example` to `frontend/.env.local`.
+Copy `apps/web/.env.example` to `apps/web/.env.local`.
 
 Key setting:
 
@@ -221,7 +230,7 @@ more focused commands.
 ### Backend
 
 ```bash
-cd backend
+cd apps/control-plane
 make install
 make run-api
 make run-worker
@@ -247,7 +256,7 @@ Swagger UI is available at `http://127.0.0.1:8000/docs`.
 ### Frontend
 
 ```bash
-cd frontend
+cd apps/web
 npm install
 npm run dev
 npm run lint
@@ -285,15 +294,15 @@ make ci
 
 If you are working in only one subproject, use the subsystem-local CI entrypoint:
 
-- backend: `cd backend && make ci`
-- frontend: `cd frontend && npm run ci`
+- backend: `cd apps/control-plane && make ci`
+- frontend: `cd apps/web && npm run ci`
 
 ## Where To Go Next
 
 - Product direction and boundaries: [prd.md](prd.md), [roadmap.md](roadmap.md)
-- Backend runtime, API surface, and environment details: [backend/README.md](backend/README.md)
-- Backend architecture and dependency rules: [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md)
-- Frontend setup, testing, and product surfaces: [frontend/README.md](frontend/README.md)
-- Frontend architecture rules: [frontend/ARCHITECTURE.md](frontend/ARCHITECTURE.md)
-- Repository conventions for contributors and agents: [backend/AGENTS.md](backend/AGENTS.md),
-  [frontend/AGENTS.md](frontend/AGENTS.md)
+- Backend runtime, API surface, and environment details: [apps/control-plane/README.md](apps/control-plane/README.md)
+- Backend architecture and dependency rules: [apps/control-plane/ARCHITECTURE.md](apps/control-plane/ARCHITECTURE.md)
+- Frontend setup, testing, and product surfaces: [apps/web/README.md](apps/web/README.md)
+- Frontend architecture rules: [apps/web/ARCHITECTURE.md](apps/web/ARCHITECTURE.md)
+- Repository conventions for contributors and agents: [apps/control-plane/AGENTS.md](apps/control-plane/AGENTS.md),
+  [apps/web/AGENTS.md](apps/web/AGENTS.md)

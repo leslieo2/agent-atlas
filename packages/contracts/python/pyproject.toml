@@ -1,0 +1,21 @@
+[project]
+name = "agent-atlas-contracts"
+version = "0.1.0"
+description = "Shared runner and event contracts for Agent Atlas."
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.10,<2.11",
+]
+
+[build-system]
+requires = ["setuptools>=70.0,<71.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agent_atlas_contracts = ["py.typed"]

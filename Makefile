@@ -1,5 +1,8 @@
 .PHONY: help install backend-install frontend-install dev lint typecheck test build backend-ci frontend-ci ci
 
+CONTROL_PLANE_DIR := apps/control-plane
+WEB_DIR := apps/web
+
 API_HOST ?= 127.0.0.1
 API_PORT ?= 8000
 FRONTEND_HOST ?= 127.0.0.1
@@ -29,10 +32,10 @@ help:
 install: backend-install frontend-install
 
 backend-install:
-	$(MAKE) -C backend install
+	$(MAKE) -C $(CONTROL_PLANE_DIR) install
 
 frontend-install:
-	npm --prefix frontend install
+	npm --prefix $(WEB_DIR) install
 
 dev:
 	@set -e; \
@@ -84,11 +87,11 @@ dev:
 		fi; \
 		sleep 1; \
 	done; \
-	AGENT_ATLAS_PHOENIX_BASE_URL="$$phoenix_base_url" AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT="$$phoenix_otlp_endpoint" AGENT_ATLAS_PHOENIX_PROJECT_NAME='$(PHOENIX_PROJECT_NAME)' $(MAKE) -C backend run-api & \
+	AGENT_ATLAS_PHOENIX_BASE_URL="$$phoenix_base_url" AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT="$$phoenix_otlp_endpoint" AGENT_ATLAS_PHOENIX_PROJECT_NAME='$(PHOENIX_PROJECT_NAME)' $(MAKE) -C $(CONTROL_PLANE_DIR) run-api & \
 	api_pid=$$!; \
-	AGENT_ATLAS_PHOENIX_BASE_URL="$$phoenix_base_url" AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT="$$phoenix_otlp_endpoint" AGENT_ATLAS_PHOENIX_PROJECT_NAME='$(PHOENIX_PROJECT_NAME)' $(MAKE) -C backend run-worker & \
+	AGENT_ATLAS_PHOENIX_BASE_URL="$$phoenix_base_url" AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT="$$phoenix_otlp_endpoint" AGENT_ATLAS_PHOENIX_PROJECT_NAME='$(PHOENIX_PROJECT_NAME)' $(MAKE) -C $(CONTROL_PLANE_DIR) run-worker & \
 	worker_pid=$$!; \
-	NEXT_PUBLIC_API_BASE_URL=http://$(API_HOST):$(API_PORT) npm --prefix frontend run dev -- --hostname $(FRONTEND_HOST) --port $(FRONTEND_PORT) & \
+	NEXT_PUBLIC_API_BASE_URL=http://$(API_HOST):$(API_PORT) npm --prefix $(WEB_DIR) run dev -- --hostname $(FRONTEND_HOST) --port $(FRONTEND_PORT) & \
 	frontend_pid=$$!; \
 	while \
 		[ -n "$$(docker ps -q -f id=$$phoenix_container_id)" ] && \
@@ -121,24 +124,24 @@ dev:
 	exit "$$status"
 
 lint:
-	$(MAKE) -C backend lint
-	npm --prefix frontend run lint
+	$(MAKE) -C $(CONTROL_PLANE_DIR) lint
+	npm --prefix $(WEB_DIR) run lint
 
 typecheck:
-	$(MAKE) -C backend typecheck
-	npm --prefix frontend run typecheck
+	$(MAKE) -C $(CONTROL_PLANE_DIR) typecheck
+	npm --prefix $(WEB_DIR) run typecheck
 
 test:
-	$(MAKE) -C backend test
-	npm --prefix frontend run test
+	$(MAKE) -C $(CONTROL_PLANE_DIR) test
+	npm --prefix $(WEB_DIR) run test
 
 build:
-	npm --prefix frontend run build
+	npm --prefix $(WEB_DIR) run build
 
 backend-ci:
-	$(MAKE) -C backend ci
+	$(MAKE) -C $(CONTROL_PLANE_DIR) ci
 
 frontend-ci:
-	npm --prefix frontend run ci
+	npm --prefix $(WEB_DIR) run ci
 
 ci: backend-ci frontend-ci
