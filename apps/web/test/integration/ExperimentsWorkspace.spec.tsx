@@ -10,7 +10,7 @@ import { renderWithQueryClient } from "@/test/setup";
 import ExperimentsWorkspace from "@/src/widgets/experiments-workspace/ExperimentsWorkspace";
 
 vi.mock("@/src/entities/agent/api", () => ({
-  listAgents: vi.fn()
+  listDiscoveredAgents: vi.fn()
 }));
 
 vi.mock("@/src/entities/dataset/api", () => ({
@@ -41,7 +41,7 @@ type MockedApiFn = ReturnType<typeof vi.fn>;
 
 describe("Experiments workspace", () => {
   beforeEach(() => {
-    (agentApi.listAgents as unknown as MockedApiFn).mockReset();
+    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockReset();
     (datasetApi.listDatasets as unknown as MockedApiFn).mockReset();
     (experimentApi.listExperiments as unknown as MockedApiFn).mockReset();
     (experimentApi.listExperimentRuns as unknown as MockedApiFn).mockReset();
@@ -54,7 +54,7 @@ describe("Experiments workspace", () => {
     (exportApi.createExport as unknown as MockedApiFn).mockReset();
     (exportApi.listExports as unknown as MockedApiFn).mockReset();
 
-    (agentApi.listAgents as unknown as MockedApiFn).mockResolvedValue([
+    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockResolvedValue([
       {
         agentId: "basic",
         name: "Basic",
@@ -66,6 +66,31 @@ describe("Experiments workspace", () => {
         defaultModel: "gpt-5.4-mini",
         tags: ["example", "smoke"],
         capabilities: ["submit", "cancel"],
+        publishState: "published",
+        validationStatus: "valid",
+        validationIssues: [],
+        publishedAt: "2026-03-20T09:00:00Z",
+        lastValidatedAt: "2026-03-24T00:00:00Z",
+        hasUnpublishedChanges: false,
+        runtimeArtifact: null,
+        provenance: null
+      },
+      {
+        agentId: "archived_basic",
+        name: "Archived Basic",
+        description: "Published snapshot no longer discoverable locally.",
+        framework: "openai-agents-sdk",
+        frameworkType: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
+        entrypoint: "app.agent_plugins.archived_basic:build_agent",
+        defaultModel: "gpt-5.4-mini",
+        tags: ["archived"],
+        capabilities: ["submit"],
+        publishState: "draft",
+        validationStatus: "invalid",
+        validationIssues: [{ code: "module_missing", message: "plugin module is missing" }],
+        lastValidatedAt: "2026-03-24T00:00:00Z",
+        hasUnpublishedChanges: false,
         runtimeArtifact: null,
         provenance: null
       }

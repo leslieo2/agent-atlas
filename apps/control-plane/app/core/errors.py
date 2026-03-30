@@ -56,6 +56,15 @@ class AgentNotPublishedError(AppError, ValueError):
         super().__init__(f"agent_id '{agent_id}' is not published", agent_id=agent_id)
 
 
+class PublishedAgentNotFoundError(AppError, ValueError):
+    code = "published_agent_not_found"
+    status_code = 404
+
+    def __init__(self, agent_id: str) -> None:
+        self.agent_id = agent_id
+        super().__init__(f"published agent '{agent_id}' was not found", agent_id=agent_id)
+
+
 class AgentValidationFailedError(AppError, ValueError):
     code = "agent_validation_failed"
     status_code = 400

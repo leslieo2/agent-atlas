@@ -5,15 +5,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.bootstrap.providers.agents import (
-    get_agent_catalog_queries,
     get_agent_discovery_queries,
     get_agent_publication_commands,
+    get_published_agent_catalog_queries,
 )
 from app.core.errors import AppError
 from app.modules.agents.application.use_cases import (
-    AgentCatalogQueries,
     AgentDiscoveryQueries,
     AgentPublicationCommands,
+    PublishedAgentCatalogQueries,
 )
 from app.modules.agents.contracts.schemas import (
     AgentDescriptorResponse,
@@ -24,9 +24,9 @@ from app.modules.agents.contracts.schemas import (
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-@router.get("", response_model=list[AgentDescriptorResponse])
-def list_agents(
-    queries: Annotated[AgentCatalogQueries, Depends(get_agent_catalog_queries)],
+@router.get("/published", response_model=list[AgentDescriptorResponse])
+def list_published_agents(
+    queries: Annotated[PublishedAgentCatalogQueries, Depends(get_published_agent_catalog_queries)],
 ) -> list[AgentDescriptorResponse]:
     try:
         return [AgentDescriptorResponse.from_domain(agent) for agent in queries.list_agents()]

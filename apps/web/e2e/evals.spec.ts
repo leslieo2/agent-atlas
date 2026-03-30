@@ -15,7 +15,12 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
       default_model: "gpt-5.4-mini",
       tags: ["example", "smoke"],
       capabilities: ["submit", "cancel"],
+      publish_state: "published",
+      validation_status: "valid",
+      validation_issues: [],
       published_at: "2026-03-24T00:00:00Z",
+      last_validated_at: "2026-03-24T00:00:00Z",
+      has_unpublished_changes: false,
       runtime_artifact: null,
       provenance: null
     }
@@ -276,7 +281,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
         body: JSON.stringify(body)
       });
 
-    if (path === "/api/v1/agents" && method === "GET") {
+    if (path === "/api/v1/agents/discovered" && method === "GET") {
       return json(agents);
     }
     if (path === "/api/v1/datasets" && method === "GET") {

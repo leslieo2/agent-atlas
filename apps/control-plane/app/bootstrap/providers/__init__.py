@@ -1,5 +1,4 @@
 from app.bootstrap.providers.agents import (
-    get_agent_catalog_queries,
     get_agent_discovery_queries,
     get_agent_publication_commands,
 )
@@ -18,7 +17,6 @@ from app.bootstrap.providers.runs import (
 )
 
 __all__ = [
-    "get_agent_catalog_queries",
     "get_agent_discovery_queries",
     "get_agent_publication_commands",
     "get_dataset_commands",

@@ -2,7 +2,7 @@
 
 import { ArrowUpRight, Download, Radar, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useAgentsQuery } from "@/src/entities/agent/query";
+import { useDiscoveredAgentsQuery } from "@/src/entities/agent/query";
 import { useDatasetsQuery } from "@/src/entities/dataset/query";
 import { getExportDownloadUrl } from "@/src/entities/export/api";
 import { useCreateExportMutation } from "@/src/entities/export/query";
@@ -131,7 +131,7 @@ export default function ExperimentsWorkspace({
   initialDatasetVersionId = "",
   initialExperimentId = ""
 }: Props) {
-  const agentsQuery = useAgentsQuery();
+  const agentsQuery = useDiscoveredAgentsQuery();
   const datasetsQuery = useDatasetsQuery();
   const policiesQuery = usePoliciesQuery();
   const experimentsQuery = useExperimentsQuery();
@@ -140,7 +140,13 @@ export default function ExperimentsWorkspace({
   const cancelExperimentMutation = useCancelExperimentMutation();
   const createExportMutation = useCreateExportMutation();
 
-  const agents = useMemo(() => agentsQuery.data ?? [], [agentsQuery.data]);
+  const agents = useMemo(
+    () =>
+      (agentsQuery.data ?? []).filter(
+        (agent) => agent.publishState === "published" && agent.validationStatus === "valid"
+      ),
+    [agentsQuery.data]
+  );
   const datasets = useMemo(() => datasetsQuery.data ?? [], [datasetsQuery.data]);
   const policies = useMemo(() => policiesQuery.data ?? [], [policiesQuery.data]);
   const experiments = useMemo(() => experimentsQuery.data ?? [], [experimentsQuery.data]);
@@ -228,9 +234,14 @@ export default function ExperimentsWorkspace({
   const errorCodeOptions = useMemo(() => uniqueStrings(runs.map((run) => run.errorCode)), [runs]);
 
   useEffect(() => {
-    if (!agentId && agents[0]) {
-      setAgentId(agents[0].agentId);
+    if (!agents.length) {
+      setAgentId("");
+      return;
     }
+    if (agentId && agents.some((agent) => agent.agentId === agentId)) {
+      return;
+    }
+    setAgentId(agents[0].agentId);
   }, [agentId, agents]);
 
   useEffect(() => {

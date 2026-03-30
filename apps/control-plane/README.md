@@ -210,7 +210,7 @@ Current backend endpoints include:
 
 - Health: `GET /health`
 - Agents:
-  - `GET /api/v1/agents`
+  - `GET /api/v1/agents/published`
   - `GET /api/v1/agents/discovered`
   - `POST /api/v1/agents/{agent_id}/publish`
   - `POST /api/v1/agents/{agent_id}/unpublish`

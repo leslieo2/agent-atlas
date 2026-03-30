@@ -6,8 +6,8 @@ import type {
 } from "@/src/shared/api/contract";
 import { mapAgent, mapDiscoveredAgent } from "./mapper";
 
-export async function listAgents() {
-  return (await request<AgentDescriptorResponse[]>("/api/v1/agents")).map(mapAgent);
+export async function listPublishedAgents() {
+  return (await request<AgentDescriptorResponse[]>("/api/v1/agents/published")).map(mapAgent);
 }
 
 export async function listDiscoveredAgents() {

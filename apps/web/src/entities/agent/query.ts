@@ -1,15 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listAgents, listDiscoveredAgents, publishAgent, unpublishAgent } from "./api";
+import { listDiscoveredAgents, listPublishedAgents, publishAgent, unpublishAgent } from "./api";
 
-export const agentsQueryRoot = ["agents"] as const;
 export const discoveredAgentsQueryRoot = ["agents", "discovered"] as const;
-
-export function agentsQueryOptions() {
-  return {
-    queryKey: agentsQueryRoot,
-    queryFn: listAgents
-  };
-}
+export const publishedAgentsQueryRoot = ["agents", "published"] as const;
 
 export function discoveredAgentsQueryOptions() {
   return {
@@ -18,12 +11,19 @@ export function discoveredAgentsQueryOptions() {
   };
 }
 
-export function useAgentsQuery() {
-  return useQuery(agentsQueryOptions());
+export function publishedAgentsQueryOptions() {
+  return {
+    queryKey: publishedAgentsQueryRoot,
+    queryFn: listPublishedAgents
+  };
 }
 
 export function useDiscoveredAgentsQuery() {
   return useQuery(discoveredAgentsQueryOptions());
+}
+
+export function usePublishedAgentsQuery() {
+  return useQuery(publishedAgentsQueryOptions());
 }
 
 export function usePublishAgentMutation() {
@@ -32,8 +32,8 @@ export function usePublishAgentMutation() {
   return useMutation({
     mutationFn: (agentId: string) => publishAgent(agentId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: agentsQueryRoot });
       void queryClient.invalidateQueries({ queryKey: discoveredAgentsQueryRoot });
+      void queryClient.invalidateQueries({ queryKey: publishedAgentsQueryRoot });
     }
   });
 }
@@ -44,8 +44,8 @@ export function useUnpublishAgentMutation() {
   return useMutation({
     mutationFn: (agentId: string) => unpublishAgent(agentId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: agentsQueryRoot });
       void queryClient.invalidateQueries({ queryKey: discoveredAgentsQueryRoot });
+      void queryClient.invalidateQueries({ queryKey: publishedAgentsQueryRoot });
     }
   });
 }

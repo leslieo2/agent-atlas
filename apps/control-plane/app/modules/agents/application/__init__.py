@@ -4,16 +4,16 @@ from app.modules.agents.application.ports import (
     RunnableAgentCatalogPort,
 )
 from app.modules.agents.application.use_cases import (
-    AgentCatalogQueries,
     AgentDiscoveryQueries,
     AgentPublicationCommands,
+    PublishedAgentCatalogQueries,
 )
 
 __all__ = [
-    "AgentCatalogQueries",
     "AgentDiscoveryQueries",
     "AgentPublicationCommands",
     "AgentSourceDiscoveryPort",
+    "PublishedAgentCatalogQueries",
     "PublishedAgentRepositoryPort",
     "RunnableAgentCatalogPort",
 ]

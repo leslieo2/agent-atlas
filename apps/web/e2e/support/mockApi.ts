@@ -5,9 +5,18 @@ export type ApiAgent = {
   name: string;
   description: string;
   framework: string;
+  framework_type?: string;
+  framework_version?: string;
   entrypoint: string;
   default_model: string;
   tags: string[];
+  capabilities?: string[];
+  publish_state?: "draft" | "published";
+  validation_status?: "valid" | "invalid";
+  validation_issues?: Array<{ code: string; message: string }>;
+  published_at?: string | null;
+  last_validated_at?: string;
+  has_unpublished_changes?: boolean;
 };
 
 export type ApiDataset = {
@@ -125,9 +134,18 @@ export const buildAgent = (overrides: Partial<ApiAgent> = {}): ApiAgent => ({
   name: "Basic",
   description: "Minimal smoke agent.",
   framework: "openai-agents-sdk",
+  framework_type: "openai-agents-sdk",
+  framework_version: "0.1.0",
   entrypoint: "app.agent_plugins.basic:build_agent",
   default_model: "gpt-5.4-mini",
   tags: ["example", "smoke"],
+  capabilities: ["submit", "cancel"],
+  publish_state: "published",
+  validation_status: "valid",
+  validation_issues: [],
+  published_at: "2026-03-24T00:00:00Z",
+  last_validated_at: "2026-03-24T00:00:00Z",
+  has_unpublished_changes: false,
   ...overrides
 });
 
@@ -220,7 +238,7 @@ export async function mockCatalog(
     datasets?: ApiDataset[];
   } = {}
 ) {
-  await page.route("**/api/v1/agents", async (route) => json(route, agents));
+  await page.route("**/api/v1/agents/discovered", async (route) => json(route, agents));
   await page.route("**/api/v1/datasets", async (route) => json(route, datasets));
 }
 

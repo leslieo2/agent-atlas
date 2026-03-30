@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from app.core.errors import AgentValidationFailedError
+from app.core.errors import AgentValidationFailedError, PublishedAgentNotFoundError
 from app.modules.agents.application.ports import (
     AgentSourceDiscoveryPort,
     ArtifactBuilderPort,
     PublishedAgentRepositoryPort,
-    RunnableAgentCatalogPort,
 )
 from app.modules.agents.domain.models import (
     AgentValidationStatus,
@@ -32,12 +31,12 @@ class AgentDiscoveryQueries:
         ]
 
 
-class AgentCatalogQueries:
-    def __init__(self, runnable_catalog: RunnableAgentCatalogPort) -> None:
-        self.runnable_catalog = runnable_catalog
+class PublishedAgentCatalogQueries:
+    def __init__(self, published_agents: PublishedAgentRepositoryPort) -> None:
+        self.published_agents = published_agents
 
     def list_agents(self) -> list[PublishedAgent]:
-        return self.runnable_catalog.list_agents()
+        return self.published_agents.list_agents()
 
 
 class AgentPublicationCommands:
@@ -67,7 +66,10 @@ class AgentPublicationCommands:
         return published
 
     def unpublish(self, agent_id: str) -> bool:
-        return self.published_agents.delete_agent(agent_id)
+        deleted = self.published_agents.delete_agent(agent_id)
+        if not deleted:
+            raise PublishedAgentNotFoundError(agent_id)
+        return True
 
     def _get_discovered_agent(self, agent_id: str) -> DiscoveredAgent:
         for agent in self.discovery.list_agents():
@@ -75,5 +77,8 @@ class AgentPublicationCommands:
                 return agent
         raise AgentValidationFailedError(
             agent_id=agent_id,
-            message=f"agent_id '{agent_id}' was not discovered under app.agent_plugins",
+            message=(
+                f"agent '{agent_id}' is not available in the current repository-local "
+                "discovery catalog"
+            ),
         )

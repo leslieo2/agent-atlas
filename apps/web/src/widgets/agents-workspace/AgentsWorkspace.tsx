@@ -4,10 +4,11 @@ import { ArrowUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   useDiscoveredAgentsQuery,
+  usePublishedAgentsQuery,
   usePublishAgentMutation,
   useUnpublishAgentMutation
 } from "@/src/entities/agent/query";
-import type { DiscoveredAgentRecord, RuntimeArtifactRecord } from "@/src/entities/agent/model";
+import type { AgentRecord, DiscoveredAgentRecord, RuntimeArtifactRecord } from "@/src/entities/agent/model";
 import { Field } from "@/src/shared/ui/Field";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
@@ -19,12 +20,25 @@ import styles from "./AgentsWorkspace.module.css";
 type AgentGroup = {
   title: string;
   description: string;
-  items: DiscoveredAgentRecord[];
+  items: AgentWorkspaceRecord[];
 };
 
-type AgentReadiness = "ready" | "published_with_drift" | "draft" | "invalid";
+type PublishedOnlyAgentRecord = AgentRecord & {
+  availability: "published_only";
+};
 
-function getAgentReadiness(agent: DiscoveredAgentRecord): AgentReadiness {
+type AgentWorkspaceRecord = DiscoveredAgentRecord | PublishedOnlyAgentRecord;
+
+type AgentReadiness = "ready" | "published_with_drift" | "draft" | "invalid" | "published_only";
+
+function isPublishedOnlyAgent(agent: AgentWorkspaceRecord): agent is PublishedOnlyAgentRecord {
+  return "availability" in agent && agent.availability === "published_only";
+}
+
+function getAgentReadiness(agent: AgentWorkspaceRecord): AgentReadiness {
+  if (isPublishedOnlyAgent(agent)) {
+    return "published_only";
+  }
   if (agent.validationStatus === "invalid") {
     return "invalid";
   }
@@ -47,20 +61,29 @@ function readinessLabel(state: AgentReadiness) {
   if (state === "draft") {
     return "Draft";
   }
+  if (state === "published_only") {
+    return "Published only";
+  }
   return "Invalid";
 }
 
-function validationTone(agent: DiscoveredAgentRecord) {
+function validationTone(agent: AgentWorkspaceRecord) {
+  if (isPublishedOnlyAgent(agent)) {
+    return "warn";
+  }
   return agent.validationStatus === "valid" ? "success" : "error";
 }
 
-function publishTone(agent: DiscoveredAgentRecord) {
+function publishTone(agent: AgentWorkspaceRecord) {
   const readiness = getAgentReadiness(agent);
   return readiness === "ready" ? "success" : "warn";
 }
 
-function runtimeArtifactStatus(agent: DiscoveredAgentRecord) {
+function runtimeArtifactStatus(agent: AgentWorkspaceRecord) {
   if (!agent.runtimeArtifact?.buildStatus) {
+    if (isPublishedOnlyAgent(agent)) {
+      return "legacy";
+    }
     return agent.publishState === "published" ? "legacy" : "not built";
   }
   return agent.runtimeArtifact.buildStatus;
@@ -111,14 +134,15 @@ function AgentCard({
   isPublishing,
   isUnpublishing
 }: {
-  agent: DiscoveredAgentRecord;
+  agent: AgentWorkspaceRecord;
   onPublish: (agentId: string) => void;
   onUnpublish: (agentId: string) => void;
   isPublishing: boolean;
   isUnpublishing: boolean;
 }) {
-  const isValid = agent.validationStatus === "valid";
-  const isPublished = agent.publishState === "published";
+  const isPublishedOnly = isPublishedOnlyAgent(agent);
+  const isValid = !isPublishedOnly && agent.validationStatus === "valid";
+  const isPublished = isPublishedOnly || agent.publishState === "published";
   const readiness = getAgentReadiness(agent);
   const hasDraftChanges = readiness === "published_with_drift";
 
@@ -134,11 +158,16 @@ function AgentCard({
         </div>
         <div className="toolbar">
           <StatusPill tone={publishTone(agent)}>{readinessLabel(readiness)}</StatusPill>
-          <StatusPill tone={validationTone(agent)}>{agent.validationStatus}</StatusPill>
+          <StatusPill tone={validationTone(agent)}>{isPublishedOnly ? "not discoverable" : agent.validationStatus}</StatusPill>
           <StatusPill tone={runtimeArtifactTone(agent.runtimeArtifact)}>{`Build ${runtimeArtifactStatus(agent)}`}</StatusPill>
         </div>
       </div>
 
+      {isPublishedOnly ? (
+        <p className={styles.driftNotice}>
+          This published snapshot is still stored in Atlas, but the repository-local plugin is not currently discoverable.
+        </p>
+      ) : null}
       {hasDraftChanges ? (
         <p className={styles.driftNotice}>Publish the current repository draft to refresh the runnable snapshot.</p>
       ) : null}
@@ -178,11 +207,13 @@ function AgentCard({
         </div>
         <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Last validated</span>
-          <span className={styles.metaValue}>{new Date(agent.lastValidatedAt).toLocaleString("en")}</span>
+          <span className={styles.metaValue}>
+            {isPublishedOnly ? "-" : new Date(agent.lastValidatedAt).toLocaleString("en")}
+          </span>
         </div>
       </div>
 
-      {!isValid ? (
+      {!isPublishedOnly && !isValid ? (
         <div>
           <p className="page-eyebrow">{validationIssuesLabel(agent)}</p>
           <ul className={styles.issueList}>
@@ -221,10 +252,22 @@ function AgentCard({
 
 export default function AgentsWorkspace() {
   const discoveredAgentsQuery = useDiscoveredAgentsQuery();
+  const publishedAgentsQuery = usePublishedAgentsQuery();
   const publishMutation = usePublishAgentMutation();
   const unpublishMutation = useUnpublishAgentMutation();
   const [frameworkFilter, setFrameworkFilter] = useState("all");
-  const agents = useMemo(() => discoveredAgentsQuery.data ?? [], [discoveredAgentsQuery.data]);
+  const agents = useMemo<AgentWorkspaceRecord[]>(() => {
+    const discoveredAgents = discoveredAgentsQuery.data ?? [];
+    const publishedAgents = publishedAgentsQuery.data ?? [];
+    const discoveredIds = new Set(discoveredAgents.map((agent) => agent.agentId));
+    const publishedOnlyAgents: PublishedOnlyAgentRecord[] = publishedAgents
+      .filter((agent) => !discoveredIds.has(agent.agentId))
+      .map((agent) => ({
+        ...agent,
+        availability: "published_only" as const
+      }));
+    return [...discoveredAgents, ...publishedOnlyAgents];
+  }, [discoveredAgentsQuery.data, publishedAgentsQuery.data]);
   const frameworkOptions = useMemo(
     () => ["all", ...Array.from(new Set(agents.map((agent) => agent.framework))).sort()],
     [agents]
@@ -255,6 +298,11 @@ export default function AgentsWorkspace() {
         title: "Invalid",
         description: "Discovered plugins that currently fail framework-specific contract validation.",
         items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "invalid")
+      },
+      {
+        title: "Published only",
+        description: "Published snapshots that Atlas still knows about even though the local plugin is unavailable.",
+        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "published_only")
       }
     ],
     [filteredAgents]
@@ -263,6 +311,7 @@ export default function AgentsWorkspace() {
   const errorMessage =
     (publishMutation.error instanceof Error && publishMutation.error.message) ||
     (unpublishMutation.error instanceof Error && unpublishMutation.error.message) ||
+    (publishedAgentsQuery.error instanceof Error && publishedAgentsQuery.error.message) ||
     (discoveredAgentsQuery.error instanceof Error && discoveredAgentsQuery.error.message) ||
     "";
 
@@ -284,7 +333,7 @@ export default function AgentsWorkspace() {
               Ready to run <strong>{groups[0].items.length}</strong>
             </span>
             <span className="page-tag">
-              Needs review <strong>{groups[1].items.length + groups[3].items.length}</strong>
+              Needs review <strong>{groups[1].items.length + groups[3].items.length + groups[4].items.length}</strong>
             </span>
           </div>
         </div>
@@ -292,7 +341,8 @@ export default function AgentsWorkspace() {
           <div className="page-info-item">
             <span className="page-info-label">Publishing status</span>
             <span className="page-info-value">
-              {groups[0].items.length} ready / {groups[1].items.length} drifted / {groups[2].items.length} staged
+              {groups[0].items.length} ready / {groups[1].items.length} drifted / {groups[2].items.length} staged /{" "}
+              {groups[4].items.length} published only
             </span>
             <p className="page-info-detail">
               Re-publish drifted agents to refresh the snapshot that feeds future eval jobs and exports.
@@ -306,6 +356,7 @@ export default function AgentsWorkspace() {
         <MetricCard label="Draft changes" value={groups[1].items.length} />
         <MetricCard label="Draft" value={groups[2].items.length} />
         <MetricCard label="Invalid" value={groups[3].items.length} />
+        <MetricCard label="Published only" value={groups[4].items.length} />
       </div>
 
       <Panel tone="plain">
@@ -327,7 +378,7 @@ export default function AgentsWorkspace() {
       </Panel>
 
       {errorMessage ? <Notice>{errorMessage}</Notice> : null}
-      {discoveredAgentsQuery.isLoading ? <Notice>Loading discovered agents...</Notice> : null}
+      {discoveredAgentsQuery.isLoading || publishedAgentsQuery.isLoading ? <Notice>Loading agents...</Notice> : null}
 
       {groups.map((group) => (
         <Panel key={group.title} tone="plain" className={styles.group}>
