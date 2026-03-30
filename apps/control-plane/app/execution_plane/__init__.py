@@ -22,6 +22,7 @@ from app.execution_plane.service import (
     RunExecutionService,
 )
 from app.execution_plane.specs import (
+    execution_handoff_from_run_spec,
     runner_run_spec_from_handoff,
     runner_run_spec_from_run_spec,
 )
@@ -29,6 +30,7 @@ from app.execution_plane.specs import (
 __all__ = [
     "ExecutionControlRegistry",
     "ExecutionRecorder",
+    "execution_handoff_from_run_spec",
     "K8sJobExecutionAdapter",
     "K8sJobLaunchRequest",
     "K8sLauncher",

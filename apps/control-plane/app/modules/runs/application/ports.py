@@ -3,15 +3,13 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from agent_atlas_contracts.execution import RunnerRunSpec
+from agent_atlas_contracts.execution import ExecutionArtifact, ExecutionHandoff, RunnerRunSpec
 
 from app.modules.runs.application.results import (
     PublishedRunExecutionResult,
     RunnerExecutionResult,
 )
 from app.modules.runs.domain.models import (
-    ResolvedRunArtifact,
-    RunnerExecutionHandoff,
     RunRecord,
     RunSpec,
     TrajectoryStep,
@@ -75,8 +73,8 @@ class TraceIngestionPort(Protocol):
 
 
 class ArtifactResolverPort(Protocol):
-    def resolve(self, payload: RunSpec) -> ResolvedRunArtifact: ...
+    def resolve(self, payload: RunSpec) -> ExecutionArtifact: ...
 
 
 class RunnerPort(Protocol):
-    def execute(self, handoff: RunnerExecutionHandoff) -> RunnerExecutionResult: ...
+    def execute(self, handoff: ExecutionHandoff) -> RunnerExecutionResult: ...

@@ -44,6 +44,10 @@ class FrameworkRegistryPort(Protocol):
         self, *, published_agent: PublishedAgent, context: AgentBuildContext
     ) -> object: ...
 
+
+class PublishedAgentExecutionPort(Protocol):
+    def published_agent_from_payload(self, payload: RunnerRunSpec) -> PublishedAgent: ...
+
     def execute_published(
         self,
         *,

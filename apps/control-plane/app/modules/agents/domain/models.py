@@ -8,6 +8,11 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
+from agent_atlas_contracts.runtime import (
+    AgentBuildContext as ContractAgentBuildContext,
+    AgentManifest as ContractAgentManifest,
+    PublishedAgent as ContractPublishedAgent,
+)
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import AdapterKind
@@ -49,24 +54,12 @@ def adapter_kind_for_framework(framework: str) -> AdapterKind:
     raise ValueError(f"unsupported published agent framework '{framework}'")
 
 
-class AgentManifest(BaseModel):
-    agent_id: str
-    name: str
-    description: str
-    framework: str = "openai-agents-sdk"
-    framework_version: str = "1.0.0"
-    default_model: str
-    tags: list[str] = Field(default_factory=list)
-    capabilities: list[str] = Field(default_factory=list)
+class AgentManifest(ContractAgentManifest):
+    pass
 
 
-class AgentBuildContext(BaseModel):
-    run_id: UUID
-    project: str
-    dataset: str | None = None
-    prompt: str
-    tags: list[str] = Field(default_factory=list)
-    project_metadata: dict[str, Any] = Field(default_factory=dict)
+class AgentBuildContext(ContractAgentBuildContext):
+    pass
 
 
 class AgentValidationStatus(str, Enum):
@@ -84,12 +77,9 @@ class AgentValidationIssue(BaseModel):
     message: str
 
 
-class PublishedAgent(BaseModel):
+class PublishedAgent(ContractPublishedAgent):
     manifest: AgentManifest
-    entrypoint: str
-    published_at: datetime = Field(default_factory=utc_now)
     source_fingerprint: str = ""
-    runtime_artifact: RuntimeArtifactMetadata | None = None
     provenance: ProvenanceMetadata | None = None
 
     @property

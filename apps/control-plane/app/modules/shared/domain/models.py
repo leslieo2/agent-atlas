@@ -3,6 +3,10 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
+from agent_atlas_contracts.runtime import (
+    RuntimeArtifactMetadata as ContractRuntimeArtifactMetadata,
+    TraceTelemetryMetadata as ContractTraceTelemetryMetadata,
+)
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import PolicyEffect, ScoringMode
@@ -12,13 +16,8 @@ def build_source_artifact_ref(agent_id: str, source_fingerprint: str) -> str:
     return f"source://{agent_id}@{source_fingerprint}"
 
 
-class RuntimeArtifactMetadata(BaseModel):
-    build_status: str | None = None
-    source_fingerprint: str | None = None
-    framework: str | None = None
-    entrypoint: str | None = None
-    artifact_ref: str | None = None
-    image_ref: str | None = None
+class RuntimeArtifactMetadata(ContractRuntimeArtifactMetadata):
+    pass
 
 
 def build_source_runtime_artifact(
@@ -64,20 +63,8 @@ class TracingMetadata(BaseModel):
     project_url: str | None = None
 
 
-class TraceTelemetryMetadata(BaseModel):
-    agent_id: str | None = None
-    framework: str | None = None
-    framework_type: str | None = None
-    framework_version: str | None = None
-    artifact_ref: str | None = None
-    image_ref: str | None = None
-    runner_backend: str | None = None
-    executor_backend: str | None = None
-    experiment_id: UUID | None = None
-    dataset_version_id: UUID | None = None
-    dataset_sample_id: str | None = None
-    prompt_version: str | None = None
-    image_digest: str | None = None
+class TraceTelemetryMetadata(ContractTraceTelemetryMetadata):
+    pass
 
 
 class RuntimeArtifactBuildResult(BaseModel):

@@ -3,20 +3,16 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-from agent_atlas_contracts.execution import RunnerRunSpec
+from agent_atlas_contracts.execution import ExecutionArtifact, ExecutionHandoff, RunnerRunSpec
 from app.core.errors import AgentLoadFailedError
+from app.execution_plane.specs import execution_handoff_from_run_spec, runner_run_spec_from_handoff
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
 from app.modules.runs.adapters.outbound.execution import (
     LocalProcessRunner,
     PublishedArtifactResolver,
 )
 from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import (
-    ResolvedRunArtifact,
-    RunnerExecutionHandoff,
-    RunSpec,
-    RuntimeExecutionResult,
-)
+from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import ProvenanceMetadata
 
@@ -128,7 +124,7 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
         provenance=ProvenanceMetadata(trace_backend="phoenix"),
     )
 
-    artifact = ResolvedRunArtifact(
+    artifact = ExecutionArtifact(
         framework=AdapterKind.OPENAI_AGENTS.value,
         entrypoint="app.agent_plugins.basic:build_agent",
         source_fingerprint="fingerprint-123",
@@ -148,7 +144,7 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
         },
     )
 
-    handoff = RunnerExecutionHandoff.from_spec(
+    handoff = execution_handoff_from_run_spec(
         run_id=run_id,
         payload=payload,
         artifact=artifact,
@@ -165,7 +161,7 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
     assert handoff.artifact_ref == "source://basic@fingerprint-123"
     assert handoff.project_metadata == {"branch": "main"}
     assert handoff.model_settings is None
-    assert handoff.to_run_spec().provenance.runner_backend == "local-process"
+    assert runner_run_spec_from_handoff(handoff).agent_type == AdapterKind.OPENAI_AGENTS.value
 
 
 def test_local_process_runner_stamps_runner_backend() -> None:
@@ -185,7 +181,7 @@ def test_local_process_runner_stamps_runner_backend() -> None:
                 )
             )
 
-    handoff = RunnerExecutionHandoff(
+    handoff = ExecutionHandoff(
         run_id=run_id,
         runner_backend="local-process",
         project="resolver-test",
@@ -195,7 +191,7 @@ def test_local_process_runner_stamps_runner_backend() -> None:
         agent_id="basic",
         model="gpt-5.4-mini",
         entrypoint="app.agent_plugins.basic:build_agent",
-        agent_type=AdapterKind.OPENAI_AGENTS,
+        agent_type=AdapterKind.OPENAI_AGENTS.value,
         input_summary="resolve handoff",
         prompt="Resolve the artifact handoff.",
         framework=AdapterKind.OPENAI_AGENTS.value,

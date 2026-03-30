@@ -1,6 +1,8 @@
 from agent_atlas_contracts.execution import (
     ArtifactEntry,
     ArtifactManifest,
+    ExecutionArtifact,
+    ExecutionHandoff,
     EvalResult,
     EventEnvelope,
     TracingConfig,
@@ -38,6 +40,8 @@ from agent_atlas_contracts.runtime import (
 __all__ = [
     "ArtifactEntry",
     "ArtifactManifest",
+    "ExecutionArtifact",
+    "ExecutionHandoff",
     "EvalResult",
     "EventEnvelope",
     "ExportManifest",

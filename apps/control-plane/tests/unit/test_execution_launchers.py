@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from uuid import uuid4
 
-from agent_atlas_contracts.execution import RunnerRunSpec
+from agent_atlas_contracts.execution import ExecutionHandoff, RunnerRunSpec
 from app.execution_plane import (
     K8sLauncher,
     LocalLauncher,
@@ -11,11 +11,7 @@ from app.execution_plane import (
     runner_run_spec_from_run_spec,
 )
 from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import (
-    RunnerExecutionHandoff,
-    RunSpec,
-    RuntimeExecutionResult,
-)
+from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind, StepType
 from app.modules.shared.domain.models import ProvenanceMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
@@ -110,7 +106,7 @@ def test_local_launcher_materializes_bootstrap_files_and_outputs(tmp_path):
 
 def test_local_process_runner_persists_runner_outputs_with_local_launcher(tmp_path):
     payload = _runner_spec()
-    handoff = RunnerExecutionHandoff(
+    handoff = ExecutionHandoff(
         run_id=payload.run_id,
         runner_backend="local-process",
         experiment_id=payload.experiment_id,
@@ -122,7 +118,7 @@ def test_local_process_runner_persists_runner_outputs_with_local_launcher(tmp_pa
         agent_id=payload.agent_id,
         model=payload.model,
         entrypoint=payload.entrypoint,
-        agent_type=AdapterKind(payload.agent_type),
+        agent_type=payload.agent_type,
         input_summary=payload.input_summary,
         prompt=payload.prompt,
         tags=list(payload.tags),

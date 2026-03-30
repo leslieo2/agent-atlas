@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from agent_atlas_contracts.execution import ExecutionHandoff
 from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
 
 from app.core.errors import AppError
+from app.execution_plane.specs import execution_handoff_from_run_spec
 from app.modules.runs.application.ports import (
     ArtifactResolverPort,
     RunRepository,
@@ -18,7 +20,6 @@ from app.modules.runs.application.results import (
 from app.modules.runs.application.telemetry import RunTelemetryIngestionService
 from app.modules.runs.domain.models import (
     ExecutionMetrics,
-    RunnerExecutionHandoff,
     RunSpec,
 )
 from app.modules.runs.domain.policies import RunAggregate
@@ -368,7 +369,7 @@ class RunExecutionService:
         try:
             artifact = self.artifact_resolver.resolve(payload)
             run = self.run_repository.get(run_id)
-            handoff = RunnerExecutionHandoff.from_spec(
+            handoff = execution_handoff_from_run_spec(
                 run_id=run_id,
                 payload=payload,
                 artifact=artifact,
@@ -472,7 +473,7 @@ class RunExecutionService:
     def _record_execution_handoff(
         self,
         run_id: UUID,
-        handoff: RunnerExecutionHandoff,
+        handoff: ExecutionHandoff,
     ) -> None:
         run = self.run_repository.get(run_id)
         if not run:

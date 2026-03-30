@@ -14,7 +14,11 @@ from app.core.errors import (
     RateLimitedError,
     UnsupportedAdapterError,
 )
-from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
+from app.infrastructure.adapters.framework_registry import (
+    FrameworkPlugin,
+    FrameworkRegistry,
+    PublishedAgentExecutionDispatcher,
+)
 from app.infrastructure.adapters.langchain.runtime import PublishedLangChainAgentAdapter
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.agents.domain.models import AgentBuildContext, AgentManifest, PublishedAgent
@@ -319,7 +323,7 @@ def test_model_runtime_service_live_mode_without_key_raises():
         )
 
 
-def test_model_runtime_service_dispatches_published_runs_through_framework_registry():
+def test_model_runtime_service_dispatches_published_runs_through_execution_dispatcher():
     class StubValidator:
         def discover(self, source):
             raise AssertionError(f"unexpected discovery: {source}")
@@ -360,7 +364,7 @@ def test_model_runtime_service_dispatches_published_runs_through_framework_regis
             )
 
     runtime = LangChainRuntime()
-    registry = FrameworkRegistry(
+    dispatcher = PublishedAgentExecutionDispatcher(
         plugins={
             AdapterKind.LANGCHAIN.value: FrameworkPlugin(
                 framework=AdapterKind.LANGCHAIN.value,
@@ -370,7 +374,7 @@ def test_model_runtime_service_dispatches_published_runs_through_framework_regis
             )
         }
     )
-    service = ModelRuntimeService(adapters={}, framework_registry=registry)
+    service = ModelRuntimeService(adapters={}, published_execution_dispatcher=dispatcher)
     service.api_key = SecretStr("sk-test")
     service.runtime_mode = RuntimeMode.LIVE
     published_agent = PublishedAgent(
@@ -509,7 +513,7 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
             del api_key, payload, context
             raise AssertionError("mock mode should not call live runtime")
 
-    registry = FrameworkRegistry(
+    dispatcher = PublishedAgentExecutionDispatcher(
         plugins={
             AdapterKind.LANGCHAIN.value: FrameworkPlugin(
                 framework=AdapterKind.LANGCHAIN.value,
@@ -519,7 +523,7 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
             )
         }
     )
-    service = ModelRuntimeService(adapters={}, framework_registry=registry)
+    service = ModelRuntimeService(adapters={}, published_execution_dispatcher=dispatcher)
     service.runtime_mode = RuntimeMode.MOCK
     published_agent = PublishedAgent(
         manifest=AgentManifest(

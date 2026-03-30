@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from agent_atlas_contracts.execution import ExecutionArtifact
 from app.core.errors import ProviderAuthError
 from app.execution_plane.service import (
     ExecutionRecorder,
@@ -25,12 +26,7 @@ from app.modules.runs.application.telemetry import (
     RunTelemetryIngestionService,
     TrajectoryRecorder,
 )
-from app.modules.runs.domain.models import (
-    ResolvedRunArtifact,
-    RunRecord,
-    RunSpec,
-    RuntimeExecutionResult,
-)
+from app.modules.runs.domain.models import RunRecord, RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 from app.modules.shared.domain.traces import TraceIngestEvent
 from tests.support.fake_phoenix import FakeOtlpTraceExporter
@@ -59,9 +55,9 @@ def _build_telemetry_ingestor(
 
 
 class _FixedArtifactResolver:
-    def resolve(self, payload: RunSpec) -> ResolvedRunArtifact:
+    def resolve(self, payload: RunSpec) -> ExecutionArtifact:
         entrypoint = payload.entrypoint or "app.agent_plugins.basic:build_agent"
-        return ResolvedRunArtifact(
+        return ExecutionArtifact(
             framework=payload.agent_type.value,
             entrypoint=entrypoint,
             source_fingerprint="fingerprint-test",

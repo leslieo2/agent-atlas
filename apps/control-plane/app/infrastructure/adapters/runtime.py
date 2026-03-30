@@ -14,7 +14,7 @@ from app.core.errors import (
     RateLimitedError,
     UnsupportedAdapterError,
 )
-from app.infrastructure.adapters.framework_registry import FrameworkRegistry
+from app.modules.agents.application.ports import PublishedAgentExecutionPort
 from app.modules.agents.domain.models import AgentBuildContext, adapter_kind_for_framework
 from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.runs.domain.models import RuntimeExecutionResult
@@ -180,13 +180,13 @@ class ModelRuntimeService:
         self,
         adapters: Mapping[AdapterKind, RuntimeAdapter] | None = None,
         published_adapter: PublishedAgentRuntimeAdapter | None = None,
-        framework_registry: FrameworkRegistry | None = None,
+        published_execution_dispatcher: PublishedAgentExecutionPort | None = None,
     ) -> None:
         self.api_key = settings.openai_api_key
         self.runtime_mode = settings.runtime_mode
         self.adapters = dict(adapters or self._default_adapters())
         self.published_adapter = published_adapter
-        self.framework_registry = framework_registry
+        self.published_execution_dispatcher = published_execution_dispatcher
 
     def _effective_runtime_mode(self) -> RuntimeMode:
         if self.runtime_mode == RuntimeMode.MOCK:
@@ -222,8 +222,10 @@ class ModelRuntimeService:
 
     def execute_published(self, run_id: Any, payload: RunnerRunSpec) -> PublishedRunExecutionResult:
         resolved_agent_type = AdapterKind(payload.agent_type)
-        if self.framework_registry is not None:
-            published_agent = self.framework_registry.published_agent_from_payload(payload)
+        if self.published_execution_dispatcher is not None:
+            published_agent = self.published_execution_dispatcher.published_agent_from_payload(
+                payload
+            )
             resolved_agent_type = adapter_kind_for_framework(published_agent.framework)
 
         effective_mode = self._effective_runtime_mode()
@@ -244,8 +246,8 @@ class ModelRuntimeService:
                 tags=payload.tags,
                 project_metadata=payload.project_metadata,
             )
-            if self.framework_registry is not None:
-                return self.framework_registry.execute_published(
+            if self.published_execution_dispatcher is not None:
+                return self.published_execution_dispatcher.execute_published(
                     api_key=self.api_key,
                     payload=payload,
                     context=context,

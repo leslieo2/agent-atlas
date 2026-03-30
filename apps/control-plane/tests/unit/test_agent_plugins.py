@@ -9,7 +9,11 @@ from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
 )
-from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
+from app.infrastructure.adapters.framework_registry import (
+    FrameworkPlugin,
+    FrameworkRegistry,
+    PublishedAgentExecutionDispatcher,
+)
 from app.infrastructure.adapters.langchain import LangChainAgentContractValidator
 from app.infrastructure.adapters.openai_agents import (
     OpenAIAgentContractValidator,
@@ -289,7 +293,7 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
             del api_key, payload, context
             raise AssertionError("runtime should not be called when framework metadata is invalid")
 
-    registry = FrameworkRegistry(
+    dispatcher = PublishedAgentExecutionDispatcher(
         plugins={
             AdapterKind.LANGCHAIN.value: FrameworkPlugin(
                 framework=AdapterKind.LANGCHAIN.value,
@@ -326,7 +330,7 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
     )
 
     with pytest.raises(AgentFrameworkMismatchError):
-        registry.execute_published(
+        dispatcher.execute_published(
             api_key=None,
             payload=runner_run_spec_from_run_spec(payload),
             context=AgentBuildContext(
@@ -367,7 +371,7 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
                 )
             )
 
-    registry = FrameworkRegistry(
+    dispatcher = PublishedAgentExecutionDispatcher(
         plugins={
             AdapterKind.OPENAI_AGENTS.value: FrameworkPlugin(
                 framework=AdapterKind.OPENAI_AGENTS.value,
@@ -407,7 +411,7 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
         AgentLoadFailedError,
         match="published agent framework 'mcp' is not supported",
     ):
-        registry.execute_published(
+        dispatcher.execute_published(
             api_key=None,
             payload=runner_run_spec_from_run_spec(payload),
             context=AgentBuildContext(

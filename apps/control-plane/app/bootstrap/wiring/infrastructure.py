@@ -20,7 +20,11 @@ from app.infrastructure.adapters.agent_catalog import (
     StateRunnableAgentCatalog,
 )
 from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
-from app.infrastructure.adapters.framework_registry import FrameworkPlugin, FrameworkRegistry
+from app.infrastructure.adapters.framework_registry import (
+    FrameworkPlugin,
+    FrameworkRegistry,
+    PublishedAgentExecutionDispatcher,
+)
 from app.infrastructure.adapters.langchain import (
     LangChainAgentContractValidator,
     PublishedLangChainAgentAdapter,
@@ -38,7 +42,11 @@ from app.infrastructure.repositories import (
     StatePublishedAgentRepository,
     StateSystemStatus,
 )
-from app.modules.agents.application.ports import ArtifactBuilderPort, FrameworkRegistryPort
+from app.modules.agents.application.ports import (
+    ArtifactBuilderPort,
+    FrameworkRegistryPort,
+    PublishedAgentExecutionPort,
+)
 from app.modules.datasets.adapters.outbound.persistence import StateDatasetRepository
 from app.modules.execution.application.ports import ExecutionControlPort
 from app.modules.experiments.adapters.outbound.persistence import (
@@ -84,6 +92,7 @@ class InfrastructureBundle:
     system_status: StateSystemStatus
     agent_source_catalog: FilesystemAgentSourceCatalog
     framework_registry: FrameworkRegistryPort
+    published_execution_dispatcher: PublishedAgentExecutionPort
     artifact_builder: ArtifactBuilderPort
     agent_discovery: FilesystemAgentDiscovery
     runnable_agent_catalog: StateRunnableAgentCatalog
@@ -125,22 +134,22 @@ def build_infrastructure() -> InfrastructureBundle:
         Any,
         PublishedLangChainAgentAdapter(agent_loader=cast(Any, langchain_loader)),
     )
-    framework_registry = FrameworkRegistry(
-        plugins={
-            "openai-agents-sdk": FrameworkPlugin(
-                framework="openai-agents-sdk",
-                validator=openai_validator,
-                loader=openai_loader,
-                runtime=openai_runtime,
-            ),
-            "langchain": FrameworkPlugin(
-                framework="langchain",
-                validator=langchain_validator,
-                loader=langchain_loader,
-                runtime=langchain_runtime,
-            ),
-        }
-    )
+    framework_plugins = {
+        "openai-agents-sdk": FrameworkPlugin(
+            framework="openai-agents-sdk",
+            validator=openai_validator,
+            loader=openai_loader,
+            runtime=openai_runtime,
+        ),
+        "langchain": FrameworkPlugin(
+            framework="langchain",
+            validator=langchain_validator,
+            loader=langchain_loader,
+            runtime=langchain_runtime,
+        ),
+    }
+    framework_registry = FrameworkRegistry(plugins=framework_plugins)
+    published_execution_dispatcher = PublishedAgentExecutionDispatcher(plugins=framework_plugins)
     artifact_builder = SourceArtifactBuilder(default_trace_backend=settings.trace_backend.value)
     agent_discovery = FilesystemAgentDiscovery(
         source_catalog=agent_source_catalog,
@@ -152,7 +161,7 @@ def build_infrastructure() -> InfrastructureBundle:
     )
     task_queue = StateTaskQueue()
     model_runtime = ModelRuntimeService(
-        framework_registry=framework_registry,
+        published_execution_dispatcher=published_execution_dispatcher,
     )
     artifact_resolver = PublishedArtifactResolver()
     local_process_runner = LocalProcessRunner(
@@ -240,6 +249,7 @@ def build_infrastructure() -> InfrastructureBundle:
         system_status=system_status,
         agent_source_catalog=agent_source_catalog,
         framework_registry=framework_registry,
+        published_execution_dispatcher=published_execution_dispatcher,
         artifact_builder=artifact_builder,
         agent_discovery=agent_discovery,
         runnable_agent_catalog=runnable_agent_catalog,

@@ -4,25 +4,15 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.models import TraceTelemetryMetadata
 
 
-class TraceIngestEvent(BaseModel):
-    run_id: UUID
-    span_id: str
-    parent_span_id: str | None = None
+class TraceIngestEvent(ContractTraceIngestEvent):
     step_type: StepType = StepType.LLM
-    name: str
-    input: dict[str, Any]
-    output: dict[str, Any] = Field(default_factory=dict)
-    tool_name: str | None = None
-    latency_ms: int = 0
-    token_usage: int = 0
-    image_digest: str | None = None
-    prompt_version: str | None = None
     metadata: TraceTelemetryMetadata | None = None
 
 

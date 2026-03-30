@@ -72,6 +72,58 @@ class FrameworkRegistry:
         )
         return plugin.loader.build_agent(published_agent=published_agent, context=context)
 
+    @staticmethod
+    def _framework_for_source(source: AgentModuleSource) -> str:
+        module = FrameworkRegistry._safe_import(source.module_name)
+        if module is None:
+            return AdapterKind.OPENAI_AGENTS.value
+
+        raw_manifest = getattr(module, "AGENT_MANIFEST", None)
+        if isinstance(raw_manifest, AgentManifest):
+            return raw_manifest.framework.strip().lower()
+
+        if isinstance(raw_manifest, dict):
+            framework = raw_manifest.get("framework")
+            if isinstance(framework, str) and framework.strip():
+                return framework.strip().lower()
+
+        return AdapterKind.OPENAI_AGENTS.value
+
+    @staticmethod
+    def _safe_import(module_name: str) -> Any | None:
+        try:
+            module = import_module(module_name)
+        except Exception:
+            return None
+        return module
+
+    @staticmethod
+    def _unsupported_framework(source: AgentModuleSource, framework: str) -> DiscoveredAgent:
+        module_leaf = source.module_name.rsplit(".", 1)[-1]
+        return DiscoveredAgent(
+            manifest=AgentManifest(
+                agent_id=module_leaf,
+                name=module_leaf.replace("_", " ").title(),
+                description="Unsupported agent framework",
+                framework=framework,
+                default_model="",
+                tags=[],
+            ),
+            entrypoint=source.entrypoint,
+            validation_status=AgentValidationStatus.INVALID,
+            validation_issues=[
+                AgentValidationIssue(
+                    code="framework_unsupported",
+                    message=f"framework '{framework}' is not supported for discovery",
+                )
+            ],
+        )
+
+
+class PublishedAgentExecutionDispatcher:
+    def __init__(self, plugins: Mapping[str, FrameworkPlugin]) -> None:
+        self.plugins = {key.strip().lower(): value for key, value in plugins.items()}
+
     def execute_published(
         self,
         *,
@@ -79,7 +131,42 @@ class FrameworkRegistry:
         payload: RunnerRunSpec,
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult:
-        published_agent = self.published_agent_from_payload(payload)
+        try:
+            published_agent = PublishedAgent.model_validate(payload.published_agent_snapshot)
+        except Exception as exc:
+            raise AgentLoadFailedError(
+                "run payload is missing a valid published agent snapshot",
+                agent_id=payload.agent_id,
+            ) from exc
+
+        expected_framework = published_agent.framework
+        actual_framework = payload.framework
+        if actual_framework and (
+            actual_framework.strip().lower() != expected_framework.strip().lower()
+        ):
+            raise AgentFrameworkMismatchError(
+                "run payload framework metadata does not match published snapshot",
+                agent_id=payload.agent_id,
+                expected_framework=expected_framework,
+                actual_framework=actual_framework,
+            )
+
+        expected_agent_type = adapter_kind_for_framework(expected_framework)
+        if payload.agent_type != expected_agent_type.value:
+            raise AgentFrameworkMismatchError(
+                "run payload adapter kind does not match published snapshot framework",
+                agent_id=payload.agent_id,
+                expected_framework=expected_framework,
+                actual_agent_type=payload.agent_type,
+            )
+
+        if payload.agent_id and payload.agent_id != published_agent.agent_id:
+            raise AgentFrameworkMismatchError(
+                "run payload agent_id does not match published snapshot",
+                agent_id=payload.agent_id,
+                snapshot_agent_id=published_agent.agent_id,
+            )
+
         plugin = self._plugin_for_framework(
             published_agent.framework,
             agent_id=published_agent.agent_id,
@@ -146,50 +233,3 @@ class FrameworkRegistry:
                 )
             raise ValueError(f"unsupported published agent framework '{framework}'")
         return plugin
-
-    @staticmethod
-    def _framework_for_source(source: AgentModuleSource) -> str:
-        module = FrameworkRegistry._safe_import(source.module_name)
-        if module is None:
-            return AdapterKind.OPENAI_AGENTS.value
-
-        raw_manifest = getattr(module, "AGENT_MANIFEST", None)
-        if isinstance(raw_manifest, AgentManifest):
-            return raw_manifest.framework.strip().lower()
-
-        if isinstance(raw_manifest, dict):
-            framework = raw_manifest.get("framework")
-            if isinstance(framework, str) and framework.strip():
-                return framework.strip().lower()
-
-        return AdapterKind.OPENAI_AGENTS.value
-
-    @staticmethod
-    def _safe_import(module_name: str) -> Any | None:
-        try:
-            module = import_module(module_name)
-        except Exception:
-            return None
-        return module
-
-    @staticmethod
-    def _unsupported_framework(source: AgentModuleSource, framework: str) -> DiscoveredAgent:
-        module_leaf = source.module_name.rsplit(".", 1)[-1]
-        return DiscoveredAgent(
-            manifest=AgentManifest(
-                agent_id=module_leaf,
-                name=module_leaf.replace("_", " ").title(),
-                description="Unsupported agent framework",
-                framework=framework,
-                default_model="",
-                tags=[],
-            ),
-            entrypoint=source.entrypoint,
-            validation_status=AgentValidationStatus.INVALID,
-            validation_issues=[
-                AgentValidationIssue(
-                    code="framework_unsupported",
-                    message=f"framework '{framework}' is not supported for discovery",
-                )
-            ],
-        )

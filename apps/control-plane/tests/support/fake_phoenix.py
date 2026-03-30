@@ -23,12 +23,14 @@ class FakeOtlpTraceExporter:
         headers: dict[str, str] | None = None,
         api_key: str | None = None,
         service_name: str = "agent-atlas-control-plane",
+        link_resolver: Any | None = None,
     ) -> None:
         del endpoint, headers, api_key, service_name
         self.base_url = base_url.rstrip("/") if base_url else None
         self.project_name = project_name
         self.project_id = f"project-{project_name}"
         self.backend_name_value = backend_name
+        self.link_resolver = link_resolver
 
     def export(
         self,
@@ -40,20 +42,29 @@ class FakeOtlpTraceExporter:
             return None
         first_event = events[0]
         trace_id = f"trace-{first_event.run_id}"
-        return TracingMetadata(
-            backend=self.backend_name_value,
-            trace_id=trace_id,
-            trace_url=build_phoenix_trace_url(
+        if self.link_resolver is not None:
+            trace_url = self.link_resolver.build_trace_url(trace_id)
+            project_url = self.link_resolver.build_project_url(
+                experiment_id=first_event.metadata.experiment_id if first_event.metadata else None,
+                run_id=first_event.run_id,
+            )
+        else:
+            trace_url = build_phoenix_trace_url(
                 base_url=self.base_url,
                 project_id=self.project_id,
                 trace_id=trace_id,
-            ),
-            project_url=build_phoenix_project_url(
+            )
+            project_url = build_phoenix_project_url(
                 base_url=self.base_url,
                 project_id=self.project_id,
                 experiment_id=first_event.metadata.experiment_id if first_event.metadata else None,
                 run_id=first_event.run_id,
-            ),
+            )
+        return TracingMetadata(
+            backend=self.backend_name_value,
+            trace_id=trace_id,
+            trace_url=trace_url,
+            project_url=project_url,
         )
 
 

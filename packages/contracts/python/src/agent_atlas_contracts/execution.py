@@ -212,9 +212,54 @@ class RunnerRunSpec(RunSpec):
     schema_version: Literal["runner-run-spec.v1", "run-spec.v1"] = "runner-run-spec.v1"
 
 
+class ExecutionArtifact(BaseModel):
+    framework: str | None = None
+    entrypoint: str | None = None
+    source_fingerprint: str | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    published_agent_snapshot: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExecutionHandoff(BaseModel):
+    run_id: UUID
+    runner_backend: str
+    experiment_id: UUID | None = None
+    dataset_version_id: UUID | None = None
+    dataset_sample_id: str | None = None
+    attempt: int = 1
+    attempt_id: UUID | None = None
+    project: str
+    dataset: str | None = None
+    agent_id: str = ""
+    model: str
+    entrypoint: str | None = None
+    agent_type: str
+    input_summary: str
+    prompt: str
+    tags: list[str] = Field(default_factory=list)
+    project_metadata: dict[str, Any] = Field(default_factory=dict)
+    model_settings: dict[str, Any] | None = None
+    prompt_config: dict[str, Any] | None = None
+    toolset_config: dict[str, Any] = Field(default_factory=dict)
+    evaluator_config: dict[str, Any] = Field(default_factory=dict)
+    executor_config: dict[str, Any] = Field(default_factory=dict)
+    approval_policy: dict[str, Any] | None = None
+    framework: str | None = None
+    framework_type: str | None = None
+    framework_version: str | None = None
+    source_fingerprint: str | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    trace_backend: str | None = None
+    published_agent_snapshot: dict[str, Any] = Field(default_factory=dict)
+
+
 __all__ = [
     "ArtifactEntry",
     "ArtifactManifest",
+    "ExecutionArtifact",
+    "ExecutionHandoff",
     "EvalResult",
     "EventEnvelope",
     "ExportManifest",
