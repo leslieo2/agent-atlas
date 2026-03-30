@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from app.infrastructure.repositories import StateTraceRepository
-from app.modules.shared.domain.models import TracingMetadata
-from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
-from app.tracing.backends.phoenix import (
+from app.agent_tracing.backends.phoenix import (
     build_phoenix_project_url,
     build_phoenix_trace_url,
 )
+from app.infrastructure.repositories import StateTraceRepository
+from app.modules.shared.domain.models import TracingMetadata
+from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
 class FakeOtlpTraceExporter:

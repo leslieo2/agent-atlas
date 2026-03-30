@@ -54,31 +54,11 @@ def runner_run_spec_from_run_spec(
         model=payload.model,
         entrypoint=payload.entrypoint,
         agent_type=payload.agent_type.value,
-        input_summary=payload.input_summary,
         prompt=payload.prompt,
         tags=list(payload.tags),
         project_metadata=dict(payload.project_metadata),
-        model_settings=(
-            payload.model_settings.model_dump(mode="json")
-            if payload.model_settings is not None
-            else None
-        ),
-        prompt_config=(
-            payload.prompt_config.model_dump(mode="json")
-            if payload.prompt_config is not None
-            else None
-        ),
-        toolset_config=payload.toolset_config.model_dump(mode="json"),
-        evaluator_config=payload.evaluator_config.model_dump(mode="json"),
         executor_config=payload.executor_config.model_dump(mode="json"),
-        approval_policy=(
-            payload.approval_policy.model_dump(mode="json")
-            if payload.approval_policy is not None
-            else None
-        ),
         framework=provenance.framework if provenance is not None else None,
-        framework_type=provenance.framework_type if provenance is not None else None,
-        framework_version=provenance.framework_version if provenance is not None else None,
         artifact_ref=provenance.artifact_ref if provenance is not None else None,
         image_ref=provenance.image_ref if provenance is not None else None,
         trace_backend=provenance.trace_backend if provenance is not None else None,
@@ -114,36 +94,11 @@ def execution_handoff_from_run_spec(
         model=payload.model,
         entrypoint=artifact.entrypoint or payload.entrypoint,
         agent_type=payload.agent_type.value,
-        input_summary=payload.input_summary,
         prompt=payload.prompt,
         tags=list(payload.tags),
         project_metadata=dict(payload.project_metadata),
-        model_settings=(
-            payload.model_settings.model_dump(mode="json")
-            if payload.model_settings is not None
-            else None
-        ),
-        prompt_config=(
-            payload.prompt_config.model_dump(mode="json")
-            if payload.prompt_config is not None
-            else None
-        ),
-        toolset_config=payload.toolset_config.model_dump(mode="json"),
-        evaluator_config=payload.evaluator_config.model_dump(mode="json"),
         executor_config=payload.executor_config.model_dump(mode="json"),
-        approval_policy=(
-            payload.approval_policy.model_dump(mode="json")
-            if payload.approval_policy is not None
-            else None
-        ),
         framework=artifact.framework,
-        framework_type=artifact.framework,
-        framework_version=(
-            provenance.framework_version
-            if provenance and provenance.framework_version is not None
-            else "1.0.0"
-        ),
-        source_fingerprint=artifact.source_fingerprint,
         artifact_ref=artifact.artifact_ref,
         image_ref=artifact.image_ref,
         trace_backend=provenance.trace_backend if provenance else None,
@@ -165,21 +120,11 @@ def runner_run_spec_from_handoff(handoff: ExecutionHandoff) -> RunnerRunSpec:
         model=handoff.model,
         entrypoint=handoff.entrypoint,
         agent_type=handoff.agent_type,
-        input_summary=handoff.input_summary,
         prompt=handoff.prompt,
         tags=list(handoff.tags),
         project_metadata=dict(handoff.project_metadata),
-        model_settings=dict(handoff.model_settings) if handoff.model_settings is not None else None,
-        prompt_config=dict(handoff.prompt_config) if handoff.prompt_config is not None else None,
-        toolset_config=dict(handoff.toolset_config),
-        evaluator_config=dict(handoff.evaluator_config),
         executor_config=dict(handoff.executor_config),
-        approval_policy=(
-            dict(handoff.approval_policy) if handoff.approval_policy is not None else None
-        ),
         framework=handoff.framework,
-        framework_type=handoff.framework_type,
-        framework_version=handoff.framework_version,
         artifact_ref=handoff.artifact_ref,
         image_ref=handoff.image_ref,
         trace_backend=handoff.trace_backend,

@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.agent_tracing.application import RunTelemetryIngestionService, TrajectoryRecorder
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.execution.application import RunExecutionService
+from app.modules.runs.adapters.outbound.execution.state_sink import RunExecutionStateSink
 from app.modules.runs.application.services import RunSubmissionService
-from app.modules.runs.application.telemetry import (
-    RunTelemetryIngestionService,
-    TrajectoryRecorder,
-)
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
 
 
@@ -51,10 +49,12 @@ def build_run_module(
         execution_control=infra.execution_control,
     )
     run_execution_service = RunExecutionService(
-        run_repository=infra.run_repository,
         artifact_resolver=infra.artifact_resolver,
         runner=infra.runner,
-        telemetry_ingestor=telemetry_ingestor,
+        sink=RunExecutionStateSink(
+            run_repository=infra.run_repository,
+            telemetry_ingestor=telemetry_ingestor,
+        ),
         default_runner_backend=infra.default_runner_backend,
     )
 

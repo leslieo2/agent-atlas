@@ -10,7 +10,6 @@ class NoopTraceExporter:
         events: list[TraceIngestEvent],
         spans: list[TraceSpan],
     ) -> TracingMetadata | None:
-        del events, spans
         return None
 
 

@@ -65,6 +65,25 @@ Interpret the top level as follows:
 - `schemas/` is the neutral source-of-truth area for platform contracts that should not become
   control-plane internals.
 
+## Placement Rules
+
+Choose a directory by runtime ownership, not by conceptual label.
+
+- Put code in `apps/control-plane/app/` when it still runs inside the control-plane process and
+  depends on control-plane wiring, repositories, config, or worker lifecycle.
+- Put code in `packages/` when multiple apps, planes, or runtimes need to import the same library
+  directly.
+- Put definitions in `schemas/` when they should stay language-neutral or evolve as external
+  exchange formats instead of Python-owned models.
+- Put code in `runtimes/` when it is execution-side implementation that should evolve separately
+  from the control-plane process.
+
+That means some plane-like subsystems can still live under `apps/control-plane/app/` during the
+current migration. For example, `app/execution/`, `app/agent_tracing/`, and `app/data_plane/`
+represent execution, tracing, and data-plane concerns, but they still share the control-plane
+process, state stores, and bootstrap wiring. They should move to a higher-level package only after
+their contracts and runtime boundaries are stable enough to stand on their own.
+
 For the runtime-to-observability boundary specifically:
 
 - runtime-owned code should emit telemetry through neutral OTLP configuration, not through a
@@ -85,9 +104,12 @@ Current control-plane layout:
 apps/control-plane/
 ├─ app/
 │  ├─ api/                         # thin route re-exports
+│  ├─ agent_tracing/               # in-process agent trace ingest/export/query subsystem
 │  ├─ bootstrap/                   # composition root and wiring
 │  ├─ core/                        # config and cross-cutting app concerns
+│  ├─ data_plane/                  # in-process trajectory and projection subsystem
 │  ├─ db/                          # persistence state helpers
+│  ├─ execution/                   # in-process execution orchestration subsystem
 │  ├─ infrastructure/              # cross-feature repos and vendor adapters
 │  ├─ modules/
 │  │  ├─ agents/
@@ -96,7 +118,6 @@ apps/control-plane/
 │  │  ├─ exports/
 │  │  ├─ policies/
 │  │  ├─ runs/
-│  │  ├─ execution/                # execution-plane bridge during migration
 │  │  ├─ health/
 │  │  └─ shared/
 │  ├─ main.py
@@ -131,9 +152,15 @@ The rule is:
 - split the control plane by business module
 - split each control-plane module internally by domain, application, and adapters
 
-Execution-specific control-plane code should now be consumed through `app/modules/execution/`.
-`app/execution_plane/` remains a migration-stage implementation area and should not be imported by
-other feature modules directly.
+Inside the control-plane app, use two ownership modes:
+
+- `app/modules/*` for Atlas business semantics that benefit from domain/application/adapters
+  layering
+- `app/execution/`, `app/agent_tracing/`, and `app/data_plane/` for orchestration or pipeline
+  subsystems that are still in-process but are not feature modules
+
+Those subsystems are intentionally kept under `app/` instead of promoted to the repository root
+because they are not yet independent deployable units.
 
 ## What Does Not Use Hexagonal Design
 

@@ -161,7 +161,7 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
     assert handoff.framework == AdapterKind.OPENAI_AGENTS.value
     assert handoff.artifact_ref == "source://basic@fingerprint-123"
     assert handoff.project_metadata == {"branch": "main"}
-    assert handoff.model_settings is None
+    assert handoff.executor_config["backend"] == "local-runner"
     assert runner_run_spec_from_handoff(handoff).agent_type == AdapterKind.OPENAI_AGENTS.value
 
 
@@ -193,7 +193,6 @@ def test_local_process_runner_stamps_runner_backend() -> None:
         model="gpt-5.4-mini",
         entrypoint="app.agent_plugins.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS.value,
-        input_summary="resolve handoff",
         prompt="Resolve the artifact handoff.",
         framework=AdapterKind.OPENAI_AGENTS.value,
         artifact_ref="source://basic@fingerprint-123",

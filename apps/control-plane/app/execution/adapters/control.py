@@ -17,8 +17,7 @@ from app.execution.domain.models import (
     RunTerminalSummary,
 )
 from app.modules.runs.application.ports import RunRepository
-from app.modules.runs.domain.models import RunSpec
-from app.modules.runs.domain.policies import RunAggregate
+from app.modules.runs.domain.models import RunSpec, utc_now
 from app.modules.shared.application.ports import TaskQueuePort
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.shared.domain.tasks import QueuedTask, TaskType
@@ -107,10 +106,31 @@ class _QueuedExecutionBackendAdapter:
         run = self.run_repository.get(request.run_id)
         if run is None or (request.attempt_id is not None and run.attempt_id != request.attempt_id):
             return False
-        try:
-            cancelled = RunAggregate.load(run).request_cancel(request.reason)
-        except ValueError:
+        if run.status not in {
+            RunStatus.QUEUED,
+            RunStatus.STARTING,
+            RunStatus.RUNNING,
+            RunStatus.CANCELLING,
+        }:
             return False
+        now = utc_now()
+        cancelled = run.model_copy(
+            update={
+                "status": (
+                    RunStatus.CANCELLED
+                    if run.status in {RunStatus.QUEUED, RunStatus.STARTING}
+                    else RunStatus.CANCELLING
+                ),
+                "last_heartbeat_at": now,
+                "last_progress_at": now,
+                "heartbeat_sequence": run.heartbeat_sequence + 1,
+                "termination_reason": request.reason,
+                "terminal_reason": request.reason,
+                "completed_at": now
+                if run.status in {RunStatus.QUEUED, RunStatus.STARTING}
+                else run.completed_at,
+            }
+        )
         self.run_repository.save(cancelled)
         return True
 

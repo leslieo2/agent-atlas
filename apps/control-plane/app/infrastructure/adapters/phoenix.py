@@ -1,4 +1,4 @@
-from app.tracing.backends.phoenix import (
+from app.agent_tracing.backends.phoenix import (
     PhoenixTraceBackend,
     PhoenixTraceLinkResolver,
     build_phoenix_project_url,

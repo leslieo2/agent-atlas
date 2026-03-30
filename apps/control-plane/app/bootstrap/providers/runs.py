@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from app.agent_tracing.application import RunTelemetryIngestionService
 from app.bootstrap.container import get_container
-from app.modules.runs.application.telemetry import RunTelemetryIngestionService
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
 
 

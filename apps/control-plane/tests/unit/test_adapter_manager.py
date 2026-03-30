@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from app.modules.runs.adapters.outbound.telemetry.trace_projector import TraceIngestProjector
+from app.agent_tracing.adapters.trace_projector import TraceIngestProjector
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 

@@ -66,6 +66,9 @@ def test_runner_run_spec_can_be_built_from_legacy_run_spec():
     assert runner_spec.published_agent_snapshot["manifest"]["agent_id"] == "triage-bot"
     assert runner_spec.tracing is not None
     assert runner_spec.tracing.export is not None
+    serialized = runner_spec.model_dump(mode="json")
+    assert "input_summary" not in serialized
+    assert "approval_policy" not in serialized
 
 
 def test_event_envelope_round_trips_to_trace_event():

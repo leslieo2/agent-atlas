@@ -25,7 +25,6 @@ def _runner_payload(tmp_path) -> RunnerRunSpec:
         model="gpt-5.4-mini",
         entrypoint="atlas.agents:build",
         agent_type="openai_agents",
-        input_summary="check incident",
         prompt="Summarize the incident.",
         published_agent_snapshot={"manifest": {"agent_id": "triage-bot"}},
         bootstrap=RunnerBootstrapPaths(

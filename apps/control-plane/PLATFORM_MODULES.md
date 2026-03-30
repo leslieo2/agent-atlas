@@ -62,14 +62,15 @@ Primary concerns:
 Key rule:
 
 - the execution plane manages runtime contracts, not Python or TypeScript specific SDK objects
+- it remains under `apps/control-plane/app/` while it shares the control-plane process, wiring,
+  and repositories; conceptual plane boundaries do not automatically imply top-level directories
 
 ### Observability And Ingestion
 
 Current locations:
 
-- `app/modules/traces/`
-- `app/infrastructure/adapters/trace_projection/`
-- `app/infrastructure/adapters/trajectory_projection.py`
+- `app/agent_tracing/`
+- `app/data_plane/`
 - `app/infrastructure/adapters/phoenix.py`
 
 These are better understood as event collection, normalization, export, and projection pipelines.
@@ -86,6 +87,18 @@ Current and future locations:
 
 These are data pipeline and storage workflows, not pure domain-service adapters.
 
+## Placement Rule
+
+Choose the directory by runtime ownership:
+
+- keep code in `app/modules/*` when it owns Atlas business semantics
+- keep code in `app/execution/`, `app/agent_tracing/`, or `app/data_plane/` when it is an
+  in-process orchestration or pipeline subsystem
+- move code to `packages/` only when multiple apps or runtimes must import it as a shared library
+- move definitions to `schemas/` only when they should remain language-neutral
+- move code to repository-level runtime areas only when it can evolve outside the control-plane
+  process
+
 ## Current Repo Mapping
 
 Use this split when adding code:
@@ -100,5 +113,5 @@ Use this split when adding code:
 
 The current codebase is still transitional in a few places, especially around tracing and
 ingestion-heavy flows. Directionally, orchestration-heavy execution code belongs in
-`app/execution/`, while ingestion-heavy pieces should keep moving toward dedicated
-pipeline-oriented subsystems.
+`app/execution/`, while ingestion-heavy pieces should keep moving toward `app/agent_tracing/` and
+`app/data_plane/` subsystems.

@@ -3,7 +3,13 @@ from __future__ import annotations
 from uuid import uuid4
 
 from agent_atlas_contracts.execution import ExecutionArtifact
+from app.agent_tracing.adapters.trace_projector import TraceIngestProjector
+from app.agent_tracing.application import (
+    RunTelemetryIngestionService,
+    TrajectoryRecorder,
+)
 from app.core.errors import ProviderAuthError
+from app.data_plane.adapters.trajectory_projector import TraceEventTrajectoryProjector
 from app.execution.application import (
     ExecutionRecorder,
     RunExecutionContext,
@@ -14,17 +20,10 @@ from app.infrastructure.repositories import (
     StateTraceRepository,
     StateTrajectoryRepository,
 )
-from app.modules.runs.adapters.outbound.telemetry.trace_projector import TraceIngestProjector
-from app.modules.runs.adapters.outbound.telemetry.trajectory_projector import (
-    TraceEventTrajectoryProjector,
-)
+from app.modules.runs.adapters.outbound.execution.state_sink import RunExecutionStateSink
 from app.modules.runs.application.results import (
     PublishedRunExecutionResult,
     RunnerExecutionResult,
-)
-from app.modules.runs.application.telemetry import (
-    RunTelemetryIngestionService,
-    TrajectoryRecorder,
 )
 from app.modules.runs.domain.models import RunRecord, RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
@@ -151,11 +150,13 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
     )
     projector = RunExecutionProjector()
     recorder = ExecutionRecorder(
-        run_repository=run_repository,
-        telemetry_ingestor=_build_telemetry_ingestor(
+        sink=RunExecutionStateSink(
             run_repository=run_repository,
-            trace_repository=trace_repository,
-            trajectory_repository=trajectory_repository,
+            telemetry_ingestor=_build_telemetry_ingestor(
+                run_repository=run_repository,
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
         ),
     )
 
@@ -221,11 +222,13 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
     )
     projector = RunExecutionProjector()
     recorder = ExecutionRecorder(
-        run_repository=run_repository,
-        telemetry_ingestor=_build_telemetry_ingestor(
+        sink=RunExecutionStateSink(
             run_repository=run_repository,
-            trace_repository=trace_repository,
-            trajectory_repository=trajectory_repository,
+            telemetry_ingestor=_build_telemetry_ingestor(
+                run_repository=run_repository,
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
         ),
     )
 
@@ -326,13 +329,15 @@ def test_run_execution_service_records_structured_failure_details():
     from app.execution.application import RunExecutionService
 
     service = RunExecutionService(
-        run_repository=run_repository,
         artifact_resolver=_FixedArtifactResolver(),
         runner=ExplodingPublishedRuntime(),
-        telemetry_ingestor=_build_telemetry_ingestor(
+        sink=RunExecutionStateSink(
             run_repository=run_repository,
-            trace_repository=trace_repository,
-            trajectory_repository=trajectory_repository,
+            telemetry_ingestor=_build_telemetry_ingestor(
+                run_repository=run_repository,
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
         ),
     )
 
@@ -464,13 +469,15 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
     from app.execution.application import RunExecutionService
 
     service = RunExecutionService(
-        run_repository=run_repository,
         artifact_resolver=_FixedArtifactResolver(),
         runner=FailedToolPublishedRuntime(),
-        telemetry_ingestor=_build_telemetry_ingestor(
+        sink=RunExecutionStateSink(
             run_repository=run_repository,
-            trace_repository=trace_repository,
-            trajectory_repository=trajectory_repository,
+            telemetry_ingestor=_build_telemetry_ingestor(
+                run_repository=run_repository,
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
         ),
     )
 

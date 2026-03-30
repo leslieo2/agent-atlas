@@ -5,14 +5,14 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from app.bootstrap.wiring.infrastructure import build_infrastructure
-from app.core.config import TraceBackendMode, settings
-from app.modules.runs.domain.models import RunRecord
-from app.tracing.backends.phoenix import (
+from app.agent_tracing.backends.phoenix import (
     PhoenixTraceBackend,
     build_phoenix_project_url,
     build_phoenix_trace_url,
 )
+from app.bootstrap.wiring.infrastructure import build_infrastructure
+from app.core.config import TraceBackendMode, settings
+from app.modules.runs.domain.models import RunRecord
 
 
 class _RunRepository:

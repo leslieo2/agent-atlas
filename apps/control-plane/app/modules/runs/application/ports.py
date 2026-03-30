@@ -5,6 +5,7 @@ from uuid import UUID
 
 from agent_atlas_contracts.execution import ExecutionArtifact, ExecutionHandoff, RunnerRunSpec
 
+from app.agent_tracing.ports import TraceExportPort, TraceQueryPort
 from app.modules.runs.application.results import (
     PublishedRunExecutionResult,
     RunnerExecutionResult,
@@ -15,7 +16,6 @@ from app.modules.runs.domain.models import (
     TrajectoryStep,
 )
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
-from app.tracing.ports import TraceExportPort, TraceQueryPort
 
 
 class RunRepository(Protocol):

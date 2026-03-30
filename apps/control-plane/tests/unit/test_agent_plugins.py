@@ -14,6 +14,7 @@ from app.infrastructure.adapters.framework_registry import (
     FrameworkPlugin,
     FrameworkRegistry,
     PublishedAgentExecutionDispatcher,
+    discover_framework_plugins,
 )
 from app.infrastructure.adapters.langchain import LangChainAgentContractValidator
 from app.infrastructure.adapters.openai_agents import (
@@ -236,6 +237,41 @@ def test_framework_registry_dispatches_discovery_by_manifest_framework(monkeypat
     assert openai_validator.calls == 0
     assert langchain_validator.calls == ["app.agent_plugins.graph_bot"]
     assert discovered.framework == AdapterKind.LANGCHAIN.value
+
+
+def test_framework_plugin_discovery_loads_package_manifests(monkeypatch) -> None:
+    class StubModuleInfo:
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self.ispkg = True
+
+    package = SimpleNamespace(__name__="app.infrastructure.adapters", __path__=["/tmp/adapters"])
+    plugin = FrameworkPlugin(
+        framework=AdapterKind.LANGCHAIN.value,
+        validator=SimpleNamespace(),
+        loader=SimpleNamespace(),
+        runtime=SimpleNamespace(),
+    )
+    modules = {
+        "app.infrastructure.adapters": package,
+        "app.infrastructure.adapters.langchain": SimpleNamespace(
+            build_framework_plugin=lambda: plugin
+        ),
+        "app.infrastructure.adapters.not_a_plugin": SimpleNamespace(),
+    }
+
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.framework_registry.import_module",
+        lambda module_name: modules[module_name],
+    )
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.framework_registry.pkgutil.iter_modules",
+        lambda _paths: [StubModuleInfo("langchain"), StubModuleInfo("not_a_plugin")],
+    )
+
+    discovered = discover_framework_plugins()
+
+    assert discovered == {AdapterKind.LANGCHAIN.value: plugin}
 
 
 def test_langchain_validator_accepts_invoke_based_runnable(monkeypatch) -> None:

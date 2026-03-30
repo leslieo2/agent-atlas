@@ -4,9 +4,11 @@ import ast
 from pathlib import Path
 from uuid import uuid4
 
-from app.modules.runs.adapters.outbound.telemetry.trace_projector import TraceIngestProjector
+from app.agent_tracing.adapters.trace_projector import TraceIngestProjector
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.traces import TraceIngestEvent
+
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_trace_projector_normalizes_trace_event():
@@ -78,6 +80,37 @@ def test_app_does_not_import_legacy_execution_plane_package():
 def test_feature_modules_do_not_import_other_feature_use_cases_or_execution():
     violations = _collect_cross_feature_application_imports(base_dir=Path("app/modules"))
     assert violations == []
+
+
+def test_execution_plane_does_not_import_run_telemetry_module():
+    violations = _collect_forbidden_imports(
+        base_dir=Path("app/execution"),
+        forbidden_prefixes=(
+            "app.tracing",
+            "app.modules.runs.application.telemetry",
+            "app.modules.runs.domain.policies",
+        ),
+    )
+    assert violations == []
+
+
+def test_legacy_runs_telemetry_paths_have_been_removed():
+    legacy_paths = (
+        BACKEND_ROOT / "app/modules/runs/application/telemetry.py",
+        BACKEND_ROOT / "app/modules/runs/adapters/outbound/telemetry/trace_projector.py",
+        BACKEND_ROOT / "app/modules/runs/adapters/outbound/telemetry/trajectory_projector.py",
+    )
+    assert all(not path.exists() for path in legacy_paths)
+
+
+def test_legacy_tracing_package_has_been_removed():
+    legacy_paths = (
+        BACKEND_ROOT / "app/tracing/__init__.py",
+        BACKEND_ROOT / "app/tracing/ports.py",
+        BACKEND_ROOT / "app/tracing/backends/phoenix.py",
+        BACKEND_ROOT / "app/tracing/exporters/otlp.py",
+    )
+    assert all(not path.exists() for path in legacy_paths)
 
 
 def _collect_forbidden_imports(

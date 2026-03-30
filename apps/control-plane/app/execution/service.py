@@ -3,26 +3,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from agent_atlas_contracts.execution import ExecutionHandoff
 from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
 
 from app.core.errors import AppError
 from app.execution.adapters.specs import execution_handoff_from_run_spec
+from app.execution.application.ports import ExecutionOutcomeSinkPort
 from app.modules.runs.application.ports import (
     ArtifactResolverPort,
     RunnerPort,
-    RunRepository,
 )
 from app.modules.runs.application.results import (
     PublishedRunExecutionResult,
-    RunnerExecutionResult,
 )
-from app.modules.runs.application.telemetry import RunTelemetryIngestionService
 from app.modules.runs.domain.models import (
     ExecutionMetrics,
     RunSpec,
 )
-from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus, StepType
 from app.modules.shared.domain.models import TraceTelemetryMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
@@ -322,171 +318,71 @@ class RunExecutionProjector:
 class ExecutionRecorder:
     def __init__(
         self,
-        run_repository: RunRepository,
-        telemetry_ingestor: RunTelemetryIngestionService,
+        sink: ExecutionOutcomeSinkPort,
     ) -> None:
-        self.run_repository = run_repository
-        self.telemetry_ingestor = telemetry_ingestor
+        self.sink = sink
 
     def record(self, run_id: UUID, record: ProjectedExecutionRecord) -> None:
-        if record.events:
-            self.telemetry_ingestor.ingest_many(record.events)
-
-        run = self.run_repository.get(run_id)
-        if not run:
-            return
-        updated = RunAggregate.load(run).record_metrics(record.metrics)
-        self.run_repository.save(updated)
+        self.sink.record_projected_execution(run_id, record)
 
 
 class RunExecutionService:
     def __init__(
         self,
-        run_repository: RunRepository,
         artifact_resolver: ArtifactResolverPort,
         runner: RunnerPort,
-        telemetry_ingestor: RunTelemetryIngestionService,
+        sink: ExecutionOutcomeSinkPort,
         default_runner_backend: str = "local-process",
         projector: RunExecutionProjector | None = None,
         recorder: ExecutionRecorder | None = None,
     ) -> None:
-        self.run_repository = run_repository
         self.artifact_resolver = artifact_resolver
         self.runner = runner
+        self.sink = sink
         self.default_runner_backend = default_runner_backend
         self.projector = projector or RunExecutionProjector()
-        self.recorder = recorder or ExecutionRecorder(
-            run_repository=run_repository,
-            telemetry_ingestor=telemetry_ingestor,
-        )
+        self.recorder = recorder or ExecutionRecorder(sink=sink)
 
     def execute_run(self, run_id: UUID, payload: RunSpec) -> None:
-        if not self._set_status(run_id, RunStatus.STARTING):
+        if not self.sink.transition_status(run_id, RunStatus.STARTING):
             return
 
         context = RunExecutionContext.from_spec(run_id, payload)
 
         try:
             artifact = self.artifact_resolver.resolve(payload)
-            run = self.run_repository.get(run_id)
+            attempt = self.sink.load_attempt(run_id)
             handoff = execution_handoff_from_run_spec(
                 run_id=run_id,
                 payload=payload,
                 artifact=artifact,
                 runner_backend=self._runner_backend(payload),
-                attempt=run.attempt if run is not None else 1,
-                attempt_id=run.attempt_id if run is not None else None,
+                attempt=attempt.attempt,
+                attempt_id=attempt.attempt_id,
             )
-            self._record_execution_handoff(run_id, handoff)
-            if not self._set_status(run_id, RunStatus.RUNNING):
-                self._mark_cancelled_if_requested(run_id)
+            self.sink.record_execution_handoff(run_id, handoff)
+            if not self.sink.transition_status(run_id, RunStatus.RUNNING):
+                self.sink.mark_cancelled_if_requested(run_id)
                 return
             result = self.runner.execute(handoff)
-            self._update_run_execution_details(run_id, result)
+            self.sink.record_runner_result(run_id, result)
             record = self.projector.project_runtime_success(context, result.execution)
             self.recorder.record(run_id, record)
-            if self._mark_cancelled_if_requested(run_id):
+            if self.sink.mark_cancelled_if_requested(run_id):
                 return
             trace_failure = failure_from_trace_events(record.events)
             if trace_failure is not None:
-                self._record_failure(run_id, trace_failure)
-                self._set_status(run_id, RunStatus.FAILED, reason=trace_failure.message)
+                self.sink.record_failure(run_id, trace_failure)
+                self.sink.transition_status(run_id, RunStatus.FAILED, reason=trace_failure.message)
                 return
-            self._set_status(run_id, RunStatus.SUCCEEDED)
+            self.sink.transition_status(run_id, RunStatus.SUCCEEDED)
         except Exception as exc:
             failure = normalize_run_failure(exc)
             self.recorder.record(run_id, self.projector.project_runtime_failure(context, failure))
-            if self._mark_cancelled_if_requested(run_id):
+            if self.sink.mark_cancelled_if_requested(run_id):
                 return
-            self._record_failure(run_id, failure)
-            self._set_status(run_id, RunStatus.FAILED, reason=failure.message)
-
-    def _set_status(
-        self,
-        run_id: UUID,
-        status: RunStatus,
-        reason: str | None = None,
-    ) -> bool:
-        run = self.run_repository.get(run_id)
-        if not run:
-            return False
-
-        aggregate = RunAggregate.load(run)
-        try:
-            if status == RunStatus.STARTING:
-                updated = aggregate.mark_starting()
-            elif status == RunStatus.RUNNING:
-                updated = aggregate.mark_running()
-            elif status == RunStatus.SUCCEEDED:
-                updated = aggregate.mark_succeeded()
-            elif status == RunStatus.FAILED:
-                updated = aggregate.mark_failed(reason)
-            else:
-                raise ValueError(f"unsupported status transition target={status.value}")
-        except ValueError:
-            return False
-
-        self.run_repository.save(updated)
-        return True
-
-    def _mark_cancelled_if_requested(self, run_id: UUID) -> bool:
-        run = self.run_repository.get(run_id)
-        if not run or run.status != RunStatus.CANCELLING:
-            return False
-        reason = run.termination_reason or "cancelled by user"
-        try:
-            updated = RunAggregate.load(run).mark_cancelled(reason)
-        except ValueError:
-            return False
-        self.run_repository.save(updated)
-        return True
-
-    def _update_run_execution_details(
-        self,
-        run_id: UUID,
-        result: RunnerExecutionResult,
-    ) -> None:
-        run = self.run_repository.get(run_id)
-        if not run:
-            return
-        aggregate = RunAggregate.load(run)
-        aggregate.update_model(result.execution.runtime_result.resolved_model)
-        updated = aggregate.update_execution_runtime(
-            artifact_ref=result.artifact_ref,
-            image_ref=result.image_ref,
-            runner_backend=result.runner_backend,
-            execution_backend=result.execution.runtime_result.execution_backend,
-            container_image=result.execution.runtime_result.container_image,
-        )
-        self.run_repository.save(updated)
-
-    def _record_failure(self, run_id: UUID, failure: RunFailureDetails) -> None:
-        run = self.run_repository.get(run_id)
-        if not run:
-            return
-        updated = RunAggregate.load(run).record_failure(
-            error_code=failure.code,
-            error_message=failure.message,
-        )
-        self.run_repository.save(updated)
-
-    def _record_execution_handoff(
-        self,
-        run_id: UUID,
-        handoff: ExecutionHandoff,
-    ) -> None:
-        run = self.run_repository.get(run_id)
-        if not run:
-            return
-        aggregate = RunAggregate.load(run)
-        updated = aggregate.update_execution_runtime(
-            artifact_ref=handoff.artifact_ref,
-            image_ref=handoff.image_ref,
-            runner_backend=handoff.runner_backend,
-            execution_backend=run.execution_backend,
-            container_image=run.container_image,
-        )
-        self.run_repository.save(updated)
+            self.sink.record_failure(run_id, failure)
+            self.sink.transition_status(run_id, RunStatus.FAILED, reason=failure.message)
 
     def _runner_backend(self, payload: RunSpec) -> str:
         if payload.provenance and payload.provenance.runner_backend:

@@ -4,10 +4,10 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
+from app.agent_tracing.ports import TraceLinkResolverPort
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.models import TracingMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
-from app.tracing.ports import TraceLinkResolverPort
 
 
 def _safe_json_dumps(value: object) -> str:

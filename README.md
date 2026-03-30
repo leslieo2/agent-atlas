@@ -24,6 +24,11 @@ It combines:
 - `Makefile`: root entrypoint for installing dependencies and running the common full-stack
   workflows
 
+Repository placement follows one rule: place code by execution ownership, not by conceptual name.
+`apps/control-plane/app/*` holds in-process control-plane subsystems, `packages/*` holds shared
+libraries, `schemas/*` holds language-neutral definitions, and `runtimes/*` holds execution-side
+implementations that should evolve outside the control-plane process.
+
 ## Current Capability Snapshot
 
 What exists today:

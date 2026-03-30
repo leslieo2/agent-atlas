@@ -207,9 +207,31 @@ class ExportManifest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class RunnerRunSpec(RunSpec):
-    # Compatibility alias while the repo migrates to the neutral RunSpec name.
-    schema_version: Literal["runner-run-spec.v1", "run-spec.v1"] = "runner-run-spec.v1"
+class RunnerRunSpec(BaseModel):
+    schema_version: Literal["runner-run-spec.v1"] = "runner-run-spec.v1"
+    run_id: UUID
+    experiment_id: UUID | None = None
+    dataset_version_id: UUID | None = None
+    dataset_sample_id: str | None = None
+    attempt: int = 1
+    attempt_id: UUID | None = None
+    project: str
+    dataset: str | None = None
+    agent_id: str = ""
+    model: str
+    entrypoint: str | None = None
+    agent_type: str
+    prompt: str
+    tags: list[str] = Field(default_factory=list)
+    project_metadata: dict[str, Any] = Field(default_factory=dict)
+    executor_config: dict[str, Any] = Field(default_factory=dict)
+    framework: str | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    trace_backend: str | None = None
+    tracing: TracingConfig | None = None
+    published_agent_snapshot: dict[str, Any]
+    bootstrap: RunnerBootstrapPaths = Field(default_factory=RunnerBootstrapPaths)
 
 
 class ExecutionArtifact(BaseModel):
@@ -235,20 +257,11 @@ class ExecutionHandoff(BaseModel):
     model: str
     entrypoint: str | None = None
     agent_type: str
-    input_summary: str
     prompt: str
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
-    model_settings: dict[str, Any] | None = None
-    prompt_config: dict[str, Any] | None = None
-    toolset_config: dict[str, Any] = Field(default_factory=dict)
-    evaluator_config: dict[str, Any] = Field(default_factory=dict)
     executor_config: dict[str, Any] = Field(default_factory=dict)
-    approval_policy: dict[str, Any] | None = None
     framework: str | None = None
-    framework_type: str | None = None
-    framework_version: str | None = None
-    source_fingerprint: str | None = None
     artifact_ref: str | None = None
     image_ref: str | None = None
     trace_backend: str | None = None

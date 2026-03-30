@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pkgutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import import_module
@@ -136,6 +137,29 @@ class FrameworkRegistry:
                 )
             ],
         )
+
+
+def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
+    plugins: dict[str, FrameworkPlugin] = {}
+    package = import_module("app.infrastructure.adapters")
+    package_path = getattr(package, "__path__", None)
+    if package_path is None:
+        return plugins
+
+    for module_info in pkgutil.iter_modules(package_path):
+        if not module_info.ispkg:
+            continue
+        module_name = f"{package.__name__}.{module_info.name}"
+        module = FrameworkRegistry._safe_import(module_name)
+        if module is None:
+            continue
+        builder = getattr(module, "build_framework_plugin", None)
+        if not callable(builder):
+            continue
+        plugin = builder()
+        plugins[plugin.framework.strip().lower()] = plugin
+
+    return plugins
 
 
 class PublishedAgentExecutionDispatcher:

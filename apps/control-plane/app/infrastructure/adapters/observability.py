@@ -1,5 +1,5 @@
-from app.tracing.backends import StateTraceBackend, TraceSpanRepository
-from app.tracing.exporters import NoopTraceExporter, OtlpTraceExporter
+from app.agent_tracing.backends import StateTraceBackend, TraceSpanRepository
+from app.agent_tracing.exporters import NoopTraceExporter, OtlpTraceExporter
 
 __all__ = [
     "NoopTraceExporter",

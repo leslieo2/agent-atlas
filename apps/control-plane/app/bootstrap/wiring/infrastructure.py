@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, cast
 
+from app.agent_tracing.adapters import TraceIngestProjector
+from app.agent_tracing.backends import (
+    PhoenixTraceBackend,
+    PhoenixTraceLinkResolver,
+    StateTraceBackend,
+)
+from app.agent_tracing.exporters import NoopTraceExporter, OtlpTraceExporter
 from app.core.config import TraceBackendMode, settings
+from app.data_plane.adapters import TraceEventTrajectoryProjector
 from app.execution.adapters import (
     ExecutionControlRegistry,
     K8sJobExecutionAdapter,
@@ -22,19 +29,9 @@ from app.infrastructure.adapters.agent_catalog import (
 )
 from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.infrastructure.adapters.framework_registry import (
-    FrameworkPlugin,
     FrameworkRegistry,
     PublishedAgentExecutionDispatcher,
-)
-from app.infrastructure.adapters.langchain import (
-    LangChainAgentContractValidator,
-    PublishedLangChainAgentAdapter,
-    PublishedLangChainAgentLoader,
-)
-from app.infrastructure.adapters.openai_agents import (
-    OpenAIAgentContractValidator,
-    PublishedOpenAIAgentAdapter,
-    PublishedOpenAIAgentLoader,
+    discover_framework_plugins,
 )
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.task_queue import StateTaskQueue
@@ -59,22 +56,11 @@ from app.modules.runs.adapters.outbound.persistence import (
     StateTraceRepository,
     StateTrajectoryRepository,
 )
-from app.modules.runs.adapters.outbound.telemetry.trace_projector import TraceIngestProjector
-from app.modules.runs.adapters.outbound.telemetry.trajectory_projector import (
-    TraceEventTrajectoryProjector,
-)
 from app.modules.runs.application.ports import (
     ArtifactResolverPort,
     RunnerPort,
     TraceBackendPort,
     TraceExporterPort,
-)
-from app.tracing import (
-    NoopTraceExporter,
-    OtlpTraceExporter,
-    PhoenixTraceBackend,
-    PhoenixTraceLinkResolver,
-    StateTraceBackend,
 )
 
 
@@ -120,34 +106,7 @@ def build_infrastructure() -> InfrastructureBundle:
     approval_policy_repository = StateApprovalPolicyRepository()
     system_status = StateSystemStatus()
     agent_source_catalog = FilesystemAgentSourceCatalog()
-    openai_validator = OpenAIAgentContractValidator()
-    openai_loader = PublishedOpenAIAgentLoader(validator=openai_validator)
-    langchain_validator = LangChainAgentContractValidator()
-    langchain_loader = PublishedLangChainAgentLoader(validator=langchain_validator)
-    # The runner packages use mirrored contract models, so the runtime wiring needs an explicit
-    # cast at the backend boundary even though the call shape is intentionally the same.
-    openai_runtime = cast(
-        Any,
-        PublishedOpenAIAgentAdapter(agent_loader=cast(Any, openai_loader)),
-    )
-    langchain_runtime = cast(
-        Any,
-        PublishedLangChainAgentAdapter(agent_loader=cast(Any, langchain_loader)),
-    )
-    framework_plugins = {
-        "openai-agents-sdk": FrameworkPlugin(
-            framework="openai-agents-sdk",
-            validator=openai_validator,
-            loader=openai_loader,
-            runtime=openai_runtime,
-        ),
-        "langchain": FrameworkPlugin(
-            framework="langchain",
-            validator=langchain_validator,
-            loader=langchain_loader,
-            runtime=langchain_runtime,
-        ),
-    }
+    framework_plugins = discover_framework_plugins()
     framework_registry = FrameworkRegistry(plugins=framework_plugins)
     published_execution_dispatcher = PublishedAgentExecutionDispatcher(plugins=framework_plugins)
     artifact_builder = SourceArtifactBuilder(default_trace_backend=settings.trace_backend.value)
