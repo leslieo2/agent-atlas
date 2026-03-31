@@ -13,8 +13,10 @@ from app.core.config import TraceBackendMode, settings
 from app.data_plane.adapters import TraceEventTrajectoryProjector
 from app.execution.adapters import (
     ExecutionControlRegistry,
+    K8sContainerRunner,
     K8sJobExecutionAdapter,
     K8sLauncher,
+    KubectlK8sClient,
     LocalLauncher,
     LocalProcessRunner,
     LocalWorkerExecutionAdapter,
@@ -133,6 +135,17 @@ def build_infrastructure() -> InfrastructureBundle:
         published_execution_dispatcher=published_execution_dispatcher,
     )
     artifact_resolver = PublishedArtifactResolver()
+    k8s_launcher = K8sLauncher(
+        namespace=settings.k8s_namespace,
+        service_account_name=settings.k8s_service_account_name,
+    )
+    k8s_runner = K8sContainerRunner(
+        run_repository=run_repository,
+        launcher=k8s_launcher,
+        client=KubectlK8sClient(command=settings.k8s_kubectl_command),
+        poll_interval_seconds=settings.k8s_poll_interval_seconds,
+        heartbeat_interval_seconds=settings.k8s_heartbeat_interval_seconds,
+    )
     local_process_runner = LocalProcessRunner(
         published_runtime=model_runtime,
         launcher=LocalLauncher(),
@@ -140,7 +153,8 @@ def build_infrastructure() -> InfrastructureBundle:
     default_runner_backend = local_process_runner.backend_name()
     runner = RunnerRegistry(
         runners={
-            default_runner_backend: local_process_runner,
+            k8s_runner.backend_name(): k8s_runner,
+            local_process_runner.backend_name(): local_process_runner,
         }
     )
     execution_control = ExecutionControlRegistry(
@@ -148,7 +162,7 @@ def build_infrastructure() -> InfrastructureBundle:
             "k8s-job": K8sJobExecutionAdapter(
                 task_queue=task_queue,
                 run_repository=run_repository,
-                launcher=K8sLauncher(),
+                launcher=k8s_launcher,
             ),
             "local-runner": LocalWorkerExecutionAdapter(
                 task_queue=task_queue,

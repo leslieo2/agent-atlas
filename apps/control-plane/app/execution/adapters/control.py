@@ -311,6 +311,16 @@ class K8sJobExecutionAdapter(_QueuedExecutionBackendAdapter):
         self.run_repository.save(updated)
         return handle.model_copy(update={"executor_ref": job_name})
 
+    def capability(self) -> ExecutionCapability:
+        return ExecutionCapability(
+            backend=self.backend,
+            production_ready=True,
+            supports_cancel=True,
+            supports_retry=True,
+            supports_status=True,
+            supports_heartbeat=True,
+        )
+
 
 class ExecutionControlRegistry(ExecutionControlPort):
     def __init__(self, *, backends: Mapping[str, _ExecutionBackendAdapter]) -> None:

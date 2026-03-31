@@ -7,6 +7,10 @@ from agent_atlas_contracts.runtime import PublishedRunExecutionResult, RuntimeEx
 from app.modules.shared.domain.traces import TraceIngestEvent
 
 
+class ExecutionCancelled(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class ExecutionMetrics:
     latency_ms: int = 0
@@ -43,6 +47,7 @@ class RunnerExecutionResult:
 
 
 __all__ = [
+    "ExecutionCancelled",
     "ExecutionMetrics",
     "ProjectedExecutionRecord",
     "PublishedRunExecutionResult",

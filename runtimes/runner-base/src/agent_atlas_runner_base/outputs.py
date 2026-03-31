@@ -4,17 +4,23 @@ import hashlib
 import json
 import mimetypes
 import os
+import sys
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Any
 
 from agent_atlas_contracts.execution import (
+    RUNNER_CALLBACK_MODE_ENV,
+    RUNNER_CALLBACK_MODE_STDOUT_JSONL,
     ArtifactEntry,
     ArtifactManifest,
     EventEnvelope,
     RunnerBootstrapPaths,
     RunnerRunSpec,
     TerminalResult,
+    encode_runner_callback,
+    runner_callback_envelope,
 )
 from agent_atlas_contracts.runtime import RuntimeExecutionResult
 
@@ -97,27 +103,35 @@ class RunnerOutputWriter:
         self.files.events_path.write_text(
             content + ("\n" if rows else ""), encoding="utf-8"
         )
+        for row in rows:
+            self._emit_callback("event_envelope", row)
 
     def write_terminal_result(self, result: TerminalResult) -> None:
         self.ensure_directories()
+        row = result.model_dump(mode="json")
         self.files.terminal_result_path.write_text(
-            json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False),
+            json.dumps(row, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        self._emit_callback("terminal_result", row)
 
     def write_runtime_result(self, result: RuntimeExecutionResult) -> None:
         self.ensure_directories()
+        row = result.model_dump(mode="json")
         self.files.runtime_result_path.write_text(
-            json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False),
+            json.dumps(row, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        self._emit_callback("runtime_result", row)
 
     def write_artifact_manifest(self, manifest: ArtifactManifest) -> None:
         self.ensure_directories()
+        row = manifest.model_dump(mode="json")
         self.files.artifact_manifest_path.write_text(
-            json.dumps(manifest.model_dump(mode="json"), indent=2, ensure_ascii=False),
+            json.dumps(row, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        self._emit_callback("artifact_manifest", row)
 
     def write_artifact_text(
         self,
@@ -193,6 +207,20 @@ class RunnerOutputWriter:
                 "artifact path must stay within the configured artifact directory"
             )
         return resolved
+
+    @staticmethod
+    def _callback_mode() -> str | None:
+        candidate = os.environ.get(RUNNER_CALLBACK_MODE_ENV)
+        if candidate is None:
+            return None
+        normalized = candidate.strip().lower()
+        return normalized or None
+
+    def _emit_callback(self, kind: str, payload: dict[str, Any]) -> None:
+        if self._callback_mode() != RUNNER_CALLBACK_MODE_STDOUT_JSONL:
+            return
+        sys.stdout.write(encode_runner_callback(runner_callback_envelope(kind, payload)) + "\n")
+        sys.stdout.flush()
 
 
 __all__ = [

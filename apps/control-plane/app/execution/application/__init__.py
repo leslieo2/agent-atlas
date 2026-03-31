@@ -11,6 +11,9 @@ from app.execution.application.ports import (
     RunnerPort as RunnerPort,
 )
 from app.execution.application.results import (
+    ExecutionCancelled as ExecutionCancelled,
+)
+from app.execution.application.results import (
     ExecutionMetrics as ExecutionMetrics,
 )
 from app.execution.application.results import (

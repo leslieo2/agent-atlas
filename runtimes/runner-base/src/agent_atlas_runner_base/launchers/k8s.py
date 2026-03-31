@@ -4,7 +4,11 @@ from pathlib import PurePosixPath
 from typing import Any
 from uuid import UUID
 
-from agent_atlas_contracts.execution import RunnerRunSpec
+from agent_atlas_contracts.execution import (
+    RUNNER_CALLBACK_MODE_ENV,
+    RUNNER_CALLBACK_MODE_STDOUT_JSONL,
+    RunnerRunSpec,
+)
 from pydantic import BaseModel, Field
 
 
@@ -35,6 +39,7 @@ class K8sLauncher:
         config_map_name = f"{job_name}-input"
         image = self._image_for_payload(payload)
         env = payload.bootstrap.as_environment()
+        env[RUNNER_CALLBACK_MODE_ENV] = RUNNER_CALLBACK_MODE_STDOUT_JSONL
         args = payload.bootstrap.as_entrypoint_args()
         output_root = self._common_parent(
             payload.bootstrap.events_path,
@@ -101,6 +106,9 @@ class K8sLauncher:
                 },
             },
         }
+        timeout_seconds = payload.executor_config.get("timeout_seconds")
+        if isinstance(timeout_seconds, int) and timeout_seconds > 0:
+            job_manifest["spec"]["activeDeadlineSeconds"] = timeout_seconds
 
         return K8sJobLaunchRequest(
             job_name=job_name,
@@ -164,9 +172,7 @@ class K8sLauncher:
         runner_image = payload.executor_config.get("runner_image")
         if isinstance(runner_image, str) and runner_image.strip():
             return runner_image
-        if isinstance(payload.image_ref, str) and payload.image_ref:
-            return payload.image_ref
-        return "python:3.12-slim"
+        raise ValueError("kubernetes runner requires executor_config.runner_image")
 
     @staticmethod
     def _command(payload: RunnerRunSpec) -> list[str]:

@@ -116,6 +116,46 @@ class RunnerBootstrapPaths(BaseModel):
         ]
 
 
+RUNNER_CALLBACK_MODE_ENV = "ATLAS_RUNNER_CALLBACK_MODE"
+RUNNER_CALLBACK_MODE_STDOUT_JSONL = "stdout-jsonl"
+RUNNER_CALLBACK_PREFIX = "ATLAS_CALLBACK "
+RunnerCallbackKind = Literal[
+    "event_envelope",
+    "runtime_result",
+    "terminal_result",
+    "artifact_manifest",
+]
+
+
+class RunnerCallbackEnvelope(BaseModel):
+    kind: RunnerCallbackKind
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+def runner_callback_envelope(
+    kind: RunnerCallbackKind,
+    payload: BaseModel | dict[str, Any],
+) -> RunnerCallbackEnvelope:
+    if isinstance(payload, BaseModel):
+        normalized_payload = payload.model_dump(mode="json")
+    else:
+        normalized_payload = dict(payload)
+    return RunnerCallbackEnvelope(kind=kind, payload=normalized_payload)
+
+
+def encode_runner_callback(envelope: RunnerCallbackEnvelope) -> str:
+    return RUNNER_CALLBACK_PREFIX + envelope.model_dump_json()
+
+
+def parse_runner_callback(raw_line: str) -> RunnerCallbackEnvelope | None:
+    normalized = raw_line.strip()
+    if not normalized.startswith(RUNNER_CALLBACK_PREFIX):
+        return None
+    return RunnerCallbackEnvelope.model_validate_json(
+        normalized[len(RUNNER_CALLBACK_PREFIX) :]
+    )
+
+
 class TracingExportConfig(BaseModel):
     protocol: str = "otlp_http"
     endpoint: str | None = None
@@ -248,7 +288,8 @@ class ExecutionArtifact(BaseModel):
     image_ref: str | None = None
     published_agent_snapshot: dict[str, Any] = Field(default_factory=dict)
 
-__all__ = [
+__all__ = sorted(
+    [
     "ArtifactEntry",
     "ArtifactManifest",
     "EvalResult",
@@ -257,11 +298,20 @@ __all__ = [
     "ExportManifest",
     "ExportShard",
     "ProducerInfo",
+    "RUNNER_CALLBACK_MODE_ENV",
+    "RUNNER_CALLBACK_MODE_STDOUT_JSONL",
+    "RUNNER_CALLBACK_PREFIX",
     "RunSpec",
     "RunnerBootstrapPaths",
+    "RunnerCallbackEnvelope",
+    "RunnerCallbackKind",
     "RunnerRunSpec",
     "TerminalMetrics",
     "TerminalResult",
     "TracingConfig",
     "TracingExportConfig",
-]
+    "encode_runner_callback",
+    "parse_runner_callback",
+    "runner_callback_envelope",
+    ]
+)

@@ -6,23 +6,33 @@ from uuid import uuid4
 
 import pytest
 from agent_atlas_contracts.execution import (
+    RUNNER_CALLBACK_PREFIX,
+    ArtifactManifest,
+    EventEnvelope,
     ExecutionArtifact,
+    ProducerInfo,
     RunnerBootstrapPaths,
     RunnerRunSpec,
+    TerminalMetrics,
+    TerminalResult,
 )
 from app.core.errors import AgentFrameworkMismatchError, AppError
 from app.execution.adapters import (
+    K8sContainerRunner,
     K8sLauncher,
     LocalLauncher,
     LocalProcessRunner,
     runner_run_spec_from_run_spec,
 )
+from app.execution.adapters.k8s_runner import K8sJobSnapshot
 from app.execution.application.results import (
     PublishedRunExecutionResult,
     RuntimeExecutionResult,
 )
 from app.execution.contracts import ExecutionRunSpec
-from app.modules.shared.domain.enums import AdapterKind, StepType
+from app.modules.runs.domain.models import RunRecord
+from app.modules.runs.domain.policies import RunAggregate
+from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 from app.modules.shared.domain.models import ProvenanceMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
 
@@ -405,12 +415,14 @@ def test_k8s_launcher_builds_job_manifest_from_bootstrap_contract():
     assert request.namespace == "atlas-tests"
     assert request.image == "ghcr.io/example/atlas-runner:latest"
     assert request.env["ATLAS_RUNSPEC_PATH"] == "/workspace/input/run_spec.json"
+    assert request.env["ATLAS_RUNNER_CALLBACK_MODE"] == "stdout-jsonl"
     assert request.args[:2] == ["--run-spec", "/workspace/input/run_spec.json"]
     assert request.config_map_manifest["data"]["run_spec.json"]
     container = request.job_manifest["spec"]["template"]["spec"]["containers"][0]
     assert container["command"] == ["python", "-m", "atlas_runner"]
     assert container["volumeMounts"][0]["mountPath"] == "/workspace/input/run_spec.json"
     assert container["volumeMounts"][1]["mountPath"] == "/workspace/output"
+    assert request.job_manifest["spec"]["activeDeadlineSeconds"] == 600
 
 
 def test_k8s_launcher_mounts_common_parent_including_runtime_result_path():
@@ -438,3 +450,203 @@ def test_k8s_launcher_mounts_common_parent_including_runtime_result_path():
 
     container = request.job_manifest["spec"]["template"]["spec"]["containers"][0]
     assert container["volumeMounts"][1]["mountPath"] == "/workspace/output"
+
+
+def test_k8s_container_runner_collects_callback_outputs_and_persists_artifacts(tmp_path):
+    payload = _runner_spec().model_copy(
+        update={
+            "runner_backend": "k8s-container",
+            "image_ref": "ghcr.io/example/published-agent:123",
+            "executor_config": {
+                "backend": "k8s-job",
+                "runner_image": "ghcr.io/example/atlas-runner:latest",
+                "timeout_seconds": 30,
+                "artifact_path": str(tmp_path / "atlas-artifacts"),
+                "metadata": {"command": ["python", "-m", "atlas_runner"]},
+            },
+        }
+    )
+    run = RunAggregate.create(
+        ExecutionRunSpec(
+            run_id=payload.run_id,
+            experiment_id=payload.experiment_id,
+            project=payload.project,
+            dataset=payload.dataset,
+            agent_id=payload.agent_id,
+            model=payload.model,
+            entrypoint=payload.entrypoint,
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            input_summary="k8s run",
+            prompt=payload.prompt,
+        )
+    ).model_copy(update={"status": RunStatus.RUNNING})
+
+    class StubRunRepository:
+        def __init__(self, saved_run: RunRecord) -> None:
+            self.saved = saved_run
+
+        def get(self, run_id):
+            return self.saved if run_id == self.saved.run_id else None
+
+        def list(self):
+            return [self.saved]
+
+        def save(self, run: RunRecord) -> None:
+            self.saved = run
+
+    event = EventEnvelope(
+        run_id=payload.run_id,
+        experiment_id=payload.experiment_id,
+        attempt=payload.attempt,
+        attempt_id=payload.attempt_id,
+        event_id="evt-1",
+        sequence=1,
+        event_type="tool.succeeded",
+        producer=ProducerInfo(runtime="openai-agents-sdk", framework=payload.framework),
+        payload={"output": {"success": True}},
+    )
+    runtime_result = RuntimeExecutionResult(
+        output="k8s ok",
+        latency_ms=12,
+        token_usage=34,
+        provider="openai-agents-sdk",
+    )
+    terminal_result = TerminalResult(
+        run_id=payload.run_id,
+        experiment_id=payload.experiment_id,
+        attempt=payload.attempt,
+        attempt_id=payload.attempt_id,
+        status="succeeded",
+        producer=ProducerInfo(runtime="openai-agents-sdk", framework=payload.framework),
+        metrics=TerminalMetrics(latency_ms=12, token_usage=34, tool_calls=1),
+    )
+    manifest = ArtifactManifest(
+        run_id=payload.run_id,
+        experiment_id=payload.experiment_id,
+        attempt=payload.attempt,
+        attempt_id=payload.attempt_id,
+        producer=ProducerInfo(runtime="openai-agents-sdk", framework=payload.framework),
+        artifacts=[
+            {
+                "path": "reports/summary.txt",
+                "kind": "file",
+                "media_type": "text/plain",
+            }
+        ],
+    )
+    callback_logs = "\n".join(
+        [
+            RUNNER_CALLBACK_PREFIX
+            + json.dumps({"kind": "event_envelope", "payload": event.model_dump(mode="json")}),
+            RUNNER_CALLBACK_PREFIX
+            + json.dumps(
+                {"kind": "runtime_result", "payload": runtime_result.model_dump(mode="json")}
+            ),
+            RUNNER_CALLBACK_PREFIX
+            + json.dumps(
+                {"kind": "terminal_result", "payload": terminal_result.model_dump(mode="json")}
+            ),
+            RUNNER_CALLBACK_PREFIX
+            + json.dumps(
+                {"kind": "artifact_manifest", "payload": manifest.model_dump(mode="json")}
+            ),
+        ]
+    )
+
+    class StubKubectlClient:
+        def __init__(self) -> None:
+            self.applied: list[dict[str, object]] = []
+            self.deleted: list[tuple[str, str, str]] = []
+            self.snapshots = iter(
+                [
+                    K8sJobSnapshot(phase="starting", pod_name="atlas-pod", pod_phase="Pending"),
+                    K8sJobSnapshot(phase="running", pod_name="atlas-pod", pod_phase="Running"),
+                    K8sJobSnapshot(
+                        phase="succeeded",
+                        pod_name="atlas-pod",
+                        pod_phase="Succeeded",
+                        exit_code=0,
+                    ),
+                    K8sJobSnapshot(
+                        phase="succeeded",
+                        pod_name="atlas-pod",
+                        pod_phase="Succeeded",
+                        exit_code=0,
+                    ),
+                ]
+            )
+
+        def apply_manifest(self, manifest):
+            self.applied.append(manifest)
+
+        def delete_resource(self, *, kind: str, name: str, namespace: str, ignore_not_found=True):
+            self.deleted.append((kind, name, namespace))
+
+        def get_job_snapshot(self, *, namespace: str, job_name: str):
+            del namespace, job_name
+            return next(self.snapshots)
+
+        def read_logs(self, *, namespace: str, pod_name: str | None) -> str:
+            del namespace, pod_name
+            return callback_logs
+
+        def copy_from_pod(
+            self,
+            *,
+            namespace: str,
+            pod_name: str | None,
+            source_path: str,
+            target_path,
+        ) -> bool:
+            del namespace, pod_name, source_path
+            target_path.mkdir(parents=True, exist_ok=True)
+            target_path.joinpath("reports").mkdir(parents=True, exist_ok=True)
+            target_path.joinpath("reports/summary.txt").write_text("copied", encoding="utf-8")
+            return True
+
+    repository = StubRunRepository(run)
+    runner = K8sContainerRunner(
+        run_repository=repository,
+        launcher=K8sLauncher(namespace="atlas-tests"),
+        client=StubKubectlClient(),
+        poll_interval_seconds=0.01,
+        heartbeat_interval_seconds=0.01,
+    )
+
+    result = runner.execute(payload)
+
+    assert result.runner_backend == "k8s-container"
+    assert result.execution.runtime_result.execution_backend == "kubernetes-job"
+    assert result.execution.runtime_result.container_image == "ghcr.io/example/atlas-runner:latest"
+    assert result.execution.terminal_result is not None
+    assert result.execution.terminal_result.metrics.tool_calls == 1
+    assert len(result.execution.event_envelopes) == 1
+    assert result.execution.artifact_manifest is not None
+    assert result.execution.artifact_manifest.artifacts[0].uri is not None
+    artifact_file = tmp_path.joinpath(
+        "atlas-artifacts",
+        str(payload.run_id),
+        str(payload.attempt_id),
+        "artifacts",
+        "reports",
+        "summary.txt",
+    )
+    assert artifact_file.read_text(encoding="utf-8") == "copied"
+    assert repository.saved.last_heartbeat_at is not None
+    assert repository.saved.lease_expires_at is not None
+    assert repository.saved.execution_backend == "kubernetes-job"
+
+
+def test_k8s_launcher_requires_explicit_runner_image_even_when_published_image_exists():
+    payload = _runner_spec().model_copy(
+        update={
+            "image_ref": "ghcr.io/example/published-agent:123",
+            "executor_config": {
+                "backend": "k8s-job",
+                "metadata": {"command": ["python", "-m", "atlas_runner"]},
+            },
+        }
+    )
+
+    with pytest.raises(ValueError, match="runner_image"):
+        K8sLauncher(namespace="atlas-tests").build_request(payload)

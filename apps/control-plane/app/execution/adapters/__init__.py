@@ -7,6 +7,12 @@ from app.execution.adapters.control import (
 from app.execution.adapters.control import (
     LocalWorkerExecutionAdapter as LocalWorkerExecutionAdapter,
 )
+from app.execution.adapters.k8s_runner import (
+    K8sContainerRunner as K8sContainerRunner,
+)
+from app.execution.adapters.k8s_runner import (
+    KubectlK8sClient as KubectlK8sClient,
+)
 from app.execution.adapters.launchers import (
     K8sJobLaunchRequest as K8sJobLaunchRequest,
 )

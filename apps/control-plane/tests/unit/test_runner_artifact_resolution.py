@@ -138,7 +138,7 @@ def test_runner_run_spec_builds_from_resolved_artifact() -> None:
     assert runner_payload.framework == AdapterKind.OPENAI_AGENTS.value
     assert runner_payload.artifact_ref == "source://basic@fingerprint-123"
     assert runner_payload.project_metadata == {"branch": "main"}
-    assert runner_payload.executor_config["backend"] == "local-runner"
+    assert runner_payload.executor_config["backend"] == "k8s-job"
     assert runner_payload.agent_type == AdapterKind.OPENAI_AGENTS.value
 
 

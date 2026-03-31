@@ -112,7 +112,7 @@ class ExecutionRunSpec(BaseModel):
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
     executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend="local-runner")
+        default_factory=lambda: ExecutorConfig(backend="k8s-job")
     )
     approval_policy: ApprovalPolicySnapshot | None = None
     provenance: ProvenanceMetadata | None = None

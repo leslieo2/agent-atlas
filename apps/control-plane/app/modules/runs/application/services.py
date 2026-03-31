@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
+from app.core.errors import (
+    AgentFrameworkMismatchError,
+    AgentLoadFailedError,
+    UnsupportedOperationError,
+)
 from app.execution.application.ports import ExecutionControlPort
 from app.execution.contracts import ExecutionRunSpec
 from app.modules.agents.domain.models import PublishedAgent
@@ -82,14 +86,8 @@ def _resolve_executor_config(
     payload: RunCreateInput,
     *,
     default_trace_backend: str,
+    default_k8s_runner_image: str | None,
 ) -> tuple[ExecutorConfig, str]:
-    if payload.executor_config is None:
-        executor_config = ExecutorConfig(
-            backend=payload.executor_backend,
-            tracing_backend=default_trace_backend,
-        )
-        return executor_config, default_trace_backend
-
     explicit_tracing_backend = (
         payload.executor_config.tracing_backend
         if "tracing_backend" in payload.executor_config.model_fields_set
@@ -100,7 +98,56 @@ def _resolve_executor_config(
         update={"tracing_backend": trace_backend},
         deep=True,
     )
-    return executor_config, trace_backend
+    return _with_k8s_runner_defaults(
+        executor_config,
+        default_k8s_runner_image=default_k8s_runner_image,
+    ), trace_backend
+
+
+def _with_k8s_runner_defaults(
+    executor_config: ExecutorConfig,
+    *,
+    default_k8s_runner_image: str | None,
+) -> ExecutorConfig:
+    if executor_config.backend.strip().lower() != "k8s-job":
+        return executor_config
+
+    runner_image = (
+        executor_config.runner_image.strip()
+        if isinstance(executor_config.runner_image, str)
+        else ""
+    )
+    if runner_image:
+        return executor_config
+
+    default_image = default_k8s_runner_image.strip() if default_k8s_runner_image else ""
+    if not default_image:
+        return executor_config
+
+    return executor_config.model_copy(update={"runner_image": default_image}, deep=True)
+
+
+def _validate_execution_backend(
+    *,
+    executor_config: ExecutorConfig,
+    agent_id: str,
+) -> None:
+    if executor_config.backend.strip().lower() != "k8s-job":
+        return
+
+    runner_image = (
+        executor_config.runner_image.strip()
+        if isinstance(executor_config.runner_image, str)
+        else ""
+    )
+    if runner_image:
+        return
+
+    raise UnsupportedOperationError(
+        "k8s-job execution requires executor_config.runner_image",
+        agent_id=agent_id,
+        executor_backend=executor_config.backend,
+    )
 
 
 class RunSubmissionService:
@@ -109,21 +156,28 @@ class RunSubmissionService:
         run_repository: RunRepository,
         execution_control: ExecutionControlPort,
         default_trace_backend: str = "state",
+        default_k8s_runner_image: str | None = None,
     ) -> None:
         self.run_repository = run_repository
         self.execution_control = execution_control
         self.default_trace_backend = default_trace_backend
+        self.default_k8s_runner_image = default_k8s_runner_image
 
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
         effective_agent = _resolve_submission_agent(agent)
         executor_config, trace_backend = _resolve_executor_config(
             payload,
             default_trace_backend=self.default_trace_backend,
+            default_k8s_runner_image=self.default_k8s_runner_image,
         )
         provenance = _resolved_submission_provenance(
             agent,
             effective_agent,
             trace_backend=trace_backend,
+        )
+        _validate_execution_backend(
+            executor_config=executor_config,
+            agent_id=payload.agent_id,
         )
         provenance.executor_backend = executor_config.backend
         provenance.experiment_id = payload.experiment_id

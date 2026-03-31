@@ -44,7 +44,7 @@ def _experiment_payload(
     name: str,
     dataset_version_id: str,
     tags: list[str],
-    executor_backend: str = "local-runner",
+    executor_backend: str = "k8s-job",
     runner_mode: str | None = None,
 ) -> dict[str, object]:
     executor_config = {
@@ -130,6 +130,7 @@ def test_experiments_api_supports_compare_and_run_curation(
             name="baseline",
             dataset_version_id=dataset_version_id,
             tags=["baseline"],
+            executor_backend="local-runner",
             runner_mode="in-process",
         ),
     )
@@ -146,6 +147,7 @@ def test_experiments_api_supports_compare_and_run_curation(
             name="candidate",
             dataset_version_id=dataset_version_id,
             tags=["candidate"],
+            executor_backend="local-runner",
             runner_mode="in-process",
         ),
     )

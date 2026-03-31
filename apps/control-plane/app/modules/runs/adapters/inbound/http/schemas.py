@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
@@ -21,6 +21,8 @@ from app.modules.shared.domain.traces import TraceSpan
 
 
 class RunCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     experiment_id: UUID | None = None
     dataset_version_id: UUID | None = None
     project: str
@@ -31,8 +33,9 @@ class RunCreateRequest(BaseModel):
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, object] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
-    executor_backend: str = "local-runner"
-    executor_config: ExecutorConfig | None = None
+    executor_config: ExecutorConfig = Field(
+        default_factory=lambda: ExecutorConfig(backend="k8s-job")
+    )
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     approval_policy: ApprovalPolicySnapshot | None = None
 

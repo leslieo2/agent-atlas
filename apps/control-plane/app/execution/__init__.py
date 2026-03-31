@@ -2,6 +2,9 @@ from app.execution.adapters import (
     ExecutionControlRegistry as ExecutionControlRegistry,
 )
 from app.execution.adapters import (
+    K8sContainerRunner as K8sContainerRunner,
+)
+from app.execution.adapters import (
     K8sJobExecutionAdapter as K8sJobExecutionAdapter,
 )
 from app.execution.adapters import (
@@ -9,6 +12,9 @@ from app.execution.adapters import (
 )
 from app.execution.adapters import (
     K8sLauncher as K8sLauncher,
+)
+from app.execution.adapters import (
+    KubectlK8sClient as KubectlK8sClient,
 )
 from app.execution.adapters import (
     LocalLauncher as LocalLauncher,

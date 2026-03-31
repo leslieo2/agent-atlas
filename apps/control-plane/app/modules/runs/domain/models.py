@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from agent_atlas_contracts.runtime import RuntimeExecutionResult as SharedRuntimeExecutionResult
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.execution.contracts import ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
@@ -26,6 +26,8 @@ from app.modules.shared.domain.models import (
 
 
 class RunCreateInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     experiment_id: UUID | None = None
     dataset_version_id: UUID | None = None
     project: str
@@ -36,8 +38,9 @@ class RunCreateInput(BaseModel):
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
-    executor_backend: str = "local-runner"
-    executor_config: ExecutorConfig | None = None
+    executor_config: ExecutorConfig = Field(
+        default_factory=lambda: ExecutorConfig(backend="k8s-job")
+    )
     model_settings: ModelConfig | None = None
     prompt_config: PromptConfig | None = None
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
@@ -109,7 +112,7 @@ class RunRecord(BaseModel):
         prompt_config = None
         toolset_config = ToolsetConfig()
         evaluator_config = EvaluatorConfig()
-        executor_config = ExecutorConfig(backend=self.executor_backend or "local-runner")
+        executor_config = ExecutorConfig(backend=self.executor_backend or "k8s-job")
         approval_policy = None
         if provenance is not None:
             model_settings = ModelConfig(model=self.resolved_model or self.model)
@@ -130,7 +133,7 @@ class RunRecord(BaseModel):
             executor_config = (
                 provenance.executor.model_copy(deep=True)
                 if provenance.executor is not None
-                else ExecutorConfig(backend=self.executor_backend or "local-runner")
+                else ExecutorConfig(backend=self.executor_backend or "k8s-job")
             )
             approval_policy = (
                 provenance.approval_policy.model_copy(deep=True)

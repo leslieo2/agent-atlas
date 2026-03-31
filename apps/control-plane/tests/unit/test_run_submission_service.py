@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import pytest
-from app.core.errors import AgentFrameworkMismatchError
+from app.core.errors import AgentFrameworkMismatchError, UnsupportedOperationError
 from app.execution.contracts import ExecutionRunSpec, RunHandle
 from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
+from app.modules.runs.adapters.inbound.http.schemas import RunCreateRequest
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.enums import AdapterKind
@@ -17,6 +18,7 @@ from app.modules.shared.domain.models import (
     ToolPolicyRule,
     ToolsetConfig,
 )
+from pydantic import ValidationError
 
 
 class StubRunRepository:
@@ -53,6 +55,18 @@ class StubExecutionControl:
         )
 
 
+def test_run_create_input_defaults_to_executor_config_k8s_job() -> None:
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+    )
+
+    assert payload.executor_config.backend == "k8s-job"
+
+
 def test_run_submission_service_uses_published_agent_framework_and_enqueues_execution() -> None:
     repository = StubRunRepository()
     execution_control = StubExecutionControl()
@@ -68,6 +82,7 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
         prompt="Inspect the latest run.",
         tags=["regression", "langchain"],
         project_metadata={"team": "platform"},
+        executor_config=ExecutorConfig(backend="local-runner"),
     )
     agent = PublishedAgent(
         manifest=AgentManifest(
@@ -105,6 +120,46 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert task.provenance.framework == "langchain"
 
 
+def test_run_submission_service_uses_service_default_k8s_image_for_default_submission() -> None:
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+        default_k8s_runner_image="ghcr.io/example/atlas-runner:latest",
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+    )
+    build_result = SourceArtifactBuilder().build(agent)
+    agent.runtime_artifact = build_result.runtime_artifact
+    agent.provenance = build_result.provenance
+
+    run = service.submit(payload, agent)
+
+    assert run.executor_backend == "k8s-job"
+    assert execution_control.submitted[0].executor_config.backend == "k8s-job"
+    assert (
+        execution_control.submitted[0].executor_config.runner_image
+        == "ghcr.io/example/atlas-runner:latest"
+    )
+
+
 def test_run_submission_service_uses_injected_default_trace_backend_when_executor_config_missing():
     repository = StubRunRepository()
     execution_control = StubExecutionControl()
@@ -119,6 +174,7 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
         agent_id="triage-bot",
         input_summary="framework coverage",
         prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(backend="local-runner"),
     )
     agent = PublishedAgent(
         manifest=AgentManifest(
@@ -158,7 +214,10 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
         agent_id="triage-bot",
         input_summary="framework coverage",
         prompt="Inspect the latest run.",
-        executor_config=ExecutorConfig(backend="local-runner"),
+        executor_config=ExecutorConfig(
+            backend="k8s-job",
+            runner_image="ghcr.io/example/atlas-runner:latest",
+        ),
     )
     agent = PublishedAgent(
         manifest=AgentManifest(
@@ -201,7 +260,11 @@ def test_run_submission_service_preserves_requested_model_and_execution_metadata
         input_summary="framework coverage",
         prompt="Inspect the latest run.",
         project_metadata={"team": "platform", "prompt_version": "2026-03"},
-        executor_config=ExecutorConfig(backend="local-runner", tracing_backend="phoenix"),
+        executor_config=ExecutorConfig(
+            backend="k8s-job",
+            runner_image="ghcr.io/example/atlas-runner:latest",
+            tracing_backend="phoenix",
+        ),
         model_settings=ModelConfig(model="gpt-5.4"),
         prompt_config=PromptConfig(prompt_version="2026-03", system_prompt="Be strict."),
         toolset_config=ToolsetConfig(tools=["search"]),
@@ -231,7 +294,7 @@ def test_run_submission_service_preserves_requested_model_and_execution_metadata
     assert run.model == "gpt-5.4"
     assert run.provenance is not None
     assert run.provenance.trace_backend == "phoenix"
-    assert run.provenance.executor_backend == "local-runner"
+    assert run.provenance.executor_backend == "k8s-job"
     assert run.provenance.dataset_sample_id == "sample-1"
     assert run.provenance.toolset is not None
     assert run.provenance.toolset.tools == ["search"]
@@ -285,3 +348,111 @@ def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
 
     assert repository.saved == []
     assert execution_control.submitted == []
+
+
+def test_run_submission_service_rejects_k8s_job_without_runner_image():
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+        default_k8s_runner_image=None,
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(backend="k8s-job"),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+    )
+    build_result = SourceArtifactBuilder().build(agent)
+    agent.runtime_artifact = build_result.runtime_artifact
+    agent.provenance = build_result.provenance
+
+    with pytest.raises(UnsupportedOperationError, match="runner_image"):
+        service.submit(payload, agent)
+
+    assert repository.saved == []
+    assert execution_control.submitted == []
+
+
+def test_run_submission_service_rejects_k8s_job_with_only_published_image() -> None:
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+        default_k8s_runner_image=None,
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(backend="k8s-job"),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+    )
+    build_result = SourceArtifactBuilder().build(agent)
+    agent.runtime_artifact = build_result.runtime_artifact.model_copy(
+        update={"image_ref": "ghcr.io/example/published-agent:123"}
+    )
+    agent.provenance = build_result.provenance.model_copy(
+        update={"image_ref": "ghcr.io/example/published-agent:123"}
+    )
+
+    with pytest.raises(UnsupportedOperationError, match="runner_image"):
+        service.submit(payload, agent)
+
+    assert repository.saved == []
+    assert execution_control.submitted == []
+
+
+def test_run_create_input_rejects_legacy_executor_backend_field() -> None:
+    with pytest.raises(ValidationError):
+        RunCreateInput.model_validate(
+            {
+                "project": "migration-check",
+                "dataset": "framework-ds",
+                "agent_id": "triage-bot",
+                "input_summary": "framework coverage",
+                "prompt": "Inspect the latest run.",
+                "executor_backend": "local-runner",
+            }
+        )
+
+
+def test_run_create_request_rejects_legacy_executor_backend_field() -> None:
+    with pytest.raises(ValidationError):
+        RunCreateRequest.model_validate(
+            {
+                "project": "migration-check",
+                "dataset": "framework-ds",
+                "agent_id": "triage-bot",
+                "input_summary": "framework coverage",
+                "prompt": "Inspect the latest run.",
+                "executor_backend": "local-runner",
+            }
+        )

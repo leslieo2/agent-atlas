@@ -4,6 +4,9 @@ import json
 from uuid import uuid4
 
 from agent_atlas_contracts.execution import (
+    RUNNER_CALLBACK_MODE_ENV,
+    RUNNER_CALLBACK_MODE_STDOUT_JSONL,
+    RUNNER_CALLBACK_PREFIX,
     ArtifactManifest,
     EventEnvelope,
     ProducerInfo,
@@ -123,3 +126,66 @@ def test_runner_output_writer_rejects_artifact_path_escape(tmp_path):
         assert "artifact path" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("expected path escape to be rejected")
+
+
+def test_runner_output_writer_emits_stdout_callbacks_when_enabled(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    payload = _runner_payload(tmp_path)
+    writer = RunnerOutputWriter(payload.bootstrap)
+    monkeypatch.setenv(RUNNER_CALLBACK_MODE_ENV, RUNNER_CALLBACK_MODE_STDOUT_JSONL)
+
+    event = EventEnvelope(
+        run_id=payload.run_id,
+        experiment_id=payload.experiment_id,
+        attempt=payload.attempt,
+        attempt_id=payload.attempt_id,
+        event_id="evt-1",
+        sequence=1,
+        event_type="llm.response",
+        producer=ProducerInfo(runtime="mock", framework="mock"),
+        payload={"output": {"success": True}},
+    )
+    terminal_result = TerminalResult(
+        run_id=payload.run_id,
+        experiment_id=payload.experiment_id,
+        attempt=payload.attempt,
+        attempt_id=payload.attempt_id,
+        status="succeeded",
+        producer=ProducerInfo(runtime="mock", framework="mock"),
+        metrics=TerminalMetrics(),
+    )
+    runtime_result = RuntimeExecutionResult(
+        output="done",
+        latency_ms=1,
+        token_usage=2,
+        provider="mock",
+    )
+    manifest = ArtifactManifest(
+        run_id=payload.run_id,
+        experiment_id=payload.experiment_id,
+        attempt=payload.attempt,
+        attempt_id=payload.attempt_id,
+        producer=ProducerInfo(runtime="mock", framework="mock"),
+        artifacts=[],
+    )
+
+    writer.write_events([event])
+    writer.write_runtime_result(runtime_result)
+    writer.write_terminal_result(terminal_result)
+    writer.write_artifact_manifest(manifest)
+
+    callback_lines = [
+        line
+        for line in capsys.readouterr().out.splitlines()
+        if line.startswith(RUNNER_CALLBACK_PREFIX)
+    ]
+
+    assert [json.loads(line[len(RUNNER_CALLBACK_PREFIX) :])["kind"] for line in callback_lines] == [
+        "event_envelope",
+        "runtime_result",
+        "terminal_result",
+        "artifact_manifest",
+    ]

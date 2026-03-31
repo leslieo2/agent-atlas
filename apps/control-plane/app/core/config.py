@@ -73,6 +73,30 @@ class Settings(BaseSettings):
         default=30,
         description="Lease duration before a running task can be reclaimed by another worker.",
     )
+    k8s_namespace: str = Field(
+        default="agent-atlas-runs",
+        description="Kubernetes namespace used for queued Atlas runner Jobs.",
+    )
+    k8s_service_account_name: str = Field(
+        default="agent-atlas-runner",
+        description="Service account used by Kubernetes runner Jobs.",
+    )
+    k8s_default_runner_image: str = Field(
+        default="ghcr.io/example/atlas-runner:latest",
+        description="Default runner image used for Kubernetes-backed run submissions.",
+    )
+    k8s_kubectl_command: list[str] = Field(
+        default_factory=lambda: ["kubectl"],
+        description="Command prefix used to talk to the Kubernetes API via kubectl.",
+    )
+    k8s_poll_interval_seconds: float = Field(
+        default=1.0,
+        description="Polling interval for Kubernetes Job and Pod status checks.",
+    )
+    k8s_heartbeat_interval_seconds: float = Field(
+        default=5.0,
+        description="Heartbeat interval while waiting on a Kubernetes runner Job.",
+    )
     trace_backend: TraceBackendMode = Field(
         default=TraceBackendMode.STATE,
         description="Read-side trace backend mode: state|phoenix.",

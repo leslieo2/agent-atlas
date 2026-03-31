@@ -48,6 +48,7 @@ def test_exports_api_creates_compare_aware_rl_rows(
             name="baseline",
             dataset_version_id=dataset_version_id,
             tags=["baseline"],
+            executor_backend="local-runner",
             runner_mode="in-process",
         ),
     )
@@ -63,6 +64,7 @@ def test_exports_api_creates_compare_aware_rl_rows(
             name="candidate",
             dataset_version_id=dataset_version_id,
             tags=["candidate"],
+            executor_backend="local-runner",
             runner_mode="in-process",
         ),
     )

@@ -5,13 +5,14 @@ from uuid import UUID
 
 from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
 
-from app.core.errors import AppError
+from app.core.errors import AppError, UnsupportedOperationError
 from app.execution.application.ports import (
     ArtifactResolverPort,
     ExecutionOutcomeSinkPort,
     RunnerPort,
 )
 from app.execution.application.results import (
+    ExecutionCancelled,
     ExecutionMetrics,
     ProjectedExecutionRecord,
     PublishedRunExecutionResult,
@@ -105,28 +106,38 @@ class RunExecutionProjector:
             framework=(
                 runner_submission.framework
                 if runner_submission is not None and runner_submission.framework
-                else provenance.framework if provenance else None
+                else provenance.framework
+                if provenance
+                else None
             ),
             framework_type=(
                 runner_submission.framework
                 if runner_submission is not None and runner_submission.framework
-                else provenance.framework if provenance else None
+                else provenance.framework
+                if provenance
+                else None
             ),
             framework_version=provenance.framework_version if provenance else None,
             artifact_ref=(
                 runner_submission.artifact_ref
                 if runner_submission is not None and runner_submission.artifact_ref is not None
-                else provenance.artifact_ref if provenance else None
+                else provenance.artifact_ref
+                if provenance
+                else None
             ),
             image_ref=(
                 runner_submission.image_ref
                 if runner_submission is not None and runner_submission.image_ref is not None
-                else provenance.image_ref if provenance else None
+                else provenance.image_ref
+                if provenance
+                else None
             ),
             runner_backend=(
                 runner_submission.runner_backend
                 if runner_submission is not None
-                else provenance.runner_backend if provenance else None
+                else provenance.runner_backend
+                if provenance
+                else None
             ),
             executor_backend=provenance.executor_backend if provenance else None,
             experiment_id=context.payload.experiment_id,
@@ -251,8 +262,7 @@ class RunExecutionProjector:
                                     or fallback_metadata.executor_backend
                                 ),
                                 "experiment_id": (
-                                    event.metadata.experiment_id
-                                    or fallback_metadata.experiment_id
+                                    event.metadata.experiment_id or fallback_metadata.experiment_id
                                 ),
                                 "dataset_version_id": (
                                     event.metadata.dataset_version_id
@@ -366,7 +376,7 @@ class RunExecutionService:
             runner_payload = runner_run_spec_from_run_spec(
                 payload=normalized_payload,
                 artifact=artifact,
-                runner_backend=self._runner_backend(),
+                runner_backend=self._runner_backend(normalized_payload),
                 attempt=attempt.attempt,
                 attempt_id=attempt.attempt_id,
             )
@@ -397,6 +407,9 @@ class RunExecutionService:
                 return
             self.sink.transition_status(run_id, RunStatus.SUCCEEDED)
         except Exception as exc:
+            if isinstance(exc, ExecutionCancelled):
+                self.sink.mark_cancelled_if_requested(run_id)
+                return
             failure = normalize_run_failure(exc)
             self.recorder.record(run_id, self.projector.project_runtime_failure(context, failure))
             if self.sink.mark_cancelled_if_requested(run_id):
@@ -404,8 +417,19 @@ class RunExecutionService:
             self.sink.record_failure(run_id, failure)
             self.sink.transition_status(run_id, RunStatus.FAILED, reason=failure.message)
 
-    def _runner_backend(self) -> str:
-        return self.default_runner_backend
+    def _runner_backend(self, payload: ExecutionRunSpec) -> str:
+        execution_backend = payload.executor_config.backend.strip().lower()
+        if execution_backend == "k8s-job":
+            return "k8s-container"
+        if execution_backend == "local-runner":
+            return "local-process"
+        raise UnsupportedOperationError(
+            (
+                f"execution backend '{payload.executor_config.backend}' "
+                "cannot resolve a runner backend"
+            ),
+            executor_backend=payload.executor_config.backend,
+        )
 
 
 __all__ = [
