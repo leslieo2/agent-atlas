@@ -13,8 +13,11 @@ from app.execution.adapters import (
     LocalProcessRunner,
     runner_run_spec_from_run_spec,
 )
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
+from app.execution.application.results import (
+    PublishedRunExecutionResult,
+    RuntimeExecutionResult,
+)
+from app.execution.contracts import ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind, StepType
 from app.modules.shared.domain.models import ProvenanceMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
@@ -23,7 +26,7 @@ from app.modules.shared.domain.traces import TraceIngestEvent
 def _runner_spec() -> RunnerRunSpec:
     run_id = uuid4()
     return runner_run_spec_from_run_spec(
-        RunSpec(
+        ExecutionRunSpec(
             run_id=run_id,
             experiment_id=uuid4(),
             project="atlas",

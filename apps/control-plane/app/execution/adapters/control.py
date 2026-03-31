@@ -10,6 +10,7 @@ from app.execution.application.ports import ExecutionControlPort
 from app.execution.contracts import (
     CancelRequest,
     ExecutionCapability,
+    ExecutionRunSpec,
     Heartbeat,
     RunHandle,
     RunStatusSnapshot,
@@ -17,14 +18,14 @@ from app.execution.contracts import (
     runner_run_spec_from_run_spec,
 )
 from app.modules.runs.application.ports import RunRepository
-from app.modules.runs.domain.models import RunSpec, utc_now
 from app.modules.shared.application.ports import TaskQueuePort
 from app.modules.shared.domain.enums import RunStatus
+from app.modules.shared.domain.models import utc_now
 from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
 
 class _ExecutionBackendAdapter(Protocol):
-    def submit_run(self, run_spec: RunSpec) -> RunHandle: ...
+    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle: ...
 
     def cancel_run(self, request: CancelRequest) -> bool: ...
 
@@ -49,7 +50,7 @@ class _QueuedExecutionBackendAdapter:
         self.run_repository = run_repository
         self.production_ready = production_ready
 
-    def submit_run(self, run_spec: RunSpec) -> RunHandle:
+    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle:
         existing = self.run_repository.get(run_spec.run_id)
         if (
             existing is not None
@@ -253,7 +254,7 @@ class _QueuedExecutionBackendAdapter:
 
     def _executor_ref(
         self,
-        run_spec: RunSpec,
+        run_spec: ExecutionRunSpec,
         *,
         attempt: int,
         attempt_id: UUID,
@@ -290,7 +291,7 @@ class K8sJobExecutionAdapter(_QueuedExecutionBackendAdapter):
         )
         self.launcher = launcher or K8sLauncher()
 
-    def submit_run(self, run_spec: RunSpec) -> RunHandle:
+    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle:
         handle = super().submit_run(run_spec)
         request = self.launcher.build_request(
             runner_run_spec_from_run_spec(run_spec, attempt_id=handle.attempt_id)
@@ -311,7 +312,7 @@ class ExecutionControlRegistry(ExecutionControlPort):
     def __init__(self, *, backends: Mapping[str, _ExecutionBackendAdapter]) -> None:
         self.backends = {key.strip().lower(): value for key, value in backends.items()}
 
-    def submit_run(self, run_spec: RunSpec) -> RunHandle:
+    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle:
         backend_name = run_spec.executor_config.backend.strip().lower()
         backend = self.backends.get(backend_name)
         if backend is None:

@@ -4,20 +4,27 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
-from agent_atlas_contracts.execution import ExecutionHandoff
+from agent_atlas_contracts.execution import (
+    ExecutionArtifact,
+    ExecutionHandoff,
+    RunnerRunSpec,
+)
 
 from app.execution.contracts import (
     CancelRequest,
     ExecutionCapability,
+    ExecutionRunSpec,
     RunHandle,
     RunStatusSnapshot,
 )
-from app.modules.runs.domain.models import RunSpec
 from app.modules.shared.domain.enums import RunStatus
 
 if TYPE_CHECKING:
+    from app.execution.application.results import (
+        PublishedRunExecutionResult,
+        RunnerExecutionResult,
+    )
     from app.execution.application.service import ProjectedExecutionRecord, RunFailureDetails
-    from app.modules.runs.application.results import RunnerExecutionResult
 
 
 @dataclass(frozen=True)
@@ -27,7 +34,7 @@ class ExecutionAttempt:
 
 
 class ExecutionControlPort(Protocol):
-    def submit_run(self, run_spec: RunSpec) -> RunHandle: ...
+    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle: ...
 
     def cancel_run(self, request: CancelRequest) -> bool: ...
 
@@ -73,3 +80,19 @@ class ExecutionOutcomeSinkPort(Protocol):
         run_id: UUID,
         failure: RunFailureDetails,
     ) -> None: ...
+
+
+class PublishedRunRuntimePort(Protocol):
+    def execute_published(
+        self,
+        run_id: UUID,
+        payload: RunnerRunSpec,
+    ) -> PublishedRunExecutionResult: ...
+
+
+class ArtifactResolverPort(Protocol):
+    def resolve(self, payload: ExecutionRunSpec) -> ExecutionArtifact: ...
+
+
+class RunnerPort(Protocol):
+    def execute(self, handoff: ExecutionHandoff) -> RunnerExecutionResult: ...

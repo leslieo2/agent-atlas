@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from agent_atlas_contracts.execution import (
@@ -14,8 +15,16 @@ from agent_atlas_contracts.execution import (
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
-from app.modules.runs.domain.models import RunSpec
-from app.modules.shared.domain.enums import RunStatus
+from app.modules.shared.domain.enums import AdapterKind, RunStatus
+from app.modules.shared.domain.models import (
+    ApprovalPolicySnapshot,
+    EvaluatorConfig,
+    ExecutorConfig,
+    ModelConfig,
+    PromptConfig,
+    ProvenanceMetadata,
+    ToolsetConfig,
+)
 
 
 def utc_now() -> datetime:
@@ -84,6 +93,36 @@ class RunStatusSnapshot(BaseModel):
     terminal_summary: RunTerminalSummary | None = None
 
 
+class ExecutionRunSpec(BaseModel):
+    run_id: UUID = Field(default_factory=uuid4)
+    experiment_id: UUID | None = None
+    dataset_version_id: UUID | None = None
+    project: str
+    dataset: str | None = None
+    agent_id: str = ""
+    model: str
+    entrypoint: str | None = None
+    agent_type: AdapterKind
+    input_summary: str
+    prompt: str
+    tags: list[str] = Field(default_factory=list)
+    project_metadata: dict[str, Any] = Field(default_factory=dict)
+    dataset_sample_id: str | None = None
+    model_settings: ModelConfig | None = Field(
+        default=None,
+        alias="model_config",
+        serialization_alias="model_config",
+    )
+    prompt_config: PromptConfig | None = None
+    toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
+    evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
+    executor_config: ExecutorConfig = Field(
+        default_factory=lambda: ExecutorConfig(backend="local-runner")
+    )
+    approval_policy: ApprovalPolicySnapshot | None = None
+    provenance: ProvenanceMetadata | None = None
+
+
 def _runner_tracing_config(trace_backend: str | None) -> TracingConfig | None:
     if not settings.tracing_otlp_endpoint:
         return None
@@ -98,7 +137,7 @@ def _runner_tracing_config(trace_backend: str | None) -> TracingConfig | None:
 
 
 def runner_run_spec_from_run_spec(
-    payload: RunSpec,
+    payload: ExecutionRunSpec,
     *,
     attempt: int = 1,
     attempt_id: UUID | None = None,
@@ -142,7 +181,7 @@ def runner_run_spec_from_run_spec(
 def execution_handoff_from_run_spec(
     *,
     run_id: UUID,
-    payload: RunSpec,
+    payload: ExecutionRunSpec,
     artifact: ExecutionArtifact,
     runner_backend: str,
     attempt: int = 1,
@@ -200,16 +239,3 @@ def runner_run_spec_from_handoff(handoff: ExecutionHandoff) -> RunnerRunSpec:
         tracing=_runner_tracing_config(handoff.trace_backend),
         published_agent_snapshot=handoff.published_agent_snapshot,
     )
-
-
-__all__ = [
-    "CancelRequest",
-    "ExecutionCapability",
-    "Heartbeat",
-    "RunHandle",
-    "RunStatusSnapshot",
-    "RunTerminalSummary",
-    "execution_handoff_from_run_spec",
-    "runner_run_spec_from_handoff",
-    "runner_run_spec_from_run_spec",
-]

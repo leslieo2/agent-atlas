@@ -6,11 +6,11 @@ from uuid import uuid4
 
 from app.core.config import settings
 from app.execution.application import RunExecutionService
+from app.execution.contracts import ExecutionRunSpec
 from app.modules.experiments.application.execution import (
     ExperimentAggregationService,
     ExperimentOrchestrator,
 )
-from app.modules.runs.domain.models import RunSpec
 from app.modules.shared.application.ports import TaskQueuePort
 from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
@@ -73,7 +73,7 @@ class AppWorker:
         if task.task_type == TaskType.RUN_EXECUTION:
             self.run_execution_service.execute_run(
                 task.target_id,
-                RunSpec.model_validate(task.payload),
+                ExecutionRunSpec.model_validate(task.payload),
             )
             return
         if task.task_type == TaskType.EXPERIMENT_EXECUTION:

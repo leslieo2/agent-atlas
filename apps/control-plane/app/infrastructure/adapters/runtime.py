@@ -16,10 +16,12 @@ from app.core.errors import (
     RateLimitedError,
     UnsupportedAdapterError,
 )
+from app.execution.application.results import (
+    PublishedRunExecutionResult,
+    RuntimeExecutionResult,
+)
 from app.modules.agents.application.ports import PublishedAgentExecutionPort
 from app.modules.agents.domain.models import AgentBuildContext, adapter_kind_for_framework
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 
 from .runtime_utils import extract_error_message

@@ -21,7 +21,11 @@ from app.execution.adapters import (
     PublishedArtifactResolver,
     RunnerRegistry,
 )
-from app.execution.application.ports import ExecutionControlPort
+from app.execution.application.ports import (
+    ArtifactResolverPort,
+    ExecutionControlPort,
+    RunnerPort,
+)
 from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
@@ -57,12 +61,7 @@ from app.modules.runs.adapters.outbound.persistence import (
     StateTraceRepository,
     StateTrajectoryRepository,
 )
-from app.modules.runs.application.ports import (
-    ArtifactResolverPort,
-    RunnerPort,
-    TraceBackendPort,
-    TraceExporterPort,
-)
+from app.modules.runs.application.ports import TraceBackendPort, TraceExporterPort
 
 
 @dataclass(frozen=True)

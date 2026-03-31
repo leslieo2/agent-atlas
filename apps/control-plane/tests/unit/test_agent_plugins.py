@@ -5,6 +5,11 @@ from types import SimpleNamespace
 import pytest
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.execution.adapters import runner_run_spec_from_run_spec
+from app.execution.application.results import (
+    PublishedRunExecutionResult,
+    RuntimeExecutionResult,
+)
+from app.execution.contracts import ExecutionRunSpec
 from app.infrastructure.adapters.agent_catalog import (
     AgentModuleSource,
     FilesystemAgentDiscovery,
@@ -27,8 +32,6 @@ from app.modules.agents.domain.models import (
     DiscoveredAgent,
     PublishedAgent,
 )
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import ProvenanceMetadata
 
@@ -195,7 +198,7 @@ def test_framework_registry_dispatches_discovery_by_manifest_framework(monkeypat
             self,
             *,
             api_key,
-            payload: RunSpec,
+            payload: ExecutionRunSpec,
             context: AgentBuildContext,
         ) -> PublishedRunExecutionResult:
             del api_key, payload, context
@@ -405,7 +408,9 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
             return object()
 
     class StubRuntime:
-        def execute_published(self, *, api_key, payload: RunSpec, context: AgentBuildContext):
+        def execute_published(
+            self, *, api_key, payload: ExecutionRunSpec, context: AgentBuildContext
+        ):
             del api_key, payload, context
             raise AssertionError("runtime should not be called when framework metadata is invalid")
 
@@ -430,7 +435,7 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
         agent_id="graph-bot",
@@ -476,7 +481,9 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
             return object()
 
     class StubRuntime:
-        def execute_published(self, *, api_key, payload: RunSpec, context: AgentBuildContext):
+        def execute_published(
+            self, *, api_key, payload: ExecutionRunSpec, context: AgentBuildContext
+        ):
             del api_key, payload, context
             return PublishedRunExecutionResult(
                 runtime_result=RuntimeExecutionResult(
@@ -508,7 +515,7 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
         agent_id="graph-bot",

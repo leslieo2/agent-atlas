@@ -3,13 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from agent_atlas_contracts.execution import ExecutionArtifact, ExecutionHandoff, RunnerRunSpec
-
-from app.modules.runs.application.results import (
-    PublishedRunExecutionResult,
-    RunnerExecutionResult,
-)
-from app.modules.runs.domain.models import RunRecord, RunSpec
+from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.application.contracts import (
     RunObservationSinkPort as SharedRunObservationSinkPort,
 )
@@ -62,19 +56,3 @@ class TrajectoryRepository(SharedTrajectoryRepository, Protocol):
 
 TrajectoryStepProjectorPort = SharedTrajectoryStepProjectorPort
 RunObservationSinkPort = SharedRunObservationSinkPort
-
-
-class PublishedRunRuntimePort(Protocol):
-    def execute_published(
-        self,
-        run_id: UUID,
-        payload: RunnerRunSpec,
-    ) -> PublishedRunExecutionResult: ...
-
-
-class ArtifactResolverPort(Protocol):
-    def resolve(self, payload: RunSpec) -> ExecutionArtifact: ...
-
-
-class RunnerPort(Protocol):
-    def execute(self, handoff: ExecutionHandoff) -> RunnerExecutionResult: ...

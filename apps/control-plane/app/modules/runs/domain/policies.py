@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from app.modules.runs.domain.models import ExecutionMetrics, RunRecord, RunSpec, utc_now
+from app.execution.contracts import ExecutionRunSpec
+from app.modules.runs.domain.models import ExecutionMetrics, RunRecord, utc_now
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.shared.domain.models import RunLineage
 
@@ -12,7 +13,7 @@ class RunAggregate:
         self.run = run
 
     @classmethod
-    def create(cls, spec: RunSpec) -> RunRecord:
+    def create(cls, spec: ExecutionRunSpec) -> RunRecord:
         return RunRecord(
             run_id=spec.run_id,
             attempt_id=uuid4(),

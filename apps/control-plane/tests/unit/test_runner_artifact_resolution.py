@@ -11,8 +11,8 @@ from app.execution.adapters import (
     execution_handoff_from_run_spec,
     runner_run_spec_from_handoff,
 )
+from app.execution.contracts import ExecutionRunSpec
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
-from app.modules.runs.domain.models import RunSpec
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import ProvenanceMetadata
 
@@ -30,7 +30,7 @@ def test_published_artifact_resolver_accepts_source_backed_handoff() -> None:
         entrypoint="app.agent_plugins.basic:build_agent",
         source_fingerprint="fingerprint-123",
     )
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="resolver-test",
         dataset=None,
         agent_id="basic",
@@ -55,7 +55,7 @@ def test_published_artifact_resolver_accepts_source_backed_handoff() -> None:
 
 
 def test_published_artifact_resolver_backfills_legacy_snapshot_runtime_artifact() -> None:
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="resolver-test",
         dataset=None,
         agent_id="basic",
@@ -89,7 +89,7 @@ def test_published_artifact_resolver_backfills_legacy_snapshot_runtime_artifact(
 
 
 def test_published_artifact_resolver_rejects_missing_runtime_handoff() -> None:
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="resolver-test",
         dataset=None,
         agent_id="basic",
@@ -110,7 +110,7 @@ def test_published_artifact_resolver_rejects_missing_runtime_handoff() -> None:
 
 def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
     run_id = uuid4()
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="resolver-test",
         dataset="resolver-dataset",
         agent_id="basic",

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.execution.application.ports import ExecutionControlPort
+from app.execution.contracts import ExecutionRunSpec
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
-from app.modules.runs.domain.models import RunCreateInput, RunRecord, RunSpec
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.models import ExecutorConfig, ProvenanceMetadata
 
@@ -129,7 +130,7 @@ class RunSubmissionService:
         provenance.toolset = payload.toolset_config.model_copy(deep=True)
         provenance.evaluator = payload.evaluator_config.model_copy(deep=True)
         provenance.executor = executor_config.model_copy(deep=True)
-        spec = RunSpec(
+        spec = ExecutionRunSpec(
             experiment_id=payload.experiment_id,
             dataset_version_id=payload.dataset_version_id,
             project=payload.project,

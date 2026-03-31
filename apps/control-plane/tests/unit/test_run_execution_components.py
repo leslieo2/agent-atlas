@@ -16,9 +16,13 @@ from app.core.errors import AgentFrameworkMismatchError, ProviderAuthError
 from app.data_plane.adapters.trajectory_projector import TraceEventTrajectoryProjector
 from app.execution.application import (
     ExecutionRecorder,
+    PublishedRunExecutionResult,
     RunExecutionContext,
     RunExecutionProjector,
+    RunnerExecutionResult,
+    RuntimeExecutionResult,
 )
+from app.execution.contracts import ExecutionRunSpec
 from app.infrastructure.repositories import (
     StateRunRepository,
     StateTraceRepository,
@@ -26,11 +30,7 @@ from app.infrastructure.repositories import (
 )
 from app.modules.runs.adapters.outbound.execution.state_sink import RunExecutionStateSink
 from app.modules.runs.adapters.outbound.telemetry import RunTracingStateRecorder
-from app.modules.runs.application.results import (
-    PublishedRunExecutionResult,
-    RunnerExecutionResult,
-)
-from app.modules.runs.domain.models import RunRecord, RunSpec, RuntimeExecutionResult
+from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 from app.modules.shared.domain.traces import TraceIngestEvent
 from tests.support.fake_phoenix import FakeOtlpTraceExporter
@@ -67,7 +67,7 @@ def _build_telemetry_ingestor(
 
 
 class _FixedArtifactResolver:
-    def resolve(self, payload: RunSpec) -> ExecutionArtifact:
+    def resolve(self, payload: ExecutionRunSpec) -> ExecutionArtifact:
         entrypoint = payload.entrypoint or "app.agent_plugins.basic:build_agent"
         return ExecutionArtifact(
             framework=payload.agent_type.value,
@@ -94,7 +94,7 @@ def test_run_execution_projector_builds_success_trace_event():
     run_id = uuid4()
     context = RunExecutionContext.from_spec(
         run_id,
-        RunSpec(
+        ExecutionRunSpec(
             project="control-plane",
             dataset="crm-v2",
             model="gpt-5.4-mini",
@@ -152,7 +152,7 @@ def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
 
     context = RunExecutionContext.from_spec(
         run_id,
-        RunSpec(
+        ExecutionRunSpec(
             project="control-plane",
             dataset="crm-v2",
             model="gpt-5.4-mini",
@@ -224,7 +224,7 @@ def test_execution_recorder_ingests_runtime_trace_events_and_tool_metrics():
 
     context = RunExecutionContext.from_spec(
         run_id,
-        RunSpec(
+        ExecutionRunSpec(
             project="control-plane",
             dataset="crm-v2",
             model="gpt-5.4-mini",
@@ -354,7 +354,7 @@ def test_run_execution_service_records_structured_failure_details():
         ),
     )
 
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="control-plane",
         dataset="crm-v2",
         agent_id="basic",
@@ -426,7 +426,7 @@ def test_run_execution_service_normalizes_framework_mismatch_as_agent_load():
         ),
     )
 
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="control-plane",
         dataset="crm-v2",
         agent_id="basic",
@@ -559,7 +559,7 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
         ),
     )
 
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="control-plane",
         dataset="fulfillment-eval-v1",
         agent_id="fulfillment_ops",
@@ -592,7 +592,7 @@ def test_run_execution_projector_handles_prompt_only_run():
     run_id = uuid4()
     context = RunExecutionContext.from_spec(
         run_id,
-        RunSpec(
+        ExecutionRunSpec(
             project="control-plane",
             dataset=None,
             model="gpt-5.4-mini",

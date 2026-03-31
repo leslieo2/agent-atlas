@@ -10,6 +10,7 @@ from agent_atlas_contracts.execution import RunnerRunSpec
 from pydantic import SecretStr
 
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
+from app.execution.application.results import PublishedRunExecutionResult
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentManifest,
@@ -20,7 +21,6 @@ from app.modules.agents.domain.models import (
     PublishedAgent,
     adapter_kind_for_framework,
 )
-from app.modules.runs.application.results import PublishedRunExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 
 

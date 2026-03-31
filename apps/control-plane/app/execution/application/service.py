@@ -6,19 +6,16 @@ from uuid import UUID
 from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
 
 from app.core.errors import AppError
-from app.execution.application.ports import ExecutionOutcomeSinkPort
-from app.execution.contracts import execution_handoff_from_run_spec
-from app.modules.runs.application.ports import (
+from app.execution.application.ports import (
     ArtifactResolverPort,
+    ExecutionOutcomeSinkPort,
     RunnerPort,
 )
-from app.modules.runs.application.results import (
+from app.execution.application.results import (
+    ExecutionMetrics,
     PublishedRunExecutionResult,
 )
-from app.modules.runs.domain.models import (
-    ExecutionMetrics,
-    RunSpec,
-)
+from app.execution.contracts import ExecutionRunSpec, execution_handoff_from_run_spec
 from app.modules.shared.domain.enums import RunStatus, StepType
 from app.modules.shared.domain.models import TraceTelemetryMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
@@ -27,12 +24,12 @@ from app.modules.shared.domain.traces import TraceIngestEvent
 @dataclass(frozen=True)
 class RunExecutionContext:
     run_id: UUID
-    payload: RunSpec
+    payload: ExecutionRunSpec
     image_digest: str
     prompt_version: str
 
     @classmethod
-    def from_spec(cls, run_id: UUID, payload: RunSpec) -> RunExecutionContext:
+    def from_spec(cls, run_id: UUID, payload: ExecutionRunSpec) -> RunExecutionContext:
         return cls(
             run_id=run_id,
             payload=payload,
@@ -343,7 +340,7 @@ class RunExecutionService:
         self.projector = projector or RunExecutionProjector()
         self.recorder = recorder or ExecutionRecorder(sink=sink)
 
-    def execute_run(self, run_id: UUID, payload: RunSpec) -> None:
+    def execute_run(self, run_id: UUID, payload: ExecutionRunSpec) -> None:
         if not self.sink.transition_status(run_id, RunStatus.STARTING):
             return
 
@@ -384,7 +381,7 @@ class RunExecutionService:
             self.sink.record_failure(run_id, failure)
             self.sink.transition_status(run_id, RunStatus.FAILED, reason=failure.message)
 
-    def _runner_backend(self, payload: RunSpec) -> str:
+    def _runner_backend(self, payload: ExecutionRunSpec) -> str:
         if payload.provenance and payload.provenance.runner_backend:
             return payload.provenance.runner_backend
         return self.default_runner_backend

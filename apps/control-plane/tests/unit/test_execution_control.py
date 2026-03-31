@@ -7,8 +7,8 @@ from app.execution.adapters import (
     K8sJobLaunchRequest,
     LocalWorkerExecutionAdapter,
 )
-from app.execution.contracts import CancelRequest
-from app.modules.runs.domain.models import RunRecord, RunSpec
+from app.execution.contracts import CancelRequest, ExecutionRunSpec
+from app.modules.runs.domain.models import RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.tasks import QueuedTask
@@ -45,8 +45,8 @@ class StubTaskQueue:
         return None
 
 
-def _spec() -> RunSpec:
-    return RunSpec(
+def _spec() -> ExecutionRunSpec:
+    return ExecutionRunSpec(
         run_id=uuid4(),
         project="control-plane",
         dataset="dataset-v1",

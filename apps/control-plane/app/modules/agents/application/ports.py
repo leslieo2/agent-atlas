@@ -14,7 +14,7 @@ from app.modules.agents.domain.models import (
 from app.modules.shared.domain.models import RuntimeArtifactBuildResult
 
 if TYPE_CHECKING:
-    from app.modules.runs.application.results import PublishedRunExecutionResult
+    from app.execution.application.results import PublishedRunExecutionResult
 
 
 class AgentSourceDiscoveryPort(Protocol):

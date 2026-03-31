@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 from app.core.errors import AgentFrameworkMismatchError
-from app.execution.contracts import RunHandle
+from app.execution.contracts import ExecutionRunSpec, RunHandle
 from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
 from app.modules.runs.application.services import RunSubmissionService
-from app.modules.runs.domain.models import RunCreateInput, RunRecord, RunSpec
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
@@ -42,9 +42,9 @@ class StubRunRepository:
 
 class StubExecutionControl:
     def __init__(self) -> None:
-        self.submitted: list[RunSpec] = []
+        self.submitted: list[ExecutionRunSpec] = []
 
-    def submit_run(self, run_spec: RunSpec) -> RunHandle:
+    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle:
         self.submitted.append(run_spec)
         return RunHandle(
             run_id=run_spec.run_id,

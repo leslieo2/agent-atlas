@@ -3,8 +3,10 @@ from __future__ import annotations
 import pytest
 from app.bootstrap.container import get_container
 from app.core.errors import ProviderAuthError
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RuntimeExecutionResult
+from app.execution.application.results import (
+    PublishedRunExecutionResult,
+    RuntimeExecutionResult,
+)
 
 
 def _install_runtime(

@@ -9,8 +9,11 @@ from agent_atlas_contracts.runtime import (
     trace_event_to_event_envelope,
 )
 from app.execution.adapters import runner_run_spec_from_run_spec
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
+from app.execution.application.results import (
+    PublishedRunExecutionResult,
+    RuntimeExecutionResult,
+)
+from app.execution.contracts import ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind, StepType
 from app.modules.shared.domain.models import ProvenanceMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
@@ -32,7 +35,7 @@ def test_runner_bootstrap_paths_render_env_and_args():
 
 def test_runner_run_spec_can_be_built_from_legacy_run_spec():
     run_id = uuid4()
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         run_id=run_id,
         experiment_id=uuid4(),
         project="atlas",

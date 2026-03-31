@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from agent_atlas_contracts.runtime import RuntimeExecutionResult as SharedRuntimeExecutionResult
 from pydantic import BaseModel, Field
 
+from app.execution.contracts import ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
@@ -22,36 +23,6 @@ from app.modules.shared.domain.models import (
     TrajectoryStepRecord,
     utc_now,
 )
-
-
-class RunSpec(BaseModel):
-    run_id: UUID = Field(default_factory=uuid4)
-    experiment_id: UUID | None = None
-    dataset_version_id: UUID | None = None
-    project: str
-    dataset: str | None = None
-    agent_id: str = ""
-    model: str
-    entrypoint: str | None = None
-    agent_type: AdapterKind
-    input_summary: str
-    prompt: str
-    tags: list[str] = Field(default_factory=list)
-    project_metadata: dict[str, Any] = Field(default_factory=dict)
-    dataset_sample_id: str | None = None
-    model_settings: ModelConfig | None = Field(
-        default=None,
-        alias="model_config",
-        serialization_alias="model_config",
-    )
-    prompt_config: PromptConfig | None = None
-    toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
-    evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
-    executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend="local-runner")
-    )
-    approval_policy: ApprovalPolicySnapshot | None = None
-    provenance: ProvenanceMetadata | None = None
 
 
 class RunCreateInput(BaseModel):
@@ -131,7 +102,7 @@ class RunRecord(BaseModel):
     lease_expires_at: datetime | None = None
     heartbeat_sequence: int = 0
 
-    def to_run_spec(self) -> RunSpec:
+    def to_run_spec(self) -> ExecutionRunSpec:
         prompt = str(self.project_metadata.get("prompt", ""))
         project_metadata = dict(self.project_metadata)
         project_metadata.pop("prompt", None)
@@ -178,7 +149,7 @@ class RunRecord(BaseModel):
                 }
             )
 
-        return RunSpec(
+        return ExecutionRunSpec(
             run_id=self.run_id,
             experiment_id=self.experiment_id,
             dataset_version_id=self.dataset_version_id,

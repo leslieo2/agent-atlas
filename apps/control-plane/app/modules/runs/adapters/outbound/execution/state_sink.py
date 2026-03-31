@@ -4,9 +4,10 @@ from uuid import UUID
 
 from agent_atlas_contracts.execution import ExecutionHandoff
 from app.execution.application.ports import ExecutionAttempt, ExecutionOutcomeSinkPort
+from app.execution.application.results import RunnerExecutionResult
 from app.execution.application.service import ProjectedExecutionRecord, RunFailureDetails
 from app.modules.runs.application.ports import RunObservationSinkPort, RunRepository
-from app.modules.runs.application.results import RunnerExecutionResult
+from app.modules.runs.domain.models import ExecutionMetrics
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import RunStatus
 
@@ -114,7 +115,13 @@ class RunExecutionStateSink(ExecutionOutcomeSinkPort):
         run = self.run_repository.get(run_id)
         if not run:
             return
-        updated = RunAggregate.load(run).record_metrics(record.metrics)
+        updated = RunAggregate.load(run).record_metrics(
+            ExecutionMetrics(
+                latency_ms=record.metrics.latency_ms,
+                token_cost=record.metrics.token_cost,
+                tool_calls=record.metrics.tool_calls,
+            )
+        )
         self.run_repository.save(updated)
 
     def record_failure(

@@ -15,6 +15,11 @@ from app.core.errors import (
     UnsupportedAdapterError,
 )
 from app.execution.adapters import runner_run_spec_from_run_spec
+from app.execution.application.results import (
+    PublishedRunExecutionResult,
+    RuntimeExecutionResult,
+)
+from app.execution.contracts import ExecutionRunSpec
 from app.infrastructure.adapters.framework_registry import (
     FrameworkPlugin,
     PublishedAgentExecutionDispatcher,
@@ -22,8 +27,6 @@ from app.infrastructure.adapters.framework_registry import (
 from app.infrastructure.adapters.langchain.runtime import PublishedLangChainAgentAdapter
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.agents.domain.models import AgentBuildContext, AgentManifest, PublishedAgent
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import ProvenanceMetadata
 from pydantic import SecretStr
@@ -387,7 +390,7 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
         agent_id="graph-bot",
@@ -445,7 +448,7 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
     adapter = PublishedLangChainAgentAdapter(agent_loader=StubLoader())
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
         agent_id="graph-bot",
@@ -535,7 +538,7 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
-    payload = RunSpec(
+    payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
         agent_id="graph-bot",

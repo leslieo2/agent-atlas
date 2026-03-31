@@ -1,7 +1,6 @@
 from app.modules.runs.domain.models import (
     ExecutionMetrics,
     RunRecord,
-    RunSpec,
     RuntimeExecutionResult,
     TrajectoryStep,
 )
@@ -11,7 +10,6 @@ __all__ = [
     "ExecutionMetrics",
     "RunAggregate",
     "RunRecord",
-    "RunSpec",
     "RuntimeExecutionResult",
     "TrajectoryStep",
 ]

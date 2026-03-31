@@ -33,11 +33,10 @@ from app.core.errors import (
     UnsupportedOperationError,
 )
 from app.execution.adapters.launchers import LocalLauncher
-from app.execution.contracts import runner_run_spec_from_handoff
+from app.execution.application.ports import PublishedRunRuntimePort
+from app.execution.application.results import RunnerExecutionResult
+from app.execution.contracts import ExecutionRunSpec, runner_run_spec_from_handoff
 from app.modules.agents.domain.models import PublishedAgent
-from app.modules.runs.application.ports import PublishedRunRuntimePort
-from app.modules.runs.application.results import RunnerExecutionResult
-from app.modules.runs.domain.models import RunSpec
 
 
 class _RunnerExecutor(Protocol):
@@ -57,7 +56,7 @@ class SerializedSubprocessAppError(AppError):
 
 
 class PublishedArtifactResolver:
-    def resolve(self, payload: RunSpec) -> ExecutionArtifact:
+    def resolve(self, payload: ExecutionRunSpec) -> ExecutionArtifact:
         provenance = payload.provenance
         if provenance is None or provenance.published_agent_snapshot is None:
             raise AgentLoadFailedError(
@@ -123,7 +122,7 @@ class LocalProcessRunner:
 
     @staticmethod
     def default_command() -> list[str]:
-        return [sys.executable, "-m", "app.infrastructure.runner_process"]
+        return [sys.executable, "-m", "app.execution.runner_process"]
 
     def execute(self, handoff: ExecutionHandoff) -> RunnerExecutionResult:
         runner_payload = runner_run_spec_from_handoff(handoff)
