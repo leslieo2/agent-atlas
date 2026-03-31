@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from agent_atlas_contracts.execution import RunnerBootstrapPaths
+from agent_atlas_contracts.execution import ExecutionArtifact, RunnerBootstrapPaths
 from agent_atlas_contracts.runtime import (
     event_envelope_to_trace_event,
     producer_for_runtime,
@@ -71,7 +71,19 @@ def test_runner_run_spec_can_be_built_from_execution_run_spec():
         ),
     )
 
-    runner_spec = runner_run_spec_from_run_spec(payload, attempt=2)
+    runner_spec = runner_run_spec_from_run_spec(
+        payload,
+        artifact=ExecutionArtifact(
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            entrypoint="app.agent_plugins.basic:build_agent",
+            source_fingerprint="fingerprint",
+            artifact_ref="source://triage-bot@fingerprint",
+            image_ref=None,
+            published_agent_snapshot=payload.provenance.published_agent_snapshot or {},
+        ),
+        runner_backend="local-process",
+        attempt=2,
+    )
 
     assert runner_spec.run_id == run_id
     assert runner_spec.attempt == 2

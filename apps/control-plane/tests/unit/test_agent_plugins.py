@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from agent_atlas_contracts.execution import ExecutionArtifact
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.execution.adapters import runner_run_spec_from_run_spec
 from app.execution.application.results import (
@@ -35,6 +36,18 @@ from app.modules.agents.domain.models import (
 )
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import ProvenanceMetadata
+
+
+def _artifact_for_agent(agent: PublishedAgent) -> ExecutionArtifact:
+    runtime_artifact = agent.runtime_artifact_or_raise()
+    return ExecutionArtifact(
+        framework=runtime_artifact.framework,
+        entrypoint=runtime_artifact.entrypoint,
+        source_fingerprint=runtime_artifact.source_fingerprint,
+        artifact_ref=runtime_artifact.artifact_ref,
+        image_ref=runtime_artifact.image_ref,
+        published_agent_snapshot=agent.to_snapshot(),
+    )
 
 
 def test_source_catalog_discovers_builtin_agent_plugins() -> None:
@@ -459,7 +472,11 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
     with pytest.raises(AgentFrameworkMismatchError):
         dispatcher.execute_published(
             api_key=None,
-            payload=runner_run_spec_from_run_spec(payload),
+            payload=runner_run_spec_from_run_spec(
+                payload,
+                artifact=_artifact_for_agent(published_agent),
+                runner_backend="local-process",
+            ),
             context=AgentBuildContext(
                 run_id="00000000-0000-0000-0000-000000000123",
                 project="migration-check",
@@ -545,7 +562,11 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
     ):
         dispatcher.execute_published(
             api_key=None,
-            payload=runner_run_spec_from_run_spec(payload),
+            payload=runner_run_spec_from_run_spec(
+                payload,
+                artifact=_artifact_for_agent(published_agent),
+                runner_backend="local-process",
+            ),
             context=AgentBuildContext(
                 run_id="00000000-0000-0000-0000-000000000123",
                 project="migration-check",

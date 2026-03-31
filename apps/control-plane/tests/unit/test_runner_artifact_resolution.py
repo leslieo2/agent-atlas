@@ -3,13 +3,12 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-from agent_atlas_contracts.execution import ExecutionArtifact, ExecutionHandoff
+from agent_atlas_contracts.execution import ExecutionArtifact, RunnerRunSpec
 from app.core.errors import AgentLoadFailedError
 from app.execution.adapters import (
     LocalProcessRunner,
     PublishedArtifactResolver,
-    execution_handoff_from_run_spec,
-    runner_run_spec_from_handoff,
+    runner_run_spec_from_run_spec,
 )
 from app.execution.contracts import ExecutionRunSpec
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
@@ -79,9 +78,10 @@ def test_published_artifact_resolver_rejects_missing_runtime_handoff() -> None:
         PublishedArtifactResolver().resolve(payload)
 
 
-def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
+def test_runner_run_spec_builds_from_resolved_artifact() -> None:
     run_id = uuid4()
     payload = ExecutionRunSpec(
+        run_id=run_id,
         project="resolver-test",
         dataset="resolver-dataset",
         agent_id="basic",
@@ -123,8 +123,7 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
         },
     )
 
-    handoff = execution_handoff_from_run_spec(
-        run_id=run_id,
+    runner_payload = runner_run_spec_from_run_spec(
         payload=payload,
         artifact=artifact,
         runner_backend="local-process",
@@ -132,22 +131,55 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
         attempt_id=uuid4(),
     )
 
-    assert handoff.run_id == run_id
-    assert handoff.runner_backend == "local-process"
-    assert handoff.attempt == 2
-    assert handoff.attempt_id is not None
-    assert handoff.framework == AdapterKind.OPENAI_AGENTS.value
-    assert handoff.artifact_ref == "source://basic@fingerprint-123"
-    assert handoff.project_metadata == {"branch": "main"}
-    assert handoff.executor_config["backend"] == "local-runner"
-    assert runner_run_spec_from_handoff(handoff).agent_type == AdapterKind.OPENAI_AGENTS.value
+    assert runner_payload.run_id == run_id
+    assert runner_payload.runner_backend == "local-process"
+    assert runner_payload.attempt == 2
+    assert runner_payload.attempt_id is not None
+    assert runner_payload.framework == AdapterKind.OPENAI_AGENTS.value
+    assert runner_payload.artifact_ref == "source://basic@fingerprint-123"
+    assert runner_payload.project_metadata == {"branch": "main"}
+    assert runner_payload.executor_config["backend"] == "local-runner"
+    assert runner_payload.agent_type == AdapterKind.OPENAI_AGENTS.value
+
+
+def test_runner_run_spec_rejects_missing_artifact_metadata() -> None:
+    payload = ExecutionRunSpec(
+        project="resolver-test",
+        dataset="resolver-dataset",
+        agent_id="basic",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.basic:build_agent",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        input_summary="resolve handoff",
+        prompt="Resolve the artifact handoff.",
+        provenance=ProvenanceMetadata(
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            artifact_ref="source://basic@fingerprint-123",
+            published_agent_snapshot={"manifest": {"agent_id": "basic"}},
+        ),
+    )
+    artifact = ExecutionArtifact(
+        framework=AdapterKind.OPENAI_AGENTS.value,
+        entrypoint=None,
+        source_fingerprint="fingerprint-123",
+        artifact_ref=None,
+        image_ref=None,
+        published_agent_snapshot={},
+    )
+
+    with pytest.raises(ValueError, match="resolved execution artifact is missing entrypoint"):
+        runner_run_spec_from_run_spec(
+            payload=payload,
+            artifact=artifact,
+            runner_backend="local-process",
+        )
 
 
 def test_local_process_runner_stamps_runner_backend(monkeypatch) -> None:
     monkeypatch.setenv("AGENT_ATLAS_RUNTIME_MODE", "mock")
     monkeypatch.delenv("AGENT_ATLAS_OPENAI_API_KEY", raising=False)
     run_id = uuid4()
-    handoff = ExecutionHandoff(
+    payload = RunnerRunSpec(
         run_id=run_id,
         runner_backend="local-process",
         project="resolver-test",
@@ -184,7 +216,7 @@ def test_local_process_runner_stamps_runner_backend(monkeypatch) -> None:
         },
     )
 
-    result = LocalProcessRunner().execute(handoff)
+    result = LocalProcessRunner().execute(payload)
 
     assert result.runner_backend == "local-process"
     assert result.artifact_ref == "source://basic@fingerprint-123"
@@ -192,4 +224,4 @@ def test_local_process_runner_stamps_runner_backend(monkeypatch) -> None:
     assert result.execution.runtime_result.provider in {"mock", "openai-agents-sdk"}
     assert result.execution.terminal_result is not None
     assert result.execution.terminal_result.attempt == 3
-    assert result.execution.terminal_result.attempt_id == handoff.attempt_id
+    assert result.execution.terminal_result.attempt_id == payload.attempt_id

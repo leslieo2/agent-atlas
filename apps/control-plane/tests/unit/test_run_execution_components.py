@@ -15,11 +15,14 @@ from app.agent_tracing.application import (
 from app.core.errors import AgentFrameworkMismatchError, ProviderAuthError
 from app.data_plane.adapters.trajectory_projector import TraceEventTrajectoryProjector
 from app.execution.application import (
+    ExecutionMetrics,
     ExecutionRecorder,
+    ProjectedExecutionRecord,
     PublishedRunExecutionResult,
     RunExecutionContext,
     RunExecutionProjector,
     RunnerExecutionResult,
+    RunnerSubmissionRecord,
     RuntimeExecutionResult,
 )
 from app.execution.contracts import ExecutionRunSpec
@@ -32,6 +35,7 @@ from app.modules.runs.adapters.outbound.execution.state_sink import RunExecution
 from app.modules.runs.adapters.outbound.telemetry import RunTracingStateRecorder
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
+from app.modules.shared.domain.models import TraceTelemetryMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
 from tests.support.fake_phoenix import FakeOtlpTraceExporter
 
@@ -103,6 +107,13 @@ def test_run_execution_projector_builds_success_trace_event():
             prompt="Explain the plan.",
             project_metadata={"image_digest": "sha256:test", "prompt_version": "v2"},
         ),
+    ).with_runner_submission(
+        RunnerSubmissionRecord(
+            runner_backend="local-process",
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            artifact_ref="source://basic@fingerprint-test",
+            image_ref="ghcr.io/example/basic:latest",
+        )
     )
     projector = RunExecutionProjector()
 
@@ -127,9 +138,68 @@ def test_run_execution_projector_builds_success_trace_event():
     assert record.events[0].output["provider"] == "mock"
     assert record.events[0].image_digest == "python:3.12-slim"
     assert record.events[0].metadata is not None
+    assert record.events[0].metadata.framework == AdapterKind.OPENAI_AGENTS.value
+    assert record.events[0].metadata.artifact_ref == "source://basic@fingerprint-test"
+    assert record.events[0].metadata.image_ref == "ghcr.io/example/basic:latest"
+    assert record.events[0].metadata.runner_backend == "local-process"
     assert record.events[0].metadata.image_digest == "python:3.12-slim"
     assert record.events[0].metadata.prompt_version == "v2"
     assert record.metrics.token_cost == 31
+
+
+def test_run_execution_projector_backfills_missing_runtime_event_metadata_from_runner_submission():
+    run_id = uuid4()
+    context = RunExecutionContext.from_spec(
+        run_id,
+        ExecutionRunSpec(
+            project="control-plane",
+            dataset="crm-v2",
+            agent_id="basic",
+            model="gpt-5.4-mini",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            input_summary="projector metadata backfill",
+            prompt="Explain the plan.",
+        ),
+    ).with_runner_submission(
+        RunnerSubmissionRecord(
+            runner_backend="local-process",
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            artifact_ref="source://basic@fingerprint-test",
+            image_ref="ghcr.io/example/basic:latest",
+        )
+    )
+    projector = RunExecutionProjector()
+
+    record = projector.project_runtime_success(
+        context,
+        PublishedRunExecutionResult(
+            runtime_result=RuntimeExecutionResult(
+                output="Projected success output",
+                latency_ms=17,
+                token_usage=31,
+                provider="mock",
+                execution_backend="local",
+            ),
+            trace_events=[
+                TraceIngestEvent(
+                    run_id=run_id,
+                    span_id=f"span-{run_id}-1",
+                    step_type=StepType.LLM,
+                    name="gpt-5.4-mini",
+                    input={"prompt": "Explain the plan."},
+                    output={"output": "Projected success output", "success": True},
+                    metadata=TraceTelemetryMetadata(agent_id="basic"),
+                )
+            ],
+        ),
+    )
+
+    metadata = record.events[0].metadata
+    assert metadata is not None
+    assert metadata.framework == AdapterKind.OPENAI_AGENTS.value
+    assert metadata.artifact_ref == "source://basic@fingerprint-test"
+    assert metadata.image_ref == "ghcr.io/example/basic:latest"
+    assert metadata.runner_backend == "local-process"
 
 
 def test_execution_recorder_ingests_trace_into_step_span_and_metrics():
@@ -445,6 +515,180 @@ def test_run_execution_service_normalizes_framework_mismatch_as_agent_load():
     assert run.status == RunStatus.FAILED
     assert run.error_code == "agent_load"
     assert run.error_message == "framework mismatch"
+
+
+def test_run_execution_service_normalizes_payload_run_id_to_target_run_id():
+    run_id = uuid4()
+    run_repository = StateRunRepository()
+    trajectory_repository = StateTrajectoryRepository()
+    trace_repository = StateTraceRepository()
+
+    run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="normalize run id",
+            project="control-plane",
+            dataset="crm-v2",
+            agent_id="basic",
+            model="gpt-5.4-mini",
+            entrypoint="app.agent_plugins.basic:build_agent",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            status=RunStatus.QUEUED,
+        )
+    )
+
+    captured: dict[str, object] = {}
+
+    class CapturingRunner:
+        def execute(self, payload):
+            captured["payload"] = payload
+            return RunnerExecutionResult(
+                runner_backend="local-process",
+                artifact_ref="source://basic@fingerprint-test",
+                image_ref=None,
+                execution=PublishedRunExecutionResult(
+                    runtime_result=RuntimeExecutionResult(
+                        output="ok",
+                        latency_ms=5,
+                        token_usage=8,
+                        provider="mock",
+                        resolved_model="gpt-5.4-mini",
+                    ),
+                    trace_events=[
+                        TraceIngestEvent(
+                            run_id=payload.run_id,
+                            span_id=f"span-{payload.run_id}-1",
+                            step_type=StepType.LLM,
+                            name=payload.model,
+                            input={"prompt": payload.prompt},
+                            output={"output": "ok", "success": True},
+                        )
+                    ],
+                ),
+            )
+
+    from app.execution.application import RunExecutionService
+
+    service = RunExecutionService(
+        artifact_resolver=_FixedArtifactResolver(),
+        runner=CapturingRunner(),
+        sink=RunExecutionStateSink(
+            run_repository=run_repository,
+            observation_sink=_build_telemetry_ingestor(
+                run_repository=run_repository,
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
+        ),
+    )
+
+    payload = ExecutionRunSpec(
+        project="control-plane",
+        dataset="crm-v2",
+        agent_id="basic",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.basic:build_agent",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        input_summary="normalize run id",
+        prompt="Keep correlation stable.",
+    )
+
+    assert payload.run_id != run_id
+
+    service.execute_run(run_id, payload)
+
+    runner_payload = captured["payload"]
+    run = run_repository.get(run_id)
+    steps = trajectory_repository.list_for_run(run_id)
+
+    assert runner_payload.run_id == run_id
+    assert run is not None
+    assert run.status == RunStatus.SUCCEEDED
+    assert [step.run_id for step in steps] == [run_id]
+
+
+def test_run_execution_service_enriches_projector_context_with_runner_submission_metadata():
+    run_id = uuid4()
+    run_repository = StateRunRepository()
+    trajectory_repository = StateTrajectoryRepository()
+    trace_repository = StateTraceRepository()
+
+    run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="projector metadata context",
+            project="control-plane",
+            dataset="crm-v2",
+            agent_id="basic",
+            model="gpt-5.4-mini",
+            entrypoint="app.agent_plugins.basic:build_agent",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            status=RunStatus.QUEUED,
+        )
+    )
+
+    captured: dict[str, object] = {}
+
+    class StubRunner:
+        def execute(self, payload):
+            return RunnerExecutionResult(
+                runner_backend=payload.runner_backend or "local-process",
+                artifact_ref=payload.artifact_ref,
+                image_ref=payload.image_ref,
+                execution=PublishedRunExecutionResult(
+                    runtime_result=RuntimeExecutionResult(
+                        output="ok",
+                        latency_ms=5,
+                        token_usage=8,
+                        provider="mock",
+                        resolved_model="gpt-5.4-mini",
+                    )
+                ),
+            )
+
+    class CapturingProjector:
+        def project_runtime_success(self, context, result):
+            captured["context"] = context
+            return ProjectedExecutionRecord(events=[], metrics=ExecutionMetrics())
+
+        def project_runtime_failure(self, context, error):
+            captured["failure_context"] = context
+            return ProjectedExecutionRecord(events=[], metrics=ExecutionMetrics())
+
+    from app.execution.application import RunExecutionService
+
+    service = RunExecutionService(
+        artifact_resolver=_FixedArtifactResolver(),
+        runner=StubRunner(),
+        sink=RunExecutionStateSink(
+            run_repository=run_repository,
+            observation_sink=_build_telemetry_ingestor(
+                run_repository=run_repository,
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
+        ),
+        projector=CapturingProjector(),
+    )
+
+    payload = ExecutionRunSpec(
+        project="control-plane",
+        dataset="crm-v2",
+        agent_id="basic",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.basic:build_agent",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        input_summary="projector metadata context",
+        prompt="Keep metadata stable.",
+    )
+
+    service.execute_run(run_id, payload)
+
+    context = captured["context"]
+    assert context.runner_submission is not None
+    assert context.runner_submission.runner_backend == "local-process"
+    assert context.runner_submission.framework == AdapterKind.OPENAI_AGENTS.value
+    assert context.runner_submission.artifact_ref == "source://basic@fingerprint-test"
 
 
 def test_run_execution_service_marks_failed_runs_from_failed_trace_events():

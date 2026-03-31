@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from uuid import UUID
 
 from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
@@ -16,8 +16,9 @@ from app.execution.application.results import (
     ProjectedExecutionRecord,
     PublishedRunExecutionResult,
     RunFailureDetails,
+    RunnerSubmissionRecord,
 )
-from app.execution.contracts import ExecutionRunSpec, execution_handoff_from_run_spec
+from app.execution.contracts import ExecutionRunSpec, runner_run_spec_from_run_spec
 from app.modules.shared.domain.enums import RunStatus, StepType
 from app.modules.shared.domain.models import TraceTelemetryMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
@@ -29,6 +30,7 @@ class RunExecutionContext:
     payload: ExecutionRunSpec
     image_digest: str
     prompt_version: str
+    runner_submission: RunnerSubmissionRecord | None = None
 
     @classmethod
     def from_spec(cls, run_id: UUID, payload: ExecutionRunSpec) -> RunExecutionContext:
@@ -43,6 +45,12 @@ class RunExecutionContext:
                 )
             ),
         )
+
+    def with_runner_submission(
+        self,
+        record: RunnerSubmissionRecord,
+    ) -> RunExecutionContext:
+        return replace(self, runner_submission=record)
 
 
 def failure_from_trace_events(events: list[TraceIngestEvent]) -> RunFailureDetails | None:
@@ -91,14 +99,35 @@ class RunExecutionProjector:
     @staticmethod
     def _event_metadata(context: RunExecutionContext) -> TraceTelemetryMetadata:
         provenance = context.payload.provenance
+        runner_submission = context.runner_submission
         return TraceTelemetryMetadata(
             agent_id=context.payload.agent_id,
-            framework=provenance.framework if provenance else None,
-            framework_type=provenance.framework if provenance else None,
+            framework=(
+                runner_submission.framework
+                if runner_submission is not None and runner_submission.framework
+                else provenance.framework if provenance else None
+            ),
+            framework_type=(
+                runner_submission.framework
+                if runner_submission is not None and runner_submission.framework
+                else provenance.framework if provenance else None
+            ),
             framework_version=provenance.framework_version if provenance else None,
-            artifact_ref=provenance.artifact_ref if provenance else None,
-            image_ref=provenance.image_ref if provenance else None,
-            runner_backend=provenance.runner_backend if provenance else None,
+            artifact_ref=(
+                runner_submission.artifact_ref
+                if runner_submission is not None and runner_submission.artifact_ref is not None
+                else provenance.artifact_ref if provenance else None
+            ),
+            image_ref=(
+                runner_submission.image_ref
+                if runner_submission is not None and runner_submission.image_ref is not None
+                else provenance.image_ref if provenance else None
+            ),
+            runner_backend=(
+                runner_submission.runner_backend
+                if runner_submission is not None
+                else provenance.runner_backend if provenance else None
+            ),
             executor_backend=provenance.executor_backend if provenance else None,
             experiment_id=context.payload.experiment_id,
             dataset_version_id=context.payload.dataset_version_id,
@@ -165,6 +194,7 @@ class RunExecutionProjector:
         result: PublishedRunExecutionResult,
     ) -> list[TraceIngestEvent]:
         runtime_result = result.runtime_result
+        fallback_metadata = self._event_metadata(context)
         trace_events = [
             self._normalize_trace_event(event) for event in result.projected_trace_events()
         ]
@@ -203,42 +233,35 @@ class RunExecutionProjector:
                         event.metadata.model_copy(
                             update={
                                 "agent_id": event.metadata.agent_id or context.payload.agent_id,
-                                "framework": event.metadata.framework
-                                or (
-                                    context.payload.provenance.framework
-                                    if context.payload.provenance
-                                    else None
+                                "framework": (
+                                    event.metadata.framework or fallback_metadata.framework
                                 ),
-                                "artifact_ref": event.metadata.artifact_ref
-                                or (
-                                    context.payload.provenance.artifact_ref
-                                    if context.payload.provenance
-                                    else None
+                                "artifact_ref": (
+                                    event.metadata.artifact_ref or fallback_metadata.artifact_ref
                                 ),
-                                "image_ref": event.metadata.image_ref
-                                or (
-                                    context.payload.provenance.image_ref
-                                    if context.payload.provenance
-                                    else None
+                                "image_ref": (
+                                    event.metadata.image_ref or fallback_metadata.image_ref
                                 ),
-                                "runner_backend": event.metadata.runner_backend
-                                or (
-                                    context.payload.provenance.runner_backend
-                                    if context.payload.provenance
-                                    else None
+                                "runner_backend": (
+                                    event.metadata.runner_backend
+                                    or fallback_metadata.runner_backend
                                 ),
-                                "executor_backend": event.metadata.executor_backend
-                                or (
-                                    context.payload.provenance.executor_backend
-                                    if context.payload.provenance
-                                    else None
+                                "executor_backend": (
+                                    event.metadata.executor_backend
+                                    or fallback_metadata.executor_backend
                                 ),
-                                "experiment_id": event.metadata.experiment_id
-                                or context.payload.experiment_id,
-                                "dataset_version_id": event.metadata.dataset_version_id
-                                or context.payload.dataset_version_id,
-                                "dataset_sample_id": event.metadata.dataset_sample_id
-                                or context.payload.dataset_sample_id,
+                                "experiment_id": (
+                                    event.metadata.experiment_id
+                                    or fallback_metadata.experiment_id
+                                ),
+                                "dataset_version_id": (
+                                    event.metadata.dataset_version_id
+                                    or fallback_metadata.dataset_version_id
+                                ),
+                                "dataset_sample_id": (
+                                    event.metadata.dataset_sample_id
+                                    or fallback_metadata.dataset_sample_id
+                                ),
                                 "prompt_version": event.metadata.prompt_version
                                 or context.prompt_version,
                                 "image_digest": event.metadata.image_digest
@@ -247,7 +270,7 @@ class RunExecutionProjector:
                             }
                         )
                         if event.metadata
-                        else self._event_metadata(context).model_copy(
+                        else fallback_metadata.model_copy(
                             update={
                                 "image_digest": runtime_result.container_image
                                 or context.image_digest,
@@ -331,27 +354,37 @@ class RunExecutionService:
         self.recorder = recorder or ExecutionRecorder(sink=sink)
 
     def execute_run(self, run_id: UUID, payload: ExecutionRunSpec) -> None:
+        normalized_payload = payload.model_copy(update={"run_id": run_id})
         if not self.sink.transition_status(run_id, RunStatus.STARTING):
             return
 
-        context = RunExecutionContext.from_spec(run_id, payload)
+        context = RunExecutionContext.from_spec(run_id, normalized_payload)
 
         try:
-            artifact = self.artifact_resolver.resolve(payload)
+            artifact = self.artifact_resolver.resolve(normalized_payload)
             attempt = self.sink.load_attempt(run_id)
-            handoff = execution_handoff_from_run_spec(
-                run_id=run_id,
-                payload=payload,
+            runner_payload = runner_run_spec_from_run_spec(
+                payload=normalized_payload,
                 artifact=artifact,
-                runner_backend=self._runner_backend(payload),
+                runner_backend=self._runner_backend(),
                 attempt=attempt.attempt,
                 attempt_id=attempt.attempt_id,
             )
-            self.sink.record_execution_handoff(run_id, handoff)
+            runner_submission = RunnerSubmissionRecord(
+                runner_backend=runner_payload.runner_backend,
+                framework=runner_payload.framework,
+                artifact_ref=runner_payload.artifact_ref,
+                image_ref=runner_payload.image_ref,
+            )
+            context = context.with_runner_submission(runner_submission)
+            self.sink.record_runner_submission(
+                run_id,
+                runner_submission,
+            )
             if not self.sink.transition_status(run_id, RunStatus.RUNNING):
                 self.sink.mark_cancelled_if_requested(run_id)
                 return
-            result = self.runner.execute(handoff)
+            result = self.runner.execute(runner_payload)
             self.sink.record_runner_result(run_id, result)
             record = self.projector.project_runtime_success(context, result.execution)
             self.recorder.record(run_id, record)
@@ -371,9 +404,7 @@ class RunExecutionService:
             self.sink.record_failure(run_id, failure)
             self.sink.transition_status(run_id, RunStatus.FAILED, reason=failure.message)
 
-    def _runner_backend(self, payload: ExecutionRunSpec) -> str:
-        if payload.provenance and payload.provenance.runner_backend:
-            return payload.provenance.runner_backend
+    def _runner_backend(self) -> str:
         return self.default_runner_backend
 
 

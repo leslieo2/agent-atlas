@@ -19,6 +19,7 @@ from agent_atlas_runner_base.outputs import RunnerOutputWriter
 def _runner_payload(tmp_path) -> RunnerRunSpec:
     return RunnerRunSpec(
         run_id=uuid4(),
+        runner_backend="local-process",
         experiment_id=uuid4(),
         project="atlas",
         dataset="ops",

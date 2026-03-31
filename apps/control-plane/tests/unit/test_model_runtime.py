@@ -4,7 +4,7 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
-from agent_atlas_contracts.execution import RunnerRunSpec
+from agent_atlas_contracts.execution import ExecutionArtifact, RunnerRunSpec
 from app.core.config import RuntimeMode
 from app.core.errors import (
     AgentFrameworkMismatchError,
@@ -31,6 +31,18 @@ from app.modules.agents.domain.models import AgentBuildContext, AgentManifest, P
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import ProvenanceMetadata
 from pydantic import SecretStr
+
+
+def _artifact_for_agent(agent: PublishedAgent) -> ExecutionArtifact:
+    runtime_artifact = agent.runtime_artifact_or_raise()
+    return ExecutionArtifact(
+        framework=runtime_artifact.framework,
+        entrypoint=runtime_artifact.entrypoint,
+        source_fingerprint=runtime_artifact.source_fingerprint,
+        artifact_ref=runtime_artifact.artifact_ref,
+        image_ref=runtime_artifact.image_ref,
+        published_agent_snapshot=agent.to_snapshot(),
+    )
 
 
 def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest.MonkeyPatch):
@@ -412,7 +424,11 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
 
     result = service.execute_published(
         "00000000-0000-0000-0000-000000000123",
-        runner_run_spec_from_run_spec(payload),
+        runner_run_spec_from_run_spec(
+            payload,
+            artifact=_artifact_for_agent(published_agent),
+            runner_backend="local-process",
+        ),
     )
 
     assert runtime.calls == ["graph-bot"]
@@ -481,7 +497,11 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
 
     result = adapter.execute_published(
         api_key=SecretStr("sk-test"),
-        payload=runner_run_spec_from_run_spec(payload),
+        payload=runner_run_spec_from_run_spec(
+            payload,
+            artifact=_artifact_for_agent(published_agent),
+            runner_backend="local-process",
+        ),
         context=context,
     )
 
@@ -567,12 +587,20 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
     with pytest.raises(AgentFrameworkMismatchError):
         service.execute_published(
             "00000000-0000-0000-0000-000000000123",
-            runner_run_spec_from_run_spec(payload),
+            runner_run_spec_from_run_spec(
+                payload,
+                artifact=_artifact_for_agent(published_agent),
+                runner_backend="local-process",
+            ),
         )
 
     payload.agent_type = AdapterKind.LANGCHAIN
     result = service.execute_published(
         "00000000-0000-0000-0000-000000000123",
-        runner_run_spec_from_run_spec(payload),
+        runner_run_spec_from_run_spec(
+            payload,
+            artifact=_artifact_for_agent(published_agent),
+            runner_backend="local-process",
+        ),
     )
     assert "Simulated langchain execution" in result.runtime_result.output

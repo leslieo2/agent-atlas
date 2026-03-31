@@ -27,6 +27,14 @@ class RunFailureDetails:
 
 
 @dataclass(frozen=True)
+class RunnerSubmissionRecord:
+    runner_backend: str
+    framework: str | None
+    artifact_ref: str | None
+    image_ref: str | None
+
+
+@dataclass(frozen=True)
 class RunnerExecutionResult:
     runner_backend: str
     artifact_ref: str | None
@@ -40,5 +48,6 @@ __all__ = [
     "PublishedRunExecutionResult",
     "RunFailureDetails",
     "RunnerExecutionResult",
+    "RunnerSubmissionRecord",
     "RuntimeExecutionResult",
 ]

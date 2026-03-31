@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from agent_atlas_contracts.execution import ExecutionHandoff
 from app.execution.application.ports import ExecutionAttempt, ExecutionOutcomeSinkPort
 from app.execution.application.results import (
     ProjectedExecutionRecord,
     RunFailureDetails,
     RunnerExecutionResult,
+    RunnerSubmissionRecord,
 )
 from app.modules.runs.application.ports import RunObservationSinkPort, RunRepository
 from app.modules.runs.domain.models import ExecutionMetrics
@@ -70,19 +70,19 @@ class RunExecutionStateSink(ExecutionOutcomeSinkPort):
         self.run_repository.save(updated)
         return True
 
-    def record_execution_handoff(
+    def record_runner_submission(
         self,
         run_id: UUID,
-        handoff: ExecutionHandoff,
+        record: RunnerSubmissionRecord,
     ) -> None:
         run = self.run_repository.get(run_id)
         if not run:
             return
         aggregate = RunAggregate.load(run)
         updated = aggregate.update_execution_runtime(
-            artifact_ref=handoff.artifact_ref,
-            image_ref=handoff.image_ref,
-            runner_backend=handoff.runner_backend,
+            artifact_ref=record.artifact_ref,
+            image_ref=record.image_ref,
+            runner_backend=record.runner_backend,
             execution_backend=run.execution_backend,
             container_image=run.container_image,
         )

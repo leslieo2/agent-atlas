@@ -5,7 +5,11 @@ import sys
 from uuid import uuid4
 
 import pytest
-from agent_atlas_contracts.execution import ExecutionHandoff, RunnerBootstrapPaths, RunnerRunSpec
+from agent_atlas_contracts.execution import (
+    ExecutionArtifact,
+    RunnerBootstrapPaths,
+    RunnerRunSpec,
+)
 from app.core.errors import AgentFrameworkMismatchError, AppError
 from app.execution.adapters import (
     K8sLauncher,
@@ -25,6 +29,17 @@ from app.modules.shared.domain.traces import TraceIngestEvent
 
 def _runner_spec() -> RunnerRunSpec:
     run_id = uuid4()
+    published_agent_snapshot = {
+        "manifest": {
+            "agent_id": "triage-bot",
+            "name": "Triage Bot",
+            "description": "Checks incidents",
+            "framework": AdapterKind.OPENAI_AGENTS.value,
+            "default_model": "gpt-5.4-mini",
+            "tags": [],
+        },
+        "entrypoint": "app.agent_plugins.basic:build_agent",
+    }
     return runner_run_spec_from_run_spec(
         ExecutionRunSpec(
             run_id=run_id,
@@ -39,20 +54,19 @@ def _runner_spec() -> RunnerRunSpec:
             prompt="Summarize the incident.",
             provenance=ProvenanceMetadata(
                 framework=AdapterKind.OPENAI_AGENTS.value,
-                published_agent_snapshot={
-                    "manifest": {
-                        "agent_id": "triage-bot",
-                        "name": "Triage Bot",
-                        "description": "Checks incidents",
-                        "framework": AdapterKind.OPENAI_AGENTS.value,
-                        "default_model": "gpt-5.4-mini",
-                        "tags": [],
-                    },
-                    "entrypoint": "app.agent_plugins.basic:build_agent",
-                },
+                published_agent_snapshot=published_agent_snapshot,
                 artifact_ref="source://triage-bot@fingerprint",
             ),
         ),
+        artifact=ExecutionArtifact(
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            entrypoint="app.agent_plugins.basic:build_agent",
+            source_fingerprint="fingerprint",
+            artifact_ref="source://triage-bot@fingerprint",
+            image_ref=None,
+            published_agent_snapshot=published_agent_snapshot,
+        ),
+        runner_backend="local-process",
         attempt=2,
         attempt_id=uuid4(),
     )
@@ -140,29 +154,11 @@ def test_local_process_runner_persists_runner_outputs_with_local_launcher(tmp_pa
             )
 
     payload = _runner_spec()
-    handoff = ExecutionHandoff(
-        run_id=payload.run_id,
-        runner_backend="local-process",
-        experiment_id=payload.experiment_id,
-        dataset_version_id=payload.dataset_version_id,
-        attempt=payload.attempt,
-        attempt_id=payload.attempt_id,
-        project=payload.project,
-        dataset=payload.dataset,
-        agent_id=payload.agent_id,
-        model=payload.model,
-        entrypoint=payload.entrypoint,
-        agent_type=payload.agent_type,
-        prompt=payload.prompt,
-        tags=list(payload.tags),
-        project_metadata=dict(payload.project_metadata),
-        dataset_sample_id=payload.dataset_sample_id,
-        framework=payload.framework,
-        artifact_ref=payload.artifact_ref,
-        image_ref=payload.image_ref,
-        trace_backend=payload.trace_backend,
-        published_agent_snapshot=payload.published_agent_snapshot,
-        executor_config={**dict(payload.executor_config), "runner_mode": "in-process"},
+    payload = payload.model_copy(
+        update={
+            "runner_backend": "local-process",
+            "executor_config": {**dict(payload.executor_config), "runner_mode": "in-process"},
+        }
     )
 
     runner = LocalProcessRunner(
@@ -170,7 +166,7 @@ def test_local_process_runner_persists_runner_outputs_with_local_launcher(tmp_pa
         published_runtime=StubPublishedRuntime(),
     )
 
-    result = runner.execute(handoff)
+    result = runner.execute(payload)
 
     assert result.execution.runtime_result.output
     assert result.execution.runtime_result.provider == "stub"
@@ -181,30 +177,7 @@ def test_local_process_runner_persists_runner_outputs_with_local_launcher(tmp_pa
 
 def test_local_process_runner_preserves_runtime_metadata_from_subprocess(tmp_path):
     payload = _runner_spec()
-    handoff = ExecutionHandoff(
-        run_id=payload.run_id,
-        runner_backend="local-process",
-        experiment_id=payload.experiment_id,
-        dataset_version_id=payload.dataset_version_id,
-        attempt=payload.attempt,
-        attempt_id=payload.attempt_id,
-        project=payload.project,
-        dataset=payload.dataset,
-        agent_id=payload.agent_id,
-        model=payload.model,
-        entrypoint=payload.entrypoint,
-        agent_type=payload.agent_type,
-        prompt=payload.prompt,
-        tags=list(payload.tags),
-        project_metadata=dict(payload.project_metadata),
-        executor_config=dict(payload.executor_config),
-        dataset_sample_id=payload.dataset_sample_id,
-        framework=payload.framework,
-        artifact_ref=payload.artifact_ref,
-        image_ref=payload.image_ref,
-        trace_backend=payload.trace_backend,
-        published_agent_snapshot=payload.published_agent_snapshot,
-    )
+    payload = payload.model_copy(update={"runner_backend": "local-process"})
     script = """
 import argparse
 import json
@@ -266,7 +239,7 @@ Path(args.events).write_text("", encoding="utf-8")
         command=[sys.executable, "-c", script],
     )
 
-    result = runner.execute(handoff)
+    result = runner.execute(payload)
 
     assert result.execution.runtime_result.execution_backend == "langgraph"
     assert result.execution.runtime_result.container_image == "ghcr.io/example/runner:123"
@@ -275,30 +248,7 @@ Path(args.events).write_text("", encoding="utf-8")
 
 def test_local_process_runner_rehydrates_serialized_app_error(tmp_path):
     payload = _runner_spec()
-    handoff = ExecutionHandoff(
-        run_id=payload.run_id,
-        runner_backend="local-process",
-        experiment_id=payload.experiment_id,
-        dataset_version_id=payload.dataset_version_id,
-        attempt=payload.attempt,
-        attempt_id=payload.attempt_id,
-        project=payload.project,
-        dataset=payload.dataset,
-        agent_id=payload.agent_id,
-        model=payload.model,
-        entrypoint=payload.entrypoint,
-        agent_type=payload.agent_type,
-        prompt=payload.prompt,
-        tags=list(payload.tags),
-        project_metadata=dict(payload.project_metadata),
-        executor_config=dict(payload.executor_config),
-        dataset_sample_id=payload.dataset_sample_id,
-        framework=payload.framework,
-        artifact_ref=payload.artifact_ref,
-        image_ref=payload.image_ref,
-        trace_backend=payload.trace_backend,
-        published_agent_snapshot=payload.published_agent_snapshot,
-    )
+    payload = payload.model_copy(update={"runner_backend": "local-process"})
     script = """
 import argparse
 import json
@@ -360,7 +310,7 @@ sys.exit(1)
     )
 
     with pytest.raises(AgentFrameworkMismatchError) as exc_info:
-        runner.execute(handoff)
+        runner.execute(payload)
 
     assert exc_info.value.context["agent_id"] == "triage-bot"
     assert exc_info.value.context["expected_framework"] == "openai-agents-sdk"
@@ -369,30 +319,7 @@ sys.exit(1)
 
 def test_local_process_runner_preserves_unknown_app_error_codes(tmp_path):
     payload = _runner_spec()
-    handoff = ExecutionHandoff(
-        run_id=payload.run_id,
-        runner_backend="local-process",
-        experiment_id=payload.experiment_id,
-        dataset_version_id=payload.dataset_version_id,
-        attempt=payload.attempt,
-        attempt_id=payload.attempt_id,
-        project=payload.project,
-        dataset=payload.dataset,
-        agent_id=payload.agent_id,
-        model=payload.model,
-        entrypoint=payload.entrypoint,
-        agent_type=payload.agent_type,
-        prompt=payload.prompt,
-        tags=list(payload.tags),
-        project_metadata=dict(payload.project_metadata),
-        executor_config=dict(payload.executor_config),
-        dataset_sample_id=payload.dataset_sample_id,
-        framework=payload.framework,
-        artifact_ref=payload.artifact_ref,
-        image_ref=payload.image_ref,
-        trace_backend=payload.trace_backend,
-        published_agent_snapshot=payload.published_agent_snapshot,
-    )
+    payload = payload.model_copy(update={"runner_backend": "local-process"})
     script = """
 import argparse
 import json
@@ -450,7 +377,7 @@ sys.exit(1)
     )
 
     with pytest.raises(AppError) as exc_info:
-        runner.execute(handoff)
+        runner.execute(payload)
 
     assert exc_info.value.code == "tool_backend_error"
     assert exc_info.value.context["order_id"] == "ORD-ERR-100"

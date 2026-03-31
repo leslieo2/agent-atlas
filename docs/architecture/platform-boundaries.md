@@ -115,7 +115,7 @@ Keep in the control plane only what is required to govern and query the system.
 
 Owns:
 
-- execution handoff validation
+- runner request validation
 - queue consumption and worker lifecycle
 - run state transitions driven by execution outcomes
 - backend selection for carriers and adapter integrations
@@ -146,7 +146,7 @@ Important rule:
 
 - Kubernetes container execution is the default implementation target
 - Inspect AI, E2B, and similar systems belong behind adapter interfaces in this plane
-- adapters may enrich handoff and evidence mapping, but they must emit Atlas-neutral records
+- adapters may enrich runner requests and evidence mapping, but they must emit Atlas-neutral records
 
 ### 3. Runner Plane
 
@@ -339,7 +339,7 @@ Do:
 - treat `local-process` as a development fallback only
 - make Kubernetes container runtime the production-default execution path
 - keep any Inspect AI or E2B support behind adapter boundaries
-- make control-plane and worker talk through execution handoff plus terminal artifacts only
+- make execution and runners talk through `RunnerRunSpec` plus terminal artifacts only
 
 Success condition:
 

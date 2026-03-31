@@ -16,6 +16,7 @@ share the same boundary definitions.
 Current mirrored execution contracts:
 
 - `RunSpec` -> `jsonschema/run-spec.v1.schema.json`
+- `RunnerRunSpec` -> `jsonschema/runner-run-spec.v1.schema.json`
 - `EventEnvelope` -> `jsonschema/runner-event.v1.schema.json`
 - `ArtifactManifest` -> `jsonschema/runner-artifact-manifest.v1.schema.json`
 - `EvalResult` -> `jsonschema/eval-result.v1.schema.json`

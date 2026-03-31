@@ -211,7 +211,7 @@ Location: `app/execution/`
 Responsibilities:
 
 - submit, cancel, retry, and status orchestration
-- translation from control-plane run intent into execution handoff contracts
+- translation from control-plane run intent into the external runner request contract
 - runner backend selection and launcher integration
 - carrier-specific launch request generation for local and Kubernetes execution
 

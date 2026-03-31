@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 from typing import Any
+from uuid import UUID
 
 from agent_atlas_contracts.execution import RunnerRunSpec
 from pydantic import BaseModel, Field
@@ -128,11 +129,22 @@ class K8sLauncher:
 
     @staticmethod
     def job_name(payload: RunnerRunSpec) -> str:
-        run_prefix = str(payload.run_id).replace("-", "")[:12]
+        return K8sLauncher.job_name_for_ids(
+            run_id=payload.run_id,
+            attempt=payload.attempt,
+            attempt_id=payload.attempt_id,
+        )
+
+    @staticmethod
+    def job_name_for_ids(
+        *,
+        run_id: UUID,
+        attempt: int = 1,
+        attempt_id: UUID | None = None,
+    ) -> str:
+        run_prefix = str(run_id).replace("-", "")[:12]
         attempt_suffix = (
-            str(payload.attempt_id).replace("-", "")[:8]
-            if payload.attempt_id is not None
-            else str(payload.attempt)
+            str(attempt_id).replace("-", "")[:8] if attempt_id is not None else str(attempt)
         )
         return f"atlas-run-{run_prefix}-{attempt_suffix}".lower()
 

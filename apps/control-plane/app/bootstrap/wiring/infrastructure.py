@@ -141,8 +141,7 @@ def build_infrastructure() -> InfrastructureBundle:
     runner = RunnerRegistry(
         runners={
             default_runner_backend: local_process_runner,
-        },
-        default_backend=default_runner_backend,
+        }
     )
     execution_control = ExecutionControlRegistry(
         backends={

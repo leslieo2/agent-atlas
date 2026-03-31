@@ -11,7 +11,7 @@ execution-side runtime packages under `../../runtimes/`.
 The execution subsystem owns:
 
 - execution submission, retry, cancel, and status orchestration
-- translation from control-plane run submission into execution handoff and runner payload contracts
+- translation from control-plane run submission into the external `RunnerRunSpec` contract
 - runner backend selection and dispatch
 - launcher and carrier integration such as local and Kubernetes launch requests
 - execution-side result persistence hooks back into control-plane run state
@@ -45,7 +45,7 @@ Interpret that flow as:
 - `runtimes/*` owns framework-specific execution and runtime-side trace/event mapping
 
 The default production target for execution is Kubernetes container runtime. External systems such
-as Inspect AI and E2B belong behind execution adapters and must map into Atlas-neutral handoff,
+as Inspect AI and E2B belong behind execution adapters and must map into Atlas-neutral runner,
 event, terminal-result, and artifact-manifest contracts.
 
 ## Internal Layout
@@ -56,7 +56,7 @@ event, terminal-result, and artifact-manifest contracts.
 app/execution/
 ├─ application/     # orchestration entrypoints and ports
 ├─ domain/          # execution handles, status snapshots, capabilities
-├─ adapters/        # launchers, runner registry, handoff/spec translation
+├─ adapters/        # launchers, runner registry, and submission-to-runner translation
 └─ service.py       # hot-path execution flow and result projection
 ```
 
@@ -117,11 +117,10 @@ The shared contract boundary lives in `../../packages/contracts/python`.
 
 Execution is the place where control-plane models become:
 
-- `ExecutionHandoff`
 - `RunnerRunSpec`
 - launcher bootstrap requests
 
-That translation must stay centralized in `app/execution/adapters/specs.py` so that:
+That translation must stay centralized in `app/execution/contracts.py` so that:
 
 - control-plane business modules do not learn runner payload shape
 - runtime packages do not import control-plane internals

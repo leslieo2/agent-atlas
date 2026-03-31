@@ -12,7 +12,7 @@ from agent_atlas_contracts.execution import (
     ArtifactManifest,
     EventEnvelope,
     ExecutionArtifact,
-    ExecutionHandoff,
+    RunnerRunSpec,
     TerminalResult,
 )
 from agent_atlas_contracts.runtime import PublishedRunExecutionResult, RuntimeExecutionResult
@@ -35,12 +35,12 @@ from app.core.errors import (
 from app.execution.adapters.launchers import LocalLauncher
 from app.execution.application.ports import PublishedRunRuntimePort
 from app.execution.application.results import RunnerExecutionResult
-from app.execution.contracts import ExecutionRunSpec, runner_run_spec_from_handoff
+from app.execution.contracts import ExecutionRunSpec
 from app.modules.agents.domain.models import PublishedAgent
 
 
 class _RunnerExecutor(Protocol):
-    def execute(self, handoff: ExecutionHandoff) -> RunnerExecutionResult: ...
+    def execute(self, payload: RunnerRunSpec) -> RunnerExecutionResult: ...
 
 
 class SerializedSubprocessAppError(AppError):
@@ -130,21 +130,20 @@ class LocalProcessRunner:
     def default_command() -> list[str]:
         return [sys.executable, "-m", "app.execution.runner_process"]
 
-    def execute(self, handoff: ExecutionHandoff) -> RunnerExecutionResult:
-        runner_payload = runner_run_spec_from_handoff(handoff)
-        session = self.launcher.prepare(runner_payload)
+    def execute(self, payload: RunnerRunSpec) -> RunnerExecutionResult:
+        session = self.launcher.prepare(payload)
         if self._use_in_process_runtime(session.payload.executor_config):
             if self.published_runtime is None:
                 raise RuntimeError("published runtime is not configured")
             execution = self.published_runtime.execute_published(
-                handoff.run_id,
+                payload.run_id,
                 session.payload,
             )
             self.launcher.persist_result(session, execution)
             return RunnerExecutionResult(
                 runner_backend=self.backend_name(),
-                artifact_ref=handoff.artifact_ref,
-                image_ref=handoff.image_ref,
+                artifact_ref=payload.artifact_ref,
+                image_ref=payload.image_ref,
                 execution=execution,
             )
 
@@ -166,14 +165,14 @@ class LocalProcessRunner:
                 terminal_result=terminal_result,
                 stderr=completed.stderr,
                 stdout=completed.stdout,
-                model=handoff.model,
+                model=payload.model,
             )
 
         execution = _load_published_execution_result(session)
         return RunnerExecutionResult(
             runner_backend=self.backend_name(),
-            artifact_ref=handoff.artifact_ref,
-            image_ref=handoff.image_ref,
+            artifact_ref=payload.artifact_ref,
+            image_ref=payload.image_ref,
             execution=execution,
         )
 
@@ -336,22 +335,23 @@ class RunnerRegistry:
         self,
         *,
         runners: Mapping[str, _RunnerExecutor],
-        default_backend: str,
     ) -> None:
         self.runners = {key.strip().lower(): value for key, value in runners.items()}
-        self.default_backend = default_backend.strip().lower()
-        if self.default_backend not in self.runners:
-            raise ValueError(f"unsupported default runner backend '{default_backend}'")
 
-    def execute(self, handoff: ExecutionHandoff) -> RunnerExecutionResult:
-        backend = handoff.runner_backend.strip().lower()
+    def execute(self, payload: RunnerRunSpec) -> RunnerExecutionResult:
+        backend = (payload.runner_backend or "").strip().lower()
+        if not backend:
+            raise UnsupportedOperationError(
+                "runner backend is not configured",
+                runner_backend=payload.runner_backend,
+            )
         runner = self.runners.get(backend)
         if runner is None:
             raise UnsupportedOperationError(
-                f"runner backend '{handoff.runner_backend}' is not configured",
-                runner_backend=handoff.runner_backend,
+                f"runner backend '{payload.runner_backend}' is not configured",
+                runner_backend=payload.runner_backend,
             )
-        return runner.execute(handoff)
+        return runner.execute(payload)
 
 
 __all__ = [

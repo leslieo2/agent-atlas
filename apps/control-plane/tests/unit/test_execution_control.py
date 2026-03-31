@@ -4,7 +4,6 @@ from uuid import uuid4
 
 from app.execution.adapters import (
     K8sJobExecutionAdapter,
-    K8sJobLaunchRequest,
     LocalWorkerExecutionAdapter,
 )
 from app.execution.contracts import CancelRequest, ExecutionRunSpec
@@ -163,18 +162,11 @@ def test_k8s_execution_adapter_uses_launcher_job_name_for_executor_ref() -> None
 
     class StubK8sLauncher:
         def __init__(self) -> None:
-            self.calls: list[tuple[object, int]] = []
+            self.calls: list[tuple[object, int, object]] = []
 
-        def build_request(self, payload):
-            self.calls.append((payload.run_id, payload.attempt))
-            return K8sJobLaunchRequest(
-                job_name="atlas-run-custom",
-                namespace="atlas-tests",
-                config_map_name="atlas-run-custom-input",
-                image="python:3.12-slim",
-                config_map_manifest={},
-                job_manifest={},
-            )
+        def job_name_for_ids(self, *, run_id, attempt=1, attempt_id=None):
+            self.calls.append((run_id, attempt, attempt_id))
+            return "atlas-run-custom"
 
     launcher = StubK8sLauncher()
     adapter = K8sJobExecutionAdapter(
@@ -186,5 +178,5 @@ def test_k8s_execution_adapter_uses_launcher_job_name_for_executor_ref() -> None
     handle = adapter.submit_run(spec)
 
     assert handle.executor_ref == "atlas-run-custom"
-    assert launcher.calls == [(spec.run_id, 1)]
+    assert launcher.calls == [(spec.run_id, 1, handle.attempt_id)]
     assert len(queue.enqueued) == 1

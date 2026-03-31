@@ -26,6 +26,9 @@ from app.execution.application.results import (
     RunnerExecutionResult as RunnerExecutionResult,
 )
 from app.execution.application.results import (
+    RunnerSubmissionRecord as RunnerSubmissionRecord,
+)
+from app.execution.application.results import (
     RuntimeExecutionResult as RuntimeExecutionResult,
 )
 from app.execution.application.service import (

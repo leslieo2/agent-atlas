@@ -6,7 +6,6 @@ from uuid import UUID
 
 from agent_atlas_contracts.execution import (
     ExecutionArtifact,
-    ExecutionHandoff,
     RunnerRunSpec,
 )
 
@@ -25,6 +24,7 @@ if TYPE_CHECKING:
         PublishedRunExecutionResult,
         RunFailureDetails,
         RunnerExecutionResult,
+        RunnerSubmissionRecord,
     )
 
 
@@ -58,10 +58,10 @@ class ExecutionOutcomeSinkPort(Protocol):
 
     def mark_cancelled_if_requested(self, run_id: UUID) -> bool: ...
 
-    def record_execution_handoff(
+    def record_runner_submission(
         self,
         run_id: UUID,
-        handoff: ExecutionHandoff,
+        record: RunnerSubmissionRecord,
     ) -> None: ...
 
     def record_runner_result(
@@ -96,4 +96,4 @@ class ArtifactResolverPort(Protocol):
 
 
 class RunnerPort(Protocol):
-    def execute(self, handoff: ExecutionHandoff) -> RunnerExecutionResult: ...
+    def execute(self, payload: RunnerRunSpec) -> RunnerExecutionResult: ...

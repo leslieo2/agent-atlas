@@ -15,7 +15,6 @@ from app.execution.contracts import (
     RunHandle,
     RunStatusSnapshot,
     RunTerminalSummary,
-    runner_run_spec_from_run_spec,
 )
 from app.modules.runs.application.ports import RunRepository
 from app.modules.shared.application.ports import TaskQueuePort
@@ -293,19 +292,24 @@ class K8sJobExecutionAdapter(_QueuedExecutionBackendAdapter):
 
     def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle:
         handle = super().submit_run(run_spec)
-        request = self.launcher.build_request(
-            runner_run_spec_from_run_spec(run_spec, attempt_id=handle.attempt_id)
+        attempt = 1
+        run = self.run_repository.get(run_spec.run_id)
+        if run is not None:
+            attempt = run.attempt
+        job_name = self.launcher.job_name_for_ids(
+            run_id=run_spec.run_id,
+            attempt=attempt,
+            attempt_id=handle.attempt_id,
         )
-        if request.job_name == handle.executor_ref:
+        if job_name == handle.executor_ref:
             return handle
 
-        run = self.run_repository.get(run_spec.run_id)
         if run is None:
-            return handle.model_copy(update={"executor_ref": request.job_name})
+            return handle.model_copy(update={"executor_ref": job_name})
 
-        updated = run.model_copy(update={"executor_submission_id": request.job_name})
+        updated = run.model_copy(update={"executor_submission_id": job_name})
         self.run_repository.save(updated)
-        return handle.model_copy(update={"executor_ref": request.job_name})
+        return handle.model_copy(update={"executor_ref": job_name})
 
 
 class ExecutionControlRegistry(ExecutionControlPort):

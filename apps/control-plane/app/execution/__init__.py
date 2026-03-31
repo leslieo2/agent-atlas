@@ -29,12 +29,6 @@ from app.execution.adapters import (
     RunnerRegistry as RunnerRegistry,
 )
 from app.execution.adapters import (
-    execution_handoff_from_run_spec as execution_handoff_from_run_spec,
-)
-from app.execution.adapters import (
-    runner_run_spec_from_handoff as runner_run_spec_from_handoff,
-)
-from app.execution.adapters import (
     runner_run_spec_from_run_spec as runner_run_spec_from_run_spec,
 )
 from app.execution.application import (
