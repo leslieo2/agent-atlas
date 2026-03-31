@@ -4,8 +4,11 @@ from uuid import UUID
 
 from agent_atlas_contracts.execution import ExecutionHandoff
 from app.execution.application.ports import ExecutionAttempt, ExecutionOutcomeSinkPort
-from app.execution.application.results import RunnerExecutionResult
-from app.execution.application.service import ProjectedExecutionRecord, RunFailureDetails
+from app.execution.application.results import (
+    ProjectedExecutionRecord,
+    RunFailureDetails,
+    RunnerExecutionResult,
+)
 from app.modules.runs.application.ports import RunObservationSinkPort, RunRepository
 from app.modules.runs.domain.models import ExecutionMetrics
 from app.modules.runs.domain.policies import RunAggregate

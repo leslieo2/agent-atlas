@@ -21,10 +21,11 @@ from app.modules.shared.domain.enums import RunStatus
 
 if TYPE_CHECKING:
     from app.execution.application.results import (
+        ProjectedExecutionRecord,
         PublishedRunExecutionResult,
+        RunFailureDetails,
         RunnerExecutionResult,
     )
-    from app.execution.application.service import ProjectedExecutionRecord, RunFailureDetails
 
 
 @dataclass(frozen=True)

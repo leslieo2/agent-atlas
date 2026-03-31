@@ -13,7 +13,9 @@ from app.execution.application.ports import (
 )
 from app.execution.application.results import (
     ExecutionMetrics,
+    ProjectedExecutionRecord,
     PublishedRunExecutionResult,
+    RunFailureDetails,
 )
 from app.execution.contracts import ExecutionRunSpec, execution_handoff_from_run_spec
 from app.modules.shared.domain.enums import RunStatus, StepType
@@ -41,18 +43,6 @@ class RunExecutionContext:
                 )
             ),
         )
-
-
-@dataclass(frozen=True)
-class ProjectedExecutionRecord:
-    events: list[TraceIngestEvent]
-    metrics: ExecutionMetrics
-
-
-@dataclass(frozen=True)
-class RunFailureDetails:
-    code: str
-    message: str
 
 
 def failure_from_trace_events(events: list[TraceIngestEvent]) -> RunFailureDetails | None:
@@ -389,11 +379,9 @@ class RunExecutionService:
 
 __all__ = [
     "ExecutionRecorder",
-    "ProjectedExecutionRecord",
     "RunExecutionContext",
     "RunExecutionProjector",
     "RunExecutionService",
-    "RunFailureDetails",
     "failure_from_trace_events",
     "normalize_run_failure",
 ]
