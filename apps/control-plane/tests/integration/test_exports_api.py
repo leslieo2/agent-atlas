@@ -23,7 +23,7 @@ def _install_runtime(monkeypatch, outputs: dict[str, str]) -> None:
         )
 
     monkeypatch.setattr(
-        container.infrastructure.model_runtime,
+        container.infrastructure.execution.model_runtime,
         "execute_published",
         execute_published,
     )

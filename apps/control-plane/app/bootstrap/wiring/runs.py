@@ -9,13 +9,13 @@ from app.agent_tracing.application import (
     TraceSpanRecorder,
     TrajectoryRecorder,
 )
+from app.agent_tracing.contracts import RunObservationSinkPort
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.execution.application import RunExecutionService
 from app.modules.runs.adapters.outbound.execution.state_sink import RunExecutionStateSink
 from app.modules.runs.adapters.outbound.telemetry import RunTracingStateRecorder
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
-from app.modules.shared.application.contracts import RunObservationSinkPort
 
 
 @dataclass(frozen=True)
@@ -32,20 +32,20 @@ def build_run_module(
 ) -> RunModuleBundle:
     run_submission = RunSubmissionService(
         run_repository=infra.run_repository,
-        execution_control=infra.execution_control,
-        default_trace_backend=infra.trace_backend.backend_name(),
+        execution_control=infra.execution.execution_control,
+        default_trace_backend=infra.tracing.trace_backend.backend_name(),
     )
     telemetry_ingestor = RunObservationService(
         trace_span_recorder=TraceSpanRecorder(
-            trace_repository=infra.trace_repository,
-            trace_projector=infra.trace_projector,
+            trace_repository=infra.tracing.trace_repository,
+            trace_projector=infra.tracing.trace_projector,
         ),
         trajectory_recorder=TrajectoryRecorder(
-            trajectory_repository=infra.trajectory_repository,
-            step_projector=infra.trajectory_step_projector,
+            trajectory_repository=infra.tracing.trajectory_repository,
+            step_projector=infra.tracing.trajectory_step_projector,
         ),
         trace_export_coordinator=TraceExportCoordinator(
-            trace_exporter=infra.trace_exporter,
+            trace_exporter=infra.tracing.trace_exporter,
             trace_metadata_recorder=RunTraceMetadataRecorder(
                 run_tracing_state=RunTracingStateRecorder(
                     run_repository=infra.run_repository,
@@ -55,23 +55,23 @@ def build_run_module(
     )
     run_queries = RunQueries(
         run_repository=infra.run_repository,
-        trajectory_repository=infra.trajectory_repository,
-        trace_backend=infra.trace_backend,
+        trajectory_repository=infra.tracing.trajectory_repository,
+        trace_backend=infra.tracing.trace_backend,
     )
     run_commands = RunCommands(
         run_repository=infra.run_repository,
         agent_catalog=infra.runnable_agent_catalog,
         submission_service=run_submission,
-        execution_control=infra.execution_control,
+        execution_control=infra.execution.execution_control,
     )
     run_execution_service = RunExecutionService(
-        artifact_resolver=infra.artifact_resolver,
-        runner=infra.runner,
+        artifact_resolver=infra.execution.artifact_resolver,
+        runner=infra.execution.runner,
         sink=RunExecutionStateSink(
             run_repository=infra.run_repository,
             observation_sink=telemetry_ingestor,
         ),
-        default_runner_backend=infra.default_runner_backend,
+        default_runner_backend=infra.execution.default_runner_backend,
     )
 
     return RunModuleBundle(

@@ -35,8 +35,8 @@ def build_experiment_module(
         dataset_repository=infra.dataset_repository,
         run_repository=infra.run_repository,
         approval_policy_repository=infra.approval_policy_repository,
-        execution_control=infra.execution_control,
-        task_queue=infra.task_queue,
+        execution_control=infra.execution.execution_control,
+        task_queue=infra.execution.task_queue,
         agent_exists=agents.agent_exists,
     )
     experiment_orchestrator = ExperimentOrchestrator(
@@ -44,16 +44,16 @@ def build_experiment_module(
         dataset_repository=infra.dataset_repository,
         run_repository=infra.run_repository,
         agent_catalog=infra.runnable_agent_catalog,
-        execution_control=infra.execution_control,
-        task_queue=infra.task_queue,
+        execution_control=infra.execution.execution_control,
+        task_queue=infra.execution.task_queue,
     )
     experiment_aggregation_service = ExperimentAggregationService(
         experiment_repository=infra.experiment_repository,
         run_evaluation_repository=infra.run_evaluation_repository,
         dataset_repository=infra.dataset_repository,
         run_repository=infra.run_repository,
-        trajectory_repository=infra.trajectory_repository,
-        task_queue=infra.task_queue,
+        trajectory_repository=infra.tracing.trajectory_repository,
+        task_queue=infra.execution.task_queue,
     )
     return ExperimentModuleBundle(
         experiment_queries=experiment_queries,

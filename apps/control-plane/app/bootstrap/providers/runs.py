@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from app.agent_tracing.contracts import RunObservationSinkPort
 from app.bootstrap.container import get_container
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
-from app.modules.shared.application.contracts import RunObservationSinkPort
 
 
 def get_run_queries() -> RunQueries:

@@ -24,3 +24,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 agent_atlas_runner_langgraph = ["py.typed"]
+
+[project.entry-points."agent_atlas.runtime_adapters"]
+langgraph = "agent_atlas_runner_langgraph.runtime_plugins:build_runtime_adapter_plugin"

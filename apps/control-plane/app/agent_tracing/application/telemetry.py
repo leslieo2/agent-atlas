@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from app.modules.shared.application.contracts import (
+from app.agent_tracing.contracts import (
     RunObservationSinkPort,
     RunTracingStatePort,
     TraceExportPort,

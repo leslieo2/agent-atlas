@@ -66,10 +66,28 @@ from app.modules.runs.application.ports import (
 
 
 @dataclass(frozen=True)
+class TracingInfrastructure:
+    trace_repository: StateTraceRepository
+    trajectory_repository: StateTrajectoryRepository
+    trace_backend: TraceBackendPort
+    trace_exporter: TraceExporterPort
+    trace_projector: TraceIngestProjector
+    trajectory_step_projector: TraceEventTrajectoryProjector
+
+
+@dataclass(frozen=True)
+class ExecutionInfrastructure:
+    task_queue: StateTaskQueue
+    model_runtime: ModelRuntimeService
+    artifact_resolver: ArtifactResolverPort
+    runner: RunnerPort
+    execution_control: ExecutionControlPort
+    default_runner_backend: str
+
+
+@dataclass(frozen=True)
 class InfrastructureBundle:
     run_repository: StateRunRepository
-    trajectory_repository: StateTrajectoryRepository
-    trace_repository: StateTraceRepository
     dataset_repository: StateDatasetRepository
     experiment_repository: StateExperimentRepository
     run_evaluation_repository: StateRunEvaluationRepository
@@ -83,16 +101,8 @@ class InfrastructureBundle:
     artifact_builder: ArtifactBuilderPort
     agent_discovery: FilesystemAgentDiscovery
     runnable_agent_catalog: StateRunnableAgentCatalog
-    task_queue: StateTaskQueue
-    model_runtime: ModelRuntimeService
-    artifact_resolver: ArtifactResolverPort
-    runner: RunnerPort
-    execution_control: ExecutionControlPort
-    default_runner_backend: str
-    trace_backend: TraceBackendPort
-    trace_exporter: TraceExporterPort
-    trace_projector: TraceIngestProjector
-    trajectory_step_projector: TraceEventTrajectoryProjector
+    tracing: TracingInfrastructure
+    execution: ExecutionInfrastructure
 
 
 def build_infrastructure() -> InfrastructureBundle:
@@ -196,10 +206,25 @@ def build_infrastructure() -> InfrastructureBundle:
     trace_projector = TraceIngestProjector()
     trajectory_step_projector = TraceEventTrajectoryProjector()
 
+    tracing = TracingInfrastructure(
+        trace_repository=trace_repository,
+        trajectory_repository=trajectory_repository,
+        trace_backend=trace_backend,
+        trace_exporter=trace_exporter,
+        trace_projector=trace_projector,
+        trajectory_step_projector=trajectory_step_projector,
+    )
+    execution = ExecutionInfrastructure(
+        task_queue=task_queue,
+        model_runtime=model_runtime,
+        artifact_resolver=artifact_resolver,
+        runner=runner,
+        execution_control=execution_control,
+        default_runner_backend=default_runner_backend,
+    )
+
     return InfrastructureBundle(
         run_repository=run_repository,
-        trajectory_repository=trajectory_repository,
-        trace_repository=trace_repository,
         dataset_repository=dataset_repository,
         experiment_repository=experiment_repository,
         run_evaluation_repository=run_evaluation_repository,
@@ -213,14 +238,6 @@ def build_infrastructure() -> InfrastructureBundle:
         artifact_builder=artifact_builder,
         agent_discovery=agent_discovery,
         runnable_agent_catalog=runnable_agent_catalog,
-        task_queue=task_queue,
-        model_runtime=model_runtime,
-        artifact_resolver=artifact_resolver,
-        runner=runner,
-        execution_control=execution_control,
-        default_runner_backend=default_runner_backend,
-        trace_backend=trace_backend,
-        trace_exporter=trace_exporter,
-        trace_projector=trace_projector,
-        trajectory_step_projector=trajectory_step_projector,
+        tracing=tracing,
+        execution=execution,
     )

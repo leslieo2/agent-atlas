@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.shared.application.contracts import RunTraceLookup
+from app.agent_tracing.contracts import RunTraceLookup
 
 
 class _RunRecordView(Protocol):

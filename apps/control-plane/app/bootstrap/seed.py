@@ -346,7 +346,7 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
         container.infrastructure.run_repository.save(run)
     for steps in seeded_steps.values():
         for step in steps:
-            container.infrastructure.trajectory_repository.append(step)
+            container.infrastructure.tracing.trajectory_repository.append(step)
     for dataset in datasets:
         container.infrastructure.dataset_repository.save(dataset)
     container.infrastructure.approval_policy_repository.save(default_policy)

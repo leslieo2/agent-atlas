@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Protocol
+from importlib import import_module
+from importlib.metadata import entry_points
+from typing import Any, Protocol, cast
 
 from agent_atlas_contracts.execution import RunnerRunSpec
 from pydantic import SecretStr
@@ -41,6 +43,21 @@ class PublishedAgentRuntimeAdapter(Protocol):
         payload: RunnerRunSpec,
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult: ...
+
+
+class RuntimeAdapterPlugin(Protocol):
+    @property
+    def adapter_kind(self) -> str: ...
+
+    @property
+    def live_adapter(self) -> RuntimeAdapter: ...
+
+
+RUNTIME_ADAPTER_ENTRY_POINT_GROUP = "agent_atlas.runtime_adapters"
+BUILTIN_RUNTIME_PLUGIN_MODULES = (
+    "agent_atlas_runner_openai_agents.runtime_plugins",
+    "agent_atlas_runner_langgraph.runtime_plugins",
+)
 
 
 def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
@@ -273,13 +290,25 @@ class ModelRuntimeService:
 
     @staticmethod
     def _default_adapters() -> dict[AdapterKind, RuntimeAdapter]:
-        from app.infrastructure.adapters.langchain.runtime import LangChainRuntimeAdapter
-        from app.infrastructure.adapters.openai_agents.runtime import OpenAIAgentsSdkAdapter
+        adapters: dict[AdapterKind, RuntimeAdapter] = {}
+        for plugin_entry in entry_points().select(group=RUNTIME_ADAPTER_ENTRY_POINT_GROUP):
+            try:
+                builder = plugin_entry.load()
+            except Exception:
+                continue
+            _register_runtime_adapter(adapters, builder)
 
-        return {
-            AdapterKind.OPENAI_AGENTS: OpenAIAgentsSdkAdapter(),
-            AdapterKind.LANGCHAIN: LangChainRuntimeAdapter(),
-        }
+        for module_name in BUILTIN_RUNTIME_PLUGIN_MODULES:
+            try:
+                module = import_module(module_name)
+            except Exception:
+                continue
+            _register_runtime_adapter(
+                adapters,
+                getattr(module, "build_runtime_adapter_plugin", None),
+            )
+
+        return adapters
 
     def _simulate_output(
         self,
@@ -297,3 +326,39 @@ class ModelRuntimeService:
             provider="mock",
             resolved_model=model,
         )
+
+
+def _runtime_plugin_value(plugin: object, field: str) -> object | None:
+    if isinstance(plugin, dict):
+        return plugin.get(field)
+    return getattr(plugin, field, None)
+
+
+def _register_runtime_adapter(
+    adapters: dict[AdapterKind, RuntimeAdapter],
+    builder: object,
+) -> None:
+    if not callable(builder):
+        return
+
+    try:
+        plugin = builder()
+    except Exception:
+        return
+
+    adapter_kind = _runtime_plugin_value(plugin, "adapter_kind")
+    live_adapter = _runtime_adapter_plugin_instance(plugin)
+    if not isinstance(adapter_kind, str) or live_adapter is None:
+        return
+
+    try:
+        adapters.setdefault(AdapterKind(adapter_kind), live_adapter)
+    except ValueError:
+        return
+
+
+def _runtime_adapter_plugin_instance(plugin: object) -> RuntimeAdapter | None:
+    candidate = _runtime_plugin_value(plugin, "live_adapter")
+    if candidate is None or not callable(getattr(candidate, "execute", None)):
+        return None
+    return cast(RuntimeAdapter, candidate)

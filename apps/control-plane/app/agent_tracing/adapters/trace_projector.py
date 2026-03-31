@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.modules.shared.application.contracts import TraceProjectorPort
+from app.agent_tracing.contracts import TraceProjectorPort
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
