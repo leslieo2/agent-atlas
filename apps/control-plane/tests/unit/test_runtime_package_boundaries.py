@@ -5,7 +5,8 @@ from pathlib import Path
 
 
 def test_runtime_packages_do_not_import_control_plane_modules() -> None:
-    runtimes_dir = Path(__file__).resolve().parents[3] / "runtimes"
+    runtimes_dir = Path(__file__).resolve().parents[4] / "runtimes"
+    assert runtimes_dir.is_dir()
     violations: list[str] = []
 
     for path in sorted(runtimes_dir.rglob("*.py")):

@@ -24,6 +24,3 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 agent_atlas_runner_langgraph = ["py.typed"]
-
-[project.entry-points."agent_atlas.framework_plugins"]
-langchain = "agent_atlas_runner_langgraph.plugin:build_framework_plugin"
