@@ -11,8 +11,8 @@ API_BASE_URL="http://127.0.0.1:${API_PORT}"
 WEB_BASE_URL="http://127.0.0.1:${WEB_PORT}"
 DB_URL="sqlite:///${BACKEND_DIR}/.agent-atlas-playwright-live.db"
 
-if [ -z "${OPENAI_API_KEY:-${AGENT_ATLAS_OPENAI_API_KEY:-}}" ]; then
-  echo "OPENAI_API_KEY or AGENT_ATLAS_OPENAI_API_KEY is required for live e2e." >&2
+if [ -z "${AGENT_ATLAS_OPENAI_API_KEY:-}" ]; then
+  echo "AGENT_ATLAS_OPENAI_API_KEY is required for live e2e." >&2
   exit 1
 fi
 

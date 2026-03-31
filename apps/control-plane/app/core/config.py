@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import AliasChoices, Field, SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,7 +22,6 @@ class Settings(BaseSettings):
         env_prefix="AGENT_ATLAS_",
         env_file=".env",
         extra="ignore",
-        populate_by_name=True,
     )
 
     app_name: str = "Agent Atlas API"
@@ -36,7 +35,6 @@ class Settings(BaseSettings):
     )
     openai_api_key: SecretStr | None = Field(
         default=None,
-        validation_alias=AliasChoices("AGENT_ATLAS_OPENAI_API_KEY", "OPENAI_API_KEY"),
         repr=False,
         description="OpenAI API key used for live execution.",
     )

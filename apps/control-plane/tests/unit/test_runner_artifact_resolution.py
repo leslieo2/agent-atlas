@@ -146,7 +146,6 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
 def test_local_process_runner_stamps_runner_backend(monkeypatch) -> None:
     monkeypatch.setenv("AGENT_ATLAS_RUNTIME_MODE", "mock")
     monkeypatch.delenv("AGENT_ATLAS_OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     run_id = uuid4()
     handoff = ExecutionHandoff(
         run_id=run_id,

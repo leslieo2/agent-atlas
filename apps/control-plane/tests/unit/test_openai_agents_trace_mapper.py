@@ -3,9 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from uuid import UUID
 
-from app.infrastructure.adapters.openai_agents.trace_mapper import (
-    build_trace_events_from_agent_run,
-)
+from app.infrastructure.adapters.openai_agents import build_trace_events_from_agent_run
 from app.modules.shared.domain.enums import StepType
 
 
@@ -38,7 +36,11 @@ def test_build_trace_events_from_agent_run_expands_tool_calls():
         ],
         new_items=[
             SimpleNamespace(
-                raw_item={"call_id": "call-1", "output": "eta_window=2 business days"},
+                raw_item={
+                    "call_id": "call-1",
+                    "output": "eta_window=2 business days",
+                    "type": "function_call_output",
+                },
                 output="eta_window=2 business days",
             )
         ],
@@ -100,6 +102,7 @@ def test_build_trace_events_from_agent_run_marks_tool_backend_failures():
                         "An error occurred while running the tool. Please try again. "
                         "Error: tool backend unavailable for order 'ORD-ERR-100'"
                     ),
+                    "type": "function_call_output",
                 },
                 output=(
                     "An error occurred while running the tool. Please try again. "

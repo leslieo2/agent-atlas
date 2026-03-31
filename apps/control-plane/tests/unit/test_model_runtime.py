@@ -25,7 +25,7 @@ from app.infrastructure.adapters.framework_registry import (
     FrameworkPlugin,
     PublishedAgentExecutionDispatcher,
 )
-from app.infrastructure.adapters.langchain.runtime import PublishedLangChainAgentAdapter
+from app.infrastructure.adapters.langchain import PublishedLangChainAgentAdapter
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.agents.domain.models import AgentBuildContext, AgentManifest, PublishedAgent
 from app.modules.shared.domain.enums import AdapterKind

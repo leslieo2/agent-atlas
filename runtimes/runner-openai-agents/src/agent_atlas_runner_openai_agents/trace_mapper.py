@@ -91,14 +91,9 @@ def _tool_outputs_by_call_id(result: object) -> dict[str, ToolCallResult]:
     tool_outputs: dict[str, ToolCallResult] = {}
     for item in getattr(result, "new_items", []) or []:
         raw_item = getattr(item, "raw_item", None)
-        if isinstance(raw_item, dict):
-            call_id = raw_item.get("call_id")
-            fallback_output = raw_item.get("output")
-            item_type = raw_item.get("type")
-        else:
-            call_id = getattr(raw_item, "call_id", None)
-            fallback_output = getattr(raw_item, "output", None)
-            item_type = getattr(raw_item, "type", None)
+        call_id = _mapping_value(raw_item, "call_id")
+        fallback_output = _mapping_value(raw_item, "output")
+        item_type = _mapping_value(raw_item, "type")
 
         if (
             type(item).__name__ != "ToolCallOutputItem"

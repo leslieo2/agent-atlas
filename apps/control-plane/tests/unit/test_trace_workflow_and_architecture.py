@@ -176,6 +176,16 @@ def test_feature_contract_compatibility_modules_have_been_removed() -> None:
     assert compatibility_modules == []
 
 
+def test_framework_runtime_compatibility_shims_have_been_removed() -> None:
+    compatibility_modules = (
+        BACKEND_ROOT / "app/infrastructure/adapters/langchain/runtime.py",
+        BACKEND_ROOT / "app/infrastructure/adapters/langchain/trace_mapper.py",
+        BACKEND_ROOT / "app/infrastructure/adapters/openai_agents/runtime.py",
+        BACKEND_ROOT / "app/infrastructure/adapters/openai_agents/trace_mapper.py",
+    )
+    assert all(not path.exists() for path in compatibility_modules)
+
+
 def test_legacy_runs_telemetry_paths_have_been_removed():
     legacy_paths = (
         BACKEND_ROOT / "app/modules/runs/application/telemetry.py",

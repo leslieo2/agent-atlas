@@ -333,12 +333,6 @@ class ModelRuntimeService:
         )
 
 
-def _runtime_plugin_value(plugin: object, field: str) -> object | None:
-    if isinstance(plugin, dict):
-        return plugin.get(field)
-    return getattr(plugin, field, None)
-
-
 def _register_runtime_adapter(
     adapters: dict[AdapterKind, RuntimeAdapter],
     builder: object,
@@ -351,7 +345,7 @@ def _register_runtime_adapter(
     except Exception:
         return
 
-    adapter_kind = _runtime_plugin_value(plugin, "adapter_kind")
+    adapter_kind = getattr(plugin, "adapter_kind", None)
     live_adapter = _runtime_adapter_plugin_instance(plugin)
     if not isinstance(adapter_kind, str) or live_adapter is None:
         return
@@ -363,7 +357,7 @@ def _register_runtime_adapter(
 
 
 def _runtime_adapter_plugin_instance(plugin: object) -> RuntimeAdapter | None:
-    candidate = _runtime_plugin_value(plugin, "live_adapter")
+    candidate = getattr(plugin, "live_adapter", None)
     if candidate is None or not callable(getattr(candidate, "execute", None)):
         return None
     return cast(RuntimeAdapter, candidate)

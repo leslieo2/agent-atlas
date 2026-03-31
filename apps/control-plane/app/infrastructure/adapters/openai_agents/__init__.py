@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from agent_atlas_runner_openai_agents.runtime import (
+    OpenAIAgentsSdkAdapter,
+    PublishedOpenAIAgentAdapter,
+)
+from agent_atlas_runner_openai_agents.trace_mapper import build_trace_events_from_agent_run
+
 from ..framework_registry import FrameworkPlugin
 from .catalog import OpenAIAgentContractValidator, PublishedOpenAIAgentLoader
-from .runtime import OpenAIAgentsSdkAdapter, PublishedOpenAIAgentAdapter
-from .trace_mapper import build_trace_events_from_agent_run
 
 
 def build_framework_plugin() -> FrameworkPlugin:
