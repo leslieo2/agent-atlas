@@ -1117,11 +1117,9 @@ class StatePersistence:
 
 
 def build_state_persistence() -> StatePersistence:
-    control_database_url = settings.control_plane_database_url or settings.database_url
-    data_database_url = settings.data_plane_database_url or settings.database_url
     return StatePersistence(
-        control_database_url=control_database_url,
-        data_database_url=data_database_url,
+        control_database_url=settings.control_plane_database_url,
+        data_database_url=settings.data_plane_database_url,
         control_schema=settings.control_plane_database_schema,
         data_schema=settings.data_plane_database_schema,
     )

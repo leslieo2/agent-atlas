@@ -149,7 +149,8 @@ Important settings currently wired in code:
 - `AGENT_ATLAS_APP_NAME`: name shown in docs and metadata
 - `AGENT_ATLAS_ALLOWED_ORIGINS`: allowed browser origins for frontend access
 - `AGENT_ATLAS_RUNTIME_MODE`: provider execution behavior (`auto`, `live`, `mock`)
-- `AGENT_ATLAS_DATABASE_URL`: SQLite database location
+- `AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL`: control-plane state database location
+- `AGENT_ATLAS_DATA_PLANE_DATABASE_URL`: data-plane state database location
 - `AGENT_ATLAS_SEED_DEMO`: whether to seed demo data on startup
 - `AGENT_ATLAS_OPENAI_API_KEY` or `OPENAI_API_KEY`: credentials for live mode
 - `AGENT_ATLAS_WORKER_NAME`: optional worker name override

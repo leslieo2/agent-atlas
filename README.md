@@ -208,7 +208,8 @@ Key settings currently wired in the backend:
 - `AGENT_ATLAS_APP_NAME`: application name shown in docs and metadata
 - `AGENT_ATLAS_ALLOWED_ORIGINS`: allowed browser origins for local frontend access
 - `AGENT_ATLAS_RUNTIME_MODE`: provider execution behavior (`auto`, `live`, `mock`)
-- `AGENT_ATLAS_DATABASE_URL`: SQLite database location for local state
+- `AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL`: control-plane state database location
+- `AGENT_ATLAS_DATA_PLANE_DATABASE_URL`: data-plane state database location
 - `AGENT_ATLAS_SEED_DEMO`: whether demo data is seeded on startup
 - `AGENT_ATLAS_OPENAI_API_KEY` or `OPENAI_API_KEY`: OpenAI credentials for live mode
 

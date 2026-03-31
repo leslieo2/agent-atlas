@@ -121,7 +121,9 @@ class PublishedAgent(ContractPublishedAgent):
 
     def runtime_artifact_or_raise(self) -> RuntimeArtifactMetadata:
         if self.runtime_artifact is None:
-            raise ValueError(f"published agent '{self.agent_id}' is missing runtime artifact metadata")
+            raise ValueError(
+                f"published agent '{self.agent_id}' is missing runtime artifact metadata"
+            )
 
         runtime_artifact = RuntimeArtifactMetadata.model_validate(
             self.runtime_artifact.model_dump(mode="json")

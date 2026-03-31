@@ -246,13 +246,9 @@ class ModelRuntimeService:
             return adapter.execute(api_key=self.api_key, model=model, prompt=prompt)
         except Exception as exc:
             normalized_exc = _normalize_runtime_exception(exc, model)
-            if effective_mode == RuntimeMode.LIVE:
-                if normalized_exc is exc:
-                    raise
-                raise normalized_exc from exc
-            fallback = self._simulate_output(agent_type, model, prompt)
-            fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
-            return fallback
+            if normalized_exc is exc:
+                raise
+            raise normalized_exc from exc
 
     def execute_published(self, run_id: Any, payload: RunnerRunSpec) -> PublishedRunExecutionResult:
         resolved_agent_type = AdapterKind(payload.agent_type)
@@ -295,15 +291,9 @@ class ModelRuntimeService:
             )
         except Exception as exc:
             normalized_exc = _normalize_runtime_exception(exc, payload.model)
-            if effective_mode == RuntimeMode.LIVE:
-                if normalized_exc is exc:
-                    raise
-                raise normalized_exc from exc
-            fallback = self._simulate_output(resolved_agent_type, payload.model, payload.prompt)
-            fallback.output = f"{fallback.output} [fallback from live runtime: {normalized_exc}]"
-            return PublishedRunExecutionResult(
-                runtime_result=fallback.model_copy(update={"resolved_model": payload.model})
-            )
+            if normalized_exc is exc:
+                raise
+            raise normalized_exc from exc
 
     @staticmethod
     def _default_adapters() -> dict[AdapterKind, RuntimeAdapter]:

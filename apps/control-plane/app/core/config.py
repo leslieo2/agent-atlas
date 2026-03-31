@@ -47,10 +47,6 @@ class Settings(BaseSettings):
             "Defaults to disabled in live mode and enabled otherwise."
         ),
     )
-    database_url: str | None = Field(
-        default=None,
-        description=("Legacy shared database URL used when per-plane URLs are not configured."),
-    )
     control_plane_database_url: str | None = Field(
         default=None,
         description=("Control plane database URL. Supports sqlite:///path and postgresql:// URLs."),

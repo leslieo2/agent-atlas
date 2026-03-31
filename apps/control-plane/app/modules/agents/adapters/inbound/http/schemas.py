@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
-
 from app.modules.agents.domain.models import (
     AgentPublishState,
     AgentValidationIssue,
@@ -12,6 +10,7 @@ from app.modules.agents.domain.models import (
     PublishedAgent,
 )
 from app.modules.shared.domain.models import ProvenanceMetadata, RuntimeArtifactMetadata
+from pydantic import BaseModel
 
 
 class AgentDescriptorResponse(BaseModel):

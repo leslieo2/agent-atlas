@@ -171,6 +171,11 @@ def test_non_execution_packages_do_not_import_execution_service_compatibility_mo
     assert violations == []
 
 
+def test_feature_contract_compatibility_modules_have_been_removed() -> None:
+    compatibility_modules = sorted(Path("app/modules").rglob("contracts/*.py"))
+    assert compatibility_modules == []
+
+
 def test_legacy_runs_telemetry_paths_have_been_removed():
     legacy_paths = (
         BACKEND_ROOT / "app/modules/runs/application/telemetry.py",

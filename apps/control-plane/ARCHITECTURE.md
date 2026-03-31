@@ -121,15 +121,15 @@ Non-responsibilities:
 - runtime integration details
 - vendor-specific observability SDK wiring
 
-### 1a. Contracts layer
+### 1a. HTTP transport schemas
 
-Location: `app/modules/<feature>/contracts/`
+Location: `app/modules/<feature>/adapters/inbound/http/schemas.py`
 
 Responsibilities:
 
-- provide stable compatibility imports for feature-local request and response schemas
-- re-export transport models that now live under inbound HTTP adapters
-- keep existing import paths stable while feature adapters migrate inward
+- define request and response schemas next to the HTTP router that owns them
+- keep transport mapping local to the inbound adapter boundary
+- avoid feature-level compatibility packages for schema re-exports
 
 Non-responsibilities:
 

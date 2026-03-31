@@ -2,24 +2,23 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-
 from app.bootstrap.providers.agents import (
     get_agent_discovery_queries,
     get_agent_publication_commands,
     get_published_agent_catalog_queries,
 )
 from app.core.errors import AppError
+from app.modules.agents.adapters.inbound.http.schemas import (
+    AgentDescriptorResponse,
+    AgentPublicationResponse,
+    DiscoveredAgentResponse,
+)
 from app.modules.agents.application.use_cases import (
     AgentDiscoveryQueries,
     AgentPublicationCommands,
     PublishedAgentCatalogQueries,
 )
-from app.modules.agents.contracts.schemas import (
-    AgentDescriptorResponse,
-    AgentPublicationResponse,
-    DiscoveredAgentResponse,
-)
+from fastapi import APIRouter, Depends, HTTPException
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 

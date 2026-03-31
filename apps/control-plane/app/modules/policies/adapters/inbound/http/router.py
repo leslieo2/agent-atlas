@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-
 from app.bootstrap.providers.policies import get_policy_commands, get_policy_queries
-from app.modules.policies.application.use_cases import PolicyCommands, PolicyQueries
-from app.modules.policies.contracts.schemas import (
+from app.modules.policies.adapters.inbound.http.schemas import (
     ApprovalPolicyCreateRequest,
     ApprovalPolicyResponse,
 )
+from app.modules.policies.application.use_cases import PolicyCommands, PolicyQueries
+from fastapi import APIRouter, Depends, HTTPException
 
 router = APIRouter(prefix="/policies", tags=["policies"])
 
