@@ -50,13 +50,13 @@ from app.modules.agents.application.ports import (
     FrameworkRegistryPort,
     PublishedAgentExecutionPort,
 )
-from app.modules.datasets.adapters.outbound.persistence import StateDatasetRepository
-from app.modules.experiments.adapters.outbound.persistence import (
+from app.modules.datasets.adapters.outbound.persistence.state import StateDatasetRepository
+from app.modules.experiments.adapters.outbound.persistence.state import (
     StateExperimentRepository,
     StateRunEvaluationRepository,
 )
-from app.modules.exports.adapters.outbound.persistence import StateExportRepository
-from app.modules.runs.adapters.outbound.persistence import (
+from app.modules.exports.adapters.outbound.persistence.state import StateExportRepository
+from app.modules.runs.adapters.outbound.persistence.state import (
     StateRunRepository,
     StateTraceRepository,
     StateTrajectoryRepository,

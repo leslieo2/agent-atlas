@@ -23,7 +23,7 @@ Supporting, but not long-term primary, surfaces:
 
 - run-level drill-downs under eval workflows
 - trajectory summaries and Phoenix links for debugging
-- legacy workbench routes that still exist while the IA is being simplified
+- no separate legacy workbench routes; Atlas now centers the four primary workspaces
 
 ## Architecture
 

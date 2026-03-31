@@ -6,15 +6,15 @@ from typing import Annotated
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes.agents import router as agent_router
-from app.api.routes.policies import router as policy_router
 from app.bootstrap.providers.health import get_health_queries
 from app.bootstrap.seed import seed_demo_state
 from app.core.config import settings
+from app.modules.agents.adapters.inbound.http.router import router as agent_router
 from app.modules.datasets.adapters.inbound.http.router import router as dataset_router
 from app.modules.experiments.adapters.inbound.http.router import router as experiment_router
 from app.modules.exports.adapters.inbound.http.router import router as export_router
 from app.modules.health.application.use_cases import HealthQueries
+from app.modules.policies.adapters.inbound.http.router import router as policy_router
 from app.modules.runs.adapters.inbound.http.router import router as run_router
 
 
