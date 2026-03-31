@@ -74,6 +74,7 @@ class TerminalResult(BaseModel):
     completed_at: datetime = Field(default_factory=utc_now)
     reason_code: str | None = None
     reason_message: str | None = None
+    reason_context: dict[str, str] = Field(default_factory=dict)
     exit_code: int | None = None
     output: str | None = None
     producer: ProducerInfo = Field(default_factory=ProducerInfo)
@@ -83,6 +84,7 @@ class TerminalResult(BaseModel):
 class RunnerBootstrapPaths(BaseModel):
     run_spec_path: str = "/workspace/input/run_spec.json"
     events_path: str = "/workspace/output/events.ndjson"
+    runtime_result_path: str = "/workspace/output/runtime_result.json"
     terminal_result_path: str = "/workspace/output/terminal_result.json"
     artifact_manifest_path: str = "/workspace/output/artifact_manifest.json"
     artifact_dir: str = "/workspace/output/artifacts"
@@ -91,6 +93,7 @@ class RunnerBootstrapPaths(BaseModel):
         return {
             "ATLAS_RUNSPEC_PATH": self.run_spec_path,
             "ATLAS_EVENTS_PATH": self.events_path,
+            "ATLAS_RUNTIME_RESULT_PATH": self.runtime_result_path,
             "ATLAS_TERMINAL_RESULT_PATH": self.terminal_result_path,
             "ATLAS_ARTIFACT_MANIFEST_PATH": self.artifact_manifest_path,
             "ATLAS_ARTIFACT_DIR": self.artifact_dir,
@@ -102,6 +105,8 @@ class RunnerBootstrapPaths(BaseModel):
             self.run_spec_path,
             "--events",
             self.events_path,
+            "--runtime-result",
+            self.runtime_result_path,
             "--terminal-result",
             self.terminal_result_path,
             "--artifact-manifest",

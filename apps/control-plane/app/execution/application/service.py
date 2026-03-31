@@ -86,7 +86,7 @@ def normalize_run_failure(exc: Exception) -> RunFailureDetails:
     if isinstance(exc, AppError):
         raw_code = exc.code
         normalized_code = "runner_bootstrap"
-        if raw_code == "agent_load_failed":
+        if raw_code in {"agent_load_failed", "agent_framework_mismatch"}:
             normalized_code = "agent_load"
         elif raw_code in {"provider_auth_error", "rate_limited"}:
             normalized_code = "provider_call"

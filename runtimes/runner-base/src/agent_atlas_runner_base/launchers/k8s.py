@@ -37,6 +37,7 @@ class K8sLauncher:
         args = payload.bootstrap.as_entrypoint_args()
         output_root = self._common_parent(
             payload.bootstrap.events_path,
+            payload.bootstrap.runtime_result_path,
             payload.bootstrap.terminal_result_path,
             payload.bootstrap.artifact_manifest_path,
             payload.bootstrap.artifact_dir,

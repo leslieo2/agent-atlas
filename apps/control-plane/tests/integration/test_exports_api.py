@@ -2,31 +2,7 @@ from __future__ import annotations
 
 import json
 
-from app.bootstrap.container import get_container
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RuntimeExecutionResult
-
-
-def _install_runtime(monkeypatch, outputs: dict[str, str]) -> None:
-    container = get_container()
-
-    def execute_published(_run_id, payload):
-        output = outputs.get(payload.prompt, payload.prompt)
-        return PublishedRunExecutionResult(
-            runtime_result=RuntimeExecutionResult(
-                output=output,
-                latency_ms=5,
-                token_usage=7,
-                provider="mock",
-                resolved_model="gpt-5.4-mini",
-            )
-        )
-
-    monkeypatch.setattr(
-        container.infrastructure.execution.model_runtime,
-        "execute_published",
-        execute_published,
-    )
+from tests.integration.test_experiments_api import _experiment_payload, _install_runtime
 
 
 def test_exports_api_creates_compare_aware_rl_rows(
@@ -68,64 +44,32 @@ def test_exports_api_creates_compare_aware_rl_rows(
     _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "beta"})
     baseline_response = client.post(
         "/api/v1/experiments",
-        json={
-            "name": "baseline",
-            "spec": {
-                "dataset_version_id": dataset_version_id,
-                "published_agent_id": "basic",
-                "model_config": {"model": "gpt-5.4-mini", "temperature": 0},
-                "prompt_config": {"prompt_version": "2026-03"},
-                "toolset_config": {"tools": [], "metadata": {}},
-                "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
-                "executor_config": {
-                    "backend": "local-runner",
-                    "timeout_seconds": 600,
-                    "max_steps": 32,
-                    "concurrency": 1,
-                    "resources": {},
-                    "tracing_backend": "phoenix",
-                    "artifact_path": None,
-                    "metadata": {},
-                },
-                "tags": ["baseline"],
-            },
-        },
+        json=_experiment_payload(
+            name="baseline",
+            dataset_version_id=dataset_version_id,
+            tags=["baseline"],
+            runner_mode="in-process",
+        ),
     )
     assert baseline_response.status_code == 201
     baseline_experiment_id = baseline_response.json()["experiment_id"]
     assert client.post(f"/api/v1/experiments/{baseline_experiment_id}/start").status_code == 200
-    assert worker_drain(limit=20) >= 1
+    assert worker_drain(limit=40) >= 1
 
     _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "not-beta"})
     candidate_response = client.post(
         "/api/v1/experiments",
-        json={
-            "name": "candidate",
-            "spec": {
-                "dataset_version_id": dataset_version_id,
-                "published_agent_id": "basic",
-                "model_config": {"model": "gpt-5.4-mini", "temperature": 0},
-                "prompt_config": {"prompt_version": "2026-03"},
-                "toolset_config": {"tools": [], "metadata": {}},
-                "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
-                "executor_config": {
-                    "backend": "local-runner",
-                    "timeout_seconds": 600,
-                    "max_steps": 32,
-                    "concurrency": 1,
-                    "resources": {},
-                    "tracing_backend": "phoenix",
-                    "artifact_path": None,
-                    "metadata": {},
-                },
-                "tags": ["candidate"],
-            },
-        },
+        json=_experiment_payload(
+            name="candidate",
+            dataset_version_id=dataset_version_id,
+            tags=["candidate"],
+            runner_mode="in-process",
+        ),
     )
     assert candidate_response.status_code == 201
     candidate_experiment_id = candidate_response.json()["experiment_id"]
     assert client.post(f"/api/v1/experiments/{candidate_experiment_id}/start").status_code == 200
-    assert worker_drain(limit=20) >= 1
+    assert worker_drain(limit=40) >= 1
 
     export_response = client.post(
         "/api/v1/exports",

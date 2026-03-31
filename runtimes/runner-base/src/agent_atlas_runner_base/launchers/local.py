@@ -45,7 +45,9 @@ class LocalLauncher:
         elif self.workspace_root is not None:
             base_dir = self.workspace_root
         else:
-            base_dir = Path(tempfile.mkdtemp(prefix=f"agent-atlas-run-{str(payload.run_id)[:8]}-"))
+            base_dir = Path(
+                tempfile.mkdtemp(prefix=f"agent-atlas-run-{str(payload.run_id)[:8]}-")
+            )
 
         attempt_suffix = str(payload.attempt_id or payload.attempt)
         return base_dir / str(payload.run_id) / attempt_suffix
@@ -56,15 +58,22 @@ class LocalLauncher:
         work_dir: Path,
     ) -> RunnerBootstrapPaths:
         return RunnerBootstrapPaths(
-            run_spec_path=str(LocalLauncher._local_path(work_dir, bootstrap.run_spec_path)),
+            run_spec_path=str(
+                LocalLauncher._local_path(work_dir, bootstrap.run_spec_path)
+            ),
             events_path=str(LocalLauncher._local_path(work_dir, bootstrap.events_path)),
+            runtime_result_path=str(
+                LocalLauncher._local_path(work_dir, bootstrap.runtime_result_path)
+            ),
             terminal_result_path=str(
                 LocalLauncher._local_path(work_dir, bootstrap.terminal_result_path)
             ),
             artifact_manifest_path=str(
                 LocalLauncher._local_path(work_dir, bootstrap.artifact_manifest_path)
             ),
-            artifact_dir=str(LocalLauncher._local_path(work_dir, bootstrap.artifact_dir)),
+            artifact_dir=str(
+                LocalLauncher._local_path(work_dir, bootstrap.artifact_dir)
+            ),
         )
 
     @staticmethod
@@ -76,6 +85,7 @@ class LocalLauncher:
     def _ensure_directories(bootstrap: RunnerBootstrapPaths) -> None:
         Path(bootstrap.run_spec_path).parent.mkdir(parents=True, exist_ok=True)
         Path(bootstrap.events_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(bootstrap.runtime_result_path).parent.mkdir(parents=True, exist_ok=True)
         Path(bootstrap.terminal_result_path).parent.mkdir(parents=True, exist_ok=True)
         Path(bootstrap.artifact_manifest_path).parent.mkdir(parents=True, exist_ok=True)
         Path(bootstrap.artifact_dir).mkdir(parents=True, exist_ok=True)

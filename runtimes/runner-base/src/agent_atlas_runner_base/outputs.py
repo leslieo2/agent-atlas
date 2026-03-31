@@ -16,12 +16,14 @@ from agent_atlas_contracts.execution import (
     RunnerRunSpec,
     TerminalResult,
 )
+from agent_atlas_contracts.runtime import RuntimeExecutionResult
 
 
 @dataclass(frozen=True)
 class RunnerOutputFiles:
     run_spec_path: Path
     events_path: Path
+    runtime_result_path: Path
     terminal_result_path: Path
     artifact_manifest_path: Path
     artifact_dir: Path
@@ -33,6 +35,7 @@ class RunnerOutputWriter:
         self.files = RunnerOutputFiles(
             run_spec_path=Path(bootstrap.run_spec_path),
             events_path=Path(bootstrap.events_path),
+            runtime_result_path=Path(bootstrap.runtime_result_path),
             terminal_result_path=Path(bootstrap.terminal_result_path),
             artifact_manifest_path=Path(bootstrap.artifact_manifest_path),
             artifact_dir=Path(bootstrap.artifact_dir),
@@ -50,8 +53,16 @@ class RunnerOutputWriter:
         source = dict(os.environ if environ is None else environ)
         return cls(
             RunnerBootstrapPaths(
-                run_spec_path=source.get("ATLAS_RUNSPEC_PATH", "/workspace/input/run_spec.json"),
-                events_path=source.get("ATLAS_EVENTS_PATH", "/workspace/output/events.ndjson"),
+                run_spec_path=source.get(
+                    "ATLAS_RUNSPEC_PATH", "/workspace/input/run_spec.json"
+                ),
+                events_path=source.get(
+                    "ATLAS_EVENTS_PATH", "/workspace/output/events.ndjson"
+                ),
+                runtime_result_path=source.get(
+                    "ATLAS_RUNTIME_RESULT_PATH",
+                    "/workspace/output/runtime_result.json",
+                ),
                 terminal_result_path=source.get(
                     "ATLAS_TERMINAL_RESULT_PATH",
                     "/workspace/output/terminal_result.json",
@@ -60,13 +71,16 @@ class RunnerOutputWriter:
                     "ATLAS_ARTIFACT_MANIFEST_PATH",
                     "/workspace/output/artifact_manifest.json",
                 ),
-                artifact_dir=source.get("ATLAS_ARTIFACT_DIR", "/workspace/output/artifacts"),
+                artifact_dir=source.get(
+                    "ATLAS_ARTIFACT_DIR", "/workspace/output/artifacts"
+                ),
             )
         )
 
     def ensure_directories(self) -> None:
         self.files.run_spec_path.parent.mkdir(parents=True, exist_ok=True)
         self.files.events_path.parent.mkdir(parents=True, exist_ok=True)
+        self.files.runtime_result_path.parent.mkdir(parents=True, exist_ok=True)
         self.files.terminal_result_path.parent.mkdir(parents=True, exist_ok=True)
         self.files.artifact_manifest_path.parent.mkdir(parents=True, exist_ok=True)
         self.files.artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -80,11 +94,20 @@ class RunnerOutputWriter:
         self.ensure_directories()
         rows = [event.model_dump(mode="json") for event in events]
         content = "\n".join(json.dumps(row, ensure_ascii=False) for row in rows)
-        self.files.events_path.write_text(content + ("\n" if rows else ""), encoding="utf-8")
+        self.files.events_path.write_text(
+            content + ("\n" if rows else ""), encoding="utf-8"
+        )
 
     def write_terminal_result(self, result: TerminalResult) -> None:
         self.ensure_directories()
         self.files.terminal_result_path.write_text(
+            json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    def write_runtime_result(self, result: RuntimeExecutionResult) -> None:
+        self.ensure_directories()
+        self.files.runtime_result_path.write_text(
             json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
@@ -144,7 +167,9 @@ class RunnerOutputWriter:
         resolved = path.resolve()
         artifact_root = self.files.artifact_dir.resolve()
         if not resolved.is_relative_to(artifact_root):
-            raise ValueError("artifact path must stay within the configured artifact directory")
+            raise ValueError(
+                "artifact path must stay within the configured artifact directory"
+            )
 
         manifest_path = relative_path or str(resolved.relative_to(artifact_root))
         detected_media_type = media_type or mimetypes.guess_type(resolved.name)[0]
@@ -164,7 +189,9 @@ class RunnerOutputWriter:
         resolved = candidate.resolve()
         artifact_root = self.files.artifact_dir.resolve()
         if not resolved.is_relative_to(artifact_root):
-            raise ValueError("artifact path must stay within the configured artifact directory")
+            raise ValueError(
+                "artifact path must stay within the configured artifact directory"
+            )
         return resolved
 
 

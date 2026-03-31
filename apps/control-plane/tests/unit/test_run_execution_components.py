@@ -12,7 +12,7 @@ from app.agent_tracing.application import (
     TraceSpanRecorder,
     TrajectoryRecorder,
 )
-from app.core.errors import ProviderAuthError
+from app.core.errors import AgentFrameworkMismatchError, ProviderAuthError
 from app.data_plane.adapters.trajectory_projector import TraceEventTrajectoryProjector
 from app.execution.application import (
     ExecutionRecorder,
@@ -380,6 +380,71 @@ def test_run_execution_service_records_structured_failure_details():
     assert run.termination_reason == "provider authentication failed"
     assert len(steps) == 1
     assert steps[0].output == "live execution failed: provider authentication failed"
+
+
+def test_run_execution_service_normalizes_framework_mismatch_as_agent_load():
+    run_id = uuid4()
+    run_repository = StateRunRepository()
+    trajectory_repository = StateTrajectoryRepository()
+    trace_repository = StateTraceRepository()
+
+    run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="framework mismatch",
+            project="control-plane",
+            dataset="crm-v2",
+            agent_id="basic",
+            model="gpt-5.4-mini",
+            entrypoint="app.agent_plugins.basic:build_agent",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            status=RunStatus.QUEUED,
+        )
+    )
+
+    class ExplodingPublishedRuntime:
+        def execute(self, *_args, **_kwargs):
+            raise AgentFrameworkMismatchError(
+                "framework mismatch",
+                agent_id="basic",
+                expected_framework="openai-agents-sdk",
+                actual_framework="langgraph",
+            )
+
+    from app.execution.application import RunExecutionService
+
+    service = RunExecutionService(
+        artifact_resolver=_FixedArtifactResolver(),
+        runner=ExplodingPublishedRuntime(),
+        sink=RunExecutionStateSink(
+            run_repository=run_repository,
+            observation_sink=_build_telemetry_ingestor(
+                run_repository=run_repository,
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
+        ),
+    )
+
+    payload = RunSpec(
+        project="control-plane",
+        dataset="crm-v2",
+        agent_id="basic",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.basic:build_agent",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        input_summary="framework mismatch",
+        prompt="Trigger a framework mismatch.",
+    )
+
+    service.execute_run(run_id, payload)
+
+    run = run_repository.get(run_id)
+
+    assert run is not None
+    assert run.status == RunStatus.FAILED
+    assert run.error_code == "agent_load"
+    assert run.error_message == "framework mismatch"
 
 
 def test_run_execution_service_marks_failed_runs_from_failed_trace_events():

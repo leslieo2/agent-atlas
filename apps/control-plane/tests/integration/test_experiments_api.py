@@ -43,7 +43,21 @@ def _experiment_payload(
     dataset_version_id: str,
     tags: list[str],
     executor_backend: str = "local-runner",
+    runner_mode: str | None = None,
 ) -> dict[str, object]:
+    executor_config = {
+        "backend": executor_backend,
+        "timeout_seconds": 600,
+        "max_steps": 32,
+        "concurrency": 1,
+        "resources": {},
+        "tracing_backend": "phoenix",
+        "artifact_path": None,
+        "metadata": {},
+    }
+    if runner_mode is not None:
+        executor_config["metadata"]["runner_mode"] = runner_mode
+
     return {
         "name": name,
         "spec": {
@@ -64,16 +78,7 @@ def _experiment_payload(
                 "scoring_mode": "exact_match",
                 "metadata": {},
             },
-            "executor_config": {
-                "backend": executor_backend,
-                "timeout_seconds": 600,
-                "max_steps": 32,
-                "concurrency": 1,
-                "resources": {},
-                "tracing_backend": "phoenix",
-                "artifact_path": None,
-                "metadata": {},
-            },
+            "executor_config": executor_config,
             "tags": tags,
         },
     }
@@ -123,6 +128,7 @@ def test_experiments_api_supports_compare_and_run_curation(
             name="baseline",
             dataset_version_id=dataset_version_id,
             tags=["baseline"],
+            runner_mode="in-process",
         ),
     )
     assert baseline_response.status_code == 201
@@ -138,6 +144,7 @@ def test_experiments_api_supports_compare_and_run_curation(
             name="candidate",
             dataset_version_id=dataset_version_id,
             tags=["candidate"],
+            runner_mode="in-process",
         ),
     )
     assert candidate_response.status_code == 201

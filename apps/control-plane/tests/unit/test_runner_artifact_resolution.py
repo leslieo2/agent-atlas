@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-from agent_atlas_contracts.execution import ExecutionArtifact, ExecutionHandoff, RunnerRunSpec
+from agent_atlas_contracts.execution import ExecutionArtifact, ExecutionHandoff
 from app.core.errors import AgentLoadFailedError
 from app.execution.adapters import (
     LocalProcessRunner,
@@ -12,8 +12,7 @@ from app.execution.adapters import (
     runner_run_spec_from_handoff,
 )
 from app.modules.agents.domain.models import AgentManifest, PublishedAgent
-from app.modules.runs.application.results import PublishedRunExecutionResult
-from app.modules.runs.domain.models import RunSpec, RuntimeExecutionResult
+from app.modules.runs.domain.models import RunSpec
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import ProvenanceMetadata
 
@@ -167,21 +166,6 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
 
 def test_local_process_runner_stamps_runner_backend() -> None:
     run_id = uuid4()
-    captured: dict[str, RunnerRunSpec] = {}
-
-    class StubPublishedRuntime:
-        def execute_published(self, run_id_value, payload):
-            captured["payload"] = payload
-            assert run_id_value == run_id
-            return PublishedRunExecutionResult(
-                runtime_result=RuntimeExecutionResult(
-                    output="ok",
-                    latency_ms=5,
-                    token_usage=8,
-                    provider="openai-agents-sdk",
-                )
-            )
-
     handoff = ExecutionHandoff(
         run_id=run_id,
         runner_backend="local-process",
@@ -211,16 +195,12 @@ def test_local_process_runner_stamps_runner_backend() -> None:
         },
     )
 
-    result = LocalProcessRunner(published_runtime=StubPublishedRuntime()).execute(handoff)
+    result = LocalProcessRunner().execute(handoff)
 
     assert result.runner_backend == "local-process"
     assert result.artifact_ref == "source://basic@fingerprint-123"
-    assert result.execution.runtime_result.output == "ok"
-    assert captured["payload"].attempt == 3
-    assert captured["payload"].attempt_id == handoff.attempt_id
-    assert captured["payload"].agent_type == AdapterKind.OPENAI_AGENTS.value
-    assert (
-        captured["payload"]
-        .bootstrap.as_environment()["ATLAS_RUNSPEC_PATH"]
-        .endswith("run_spec.json")
-    )
+    assert result.execution.runtime_result.output
+    assert result.execution.runtime_result.provider in {"mock", "openai-agents-sdk"}
+    assert result.execution.terminal_result is not None
+    assert result.execution.terminal_result.attempt == 3
+    assert result.execution.terminal_result.attempt_id == handoff.attempt_id

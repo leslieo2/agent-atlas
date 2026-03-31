@@ -12,12 +12,12 @@ from app.execution.contracts import (
     RunHandle,
     RunStatusSnapshot,
 )
-from app.modules.runs.application.results import RunnerExecutionResult
 from app.modules.runs.domain.models import RunSpec
 from app.modules.shared.domain.enums import RunStatus
 
 if TYPE_CHECKING:
     from app.execution.application.service import ProjectedExecutionRecord, RunFailureDetails
+    from app.modules.runs.application.results import RunnerExecutionResult
 
 
 @dataclass(frozen=True)

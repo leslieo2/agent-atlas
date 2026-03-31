@@ -24,7 +24,9 @@ def test_runner_bootstrap_paths_render_env_and_args():
 
     assert env["ATLAS_RUNSPEC_PATH"].endswith("run_spec.json")
     assert env["ATLAS_EVENTS_PATH"].endswith("events.ndjson")
+    assert env["ATLAS_RUNTIME_RESULT_PATH"].endswith("runtime_result.json")
     assert "--run-spec" in args
+    assert "--runtime-result" in args
     assert "--artifact-dir" in args
 
 
