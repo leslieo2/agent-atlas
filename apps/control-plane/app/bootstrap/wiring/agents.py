@@ -21,10 +21,10 @@ class AgentModuleBundle:
 
 def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     def agent_exists(agent_id: str) -> bool:
-        return infra.runnable_agent_catalog.get_agent(agent_id) is not None
+        return infra.published_agent_catalog.get_agent(agent_id) is not None
 
     published_agent_catalog_queries = PublishedAgentCatalogQueries(
-        published_agents=infra.published_agent_repository
+        published_agents=infra.published_agent_catalog
     )
     agent_discovery_queries = AgentDiscoveryQueries(
         discovery=infra.agent_discovery,
@@ -33,7 +33,6 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     agent_publication_commands = AgentPublicationCommands(
         discovery=infra.agent_discovery,
         published_agents=infra.published_agent_repository,
-        artifact_builder=infra.artifact_builder,
     )
 
     return AgentModuleBundle(

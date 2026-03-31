@@ -31,6 +31,11 @@ def list_published_agents(
         return [AgentDescriptorResponse.from_domain(agent) for agent in queries.list_agents()]
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "agent_descriptor_invalid", "message": str(exc)},
+        ) from exc
 
 
 @router.get("/discovered", response_model=list[DiscoveredAgentResponse])
@@ -41,6 +46,11 @@ def list_discovered_agents(
         return [DiscoveredAgentResponse.from_domain(agent) for agent in queries.list_agents()]
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "agent_descriptor_invalid", "message": str(exc)},
+        ) from exc
 
 
 @router.post("/{agent_id}/publish", response_model=AgentDescriptorResponse)
@@ -52,6 +62,11 @@ def publish_agent(
         return AgentDescriptorResponse.from_domain(commands.publish(agent_id))
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "agent_descriptor_invalid", "message": str(exc)},
+        ) from exc
 
 
 @router.post("/{agent_id}/unpublish", response_model=AgentPublicationResponse)

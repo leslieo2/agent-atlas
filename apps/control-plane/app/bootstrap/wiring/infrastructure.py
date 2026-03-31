@@ -31,9 +31,8 @@ from app.execution.application.ports import (
 from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
-    StateRunnableAgentCatalog,
+    StatePublishedAgentCatalog,
 )
-from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.infrastructure.adapters.framework_registry import (
     FrameworkRegistry,
     PublishedAgentExecutionDispatcher,
@@ -48,8 +47,8 @@ from app.infrastructure.repositories import (
     StateSystemStatus,
 )
 from app.modules.agents.application.ports import (
-    ArtifactBuilderPort,
     FrameworkRegistryPort,
+    PublishedAgentCatalogPort,
     PublishedAgentExecutionPort,
 )
 from app.modules.datasets.adapters.outbound.persistence.state import StateDatasetRepository
@@ -99,9 +98,8 @@ class InfrastructureBundle:
     agent_source_catalog: FilesystemAgentSourceCatalog
     framework_registry: FrameworkRegistryPort
     published_execution_dispatcher: PublishedAgentExecutionPort
-    artifact_builder: ArtifactBuilderPort
     agent_discovery: FilesystemAgentDiscovery
-    runnable_agent_catalog: StateRunnableAgentCatalog
+    published_agent_catalog: PublishedAgentCatalogPort
     tracing: TracingInfrastructure
     execution: ExecutionInfrastructure
 
@@ -121,14 +119,13 @@ def build_infrastructure() -> InfrastructureBundle:
     framework_plugins = discover_framework_plugins()
     framework_registry = FrameworkRegistry(plugins=framework_plugins)
     published_execution_dispatcher = PublishedAgentExecutionDispatcher(plugins=framework_plugins)
-    artifact_builder = SourceArtifactBuilder(default_trace_backend=settings.trace_backend.value)
     agent_discovery = FilesystemAgentDiscovery(
         source_catalog=agent_source_catalog,
         validator=framework_registry,
     )
-    runnable_agent_catalog = StateRunnableAgentCatalog(
-        discovery=agent_discovery,
+    published_agent_catalog = StatePublishedAgentCatalog(
         published_agents=published_agent_repository,
+        discovery=agent_discovery,
     )
     task_queue = StateTaskQueue()
     model_runtime = ModelRuntimeService(
@@ -247,9 +244,8 @@ def build_infrastructure() -> InfrastructureBundle:
         agent_source_catalog=agent_source_catalog,
         framework_registry=framework_registry,
         published_execution_dispatcher=published_execution_dispatcher,
-        artifact_builder=artifact_builder,
         agent_discovery=agent_discovery,
-        runnable_agent_catalog=runnable_agent_catalog,
+        published_agent_catalog=published_agent_catalog,
         tracing=tracing,
         execution=execution,
     )

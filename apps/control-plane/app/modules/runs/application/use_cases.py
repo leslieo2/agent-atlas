@@ -6,7 +6,7 @@ from uuid import UUID
 from app.core.errors import AgentNotPublishedError
 from app.execution.application.ports import ExecutionControlPort
 from app.execution.contracts import CancelRequest
-from app.modules.agents.application.ports import RunnableAgentCatalogPort
+from app.modules.agents.application.ports import PublishedAgentCatalogPort
 from app.modules.runs.application.ports import (
     RunRepository,
     TraceBackendPort,
@@ -88,7 +88,7 @@ class RunCommands:
     def __init__(
         self,
         run_repository: RunRepository,
-        agent_catalog: RunnableAgentCatalogPort,
+        agent_catalog: PublishedAgentCatalogPort,
         submission_service: RunSubmissionService,
         execution_control: ExecutionControlPort,
     ) -> None:

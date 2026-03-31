@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from app.core.errors import (
-    AgentFrameworkMismatchError,
     AgentLoadFailedError,
     UnsupportedOperationError,
 )
@@ -14,70 +15,57 @@ from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.models import ExecutorConfig, ProvenanceMetadata
 
 
+def _deep_merge_values(base: object, override: object) -> object:
+    if isinstance(base, Mapping) and isinstance(override, Mapping):
+        merged = dict(base)
+        for key, value in override.items():
+            if key in merged:
+                merged[key] = _deep_merge_values(merged[key], value)
+            else:
+                merged[key] = value
+        return merged
+    return override
+
+
 def _resolve_submission_agent(agent: PublishedAgent) -> PublishedAgent:
-    provenance = agent.provenance
-    snapshot = provenance.published_agent_snapshot if provenance else None
-    if snapshot is None:
-        return agent
-
     try:
-        published_snapshot = PublishedAgent.model_validate(snapshot)
-    except Exception as exc:
-        raise AgentLoadFailedError(
-            "published agent is missing a valid snapshot",
-            agent_id=agent.agent_id,
-        ) from exc
+        agent.source_fingerprint_or_raise()
+        agent.execution_reference_or_raise()
+    except ValueError as exc:
+        raise AgentLoadFailedError(str(exc), agent_id=agent.agent_id) from exc
 
-    if published_snapshot.agent_id != agent.agent_id:
-        raise AgentFrameworkMismatchError(
-            "published agent snapshot does not match the stored agent identifier",
-            agent_id=agent.agent_id,
-            snapshot_agent_id=published_snapshot.agent_id,
-        )
-
-    if published_snapshot.framework != agent.framework:
-        raise AgentFrameworkMismatchError(
-            "published agent snapshot framework does not match stored agent metadata",
-            agent_id=agent.agent_id,
-            expected_framework=published_snapshot.framework,
-            actual_framework=agent.framework,
-        )
-
-    if provenance and provenance.framework and provenance.framework != published_snapshot.framework:
-        raise AgentFrameworkMismatchError(
-            "published agent provenance framework does not match the published snapshot",
-            agent_id=agent.agent_id,
-            expected_framework=published_snapshot.framework,
-            actual_framework=provenance.framework,
-        )
-
-    return published_snapshot
+    return agent
 
 
 def _resolved_submission_provenance(
-    agent: PublishedAgent,
     effective_agent: PublishedAgent,
     *,
     trace_backend: str,
 ) -> ProvenanceMetadata:
     try:
-        runtime_artifact = agent.runtime_artifact_or_raise()
+        source_fingerprint = effective_agent.source_fingerprint_or_raise()
+        execution_reference = effective_agent.execution_reference_or_raise()
     except ValueError as exc:
         raise AgentLoadFailedError(
             str(exc),
-            agent_id=agent.agent_id,
+            agent_id=effective_agent.agent_id,
         ) from exc
-    provenance = (
-        agent.provenance.model_copy(deep=True) if agent.provenance else ProvenanceMetadata()
-    )
     snapshot = effective_agent.model_copy(
-        update={"runtime_artifact": runtime_artifact},
+        update={
+            "source_fingerprint": source_fingerprint,
+            "execution_reference": execution_reference,
+            "default_runtime_profile": effective_agent.default_runtime_profile.model_copy(
+                deep=True
+            ),
+        },
         deep=True,
     ).to_snapshot()
-    provenance.framework = runtime_artifact.framework or effective_agent.framework
+    provenance = ProvenanceMetadata()
+    provenance.framework = effective_agent.framework
+    provenance.framework_version = effective_agent.framework_version
     provenance.published_agent_snapshot = snapshot
-    provenance.artifact_ref = runtime_artifact.artifact_ref
-    provenance.image_ref = runtime_artifact.image_ref
+    provenance.artifact_ref = execution_reference.artifact_ref
+    provenance.image_ref = execution_reference.image_ref
     provenance.trace_backend = trace_backend
     return provenance
 
@@ -85,21 +73,37 @@ def _resolved_submission_provenance(
 def _resolve_executor_config(
     payload: RunCreateInput,
     *,
+    default_runtime_profile: ExecutorConfig,
     default_trace_backend: str,
     default_k8s_runner_image: str | None,
 ) -> tuple[ExecutorConfig, str]:
+    executor_config = default_runtime_profile.model_copy(deep=True)
+    if "executor_config" in payload.model_fields_set:
+        merged_config = _deep_merge_values(
+            executor_config.model_dump(mode="python"),
+            payload.executor_config.model_dump(mode="python", exclude_unset=True),
+        )
+        executor_config = ExecutorConfig.model_validate(merged_config)
     explicit_tracing_backend = (
         payload.executor_config.tracing_backend
-        if "tracing_backend" in payload.executor_config.model_fields_set
+        if (
+            "executor_config" in payload.model_fields_set
+            and "tracing_backend" in payload.executor_config.model_fields_set
+        )
         else None
     )
-    trace_backend = explicit_tracing_backend or default_trace_backend
-    executor_config = payload.executor_config.model_copy(
+    profile_tracing_backend = (
+        executor_config.tracing_backend
+        if "tracing_backend" in default_runtime_profile.model_fields_set
+        else None
+    )
+    trace_backend = explicit_tracing_backend or profile_tracing_backend or default_trace_backend
+    resolved_executor_config = executor_config.model_copy(
         update={"tracing_backend": trace_backend},
         deep=True,
     )
     return _with_k8s_runner_defaults(
-        executor_config,
+        resolved_executor_config,
         default_k8s_runner_image=default_k8s_runner_image,
     ), trace_backend
 
@@ -167,11 +171,11 @@ class RunSubmissionService:
         effective_agent = _resolve_submission_agent(agent)
         executor_config, trace_backend = _resolve_executor_config(
             payload,
+            default_runtime_profile=effective_agent.default_runtime_profile,
             default_trace_backend=self.default_trace_backend,
             default_k8s_runner_image=self.default_k8s_runner_image,
         )
         provenance = _resolved_submission_provenance(
-            agent,
             effective_agent,
             trace_backend=trace_backend,
         )

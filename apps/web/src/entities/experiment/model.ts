@@ -17,7 +17,7 @@ export interface ExperimentRecord {
   status: ExperimentStatus;
   tags: string[];
   scoringMode: ScoringMode;
-  executorBackend: string;
+  executorBackend?: string | null;
   sampleCount: number;
   completedCount: number;
   passedCount: number;
@@ -91,11 +91,6 @@ export interface CreateExperimentInput {
   publishedAgentId: string;
   model: string;
   scoringMode?: ScoringMode;
-  executorBackend?: string;
-  runnerImage?: string | null;
-  timeoutSeconds?: number;
-  maxSteps?: number;
-  concurrency?: number;
   promptTemplate?: string | null;
   systemPrompt?: string | null;
   promptVersion?: string | null;

@@ -40,17 +40,6 @@ export async function createExperiment(payload: CreateExperimentInput) {
         scoring_mode: payload.scoringMode ?? "exact_match",
         metadata: {}
       },
-      executor_config: {
-        backend: payload.executorBackend ?? "k8s-job",
-        runner_image: payload.runnerImage ?? null,
-        timeout_seconds: payload.timeoutSeconds ?? 600,
-        max_steps: payload.maxSteps ?? 32,
-        concurrency: payload.concurrency ?? 1,
-        resources: {},
-        tracing_backend: "phoenix",
-        artifact_path: null,
-        metadata: {}
-      },
       approval_policy_id: payload.approvalPolicyId ?? null,
       tags: payload.tags ?? []
     }

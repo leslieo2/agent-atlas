@@ -2,6 +2,7 @@
 
 import { ArrowUpRight, Download, Radar, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { DiscoveredAgentRecord } from "@/src/entities/agent/model";
 import { useDiscoveredAgentsQuery } from "@/src/entities/agent/query";
 import { useDatasetsQuery } from "@/src/entities/dataset/query";
 import { getExportDownloadUrl } from "@/src/entities/export/api";
@@ -126,12 +127,23 @@ function experimentLabel(record: ExperimentRecord) {
   return `${record.name} · ${record.publishedAgentId}`;
 }
 
+function runtimeProfileLabel(
+  runtimeProfile?: { backend?: string; runner_image?: string | null } | null
+) {
+  if (!runtimeProfile?.backend) {
+    return "published snapshot default";
+  }
+  return runtimeProfile.runner_image
+    ? `${runtimeProfile.backend} · ${runtimeProfile.runner_image}`
+    : runtimeProfile.backend;
+}
+
 export default function ExperimentsWorkspace({
   initialAgentId = "",
   initialDatasetVersionId = "",
   initialExperimentId = ""
 }: Props) {
-  const agentsQuery = useDiscoveredAgentsQuery();
+  const discoveredAgentsQuery = useDiscoveredAgentsQuery();
   const datasetsQuery = useDatasetsQuery();
   const policiesQuery = usePoliciesQuery();
   const experimentsQuery = useExperimentsQuery();
@@ -142,10 +154,13 @@ export default function ExperimentsWorkspace({
 
   const agents = useMemo(
     () =>
-      (agentsQuery.data ?? []).filter(
-        (agent) => agent.publishState === "published" && agent.validationStatus === "valid"
+      (discoveredAgentsQuery.data ?? []).filter(
+        (agent): agent is DiscoveredAgentRecord =>
+          agent.publishState === "published" &&
+          agent.validationStatus === "valid" &&
+          !agent.hasUnpublishedChanges
       ),
-    [agentsQuery.data]
+    [discoveredAgentsQuery.data]
   );
   const datasets = useMemo(() => datasetsQuery.data ?? [], [datasetsQuery.data]);
   const policies = useMemo(() => policiesQuery.data ?? [], [policiesQuery.data]);
@@ -166,7 +181,6 @@ export default function ExperimentsWorkspace({
   const [datasetVersionId, setDatasetVersionId] = useState(initialDatasetVersionId);
   const [model, setModel] = useState("gpt-5.4-mini");
   const [scoringMode, setScoringMode] = useState<ScoringMode>("exact_match");
-  const [executorBackend, setExecutorBackend] = useState("k8s-job");
   const [approvalPolicyId, setApprovalPolicyId] = useState("");
   const [tagsText, setTagsText] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -202,6 +216,10 @@ export default function ExperimentsWorkspace({
       ),
     [experiments, selectedExperiment]
   );
+  const selectedAgent = useMemo(
+    () => agents.find((agent) => agent.agentId === agentId) ?? null,
+    [agentId, agents]
+  );
 
   const filteredRuns = useMemo(
     () =>
@@ -235,7 +253,9 @@ export default function ExperimentsWorkspace({
 
   useEffect(() => {
     if (!agents.length) {
-      setAgentId("");
+      if (agentId) {
+        setAgentId("");
+      }
       return;
     }
     if (agentId && agents.some((agent) => agent.agentId === agentId)) {
@@ -280,7 +300,6 @@ export default function ExperimentsWorkspace({
       publishedAgentId: agentId,
       model,
       scoringMode,
-      executorBackend,
       approvalPolicyId: approvalPolicyId || null,
       systemPrompt,
       promptVersion: version?.version ?? "v1",
@@ -353,6 +372,13 @@ export default function ExperimentsWorkspace({
             <h3 className="panel-title">Bind agent, dataset version, executor, and policy</h3>
           </div>
         </div>
+        {discoveredAgentsQuery.isPending ? <Notice>Loading agents...</Notice> : null}
+        {!discoveredAgentsQuery.isPending && !agents.length ? (
+          <Notice>
+            No ready published agents are available. Publish a valid snapshot with no draft drift before creating an
+            experiment.
+          </Notice>
+        ) : null}
         <div className={styles.filtersGrid}>
           <Field label="Published agent" htmlFor="experiment-agent">
             <select id="experiment-agent" value={agentId} onChange={(event) => setAgentId(event.target.value)}>
@@ -389,16 +415,6 @@ export default function ExperimentsWorkspace({
               <option value="contains">contains</option>
             </select>
           </Field>
-          <Field label="Executor" htmlFor="experiment-executor">
-            <select
-              id="experiment-executor"
-              value={executorBackend}
-              onChange={(event) => setExecutorBackend(event.target.value)}
-            >
-              <option value="k8s-job">k8s-job</option>
-              <option value="local-runner">local-runner</option>
-            </select>
-          </Field>
           <Field label="Approval policy" htmlFor="experiment-policy">
             <select
               id="experiment-policy"
@@ -429,6 +445,10 @@ export default function ExperimentsWorkspace({
             />
           </Field>
         </div>
+        <p className="muted-note">
+          Runtime profile is inherited from the published snapshot:{" "}
+          {runtimeProfileLabel(selectedAgent?.defaultRuntimeProfile)}.
+        </p>
         <div className={styles.actions}>
           <Button onClick={() => void handleCreateExperiment()} disabled={createExperimentMutation.isPending}>
             <Radar size={14} /> {createExperimentMutation.isPending ? "Creating..." : "Create and start"}

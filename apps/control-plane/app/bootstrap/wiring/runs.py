@@ -62,7 +62,7 @@ def build_run_module(
     )
     run_commands = RunCommands(
         run_repository=infra.run_repository,
-        agent_catalog=infra.runnable_agent_catalog,
+        agent_catalog=infra.published_agent_catalog,
         submission_service=run_submission,
         execution_control=infra.execution.execution_control,
     )

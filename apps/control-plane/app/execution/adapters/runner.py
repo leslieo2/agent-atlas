@@ -80,20 +80,20 @@ class PublishedArtifactResolver:
                 agent_id=payload.agent_id,
             )
         try:
-            runtime_artifact = published_agent.runtime_artifact_or_raise()
+            source_fingerprint = published_agent.source_fingerprint_or_raise()
+            execution_reference = published_agent.execution_reference_or_raise()
         except ValueError as exc:
             raise AgentLoadFailedError(
                 str(exc),
                 agent_id=payload.agent_id,
             ) from exc
-        framework = provenance.framework or runtime_artifact.framework
-        entrypoint = runtime_artifact.entrypoint or published_agent.entrypoint or payload.entrypoint
-        artifact_ref = provenance.artifact_ref or runtime_artifact.artifact_ref
-        image_ref = provenance.image_ref or runtime_artifact.image_ref
-        source_fingerprint = runtime_artifact.source_fingerprint
+        framework = provenance.framework or published_agent.framework
+        entrypoint = published_agent.entrypoint or payload.entrypoint
+        artifact_ref = provenance.artifact_ref or execution_reference.artifact_ref
+        image_ref = provenance.image_ref or execution_reference.image_ref
         if artifact_ref is None and image_ref is None:
             raise AgentLoadFailedError(
-                "published agent snapshot is missing runtime artifact metadata",
+                "published agent snapshot is missing execution reference metadata",
                 agent_id=payload.agent_id,
                 framework=framework or "unknown",
             )

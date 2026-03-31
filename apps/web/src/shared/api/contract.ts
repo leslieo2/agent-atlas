@@ -13,8 +13,9 @@ export interface AgentDescriptorResponse {
   "tags": Array<string>;
   "capabilities": Array<string>;
   "published_at": string;
-  "runtime_artifact"?: RuntimeArtifactMetadata | null;
-  "provenance"?: ProvenanceMetadata | null;
+  "source_fingerprint": string;
+  "execution_reference": ExecutionReference;
+  "default_runtime_profile": ExecutorConfig;
 }
 export interface AgentPublicationResponse {
   "agent_id": string;
@@ -107,12 +108,17 @@ export interface DiscoveredAgentResponse {
   "published_at"?: string | null;
   "last_validated_at": string;
   "has_unpublished_changes": boolean;
-  "runtime_artifact"?: RuntimeArtifactMetadata | null;
-  "provenance"?: ProvenanceMetadata | null;
+  "source_fingerprint": string;
+  "execution_reference"?: ExecutionReference | null;
+  "default_runtime_profile": ExecutorConfig;
 }
 export interface EvaluatorConfig {
   "scoring_mode"?: ScoringMode;
   "metadata"?: Record<string, unknown>;
+}
+export interface ExecutionReference {
+  "artifact_ref"?: string | null;
+  "image_ref"?: string | null;
 }
 export interface ExecutorConfig {
   "backend": string;
@@ -206,7 +212,7 @@ export interface ExperimentSpec {
   "prompt_config"?: PromptConfig;
   "toolset_config"?: ToolsetConfig;
   "evaluator_config"?: EvaluatorConfig;
-  "executor_config": ExecutorConfig;
+  "executor_config"?: ExecutorConfig | null;
   "approval_policy_id"?: string | null;
   "approval_policy"?: ApprovalPolicySnapshot | null;
   "tags"?: Array<string>;
@@ -218,7 +224,7 @@ export interface ExperimentSpecRequest {
   "prompt_config"?: PromptConfig;
   "toolset_config"?: ToolsetConfig;
   "evaluator_config"?: EvaluatorConfig;
-  "executor_config": ExecutorConfig;
+  "executor_config"?: ExecutorConfig | null;
   "approval_policy_id"?: string | null;
   "tags"?: Array<string>;
 }
@@ -336,14 +342,6 @@ export interface RunResponse {
   "lease_expires_at"?: string | null;
 }
 export type RunStatus = "queued" | "starting" | "running" | "cancelling" | "succeeded" | "failed" | "cancelled" | "lost";
-export interface RuntimeArtifactMetadata {
-  "build_status"?: string | null;
-  "source_fingerprint"?: string | null;
-  "framework"?: string | null;
-  "entrypoint"?: string | null;
-  "artifact_ref"?: string | null;
-  "image_ref"?: string | null;
-}
 export type SampleJudgement = "passed" | "failed" | "unscored" | "runtime_error";
 export type ScoringMode = "exact_match" | "contains";
 export interface ToolPolicyRule {

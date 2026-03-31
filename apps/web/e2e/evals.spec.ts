@@ -21,8 +21,25 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
       published_at: "2026-03-24T00:00:00Z",
       last_validated_at: "2026-03-24T00:00:00Z",
       has_unpublished_changes: false,
-      runtime_artifact: null,
-      provenance: null
+      source_fingerprint: "basic-fingerprint-123456",
+      execution_reference: {
+        artifact_ref: "source://basic@basic-fingerprint-123456",
+        image_ref: null
+      },
+      default_runtime_profile: {
+        backend: "k8s-job",
+        runner_image: null,
+        timeout_seconds: 600,
+        max_steps: 32,
+        concurrency: 1,
+        resources: {
+          cpu: null,
+          memory: null
+        },
+        tracing_backend: "state",
+        artifact_path: null,
+        metadata: {}
+      }
     }
   ];
 

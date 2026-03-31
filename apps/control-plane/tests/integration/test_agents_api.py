@@ -78,8 +78,54 @@ def test_agents_api_lists_published_snapshots_even_when_not_discoverable(client)
     assert list_response.status_code == 200
     published = {item["agent_id"]: item for item in list_response.json()}
 
-    assert "archived-basic" in published
-    assert published["archived-basic"]["entrypoint"] == published_only.entrypoint
+    assert "archived-basic" not in published
+
+
+def test_agents_api_skips_legacy_published_rows_in_list_endpoints(client) -> None:
+    container = get_container()
+    published_agent = container.infrastructure.published_agent_repository.get_agent("basic")
+    assert published_agent is not None
+
+    legacy = published_agent.model_copy(
+        update={
+            "manifest": published_agent.manifest.model_copy(update={"agent_id": "legacy-basic"}),
+            "source_fingerprint": "",
+            "execution_reference": {"artifact_ref": None, "image_ref": None},
+        },
+        deep=True,
+    )
+    container.infrastructure.published_agent_repository.save_agent(legacy)
+
+    published_response = client.get("/api/v1/agents/published")
+    assert published_response.status_code == 200
+    published = {item["agent_id"]: item for item in published_response.json()}
+    assert "legacy-basic" not in published
+
+    discovered_response = client.get("/api/v1/agents/discovered")
+    assert discovered_response.status_code == 200
+    discovered = {item["agent_id"]: item for item in discovered_response.json()}
+    assert discovered["basic"]["publish_state"] == "published"
+
+
+def test_agents_api_treats_corrupt_matching_publication_as_unpublished_in_discovery(client) -> None:
+    container = get_container()
+    published_agent = container.infrastructure.published_agent_repository.get_agent("basic")
+    assert published_agent is not None
+
+    corrupted = published_agent.model_copy(
+        update={
+            "source_fingerprint": "",
+            "execution_reference": {"artifact_ref": None, "image_ref": None},
+        },
+        deep=True,
+    )
+    container.infrastructure.published_agent_repository.save_agent(corrupted)
+
+    discovered_response = client.get("/api/v1/agents/discovered")
+    assert discovered_response.status_code == 200
+    discovered = {item["agent_id"]: item for item in discovered_response.json()}
+    assert discovered["basic"]["publish_state"] == "draft"
+    assert discovered["basic"]["execution_reference"] is None
 
 
 def test_unpublish_returns_404_for_missing_published_agent(client) -> None:

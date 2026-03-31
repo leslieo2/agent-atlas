@@ -15,8 +15,8 @@ from app.infrastructure.adapters.agent_catalog import (
     AgentModuleSource,
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
+    StatePublishedAgentCatalog,
 )
-from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.infrastructure.adapters.framework_registry import (
     FrameworkPlugin,
     FrameworkRegistry,
@@ -32,22 +32,41 @@ from app.modules.agents.domain.models import (
     AgentManifest,
     AgentValidationStatus,
     DiscoveredAgent,
+    ExecutionReference,
     PublishedAgent,
+    compute_source_fingerprint,
 )
 from app.modules.shared.domain.enums import AdapterKind
-from app.modules.shared.domain.models import ProvenanceMetadata
+from app.modules.shared.domain.models import (
+    ProvenanceMetadata,
+    build_source_execution_reference,
+)
 
 
 def _artifact_for_agent(agent: PublishedAgent) -> ExecutionArtifact:
-    runtime_artifact = agent.runtime_artifact_or_raise()
+    source_fingerprint = agent.source_fingerprint_or_raise()
+    execution_reference = agent.execution_reference_or_raise()
     return ExecutionArtifact(
-        framework=runtime_artifact.framework,
-        entrypoint=runtime_artifact.entrypoint,
-        source_fingerprint=runtime_artifact.source_fingerprint,
-        artifact_ref=runtime_artifact.artifact_ref,
-        image_ref=runtime_artifact.image_ref,
+        framework=agent.framework,
+        entrypoint=agent.entrypoint,
+        source_fingerprint=source_fingerprint,
+        artifact_ref=execution_reference.artifact_ref,
+        image_ref=execution_reference.image_ref,
         published_agent_snapshot=agent.to_snapshot(),
     )
+
+
+def _seal_agent(agent: PublishedAgent) -> PublishedAgent:
+    source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
+    execution_reference = ExecutionReference.model_validate(
+        build_source_execution_reference(
+            agent_id=agent.agent_id,
+            source_fingerprint=source_fingerprint,
+        ).model_dump(mode="json")
+    )
+    agent.source_fingerprint = source_fingerprint
+    agent.execution_reference = execution_reference
+    return agent
 
 
 def test_source_catalog_discovers_builtin_agent_plugins() -> None:
@@ -160,6 +179,119 @@ def test_discovery_marks_duplicate_agent_ids_invalid() -> None:
         any(issue.code == "duplicate_agent_id" for issue in agent.validation_issues)
         for agent in discovered
     )
+
+
+def test_state_published_agent_catalog_excludes_drifted_or_undiscoverable_snapshots() -> None:
+    published_alpha = _seal_agent(
+        PublishedAgent(
+            manifest=AgentManifest(
+                agent_id="alpha",
+                name="Alpha",
+                description="Alpha agent",
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                default_model="gpt-5.4-mini",
+                tags=[],
+            ),
+            entrypoint="app.agent_plugins.alpha:build_agent",
+        )
+    )
+    published_ready = _seal_agent(
+        PublishedAgent(
+            manifest=AgentManifest(
+                agent_id="ready",
+                name="Ready",
+                description="Ready agent",
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                default_model="gpt-5.4-mini",
+                tags=[],
+            ),
+            entrypoint="app.agent_plugins.ready:build_agent",
+        )
+    )
+    published_drifted = _seal_agent(
+        PublishedAgent(
+            manifest=AgentManifest(
+                agent_id="drifted",
+                name="Drifted",
+                description="Drifted agent",
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                default_model="gpt-5.4-mini",
+                tags=[],
+            ),
+            entrypoint="app.agent_plugins.drifted:build_agent",
+        )
+    )
+    published_only = _seal_agent(
+        PublishedAgent(
+            manifest=AgentManifest(
+                agent_id="published-only",
+                name="Published Only",
+                description="Missing locally",
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                default_model="gpt-5.4-mini",
+                tags=[],
+            ),
+            entrypoint="app.agent_plugins.published_only:build_agent",
+        )
+    )
+
+    discovered_ready = DiscoveredAgent(
+        manifest=published_ready.manifest.model_copy(deep=True),
+        entrypoint=published_ready.entrypoint,
+        validation_status=AgentValidationStatus.VALID,
+    )
+    discovered_alpha = DiscoveredAgent(
+        manifest=published_alpha.manifest.model_copy(deep=True),
+        entrypoint=published_alpha.entrypoint,
+        validation_status=AgentValidationStatus.VALID,
+    )
+    discovered_drifted = DiscoveredAgent(
+        manifest=published_drifted.manifest.model_copy(update={"description": "Changed draft"}),
+        entrypoint=published_drifted.entrypoint,
+        validation_status=AgentValidationStatus.VALID,
+    )
+
+    class StubPublishedRepository:
+        def list_agents(self) -> list[PublishedAgent]:
+            return [published_ready, published_alpha, published_drifted, published_only]
+
+        def get_agent(self, agent_id: str) -> PublishedAgent | None:
+            return next(
+                (agent for agent in self.list_agents() if agent.agent_id == agent_id),
+                None,
+            )
+
+    class StubDiscovery:
+        def list_agents(self) -> list[DiscoveredAgent]:
+            return [discovered_ready, discovered_alpha, discovered_drifted]
+
+    catalog = StatePublishedAgentCatalog(
+        published_agents=StubPublishedRepository(),
+        discovery=StubDiscovery(),
+    )
+
+    assert [agent.agent_id for agent in catalog.list_agents()] == ["alpha", "ready"]
+    assert catalog.get_agent("ready") is not None
+    assert catalog.get_agent("drifted") is None
+    assert catalog.get_agent("published-only") is None
+
+
+def test_published_agent_rejects_blank_execution_reference_metadata() -> None:
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="blank-ref",
+            name="Blank Ref",
+            description="Invalid execution reference metadata.",
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            default_model="gpt-5.4-mini",
+            tags=[],
+        ),
+        entrypoint="app.agent_plugins.blank_ref:build_agent",
+        execution_reference=ExecutionReference(artifact_ref="   ", image_ref=""),
+    )
+
+    with pytest.raises(ValueError, match="missing execution reference metadata"):
+        agent.execution_reference_or_raise()
 
 
 def test_framework_registry_dispatches_discovery_by_manifest_framework(monkeypatch) -> None:
@@ -451,9 +583,7 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(published_agent)
-    published_agent.runtime_artifact = build_result.runtime_artifact
-    published_agent.provenance = build_result.provenance
+    published_agent = _seal_agent(published_agent)
     payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
@@ -538,9 +668,7 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(published_agent)
-    published_agent.runtime_artifact = build_result.runtime_artifact
-    published_agent.provenance = build_result.provenance
+    published_agent = _seal_agent(published_agent)
     payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",

@@ -5,14 +5,13 @@ from app.modules.shared.domain.enums import (
     StepType,
 )
 from app.modules.shared.domain.models import (
+    ExecutionReferenceMetadata,
     ProvenanceMetadata,
-    RuntimeArtifactBuildResult,
-    RuntimeArtifactMetadata,
     TraceTelemetryMetadata,
     TracingMetadata,
     TrajectoryStepRecord,
     build_source_artifact_ref,
-    build_source_runtime_artifact,
+    build_source_execution_reference,
     utc_now,
 )
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
@@ -20,10 +19,9 @@ from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 __all__ = [
     "AdapterKind",
     "ArtifactFormat",
+    "ExecutionReferenceMetadata",
     "ProvenanceMetadata",
     "RunStatus",
-    "RuntimeArtifactBuildResult",
-    "RuntimeArtifactMetadata",
     "StepType",
     "TraceIngestEvent",
     "TraceSpan",
@@ -31,6 +29,6 @@ __all__ = [
     "TracingMetadata",
     "TrajectoryStepRecord",
     "build_source_artifact_ref",
-    "build_source_runtime_artifact",
+    "build_source_execution_reference",
     "utc_now",
 ]

@@ -58,14 +58,12 @@ def test_runner_run_spec_can_be_built_from_execution_run_spec():
                     "tags": [],
                 },
                 "entrypoint": "app.agent_plugins.basic:build_agent",
-                "runtime_artifact": {
-                    "build_status": "ready",
-                    "source_fingerprint": "fingerprint",
-                    "framework": AdapterKind.OPENAI_AGENTS.value,
-                    "entrypoint": "app.agent_plugins.basic:build_agent",
+                "source_fingerprint": "fingerprint",
+                "execution_reference": {
                     "artifact_ref": "source://triage-bot@fingerprint",
                     "image_ref": None,
                 },
+                "default_runtime_profile": {"backend": "k8s-job"},
             },
             artifact_ref="source://triage-bot@fingerprint",
         ),

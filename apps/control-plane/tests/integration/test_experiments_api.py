@@ -214,3 +214,63 @@ def test_experiments_api_supports_compare_and_run_curation(
     run_detail = client.get(f"/api/v1/runs/{run_id}")
     assert run_detail.status_code == 200
     assert run_detail.json()["experiment_id"] == candidate_experiment_id
+
+
+def test_experiments_api_rejects_archived_published_snapshot_for_new_runs(client) -> None:
+    container = get_container()
+    published_agent = container.infrastructure.published_agent_repository.get_agent("basic")
+    assert published_agent is not None
+
+    archived = published_agent.model_copy(
+        update={
+            "manifest": published_agent.manifest.model_copy(update={"agent_id": "archived-basic"}),
+        },
+        deep=True,
+    )
+    container.infrastructure.published_agent_repository.save_agent(archived)
+
+    dataset_response = client.post(
+        "/api/v1/datasets",
+        json={
+            "name": "archived-agent-dataset",
+            "description": "Dataset for archived snapshot rejection",
+            "source": "crm",
+            "version": "2026-03",
+            "rows": [{"sample_id": "sample-1", "input": "alpha", "expected": "alpha"}],
+        },
+    )
+    assert dataset_response.status_code == 200
+    dataset_version_id = dataset_response.json()["current_version_id"]
+
+    response = client.post(
+        "/api/v1/experiments",
+        json={
+            "name": "archived-snapshot",
+            "spec": {
+                "dataset_version_id": dataset_version_id,
+                "published_agent_id": "archived-basic",
+                "model_settings": {"model": "gpt-5.4-mini", "temperature": 0},
+                "prompt_config": {"prompt_version": "2026-03"},
+                "toolset_config": {"tools": [], "metadata": {}},
+                "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
+                "executor_config": {
+                    "backend": "local-runner",
+                    "timeout_seconds": 600,
+                    "max_steps": 32,
+                    "concurrency": 1,
+                    "resources": {},
+                    "tracing_backend": "phoenix",
+                    "artifact_path": None,
+                    "metadata": {"runner_mode": "in-process"},
+                },
+                "tags": [],
+            },
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "agent_not_published",
+        "message": "agent_id 'archived-basic' is not published",
+        "agent_id": "archived-basic",
+    }

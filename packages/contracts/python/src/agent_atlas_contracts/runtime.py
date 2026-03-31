@@ -37,11 +37,7 @@ class StepType(str, Enum):
     MEMORY = "memory"
 
 
-class RuntimeArtifactMetadata(BaseModel):
-    build_status: str | None = None
-    source_fingerprint: str | None = None
-    framework: str | None = None
-    entrypoint: str | None = None
+class ExecutionReferenceMetadata(BaseModel):
     artifact_ref: str | None = None
     image_ref: str | None = None
 
@@ -70,7 +66,13 @@ class PublishedAgent(BaseModel):
     manifest: AgentManifest
     entrypoint: str
     published_at: datetime = Field(default_factory=utc_now)
-    runtime_artifact: RuntimeArtifactMetadata | None = None
+    source_fingerprint: str = ""
+    execution_reference: ExecutionReferenceMetadata = Field(
+        default_factory=ExecutionReferenceMetadata
+    )
+    default_runtime_profile: dict[str, Any] = Field(
+        default_factory=lambda: {"backend": "k8s-job"}
+    )
 
     @property
     def agent_id(self) -> str:
@@ -375,9 +377,9 @@ __all__ = [
     "AgentBuildContext",
     "AgentLoadFailedError",
     "AgentManifest",
+    "ExecutionReferenceMetadata",
     "PublishedAgent",
     "PublishedRunExecutionResult",
-    "RuntimeArtifactMetadata",
     "RuntimeExecutionResult",
     "StepType",
     "TraceIngestEvent",

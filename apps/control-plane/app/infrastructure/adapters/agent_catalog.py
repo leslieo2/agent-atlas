@@ -4,7 +4,10 @@ from importlib import import_module
 from pkgutil import iter_modules
 from typing import Protocol
 
-from app.modules.agents.application.ports import PublishedAgentRepositoryPort
+from app.modules.agents.application.ports import (
+    AgentSourceDiscoveryPort,
+    PublishedAgentRepositoryPort,
+)
 from app.modules.agents.domain.models import (
     AgentModuleSource,
     AgentValidationIssue,
@@ -84,37 +87,44 @@ class FilesystemAgentDiscovery:
         return sorted(discovered, key=lambda agent: agent.agent_id)
 
 
-class StateRunnableAgentCatalog:
+class StatePublishedAgentCatalog:
     def __init__(
         self,
-        discovery: FilesystemAgentDiscovery,
         published_agents: PublishedAgentRepositoryPort,
+        discovery: AgentSourceDiscoveryPort,
     ) -> None:
-        self.discovery = discovery
         self.published_agents = published_agents
+        self.discovery = discovery
 
     def list_agents(self) -> list[PublishedAgent]:
-        published_by_id = {agent.agent_id: agent for agent in self.published_agents.list_agents()}
-        runnable_ids = {
-            agent.agent_id
-            for agent in self.discovery.list_agents()
-            if agent.validation_status == AgentValidationStatus.VALID
-        }
-        return [
-            published_by_id[agent_id]
-            for agent_id in sorted(runnable_ids)
-            if agent_id in published_by_id
-        ]
+        eligible_by_id = self._eligible_published_by_id()
+        return sorted(
+            [
+                agent
+                for agent in self.published_agents.list_agents()
+                if agent.agent_id in eligible_by_id
+            ],
+            key=lambda agent: agent.agent_id,
+        )
 
     def get_agent(self, agent_id: str) -> PublishedAgent | None:
-        published = self.published_agents.get_agent(agent_id)
-        if published is None:
-            return None
+        return self._eligible_published_by_id().get(agent_id)
 
-        for discovered in self.discovery.list_agents():
-            if (
-                discovered.agent_id == agent_id
-                and discovered.validation_status == AgentValidationStatus.VALID
-            ):
-                return published
-        return None
+    def _eligible_published_by_id(self) -> dict[str, PublishedAgent]:
+        eligible: dict[str, PublishedAgent] = {}
+        published_by_id = {agent.agent_id: agent for agent in self.published_agents.list_agents()}
+        for discovered_agent in self.discovery.list_agents():
+            if discovered_agent.validation_status != AgentValidationStatus.VALID:
+                continue
+            published_agent = published_by_id.get(discovered_agent.agent_id)
+            if published_agent is None:
+                continue
+            try:
+                source_fingerprint = published_agent.source_fingerprint_or_raise()
+                published_agent.execution_reference_or_raise()
+            except ValueError:
+                continue
+            if discovered_agent.source_fingerprint() != source_fingerprint:
+                continue
+            eligible[published_agent.agent_id] = published_agent
+        return eligible

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import pytest
+from app.core.errors import UnsupportedOperationError
 from app.execution.adapters import (
     K8sJobExecutionAdapter,
     LocalWorkerExecutionAdapter,
@@ -10,6 +12,7 @@ from app.execution.contracts import CancelRequest, ExecutionRunSpec
 from app.modules.runs.domain.models import RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
+from app.modules.shared.domain.models import ProvenanceMetadata
 from app.modules.shared.domain.tasks import QueuedTask
 
 
@@ -126,6 +129,25 @@ def test_retry_run_resubmits_same_run_as_new_attempt() -> None:
             "status": RunStatus.FAILED,
             "executor_backend": "local-runner",
             "executor_submission_id": "local-ref",
+            "provenance": ProvenanceMetadata(
+                published_agent_snapshot={
+                    "manifest": {
+                        "agent_id": "basic",
+                        "name": "Basic",
+                        "description": "Basic agent",
+                        "framework": AdapterKind.OPENAI_AGENTS.value,
+                        "default_model": "gpt-5.4-mini",
+                        "tags": ["example"],
+                    },
+                    "entrypoint": "app.agent_plugins.basic:build_agent",
+                    "source_fingerprint": "fingerprint-123",
+                    "execution_reference": {
+                        "artifact_ref": "source://basic@fingerprint-123",
+                        "image_ref": None,
+                    },
+                    "default_runtime_profile": {"backend": "k8s-job"},
+                }
+            ),
             "latency_ms": 42,
             "token_cost": 9,
             "tool_calls": 1,
@@ -149,6 +171,73 @@ def test_retry_run_resubmits_same_run_as_new_attempt() -> None:
     assert updated.executor_submission_id == handle.executor_ref
     assert updated.latency_ms == 0
     assert updated.error_code is None
+
+
+def test_retry_run_rejects_legacy_publication_snapshot() -> None:
+    repository = StubRunRepository()
+    queue = StubTaskQueue()
+    adapter = LocalWorkerExecutionAdapter(task_queue=queue, run_repository=repository)
+    spec = _spec()
+    run = RunAggregate.create(spec).model_copy(
+        update={
+            "status": RunStatus.FAILED,
+            "executor_backend": "local-runner",
+            "executor_submission_id": "local-ref",
+            "provenance": ProvenanceMetadata(
+                published_agent_snapshot={
+                    "manifest": {
+                        "agent_id": "basic",
+                        "name": "Basic",
+                        "description": "Basic agent",
+                        "framework": AdapterKind.OPENAI_AGENTS.value,
+                        "default_model": "gpt-5.4-mini",
+                        "tags": ["example"],
+                    },
+                    "entrypoint": "app.agent_plugins.basic:build_agent",
+                    "runtime_artifact": {
+                        "build_status": "ready",
+                        "source_fingerprint": "fingerprint-123",
+                        "framework": AdapterKind.OPENAI_AGENTS.value,
+                        "entrypoint": "app.agent_plugins.basic:build_agent",
+                        "artifact_ref": "source://basic@fingerprint-123",
+                    },
+                }
+            ),
+        }
+    )
+    repository.save(run)
+
+    with pytest.raises(
+        UnsupportedOperationError,
+        match="run retry requires a sealed published agent snapshot",
+    ):
+        adapter.retry_run(run.run_id)
+
+    assert queue.enqueued == []
+
+
+def test_retry_run_rejects_missing_publication_provenance() -> None:
+    repository = StubRunRepository()
+    queue = StubTaskQueue()
+    adapter = LocalWorkerExecutionAdapter(task_queue=queue, run_repository=repository)
+    spec = _spec()
+    run = RunAggregate.create(spec).model_copy(
+        update={
+            "status": RunStatus.FAILED,
+            "executor_backend": "local-runner",
+            "executor_submission_id": "local-ref",
+            "provenance": None,
+        }
+    )
+    repository.save(run)
+
+    with pytest.raises(
+        UnsupportedOperationError,
+        match="run retry requires persisted provenance with a sealed published agent snapshot",
+    ):
+        adapter.retry_run(run.run_id)
+
+    assert queue.enqueued == []
 
 
 def test_k8s_execution_adapter_uses_launcher_job_name_for_executor_ref() -> None:

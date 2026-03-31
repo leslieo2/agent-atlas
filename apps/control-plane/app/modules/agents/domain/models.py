@@ -14,14 +14,20 @@ from agent_atlas_contracts.runtime import (
     AgentManifest as ContractAgentManifest,
 )
 from agent_atlas_contracts.runtime import (
+    ExecutionReferenceMetadata as ContractExecutionReferenceMetadata,
+)
+from agent_atlas_contracts.runtime import (
     PublishedAgent as ContractPublishedAgent,
 )
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import (
-    ProvenanceMetadata,
-    RuntimeArtifactMetadata,
+    ExecutionReferenceMetadata as SharedExecutionReferenceMetadata,
+)
+from app.modules.shared.domain.models import (
+    ExecutorConfig,
+    build_source_execution_reference,
 )
 
 
@@ -63,6 +69,10 @@ class AgentBuildContext(ContractAgentBuildContext):
     pass
 
 
+class ExecutionReference(ContractExecutionReferenceMetadata):
+    pass
+
+
 class AgentValidationStatus(str, Enum):
     VALID = "valid"
     INVALID = "invalid"
@@ -80,7 +90,10 @@ class AgentValidationIssue(BaseModel):
 
 class PublishedAgent(ContractPublishedAgent):
     manifest: AgentManifest
-    provenance: ProvenanceMetadata | None = None
+    execution_reference: ExecutionReference = Field(default_factory=ExecutionReference)
+    default_runtime_profile: ExecutorConfig = Field(  # type: ignore[assignment]
+        default_factory=lambda: ExecutorConfig(backend="k8s-job")
+    )
 
     @property
     def agent_id(self) -> str:
@@ -119,41 +132,44 @@ class PublishedAgent(ContractPublishedAgent):
     def adapter_kind(self) -> AdapterKind:
         return adapter_kind_for_framework(self.framework)
 
-    def runtime_artifact_or_raise(self) -> RuntimeArtifactMetadata:
-        if self.runtime_artifact is None:
-            raise ValueError(
-                f"published agent '{self.agent_id}' is missing runtime artifact metadata"
-            )
+    def source_fingerprint_or_raise(self) -> str:
+        fingerprint = self.source_fingerprint.strip()
+        if fingerprint:
+            return fingerprint
 
-        runtime_artifact = RuntimeArtifactMetadata.model_validate(
-            self.runtime_artifact.model_dump(mode="json")
+        raise ValueError(
+            f"published agent '{self.agent_id}' is missing source fingerprint metadata"
         )
-        required_fields = {
-            "build_status": runtime_artifact.build_status,
-            "source_fingerprint": runtime_artifact.source_fingerprint,
-            "framework": runtime_artifact.framework,
-            "entrypoint": runtime_artifact.entrypoint,
-        }
-        missing = [
-            name
-            for name, value in required_fields.items()
-            if not isinstance(value, str) or not value
-        ]
-        if runtime_artifact.artifact_ref is None and runtime_artifact.image_ref is None:
-            missing.append("artifact_ref|image_ref")
-        if missing:
-            joined = ", ".join(missing)
-            raise ValueError(
-                f"published agent '{self.agent_id}' runtime artifact is incomplete: {joined}"
-            )
-        return runtime_artifact
+
+    def execution_reference_or_raise(self) -> ExecutionReference:
+        execution_reference = ExecutionReference.model_validate(self.execution_reference)
+        artifact_ref = (
+            execution_reference.artifact_ref.strip()
+            if isinstance(execution_reference.artifact_ref, str)
+            else ""
+        )
+        image_ref = (
+            execution_reference.image_ref.strip()
+            if isinstance(execution_reference.image_ref, str)
+            else ""
+        )
+        if artifact_ref or image_ref:
+            return execution_reference
+
+        raise ValueError(
+            f"published agent '{self.agent_id}' is missing execution reference metadata"
+        )
 
     def to_snapshot(self) -> dict[str, Any]:
         snapshot = self.model_copy(
-            update={"runtime_artifact": self.runtime_artifact_or_raise()},
+            update={
+                "source_fingerprint": self.source_fingerprint_or_raise(),
+                "execution_reference": self.execution_reference_or_raise(),
+                "default_runtime_profile": self.default_runtime_profile.model_copy(deep=True),
+            },
             deep=True,
         )
-        return snapshot.model_dump(mode="json", exclude={"provenance"})
+        return snapshot.model_dump(mode="json", exclude_none=True)
 
 
 class DiscoveredAgent(BaseModel):
@@ -165,8 +181,10 @@ class DiscoveredAgent(BaseModel):
     published_at: datetime | None = None
     last_validated_at: datetime = Field(default_factory=utc_now)
     has_unpublished_changes: bool = False
-    runtime_artifact: RuntimeArtifactMetadata | None = None
-    provenance: ProvenanceMetadata | None = None
+    execution_reference: SharedExecutionReferenceMetadata | None = None
+    default_runtime_profile: ExecutorConfig = Field(
+        default_factory=lambda: ExecutorConfig(backend="k8s-job")
+    )
 
     @property
     def agent_id(self) -> str:
@@ -218,8 +236,7 @@ class DiscoveredAgent(BaseModel):
                     "publish_state": AgentPublishState.DRAFT,
                     "published_at": None,
                     "has_unpublished_changes": False,
-                    "runtime_artifact": None,
-                    "provenance": None,
+                    "execution_reference": None,
                 }
             )
         return self.model_copy(
@@ -227,16 +244,31 @@ class DiscoveredAgent(BaseModel):
                 "publish_state": AgentPublishState.PUBLISHED,
                 "published_at": published_agent.published_at,
                 "has_unpublished_changes": (
-                    self.source_fingerprint()
-                    != published_agent.runtime_artifact_or_raise().source_fingerprint
+                    self.source_fingerprint() != published_agent.source_fingerprint_or_raise()
                 ),
-                "runtime_artifact": published_agent.runtime_artifact_or_raise(),
-                "provenance": published_agent.provenance,
+                "execution_reference": published_agent.execution_reference_or_raise(),
+                "default_runtime_profile": published_agent.default_runtime_profile.model_copy(
+                    deep=True
+                ),
             }
         )
 
-    def to_published(self) -> PublishedAgent:
+    def to_published(self, existing: PublishedAgent | None = None) -> PublishedAgent:
+        source_fingerprint = self.source_fingerprint()
+        default_runtime_profile = (
+            existing.default_runtime_profile.model_copy(deep=True)
+            if existing is not None
+            else self.default_runtime_profile.model_copy(deep=True)
+        )
         return PublishedAgent(
             manifest=self.manifest.model_copy(deep=True),
             entrypoint=self.entrypoint,
+            source_fingerprint=source_fingerprint,
+            execution_reference=ExecutionReference.model_validate(
+                build_source_execution_reference(
+                    agent_id=self.agent_id,
+                    source_fingerprint=source_fingerprint,
+                ).model_dump(mode="json")
+            ),
+            default_runtime_profile=default_runtime_profile,
         )

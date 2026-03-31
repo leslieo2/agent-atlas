@@ -24,7 +24,7 @@ export function mapExperiment(record: ExperimentResponse): ExperimentRecord {
     status: record.status,
     tags: record.tags,
     scoringMode: record.spec.evaluator_config?.scoring_mode ?? "exact_match",
-    executorBackend: record.spec.executor_config.backend,
+    executorBackend: record.spec.executor_config?.backend ?? null,
     sampleCount: record.sample_count,
     completedCount: record.completed_count,
     passedCount: record.passed_count,

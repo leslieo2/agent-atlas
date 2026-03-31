@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import pytest
-from app.core.errors import AgentFrameworkMismatchError, UnsupportedOperationError
+from app.core.errors import UnsupportedOperationError
 from app.execution.contracts import ExecutionRunSpec, RunHandle
-from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
-from app.modules.agents.domain.models import AgentManifest, PublishedAgent
+from app.modules.agents.domain.models import (
+    AgentManifest,
+    ExecutionReference,
+    PublishedAgent,
+    compute_source_fingerprint,
+)
 from app.modules.runs.adapters.inbound.http.schemas import RunCreateRequest
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -17,6 +21,7 @@ from app.modules.shared.domain.models import (
     PromptConfig,
     ToolPolicyRule,
     ToolsetConfig,
+    build_source_execution_reference,
 )
 from pydantic import ValidationError
 
@@ -53,6 +58,19 @@ class StubExecutionControl:
             backend=run_spec.executor_config.backend,
             executor_ref=f"local-{run_spec.run_id}",
         )
+
+
+def _seal_agent(agent: PublishedAgent) -> tuple[PublishedAgent, str]:
+    source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
+    execution_reference = ExecutionReference.model_validate(
+        build_source_execution_reference(
+            agent_id=agent.agent_id,
+            source_fingerprint=source_fingerprint,
+        ).model_dump(mode="json")
+    )
+    agent.source_fingerprint = source_fingerprint
+    agent.execution_reference = execution_reference
+    return agent, execution_reference.artifact_ref or ""
 
 
 def test_run_create_input_defaults_to_executor_config_k8s_job() -> None:
@@ -95,9 +113,7 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(agent)
-    agent.runtime_artifact = build_result.runtime_artifact
-    agent.provenance = build_result.provenance
+    agent, artifact_ref = _seal_agent(agent)
 
     run = service.submit(payload, agent)
 
@@ -107,8 +123,12 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert run.provenance.framework == "langchain"
     assert run.provenance.published_agent_snapshot is not None
     assert run.provenance.published_agent_snapshot["manifest"]["framework"] == "langchain"
-    assert run.provenance.published_agent_snapshot["runtime_artifact"]["build_status"] == "ready"
-    assert run.provenance.artifact_ref == build_result.runtime_artifact.artifact_ref
+    assert run.provenance.published_agent_snapshot["source_fingerprint"] == agent.source_fingerprint
+    assert (
+        run.provenance.published_agent_snapshot["execution_reference"]["artifact_ref"]
+        == artifact_ref
+    )
+    assert run.provenance.artifact_ref == artifact_ref
     assert repository.saved == [run]
     assert len(execution_control.submitted) == 1
     task = execution_control.submitted[0]
@@ -146,9 +166,7 @@ def test_run_submission_service_uses_service_default_k8s_image_for_default_submi
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(agent)
-    agent.runtime_artifact = build_result.runtime_artifact
-    agent.provenance = build_result.provenance
+    agent, _artifact_ref = _seal_agent(agent)
 
     run = service.submit(payload, agent)
 
@@ -158,6 +176,55 @@ def test_run_submission_service_uses_service_default_k8s_image_for_default_submi
         execution_control.submitted[0].executor_config.runner_image
         == "ghcr.io/example/atlas-runner:latest"
     )
+
+
+def test_run_submission_service_deep_merges_nested_runtime_profile_overrides() -> None:
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(
+            backend="local-runner",
+            resources={"cpu": "2000m"},
+            metadata={"team": "evals"},
+        ),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        default_runtime_profile=ExecutorConfig(
+            backend="k8s-job",
+            runner_image="ghcr.io/example/atlas-runner:published",
+            resources={"cpu": "1000m", "memory": "2Gi"},
+            metadata={"team": "platform", "region": "us-east-1"},
+        ),
+    )
+    sealed_agent, _artifact_ref = _seal_agent(agent)
+
+    run = service.submit(payload, sealed_agent)
+
+    assert run.provenance is not None
+    executor = execution_control.submitted[0].executor_config
+    assert executor.backend == "local-runner"
+    assert executor.runner_image == "ghcr.io/example/atlas-runner:published"
+    assert executor.resources.cpu == "2000m"
+    assert executor.resources.memory == "2Gi"
+    assert executor.metadata == {"team": "evals", "region": "us-east-1"}
 
 
 def test_run_submission_service_uses_injected_default_trace_backend_when_executor_config_missing():
@@ -187,9 +254,7 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(agent)
-    agent.runtime_artifact = build_result.runtime_artifact
-    agent.provenance = build_result.provenance
+    agent, _artifact_ref = _seal_agent(agent)
 
     run = service.submit(payload, agent)
 
@@ -230,9 +295,7 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(agent)
-    agent.runtime_artifact = build_result.runtime_artifact
-    agent.provenance = build_result.provenance
+    agent, _artifact_ref = _seal_agent(agent)
 
     run = service.submit(payload, agent)
 
@@ -241,6 +304,52 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
     assert run.provenance.executor is not None
     assert run.provenance.executor.tracing_backend == "phoenix"
     assert execution_control.submitted[0].executor_config.tracing_backend == "phoenix"
+
+
+def test_run_submission_service_preserves_agent_default_runtime_profile_trace_backend() -> None:
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+        default_trace_backend="phoenix",
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(
+            backend="k8s-job",
+            runner_image="ghcr.io/example/atlas-runner:latest",
+        ),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        default_runtime_profile=ExecutorConfig(
+            backend="k8s-job",
+            runner_image="ghcr.io/example/atlas-runner:published",
+            tracing_backend="state",
+        ),
+    )
+    agent, _artifact_ref = _seal_agent(agent)
+
+    run = service.submit(payload, agent)
+
+    assert run.provenance is not None
+    assert run.provenance.trace_backend == "state"
+    assert run.provenance.executor is not None
+    assert run.provenance.executor.tracing_backend == "state"
+    assert execution_control.submitted[0].executor_config.tracing_backend == "state"
 
 
 def test_run_submission_service_preserves_requested_model_and_execution_metadata() -> None:
@@ -285,9 +394,7 @@ def test_run_submission_service_preserves_requested_model_and_execution_metadata
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(agent)
-    agent.runtime_artifact = build_result.runtime_artifact
-    agent.provenance = build_result.provenance
+    agent, _artifact_ref = _seal_agent(agent)
 
     run = service.submit(payload, agent)
 
@@ -311,7 +418,7 @@ def test_run_submission_service_preserves_requested_model_and_execution_metadata
     assert submitted.provenance.trace_backend == "phoenix"
 
 
-def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
+def test_run_submission_service_ignores_stale_legacy_publication_provenance() -> None:
     repository = StubRunRepository()
     execution_control = StubExecutionControl()
     service = RunSubmissionService(
@@ -324,6 +431,7 @@ def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
         agent_id="triage-bot",
         input_summary="framework coverage",
         prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(backend="local-runner"),
     )
     agent = PublishedAgent(
         manifest=AgentManifest(
@@ -336,18 +444,17 @@ def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(agent)
-    agent.runtime_artifact = build_result.runtime_artifact
-    agent.provenance = build_result.provenance
-    assert agent.provenance is not None
-    assert agent.provenance.published_agent_snapshot is not None
-    agent.provenance.published_agent_snapshot["manifest"]["framework"] = AdapterKind.LANGCHAIN.value
+    agent, artifact_ref = _seal_agent(agent)
+    run = service.submit(payload, agent)
 
-    with pytest.raises(AgentFrameworkMismatchError):
-        service.submit(payload, agent)
-
-    assert repository.saved == []
-    assert execution_control.submitted == []
+    assert run.provenance is not None
+    assert run.provenance.artifact_ref == artifact_ref
+    assert run.provenance.published_agent_snapshot is not None
+    assert (
+        run.provenance.published_agent_snapshot["manifest"]["framework"]
+        == AdapterKind.OPENAI_AGENTS.value
+    )
+    assert len(execution_control.submitted) == 1
 
 
 def test_run_submission_service_rejects_k8s_job_without_runner_image():
@@ -377,9 +484,7 @@ def test_run_submission_service_rejects_k8s_job_without_runner_image():
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(agent)
-    agent.runtime_artifact = build_result.runtime_artifact
-    agent.provenance = build_result.provenance
+    agent, _artifact_ref = _seal_agent(agent)
 
     with pytest.raises(UnsupportedOperationError, match="runner_image"):
         service.submit(payload, agent)
@@ -415,12 +520,12 @@ def test_run_submission_service_rejects_k8s_job_with_only_published_image() -> N
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(agent)
-    agent.runtime_artifact = build_result.runtime_artifact.model_copy(
-        update={"image_ref": "ghcr.io/example/published-agent:123"}
-    )
-    agent.provenance = build_result.provenance.model_copy(
-        update={"image_ref": "ghcr.io/example/published-agent:123"}
+    agent, artifact_ref = _seal_agent(agent)
+    agent.execution_reference = agent.execution_reference.model_copy(
+        update={
+            "artifact_ref": artifact_ref,
+            "image_ref": "ghcr.io/example/published-agent:123",
+        }
     )
 
     with pytest.raises(UnsupportedOperationError, match="runner_image"):

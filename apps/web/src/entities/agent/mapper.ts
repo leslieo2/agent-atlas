@@ -2,14 +2,13 @@ import type {
   AgentDescriptorResponse,
   DiscoveredAgentResponse,
   AgentValidationIssueResponse,
-  RuntimeArtifactMetadata
+  ExecutionReference
 } from "@/src/shared/api/contract";
-import { mapProvenance } from "@/src/shared/api/provenance";
 import type {
   AgentRecord,
   AgentValidationIssueRecord,
   DiscoveredAgentRecord,
-  RuntimeArtifactRecord
+  ExecutionReferenceRecord
 } from "./model";
 
 function mapAgentIssue(issue: AgentValidationIssueResponse): AgentValidationIssueRecord {
@@ -19,18 +18,14 @@ function mapAgentIssue(issue: AgentValidationIssueResponse): AgentValidationIssu
   };
 }
 
-function mapRuntimeArtifact(runtimeArtifact?: RuntimeArtifactMetadata | null): RuntimeArtifactRecord | null {
-  if (!runtimeArtifact) {
+function mapExecutionReference(executionReference?: ExecutionReference | null): ExecutionReferenceRecord | null {
+  if (!executionReference) {
     return null;
   }
 
   return {
-    buildStatus: runtimeArtifact.build_status ?? null,
-    sourceFingerprint: runtimeArtifact.source_fingerprint ?? null,
-    framework: runtimeArtifact.framework ?? null,
-    entrypoint: runtimeArtifact.entrypoint ?? null,
-    artifactRef: runtimeArtifact.artifact_ref ?? null,
-    imageRef: runtimeArtifact.image_ref ?? null
+    artifactRef: executionReference.artifact_ref ?? null,
+    imageRef: executionReference.image_ref ?? null
   };
 }
 
@@ -46,8 +41,9 @@ export function mapAgent(agent: AgentDescriptorResponse): AgentRecord {
     tags: agent.tags,
     capabilities: agent.capabilities,
     publishedAt: agent.published_at,
-    runtimeArtifact: mapRuntimeArtifact(agent.runtime_artifact),
-    provenance: mapProvenance(agent.provenance)
+    sourceFingerprint: agent.source_fingerprint ?? undefined,
+    executionReference: mapExecutionReference(agent.execution_reference),
+    defaultRuntimeProfile: agent.default_runtime_profile
   };
 }
 
@@ -68,7 +64,8 @@ export function mapDiscoveredAgent(agent: DiscoveredAgentResponse): DiscoveredAg
     publishedAt: agent.published_at ?? undefined,
     lastValidatedAt: agent.last_validated_at,
     hasUnpublishedChanges: agent.has_unpublished_changes,
-    runtimeArtifact: mapRuntimeArtifact(agent.runtime_artifact),
-    provenance: mapProvenance(agent.provenance)
+    sourceFingerprint: agent.source_fingerprint ?? undefined,
+    executionReference: mapExecutionReference(agent.execution_reference),
+    defaultRuntimeProfile: agent.default_runtime_profile
   };
 }

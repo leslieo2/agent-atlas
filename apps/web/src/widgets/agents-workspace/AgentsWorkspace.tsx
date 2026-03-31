@@ -4,11 +4,10 @@ import { ArrowUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   useDiscoveredAgentsQuery,
-  usePublishedAgentsQuery,
   usePublishAgentMutation,
   useUnpublishAgentMutation
 } from "@/src/entities/agent/query";
-import type { AgentRecord, DiscoveredAgentRecord, RuntimeArtifactRecord } from "@/src/entities/agent/model";
+import type { DiscoveredAgentRecord, ExecutionReferenceRecord } from "@/src/entities/agent/model";
 import { Field } from "@/src/shared/ui/Field";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
@@ -20,25 +19,12 @@ import styles from "./AgentsWorkspace.module.css";
 type AgentGroup = {
   title: string;
   description: string;
-  items: AgentWorkspaceRecord[];
+  items: DiscoveredAgentRecord[];
 };
 
-type PublishedOnlyAgentRecord = AgentRecord & {
-  availability: "published_only";
-};
+type AgentReadiness = "ready" | "published_with_drift" | "draft" | "invalid";
 
-type AgentWorkspaceRecord = DiscoveredAgentRecord | PublishedOnlyAgentRecord;
-
-type AgentReadiness = "ready" | "published_with_drift" | "draft" | "invalid" | "published_only";
-
-function isPublishedOnlyAgent(agent: AgentWorkspaceRecord): agent is PublishedOnlyAgentRecord {
-  return "availability" in agent && agent.availability === "published_only";
-}
-
-function getAgentReadiness(agent: AgentWorkspaceRecord): AgentReadiness {
-  if (isPublishedOnlyAgent(agent)) {
-    return "published_only";
-  }
+function getAgentReadiness(agent: DiscoveredAgentRecord): AgentReadiness {
   if (agent.validationStatus === "invalid") {
     return "invalid";
   }
@@ -61,54 +47,43 @@ function readinessLabel(state: AgentReadiness) {
   if (state === "draft") {
     return "Draft";
   }
-  if (state === "published_only") {
-    return "Published only";
-  }
   return "Invalid";
 }
 
-function validationTone(agent: AgentWorkspaceRecord) {
-  if (isPublishedOnlyAgent(agent)) {
-    return "warn";
-  }
+function validationTone(agent: DiscoveredAgentRecord) {
   return agent.validationStatus === "valid" ? "success" : "error";
 }
 
-function publishTone(agent: AgentWorkspaceRecord) {
+function publishTone(agent: DiscoveredAgentRecord) {
   const readiness = getAgentReadiness(agent);
   return readiness === "ready" ? "success" : "warn";
 }
 
-function runtimeArtifactStatus(agent: AgentWorkspaceRecord) {
-  return agent.runtimeArtifact?.buildStatus ?? "not built";
-}
-
-function runtimeArtifactTone(runtimeArtifact?: RuntimeArtifactRecord | null) {
-  if (!runtimeArtifact?.buildStatus) {
-    return "warn" as const;
-  }
-  return runtimeArtifact.buildStatus === "ready" ? ("success" as const) : ("warn" as const);
-}
-
-function runtimeArtifactSummary(runtimeArtifact?: RuntimeArtifactRecord | null) {
-  if (!runtimeArtifact) {
+function executionReferenceSummary(executionReference?: ExecutionReferenceRecord | null) {
+  if (!executionReference) {
     return "-";
   }
-  if (runtimeArtifact.imageRef) {
-    return runtimeArtifact.imageRef;
+  if (executionReference.imageRef) {
+    return executionReference.imageRef;
   }
-  if (runtimeArtifact.artifactRef) {
-    return runtimeArtifact.artifactRef;
+  if (executionReference.artifactRef) {
+    return executionReference.artifactRef;
   }
-  return "pending";
+  return "-";
 }
 
-function shortSourceFingerprint(runtimeArtifact?: RuntimeArtifactRecord | null) {
-  const fingerprint = runtimeArtifact?.sourceFingerprint;
+function shortSourceFingerprint(sourceFingerprint?: string) {
+  const fingerprint = sourceFingerprint?.trim() ?? "";
   if (!fingerprint) {
     return "-";
   }
   return fingerprint.slice(0, 12);
+}
+
+function defaultRuntimeSummary(agent: DiscoveredAgentRecord) {
+  const backend = agent.defaultRuntimeProfile.backend;
+  const runnerImage = agent.defaultRuntimeProfile.runner_image;
+  return runnerImage ? `${backend} · ${runnerImage}` : backend;
 }
 
 function validationIssuesLabel(agent: DiscoveredAgentRecord) {
@@ -128,16 +103,16 @@ function AgentCard({
   isPublishing,
   isUnpublishing
 }: {
-  agent: AgentWorkspaceRecord;
+  agent: DiscoveredAgentRecord;
   onPublish: (agentId: string) => void;
   onUnpublish: (agentId: string) => void;
   isPublishing: boolean;
   isUnpublishing: boolean;
 }) {
-  const isPublishedOnly = isPublishedOnlyAgent(agent);
-  const isValid = !isPublishedOnly && agent.validationStatus === "valid";
-  const isPublished = isPublishedOnly || agent.publishState === "published";
+  const isValid = agent.validationStatus === "valid";
+  const isPublished = agent.publishState === "published";
   const readiness = getAgentReadiness(agent);
+  const isRunnableSnapshot = readiness === "ready";
   const hasDraftChanges = readiness === "published_with_drift";
 
   return (
@@ -152,18 +127,14 @@ function AgentCard({
         </div>
         <div className="toolbar">
           <StatusPill tone={publishTone(agent)}>{readinessLabel(readiness)}</StatusPill>
-          <StatusPill tone={validationTone(agent)}>{isPublishedOnly ? "not discoverable" : agent.validationStatus}</StatusPill>
-          <StatusPill tone={runtimeArtifactTone(agent.runtimeArtifact)}>{`Build ${runtimeArtifactStatus(agent)}`}</StatusPill>
+          <StatusPill tone={validationTone(agent)}>{agent.validationStatus}</StatusPill>
         </div>
       </div>
 
-      {isPublishedOnly ? (
-        <p className={styles.driftNotice}>
-          This published snapshot is still stored in Atlas, but the repository-local plugin is not currently discoverable.
-        </p>
-      ) : null}
       {hasDraftChanges ? (
-        <p className={styles.driftNotice}>Publish the current repository draft to refresh the runnable snapshot.</p>
+        <p className={styles.driftNotice}>
+          Publish the current repository draft before creating new experiments so execution matches the sealed snapshot.
+        </p>
       ) : null}
 
       <div className={styles.meta}>
@@ -192,22 +163,24 @@ function AgentCard({
           <span className={styles.metaValue}>{agent.publishedAt ? new Date(agent.publishedAt).toLocaleString("en") : "-"}</span>
         </div>
         <div className={styles.metaItem}>
-          <span className={styles.metaLabel}>Artifact</span>
-          <span className={`${styles.metaValue} mono`}>{runtimeArtifactSummary(agent.runtimeArtifact)}</span>
+          <span className={styles.metaLabel}>Execution ref</span>
+          <span className={`${styles.metaValue} mono`}>{executionReferenceSummary(agent.executionReference)}</span>
         </div>
         <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Source fingerprint</span>
-          <span className={`${styles.metaValue} mono`}>{shortSourceFingerprint(agent.runtimeArtifact)}</span>
+          <span className={`${styles.metaValue} mono`}>{shortSourceFingerprint(agent.sourceFingerprint)}</span>
+        </div>
+        <div className={styles.metaItem}>
+          <span className={styles.metaLabel}>Default runtime</span>
+          <span className={`${styles.metaValue} mono`}>{defaultRuntimeSummary(agent)}</span>
         </div>
         <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Last validated</span>
-          <span className={styles.metaValue}>
-            {isPublishedOnly ? "-" : new Date(agent.lastValidatedAt).toLocaleString("en")}
-          </span>
+          <span className={styles.metaValue}>{new Date(agent.lastValidatedAt).toLocaleString("en")}</span>
         </div>
       </div>
 
-      {!isPublishedOnly && !isValid ? (
+      {!isValid ? (
         <div>
           <p className="page-eyebrow">{validationIssuesLabel(agent)}</p>
           <ul className={styles.issueList}>
@@ -234,7 +207,7 @@ function AgentCard({
             Unpublish
           </Button>
         ) : null}
-        {isPublished && isValid ? (
+        {isRunnableSnapshot ? (
           <Button href={`/experiments?agent=${encodeURIComponent(agent.agentId)}`} variant="secondary">
             Create experiment <ArrowUpRight size={14} />
           </Button>
@@ -246,22 +219,10 @@ function AgentCard({
 
 export default function AgentsWorkspace() {
   const discoveredAgentsQuery = useDiscoveredAgentsQuery();
-  const publishedAgentsQuery = usePublishedAgentsQuery();
   const publishMutation = usePublishAgentMutation();
   const unpublishMutation = useUnpublishAgentMutation();
   const [frameworkFilter, setFrameworkFilter] = useState("all");
-  const agents = useMemo<AgentWorkspaceRecord[]>(() => {
-    const discoveredAgents = discoveredAgentsQuery.data ?? [];
-    const publishedAgents = publishedAgentsQuery.data ?? [];
-    const discoveredIds = new Set(discoveredAgents.map((agent) => agent.agentId));
-    const publishedOnlyAgents: PublishedOnlyAgentRecord[] = publishedAgents
-      .filter((agent) => !discoveredIds.has(agent.agentId))
-      .map((agent) => ({
-        ...agent,
-        availability: "published_only" as const
-      }));
-    return [...discoveredAgents, ...publishedOnlyAgents];
-  }, [discoveredAgentsQuery.data, publishedAgentsQuery.data]);
+  const agents = useMemo<DiscoveredAgentRecord[]>(() => discoveredAgentsQuery.data ?? [], [discoveredAgentsQuery.data]);
   const frameworkOptions = useMemo(
     () => ["all", ...Array.from(new Set(agents.map((agent) => agent.framework))).sort()],
     [agents]
@@ -292,11 +253,6 @@ export default function AgentsWorkspace() {
         title: "Invalid",
         description: "Discovered plugins that currently fail framework-specific contract validation.",
         items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "invalid")
-      },
-      {
-        title: "Published only",
-        description: "Published snapshots that Atlas still knows about even though the local plugin is unavailable.",
-        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "published_only")
       }
     ],
     [filteredAgents]
@@ -305,7 +261,6 @@ export default function AgentsWorkspace() {
   const errorMessage =
     (publishMutation.error instanceof Error && publishMutation.error.message) ||
     (unpublishMutation.error instanceof Error && unpublishMutation.error.message) ||
-    (publishedAgentsQuery.error instanceof Error && publishedAgentsQuery.error.message) ||
     (discoveredAgentsQuery.error instanceof Error && discoveredAgentsQuery.error.message) ||
     "";
 
@@ -316,8 +271,8 @@ export default function AgentsWorkspace() {
           <p className="page-eyebrow">Agent control plane</p>
           <h2 className="section-title">Agents</h2>
           <p className="kicker">
-            Discover repository-local plugins, publish framework-aware runnable snapshots, and keep invalid agents out
-            of the RL data pipeline.
+            Discover repository-local drafts, seal immutable snapshots, and attach stable execution references for the
+            neutral runner path.
           </p>
           <div className="page-tag-list">
             <span className="page-tag">
@@ -327,7 +282,7 @@ export default function AgentsWorkspace() {
               Ready to run <strong>{groups[0].items.length}</strong>
             </span>
             <span className="page-tag">
-              Needs review <strong>{groups[1].items.length + groups[3].items.length + groups[4].items.length}</strong>
+              Needs review <strong>{groups[1].items.length + groups[3].items.length}</strong>
             </span>
           </div>
         </div>
@@ -336,10 +291,10 @@ export default function AgentsWorkspace() {
             <span className="page-info-label">Publishing status</span>
             <span className="page-info-value">
               {groups[0].items.length} ready / {groups[1].items.length} drifted / {groups[2].items.length} staged /{" "}
-              {groups[4].items.length} published only
+              {groups[3].items.length} invalid
             </span>
             <p className="page-info-detail">
-              Re-publish drifted agents to refresh the snapshot that feeds future eval jobs and exports.
+              Only ready agents can seed new experiments. Re-publish drifted agents to refresh the sealed snapshot.
             </p>
           </div>
         </div>
@@ -350,7 +305,6 @@ export default function AgentsWorkspace() {
         <MetricCard label="Draft changes" value={groups[1].items.length} />
         <MetricCard label="Draft" value={groups[2].items.length} />
         <MetricCard label="Invalid" value={groups[3].items.length} />
-        <MetricCard label="Published only" value={groups[4].items.length} />
       </div>
 
       <Panel tone="plain">
@@ -372,7 +326,7 @@ export default function AgentsWorkspace() {
       </Panel>
 
       {errorMessage ? <Notice>{errorMessage}</Notice> : null}
-      {discoveredAgentsQuery.isLoading || publishedAgentsQuery.isLoading ? <Notice>Loading agents...</Notice> : null}
+      {discoveredAgentsQuery.isLoading ? <Notice>Loading agents...</Notice> : null}
 
       {groups.map((group) => (
         <Panel key={group.title} tone="plain" className={styles.group}>

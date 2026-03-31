@@ -43,7 +43,7 @@ class ExperimentSpec(BaseModel):
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
-    executor_config: ExecutorConfig
+    executor_config: ExecutorConfig | None = None
     approval_policy_id: UUID | None = None
     approval_policy: ApprovalPolicySnapshot | None = None
     tags: list[str] = Field(default_factory=list)

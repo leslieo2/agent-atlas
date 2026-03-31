@@ -1,13 +1,9 @@
-import type { ProvenanceRecord } from "@/src/shared/api/provenance";
+import type { ExecutorConfig } from "@/src/shared/api/contract";
 
 export type AgentPublishState = "draft" | "published";
 export type AgentValidationStatus = "valid" | "invalid";
 
-export interface RuntimeArtifactRecord {
-  buildStatus?: string | null;
-  sourceFingerprint?: string | null;
-  framework?: string | null;
-  entrypoint?: string | null;
+export interface ExecutionReferenceRecord {
   artifactRef?: string | null;
   imageRef?: string | null;
 }
@@ -23,8 +19,9 @@ export interface AgentRecord {
   tags: string[];
   capabilities: string[];
   publishedAt?: string;
-  runtimeArtifact?: RuntimeArtifactRecord | null;
-  provenance?: ProvenanceRecord | null;
+  sourceFingerprint?: string;
+  executionReference?: ExecutionReferenceRecord | null;
+  defaultRuntimeProfile: ExecutorConfig;
 }
 
 export interface AgentValidationIssueRecord {
@@ -39,6 +36,7 @@ export interface DiscoveredAgentRecord extends AgentRecord {
   publishedAt?: string;
   lastValidatedAt: string;
   hasUnpublishedChanges: boolean;
-  runtimeArtifact?: RuntimeArtifactRecord | null;
-  provenance?: ProvenanceRecord | null;
+  sourceFingerprint?: string;
+  executionReference?: ExecutionReferenceRecord | null;
+  defaultRuntimeProfile: ExecutorConfig;
 }

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from app.modules.agents.application.ports import RunnableAgentCatalogPort
+from app.modules.agents.application.ports import PublishedAgentCatalogPort
 from app.modules.datasets.application.ports import DatasetRepository
 from app.modules.experiments.application.ports import (
     ExperimentRepository,
@@ -26,7 +26,7 @@ class ExperimentOrchestrator:
         self,
         experiment_repository: ExperimentRepository,
         dataset_repository: DatasetRepository,
-        agent_catalog: RunnableAgentCatalogPort,
+        agent_catalog: PublishedAgentCatalogPort,
         run_submission: RunSubmissionPort,
         task_queue: TaskQueuePort,
     ) -> None:
@@ -62,36 +62,38 @@ class ExperimentOrchestrator:
 
         model_settings = experiment.spec.model_settings
         prompt_config = experiment.spec.prompt_config
-        executor_config = experiment.spec.executor_config
         approval_policy = experiment.spec.approval_policy or ApprovalPolicySnapshot(
             approval_policy_id=experiment.spec.approval_policy_id
         )
 
         for sample in dataset_version.rows:
-            self.run_submission.submit(
-                RunCreateInput(
-                    experiment_id=experiment.experiment_id,
-                    dataset_version_id=dataset_version.dataset_version_id,
-                    project=experiment.name,
-                    dataset=dataset_version.dataset_name,
-                    agent_id=experiment.published_agent_id,
-                    input_summary=sample.input,
-                    prompt=sample.input,
-                    tags=list(dict.fromkeys([*experiment.tags, *sample.tags])),
-                    project_metadata={
-                        "prompt_version": prompt_config.prompt_version or "v1",
-                        "system_prompt": prompt_config.system_prompt,
-                    },
-                    dataset_sample_id=sample.sample_id,
-                    model_settings=model_settings.model_copy(deep=True),
-                    prompt_config=prompt_config.model_copy(deep=True),
-                    toolset_config=experiment.spec.toolset_config.model_copy(deep=True),
-                    evaluator_config=experiment.spec.evaluator_config.model_copy(deep=True),
-                    executor_config=executor_config.model_copy(deep=True),
-                    approval_policy=approval_policy.model_copy(deep=True),
-                ),
-                agent,
+            run_input = RunCreateInput(
+                experiment_id=experiment.experiment_id,
+                dataset_version_id=dataset_version.dataset_version_id,
+                project=experiment.name,
+                dataset=dataset_version.dataset_name,
+                agent_id=experiment.published_agent_id,
+                input_summary=sample.input,
+                prompt=sample.input,
+                tags=list(dict.fromkeys([*experiment.tags, *sample.tags])),
+                project_metadata={
+                    "prompt_version": prompt_config.prompt_version or "v1",
+                    "system_prompt": prompt_config.system_prompt,
+                },
+                dataset_sample_id=sample.sample_id,
+                model_settings=model_settings.model_copy(deep=True),
+                prompt_config=prompt_config.model_copy(deep=True),
+                toolset_config=experiment.spec.toolset_config.model_copy(deep=True),
+                evaluator_config=experiment.spec.evaluator_config.model_copy(deep=True),
+                approval_policy=approval_policy.model_copy(deep=True),
             )
+            if experiment.spec.executor_config is not None:
+                run_input = run_input.model_copy(
+                    update={
+                        "executor_config": experiment.spec.executor_config.model_copy(deep=True)
+                    }
+                )
+            self.run_submission.submit(run_input, agent)
 
         self.task_queue.enqueue(
             QueuedTask(

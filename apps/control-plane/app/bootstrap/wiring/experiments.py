@@ -44,7 +44,7 @@ def build_experiment_module(
     experiment_orchestrator = ExperimentOrchestrator(
         experiment_repository=infra.experiment_repository,
         dataset_repository=infra.dataset_repository,
-        agent_catalog=infra.runnable_agent_catalog,
+        agent_catalog=infra.published_agent_catalog,
         run_submission=runs.run_submission,
         task_queue=infra.execution.task_queue,
     )

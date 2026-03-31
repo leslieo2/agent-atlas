@@ -11,7 +11,6 @@ from app.modules.agents.domain.models import (
     DiscoveredAgent,
     PublishedAgent,
 )
-from app.modules.shared.domain.models import RuntimeArtifactBuildResult
 
 if TYPE_CHECKING:
     from app.execution.application.results import PublishedRunExecutionResult
@@ -31,7 +30,7 @@ class PublishedAgentRepositoryPort(Protocol):
     def delete_agent(self, agent_id: str) -> bool: ...
 
 
-class RunnableAgentCatalogPort(Protocol):
+class PublishedAgentCatalogPort(Protocol):
     def list_agents(self) -> list[PublishedAgent]: ...
 
     def get_agent(self, agent_id: str) -> PublishedAgent | None: ...
@@ -55,7 +54,3 @@ class PublishedAgentExecutionPort(Protocol):
         payload: RunnerRunSpec,
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult: ...
-
-
-class ArtifactBuilderPort(Protocol):
-    def build(self, published_agent: PublishedAgent) -> RuntimeArtifactBuildResult: ...

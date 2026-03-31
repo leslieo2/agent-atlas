@@ -7,9 +7,10 @@ from app.modules.agents.domain.models import (
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,
+    ExecutionReference,
     PublishedAgent,
 )
-from app.modules.shared.domain.models import ProvenanceMetadata, RuntimeArtifactMetadata
+from app.modules.shared.domain.models import ExecutorConfig
 from pydantic import BaseModel
 
 
@@ -24,8 +25,9 @@ class AgentDescriptorResponse(BaseModel):
     tags: list[str]
     capabilities: list[str]
     published_at: datetime
-    runtime_artifact: RuntimeArtifactMetadata | None = None
-    provenance: ProvenanceMetadata | None = None
+    source_fingerprint: str
+    execution_reference: ExecutionReference
+    default_runtime_profile: ExecutorConfig
 
     @classmethod
     def from_domain(cls, agent: PublishedAgent) -> AgentDescriptorResponse:
@@ -40,8 +42,9 @@ class AgentDescriptorResponse(BaseModel):
             tags=agent.tags,
             capabilities=agent.capabilities,
             published_at=agent.published_at,
-            runtime_artifact=agent.runtime_artifact_or_raise(),
-            provenance=agent.provenance,
+            source_fingerprint=agent.source_fingerprint_or_raise(),
+            execution_reference=agent.execution_reference_or_raise(),
+            default_runtime_profile=agent.default_runtime_profile.model_copy(deep=True),
         )
 
 
@@ -70,8 +73,9 @@ class DiscoveredAgentResponse(BaseModel):
     published_at: datetime | None = None
     last_validated_at: datetime
     has_unpublished_changes: bool
-    runtime_artifact: RuntimeArtifactMetadata | None = None
-    provenance: ProvenanceMetadata | None = None
+    source_fingerprint: str
+    execution_reference: ExecutionReference | None = None
+    default_runtime_profile: ExecutorConfig
 
     @classmethod
     def from_domain(cls, agent: DiscoveredAgent) -> DiscoveredAgentResponse:
@@ -93,8 +97,13 @@ class DiscoveredAgentResponse(BaseModel):
             published_at=agent.published_at,
             last_validated_at=agent.last_validated_at,
             has_unpublished_changes=agent.has_unpublished_changes,
-            runtime_artifact=agent.runtime_artifact,
-            provenance=agent.provenance,
+            source_fingerprint=agent.source_fingerprint(),
+            execution_reference=(
+                ExecutionReference.model_validate(agent.execution_reference.model_dump(mode="json"))
+                if agent.execution_reference is not None
+                else None
+            ),
+            default_runtime_profile=agent.default_runtime_profile.model_copy(deep=True),
         )
 
 

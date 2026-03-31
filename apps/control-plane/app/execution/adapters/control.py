@@ -16,6 +16,7 @@ from app.execution.contracts import (
     RunStatusSnapshot,
     RunTerminalSummary,
 )
+from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
 from app.modules.shared.application.ports import TaskQueuePort
 from app.modules.shared.domain.enums import RunStatus
@@ -145,6 +146,7 @@ class _QueuedExecutionBackendAdapter:
             return None
 
         retry_spec = run.to_run_spec()
+        _ensure_retryable_publication_snapshot(retry_spec)
         retry_attempt = run.attempt + 1
         retry_attempt_id = uuid4()
         retry_handle = RunHandle(
@@ -262,6 +264,28 @@ class _QueuedExecutionBackendAdapter:
         run_id = run_spec.run_id
         prefix = "job" if self.backend == "k8s-job" else "local"
         return f"{prefix}-{run_id}"
+
+
+def _ensure_retryable_publication_snapshot(run_spec: ExecutionRunSpec) -> None:
+    provenance = run_spec.provenance
+    if provenance is None or provenance.published_agent_snapshot is None:
+        raise UnsupportedOperationError(
+            "run retry requires persisted provenance with a sealed published agent snapshot",
+            run_id=str(run_spec.run_id),
+            agent_id=run_spec.agent_id,
+        )
+
+    try:
+        published_agent = PublishedAgent.model_validate(provenance.published_agent_snapshot)
+        published_agent.source_fingerprint_or_raise()
+        published_agent.execution_reference_or_raise()
+    except (ValueError, TypeError) as exc:
+        raise UnsupportedOperationError(
+            "run retry requires a sealed published agent snapshot with source_fingerprint "
+            "and execution_reference",
+            run_id=str(run_spec.run_id),
+            agent_id=run_spec.agent_id,
+        ) from exc
 
 
 class LocalWorkerExecutionAdapter(_QueuedExecutionBackendAdapter):

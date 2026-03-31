@@ -34,12 +34,11 @@ describe("Agents workspace", () => {
         publishedAt: "2026-03-20T09:00:00Z",
         lastValidatedAt: "2026-03-26T09:00:00Z",
         hasUnpublishedChanges: false,
-        runtimeArtifact: {
-          buildStatus: "ready",
-          sourceFingerprint: "basic-fingerprint-123456",
+        sourceFingerprint: "basic-fingerprint-123456",
+        executionReference: {
           artifactRef: "source://basic@basic-fingerprint-123456"
         },
-        provenance: null
+        defaultRuntimeProfile: { backend: "k8s-job" }
       },
       {
         agentId: "customer_service",
@@ -57,12 +56,11 @@ describe("Agents workspace", () => {
         publishedAt: "2026-03-18T08:30:00Z",
         lastValidatedAt: "2026-03-26T09:00:00Z",
         hasUnpublishedChanges: true,
-        runtimeArtifact: {
-          buildStatus: "ready",
-          sourceFingerprint: "customer-fingerprint-123456",
+        sourceFingerprint: "customer-fingerprint-123456",
+        executionReference: {
           artifactRef: "source://customer_service@customer-fingerprint-123456"
         },
-        provenance: null
+        defaultRuntimeProfile: { backend: "k8s-job" }
       },
       {
         agentId: "tools",
@@ -79,7 +77,9 @@ describe("Agents workspace", () => {
         validationIssues: [],
         lastValidatedAt: "2026-03-26T09:00:00Z",
         hasUnpublishedChanges: false,
-        provenance: null
+        sourceFingerprint: "tools-fingerprint-123456",
+        executionReference: null,
+        defaultRuntimeProfile: { backend: "k8s-job" }
       },
       {
         agentId: "unsupported",
@@ -96,54 +96,17 @@ describe("Agents workspace", () => {
         validationIssues: [{ code: "framework_unsupported", message: "framework 'mcp' is not supported for discovery" }],
         lastValidatedAt: "2026-03-26T09:00:00Z",
         hasUnpublishedChanges: false,
-        provenance: null
+        sourceFingerprint: "unsupported-fingerprint-123456",
+        executionReference: null,
+        defaultRuntimeProfile: { backend: "k8s-job" }
       }
     ];
 
     (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockReset();
-    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockReset();
     (agentApi.publishAgent as unknown as MockedApiFn).mockReset();
     (agentApi.unpublishAgent as unknown as MockedApiFn).mockReset();
 
     (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockImplementation(async () => discoveredAgents);
-    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockResolvedValue([
-      {
-        agentId: "basic",
-        name: "Basic",
-        description: "Ready OpenAI smoke agent.",
-        framework: "openai-agents-sdk",
-        frameworkVersion: "0.1.0",
-        entrypoint: "app.agent_plugins.basic:build_agent",
-        defaultModel: "gpt-5.4-mini",
-        tags: ["example", "smoke"],
-        capabilities: ["submit", "cancel"],
-        publishedAt: "2026-03-20T09:00:00Z",
-        runtimeArtifact: {
-          buildStatus: "ready",
-          sourceFingerprint: "basic-fingerprint-123456",
-          artifactRef: "source://basic@basic-fingerprint-123456"
-        },
-        provenance: null
-      },
-      {
-        agentId: "archived_basic",
-        name: "Archived Basic",
-        description: "Published snapshot no longer discoverable locally.",
-        framework: "openai-agents-sdk",
-        frameworkVersion: "0.1.0",
-        entrypoint: "app.agent_plugins.archived_basic:build_agent",
-        defaultModel: "gpt-5.4-mini",
-        tags: ["archived"],
-        capabilities: ["submit"],
-        publishedAt: "2026-03-10T09:00:00Z",
-        runtimeArtifact: {
-          buildStatus: "ready",
-          sourceFingerprint: "archived-fingerprint-123456",
-          artifactRef: "source://archived_basic@archived-fingerprint-123456"
-        },
-        provenance: null
-      }
-    ]);
     (agentApi.publishAgent as unknown as MockedApiFn).mockImplementation(async (agentId: string) => {
       discoveredAgents = discoveredAgents.map((agent) =>
         agent.agentId === agentId ? { ...agent, publishState: "published" } : agent
@@ -163,11 +126,9 @@ describe("Agents workspace", () => {
 
     expect(await screen.findByRole("heading", { name: "Agents" })).toBeInTheDocument();
     await waitFor(() => expect(agentApi.listDiscoveredAgents).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalledTimes(1));
 
     expect(await screen.findByText("Ready OpenAI smoke agent.")).toBeInTheDocument();
     expect(screen.getByText("Published agent with local changes.")).toBeInTheDocument();
-    expect(screen.getByText("Published snapshot no longer discoverable locally.")).toBeInTheDocument();
     expect(screen.getByText("framework 'mcp' is not supported for discovery")).toBeInTheDocument();
     expect(
       screen
@@ -175,17 +136,20 @@ describe("Agents workspace", () => {
         .map((link) => link.getAttribute("href"))
     ).toEqual(
       expect.arrayContaining([
-        "/experiments?agent=basic",
-        "/experiments?agent=customer_service"
+        "/experiments?agent=basic"
       ])
     );
     expect(
       screen
         .getAllByRole("link", { name: /Create experiment/i })
         .map((link) => link.getAttribute("href"))
-    ).not.toContain("/experiments?agent=archived_basic");
+    ).not.toEqual(expect.arrayContaining(["/experiments?agent=customer_service"]));
+    expect(
+      screen
+        .getAllByRole("link", { name: /Create experiment/i })
+        .map((link) => link.getAttribute("href"))
+    ).not.toEqual(expect.arrayContaining(["/experiments?agent=archived_basic"]));
     expect(screen.getByText("source://basic@basic-fingerprint-123456")).toBeInTheDocument();
-    expect(screen.getByText("Published snapshots that Atlas still knows about even though the local plugin is unavailable.")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Framework"), { target: { value: "mcp" } });
     expect(await screen.findByText("Unsupported framework plugin.")).toBeInTheDocument();

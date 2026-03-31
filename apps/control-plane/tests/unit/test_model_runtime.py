@@ -20,29 +20,51 @@ from app.execution.application.results import (
     RuntimeExecutionResult,
 )
 from app.execution.contracts import ExecutionRunSpec
-from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.infrastructure.adapters.framework_registry import (
     FrameworkPlugin,
     PublishedAgentExecutionDispatcher,
 )
 from app.infrastructure.adapters.langchain import PublishedLangChainAgentAdapter
 from app.infrastructure.adapters.runtime import ModelRuntimeService
-from app.modules.agents.domain.models import AgentBuildContext, AgentManifest, PublishedAgent
+from app.modules.agents.domain.models import (
+    AgentBuildContext,
+    AgentManifest,
+    ExecutionReference,
+    PublishedAgent,
+    compute_source_fingerprint,
+)
 from app.modules.shared.domain.enums import AdapterKind
-from app.modules.shared.domain.models import ProvenanceMetadata
+from app.modules.shared.domain.models import (
+    ProvenanceMetadata,
+    build_source_execution_reference,
+)
 from pydantic import SecretStr
 
 
 def _artifact_for_agent(agent: PublishedAgent) -> ExecutionArtifact:
-    runtime_artifact = agent.runtime_artifact_or_raise()
+    source_fingerprint = agent.source_fingerprint_or_raise()
+    execution_reference = agent.execution_reference_or_raise()
     return ExecutionArtifact(
-        framework=runtime_artifact.framework,
-        entrypoint=runtime_artifact.entrypoint,
-        source_fingerprint=runtime_artifact.source_fingerprint,
-        artifact_ref=runtime_artifact.artifact_ref,
-        image_ref=runtime_artifact.image_ref,
+        framework=agent.framework,
+        entrypoint=agent.entrypoint,
+        source_fingerprint=source_fingerprint,
+        artifact_ref=execution_reference.artifact_ref,
+        image_ref=execution_reference.image_ref,
         published_agent_snapshot=agent.to_snapshot(),
     )
+
+
+def _seal_agent(agent: PublishedAgent) -> PublishedAgent:
+    source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
+    execution_reference = ExecutionReference.model_validate(
+        build_source_execution_reference(
+            agent_id=agent.agent_id,
+            source_fingerprint=source_fingerprint,
+        ).model_dump(mode="json")
+    )
+    agent.source_fingerprint = source_fingerprint
+    agent.execution_reference = execution_reference
+    return agent
 
 
 def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest.MonkeyPatch):
@@ -403,9 +425,7 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(published_agent)
-    published_agent.runtime_artifact = build_result.runtime_artifact
-    published_agent.provenance = build_result.provenance
+    published_agent = _seal_agent(published_agent)
     payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
@@ -467,9 +487,7 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(published_agent)
-    published_agent.runtime_artifact = build_result.runtime_artifact
-    published_agent.provenance = build_result.provenance
+    published_agent = _seal_agent(published_agent)
     adapter = PublishedLangChainAgentAdapter(agent_loader=StubLoader())
     payload = ExecutionRunSpec(
         project="migration-check",
@@ -565,9 +583,7 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(published_agent)
-    published_agent.runtime_artifact = build_result.runtime_artifact
-    published_agent.provenance = build_result.provenance
+    published_agent = _seal_agent(published_agent)
     payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",

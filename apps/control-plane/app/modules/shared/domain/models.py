@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from agent_atlas_contracts.runtime import (
-    RuntimeArtifactMetadata as ContractRuntimeArtifactMetadata,
+    ExecutionReferenceMetadata as ContractExecutionReferenceMetadata,
 )
 from agent_atlas_contracts.runtime import (
     TraceTelemetryMetadata as ContractTraceTelemetryMetadata,
@@ -23,22 +23,16 @@ def build_source_artifact_ref(agent_id: str, source_fingerprint: str) -> str:
     return f"source://{agent_id}@{source_fingerprint}"
 
 
-class RuntimeArtifactMetadata(ContractRuntimeArtifactMetadata):
+class ExecutionReferenceMetadata(ContractExecutionReferenceMetadata):
     pass
 
 
-def build_source_runtime_artifact(
+def build_source_execution_reference(
     *,
     agent_id: str,
     source_fingerprint: str,
-    framework: str,
-    entrypoint: str,
-) -> RuntimeArtifactMetadata:
-    return RuntimeArtifactMetadata(
-        build_status="ready",
-        source_fingerprint=source_fingerprint,
-        framework=framework,
-        entrypoint=entrypoint,
+) -> ExecutionReferenceMetadata:
+    return ExecutionReferenceMetadata(
         artifact_ref=build_source_artifact_ref(agent_id, source_fingerprint),
         image_ref=None,
     )
@@ -71,11 +65,6 @@ class TracingMetadata(BaseModel):
 
 class TraceTelemetryMetadata(ContractTraceTelemetryMetadata):
     pass
-
-
-class RuntimeArtifactBuildResult(BaseModel):
-    runtime_artifact: RuntimeArtifactMetadata
-    provenance: ProvenanceMetadata
 
 
 class ToolPolicyRule(BaseModel):

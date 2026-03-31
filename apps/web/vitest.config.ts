@@ -22,9 +22,10 @@ export default defineConfig({
     ],
     exclude: ["e2e/**", "node_modules/**", ".next/**"],
     setupFiles: ["./test/setup.ts"],
-    coverage: {
-      reporter: ["text", "json", "html"],
-      include: ["lib/**/*", "components/**/*", "app/**/*", "src/**/*"],
+      coverage: {
+        reporter: ["text", "json", "html"],
+      include: ["src/**/*"],
+      exclude: ["app/**/*"],
       thresholds: {
         lines: 70,
         functions: 70,

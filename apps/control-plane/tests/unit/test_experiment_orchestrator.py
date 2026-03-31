@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
-from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
-from app.modules.agents.domain.models import AgentManifest, PublishedAgent
+from app.modules.agents.domain.models import (
+    AgentManifest,
+    ExecutionReference,
+    PublishedAgent,
+    compute_source_fingerprint,
+)
 from app.modules.datasets.domain.models import DatasetSample, DatasetVersion
 from app.modules.experiments.application.execution import ExperimentOrchestrator
 from app.modules.experiments.domain.models import ExperimentRecord, ExperimentSpec, ExperimentStatus
@@ -15,6 +19,7 @@ from app.modules.shared.domain.models import (
     ModelConfig,
     PromptConfig,
     ToolsetConfig,
+    build_source_execution_reference,
 )
 from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
@@ -112,9 +117,15 @@ def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> No
         ),
         entrypoint="app.agent_plugins.triage_bot:build_agent",
     )
-    build_result = SourceArtifactBuilder().build(agent)
-    agent.runtime_artifact = build_result.runtime_artifact
-    agent.provenance = build_result.provenance
+    source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
+    execution_reference = ExecutionReference.model_validate(
+        build_source_execution_reference(
+            agent_id=agent.agent_id,
+            source_fingerprint=source_fingerprint,
+        ).model_dump(mode="json")
+    )
+    agent.source_fingerprint = source_fingerprint
+    agent.execution_reference = execution_reference
 
     experiment_repository = StubExperimentRepository(experiment)
     run_submission = StubRunSubmission()
@@ -157,3 +168,68 @@ def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> No
     assert queued_task.task_type == TaskType.EXPERIMENT_AGGREGATION
     assert queued_task.target_id == experiment.experiment_id
     assert queued_task.payload == {"experiment_id": str(experiment.experiment_id)}
+
+
+def test_experiment_orchestrator_inherits_published_runtime_profile_when_no_override() -> None:
+    dataset_version = DatasetVersion(
+        dataset_version_id=uuid4(),
+        dataset_name="support-dataset",
+        rows=[DatasetSample(sample_id="sample-1", input="alpha", tags=["shipping"])],
+    )
+    experiment = ExperimentRecord(
+        experiment_id=uuid4(),
+        name="candidate",
+        dataset_name=dataset_version.dataset_name,
+        dataset_version_id=dataset_version.dataset_version_id,
+        published_agent_id="triage-bot",
+        status=ExperimentStatus.QUEUED,
+        tags=["candidate"],
+        sample_count=1,
+        spec=ExperimentSpec(
+            dataset_version_id=dataset_version.dataset_version_id,
+            published_agent_id="triage-bot",
+            model_settings=ModelConfig(model="gpt-5.4", temperature=0.0),
+            prompt_config=PromptConfig(prompt_version="2026-03", system_prompt="Be strict."),
+            toolset_config=ToolsetConfig(tools=["search"]),
+            evaluator_config=EvaluatorConfig(metadata={"kind": "exact"}),
+            approval_policy=ApprovalPolicySnapshot(name="default"),
+            tags=["candidate"],
+        ),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        default_runtime_profile=ExecutorConfig(backend="local-runner", tracing_backend="phoenix"),
+    )
+    source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
+    execution_reference = ExecutionReference.model_validate(
+        build_source_execution_reference(
+            agent_id=agent.agent_id,
+            source_fingerprint=source_fingerprint,
+        ).model_dump(mode="json")
+    )
+    agent.source_fingerprint = source_fingerprint
+    agent.execution_reference = execution_reference
+
+    experiment_repository = StubExperimentRepository(experiment)
+    run_submission = StubRunSubmission()
+    task_queue = StubTaskQueue()
+    orchestrator = ExperimentOrchestrator(
+        experiment_repository=experiment_repository,
+        dataset_repository=StubDatasetRepository(dataset_version),
+        agent_catalog=StubAgentCatalog(agent),
+        run_submission=run_submission,
+        task_queue=task_queue,
+    )
+
+    orchestrator.execute_experiment(experiment.experiment_id)
+
+    first_payload, _first_agent = run_submission.calls[0]
+    assert "executor_config" not in first_payload.model_fields_set

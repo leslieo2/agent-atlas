@@ -9,7 +9,11 @@ from app.modules.datasets.domain.models import Dataset, DatasetSample, DatasetVe
 from app.modules.policies.domain.models import ApprovalPolicyRecord
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, PolicyEffect, RunStatus, StepType
-from app.modules.shared.domain.models import ToolPolicyRule, TrajectoryStepRecord
+from app.modules.shared.domain.models import (
+    ProvenanceMetadata,
+    ToolPolicyRule,
+    TrajectoryStepRecord,
+)
 
 
 def seed_demo_state(container: AppContainer | None = None) -> None:
@@ -25,7 +29,14 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
         published = container.infrastructure.published_agent_repository.get_agent(agent_id)
         if published is None:
             return None
-        return published.provenance.model_copy(deep=True) if published.provenance else None
+        execution_reference = published.execution_reference_or_raise()
+        return ProvenanceMetadata(
+            framework=published.framework,
+            framework_version=published.framework_version,
+            published_agent_snapshot=published.to_snapshot(),
+            artifact_ref=execution_reference.artifact_ref,
+            image_ref=execution_reference.image_ref,
+        )
 
     seeded_runs = [
         RunRecord(
