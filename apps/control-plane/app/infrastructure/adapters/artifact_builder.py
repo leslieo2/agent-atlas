@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from app.modules.agents.domain.models import PublishedAgent
+from app.modules.agents.domain.models import (
+    PublishedAgent,
+    compute_source_fingerprint,
+)
 from app.modules.shared.domain.models import (
     ProvenanceMetadata,
     RuntimeArtifactBuildResult,
@@ -15,7 +18,10 @@ class SourceArtifactBuilder:
     def build(self, published_agent: PublishedAgent) -> RuntimeArtifactBuildResult:
         runtime_artifact = build_source_runtime_artifact(
             agent_id=published_agent.agent_id,
-            source_fingerprint=published_agent.effective_source_fingerprint(),
+            source_fingerprint=compute_source_fingerprint(
+                published_agent.manifest,
+                published_agent.entrypoint,
+            ),
             framework=published_agent.framework,
             entrypoint=published_agent.entrypoint,
         )

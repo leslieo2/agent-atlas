@@ -358,7 +358,7 @@ export default function ExperimentsWorkspace({
             <select id="experiment-agent" value={agentId} onChange={(event) => setAgentId(event.target.value)}>
               {agents.map((agent) => (
                 <option key={agent.agentId} value={agent.agentId}>
-                  {agent.name} · {agent.frameworkType}
+                  {agent.name} · {agent.framework}
                 </option>
               ))}
             </select>

@@ -80,13 +80,7 @@ function publishTone(agent: AgentWorkspaceRecord) {
 }
 
 function runtimeArtifactStatus(agent: AgentWorkspaceRecord) {
-  if (!agent.runtimeArtifact?.buildStatus) {
-    if (isPublishedOnlyAgent(agent)) {
-      return "legacy";
-    }
-    return agent.publishState === "published" ? "legacy" : "not built";
-  }
-  return agent.runtimeArtifact.buildStatus;
+  return agent.runtimeArtifact?.buildStatus ?? "not built";
 }
 
 function runtimeArtifactTone(runtimeArtifact?: RuntimeArtifactRecord | null) {
@@ -98,7 +92,7 @@ function runtimeArtifactTone(runtimeArtifact?: RuntimeArtifactRecord | null) {
 
 function runtimeArtifactSummary(runtimeArtifact?: RuntimeArtifactRecord | null) {
   if (!runtimeArtifact) {
-    return "legacy";
+    return "-";
   }
   if (runtimeArtifact.imageRef) {
     return runtimeArtifact.imageRef;
@@ -112,7 +106,7 @@ function runtimeArtifactSummary(runtimeArtifact?: RuntimeArtifactRecord | null) 
 function shortSourceFingerprint(runtimeArtifact?: RuntimeArtifactRecord | null) {
   const fingerprint = runtimeArtifact?.sourceFingerprint;
   if (!fingerprint) {
-    return "legacy";
+    return "-";
   }
   return fingerprint.slice(0, 12);
 }

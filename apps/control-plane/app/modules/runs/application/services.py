@@ -56,7 +56,13 @@ def _resolved_submission_provenance(
     *,
     trace_backend: str,
 ) -> ProvenanceMetadata:
-    runtime_artifact = agent.effective_runtime_artifact()
+    try:
+        runtime_artifact = agent.runtime_artifact_or_raise()
+    except ValueError as exc:
+        raise AgentLoadFailedError(
+            str(exc),
+            agent_id=agent.agent_id,
+        ) from exc
     provenance = (
         agent.provenance.model_copy(deep=True) if agent.provenance else ProvenanceMetadata()
     )
@@ -119,7 +125,6 @@ class RunSubmissionService:
             effective_agent,
             trace_backend=trace_backend,
         )
-        provenance.framework_type = provenance.framework
         provenance.executor_backend = executor_config.backend
         provenance.experiment_id = payload.experiment_id
         provenance.dataset_version_id = payload.dataset_version_id
@@ -149,7 +154,7 @@ class RunSubmissionService:
             tags=list(payload.tags),
             project_metadata=dict(payload.project_metadata),
             executor_config=executor_config,
-            model_config=payload.model_settings,
+            model_settings=payload.model_settings,
             prompt_config=payload.prompt_config,
             toolset_config=payload.toolset_config,
             evaluator_config=payload.evaluator_config,

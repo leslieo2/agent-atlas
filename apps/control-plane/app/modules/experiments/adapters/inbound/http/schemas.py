@@ -30,7 +30,7 @@ from app.modules.shared.domain.models import (
 class ExperimentSpecRequest(BaseModel):
     dataset_version_id: UUID
     published_agent_id: str
-    model_settings: ModelConfig = Field(alias="model_config", serialization_alias="model_config")
+    model_settings: ModelConfig
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
@@ -39,7 +39,7 @@ class ExperimentSpecRequest(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
     def to_domain(self) -> ExperimentSpec:
-        return ExperimentSpec.model_validate(self.model_dump(by_alias=True))
+        return ExperimentSpec.model_validate(self.model_dump())
 
 
 class ExperimentCreateRequest(BaseModel):
@@ -74,7 +74,7 @@ class ExperimentResponse(BaseModel):
 
     @classmethod
     def from_domain(cls, experiment: ExperimentRecord) -> ExperimentResponse:
-        return cls.model_validate(experiment.model_dump(mode="json", by_alias=True))
+        return cls.model_validate(experiment.model_dump(mode="json"))
 
 
 class RunEvaluationPatchRequest(BaseModel):

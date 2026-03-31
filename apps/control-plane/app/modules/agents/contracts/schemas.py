@@ -19,7 +19,6 @@ class AgentDescriptorResponse(BaseModel):
     name: str
     description: str
     framework: str
-    framework_type: str
     framework_version: str
     entrypoint: str
     default_model: str
@@ -36,14 +35,13 @@ class AgentDescriptorResponse(BaseModel):
             name=agent.name,
             description=agent.description,
             framework=agent.framework,
-            framework_type=agent.framework,
             framework_version=agent.framework_version,
             entrypoint=agent.entrypoint,
             default_model=agent.default_model,
             tags=agent.tags,
             capabilities=agent.capabilities,
             published_at=agent.published_at,
-            runtime_artifact=agent.effective_runtime_artifact(),
+            runtime_artifact=agent.runtime_artifact_or_raise(),
             provenance=agent.provenance,
         )
 
@@ -62,7 +60,6 @@ class DiscoveredAgentResponse(BaseModel):
     name: str
     description: str
     framework: str
-    framework_type: str
     framework_version: str
     entrypoint: str
     default_model: str
@@ -84,7 +81,6 @@ class DiscoveredAgentResponse(BaseModel):
             name=agent.name,
             description=agent.description,
             framework=agent.framework,
-            framework_type=agent.framework,
             framework_version=agent.framework_version,
             entrypoint=agent.entrypoint,
             default_model=agent.default_model,

@@ -28,12 +28,12 @@ from app.execution.adapters.runner import (
 from app.execution.adapters.runner import (
     RunnerRegistry as RunnerRegistry,
 )
-from app.execution.adapters.specs import (
+from app.execution.contracts import (
     execution_handoff_from_run_spec as execution_handoff_from_run_spec,
 )
-from app.execution.adapters.specs import (
+from app.execution.contracts import (
     runner_run_spec_from_handoff as runner_run_spec_from_handoff,
 )
-from app.execution.adapters.specs import (
+from app.execution.contracts import (
     runner_run_spec_from_run_spec as runner_run_spec_from_run_spec,
 )

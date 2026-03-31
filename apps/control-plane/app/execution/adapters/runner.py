@@ -79,7 +79,13 @@ class PublishedArtifactResolver:
                 "published agent snapshot is missing manifest metadata",
                 agent_id=payload.agent_id,
             )
-        runtime_artifact = published_agent.effective_runtime_artifact()
+        try:
+            runtime_artifact = published_agent.runtime_artifact_or_raise()
+        except ValueError as exc:
+            raise AgentLoadFailedError(
+                str(exc),
+                agent_id=payload.agent_id,
+            ) from exc
         framework = provenance.framework or runtime_artifact.framework
         entrypoint = runtime_artifact.entrypoint or published_agent.entrypoint or payload.entrypoint
         artifact_ref = provenance.artifact_ref or runtime_artifact.artifact_ref

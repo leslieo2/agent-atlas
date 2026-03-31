@@ -35,13 +35,6 @@ def serialize_model(model: Any) -> str:
     return json.dumps(model.model_dump(mode="json"), ensure_ascii=False)
 
 
-def _normalize_experiment_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    spec = payload.get("spec")
-    if isinstance(spec, dict) and "model_config" not in spec and "model_settings" in spec:
-        spec["model_config"] = spec.pop("model_settings")
-    return payload
-
-
 def _validate_identifier(identifier: str) -> str:
     if not _IDENTIFIER_RE.fullmatch(identifier):
         raise ValueError(f"invalid SQL identifier '{identifier}'")
@@ -814,7 +807,7 @@ class StatePersistence:
             key_col="experiment_id",
             key_value=str(experiment.experiment_id),
             payload=json.dumps(
-                experiment.model_dump(mode="json", by_alias=True),
+                experiment.model_dump(mode="json"),
                 ensure_ascii=False,
             ),
             updated_at=datetime.now(UTC).isoformat(),
@@ -829,17 +822,14 @@ class StatePersistence:
         )
         if payload is None:
             return None
-        return ExperimentRecord.model_validate(_normalize_experiment_payload(json.loads(payload)))
+        return ExperimentRecord.model_validate(json.loads(payload))
 
     def list_experiments(self) -> list[ExperimentRecord]:
         payloads = self._fetch_payloads(
             self._control,
             f"SELECT payload FROM {self._control.table('experiments')} ORDER BY updated_at DESC",  # nosec B608
         )
-        return [
-            ExperimentRecord.model_validate(_normalize_experiment_payload(json.loads(payload)))
-            for payload in payloads
-        ]
+        return [ExperimentRecord.model_validate(json.loads(payload)) for payload in payloads]
 
     def save_run_evaluation(self, record: RunEvaluationRecord) -> None:
         placeholder = self._data.placeholder

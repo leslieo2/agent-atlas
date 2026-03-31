@@ -108,11 +108,7 @@ class ExecutionRunSpec(BaseModel):
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
-    model_settings: ModelConfig | None = Field(
-        default=None,
-        alias="model_config",
-        serialization_alias="model_config",
-    )
+    model_settings: ModelConfig | None = None
     prompt_config: PromptConfig | None = None
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)

@@ -202,7 +202,7 @@ def test_run_submission_service_preserves_requested_model_and_execution_metadata
         prompt="Inspect the latest run.",
         project_metadata={"team": "platform", "prompt_version": "2026-03"},
         executor_config=ExecutorConfig(backend="local-runner", tracing_backend="phoenix"),
-        model_config=ModelConfig(model="gpt-5.4"),
+        model_settings=ModelConfig(model="gpt-5.4"),
         prompt_config=PromptConfig(prompt_version="2026-03", system_prompt="Be strict."),
         toolset_config=ToolsetConfig(tools=["search"]),
         evaluator_config=EvaluatorConfig(metadata={"kind": "exact"}),
@@ -285,40 +285,3 @@ def test_run_submission_service_rejects_mismatched_snapshot_framework() -> None:
 
     assert repository.saved == []
     assert execution_control.submitted == []
-
-
-def test_run_submission_service_backfills_legacy_artifact_handoff() -> None:
-    repository = StubRunRepository()
-    execution_control = StubExecutionControl()
-    service = RunSubmissionService(
-        run_repository=repository,
-        execution_control=execution_control,
-    )
-    payload = RunCreateInput(
-        project="legacy-handoff",
-        agent_id="triage-bot",
-        input_summary="legacy handoff",
-        prompt="Inspect the latest run.",
-    )
-    agent = PublishedAgent(
-        manifest=AgentManifest(
-            agent_id="triage-bot",
-            name="Triage Bot",
-            description="Checks routing and summarizes issues.",
-            framework=AdapterKind.OPENAI_AGENTS.value,
-            default_model="gpt-5.4-mini",
-            tags=["ops"],
-        ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
-        source_fingerprint="legacy-fingerprint",
-    )
-
-    run = service.submit(payload, agent)
-
-    assert run.provenance is not None
-    assert run.provenance.artifact_ref == "source://triage-bot@legacy-fingerprint"
-    assert run.provenance.published_agent_snapshot is not None
-    assert run.provenance.published_agent_snapshot["runtime_artifact"]["source_fingerprint"] == (
-        "legacy-fingerprint"
-    )
-    assert run.executor_submission_id == f"local-{run.run_id}"

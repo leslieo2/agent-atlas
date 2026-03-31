@@ -2,7 +2,6 @@ import type { ProvenanceMetadata as ApiProvenanceMetadata } from "@/src/shared/a
 
 export interface ProvenanceRecord {
   framework?: string | null;
-  frameworkType?: string | null;
   frameworkVersion?: string | null;
   publishedAgentSnapshot?: Record<string, unknown> | null;
   artifactRef?: string | null;
@@ -22,7 +21,6 @@ export function mapProvenance(provenance?: ApiProvenanceMetadata | null): Proven
 
   return {
     framework: provenance.framework ?? null,
-    frameworkType: provenance.framework_type ?? null,
     frameworkVersion: provenance.framework_version ?? null,
     publishedAgentSnapshot: provenance.published_agent_snapshot ?? null,
     artifactRef: provenance.artifact_ref ?? null,

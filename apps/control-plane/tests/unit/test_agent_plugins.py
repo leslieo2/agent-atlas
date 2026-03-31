@@ -15,6 +15,7 @@ from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
 )
+from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.infrastructure.adapters.framework_registry import (
     FrameworkPlugin,
     FrameworkRegistry,
@@ -435,6 +436,9 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
+    build_result = SourceArtifactBuilder().build(published_agent)
+    published_agent.runtime_artifact = build_result.runtime_artifact
+    published_agent.provenance = build_result.provenance
     payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
@@ -515,6 +519,9 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
+    build_result = SourceArtifactBuilder().build(published_agent)
+    published_agent.runtime_artifact = build_result.runtime_artifact
+    published_agent.provenance = build_result.provenance
     payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",

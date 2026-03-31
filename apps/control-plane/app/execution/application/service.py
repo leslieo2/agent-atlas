@@ -94,7 +94,7 @@ class RunExecutionProjector:
         return TraceTelemetryMetadata(
             agent_id=context.payload.agent_id,
             framework=provenance.framework if provenance else None,
-            framework_type=provenance.framework_type if provenance else None,
+            framework_type=provenance.framework if provenance else None,
             framework_version=provenance.framework_version if provenance else None,
             artifact_ref=provenance.artifact_ref if provenance else None,
             image_ref=provenance.image_ref if provenance else None,

@@ -38,11 +38,7 @@ class RunCreateInput(BaseModel):
     dataset_sample_id: str | None = None
     executor_backend: str = "local-runner"
     executor_config: ExecutorConfig | None = None
-    model_settings: ModelConfig | None = Field(
-        default=None,
-        alias="model_config",
-        serialization_alias="model_config",
-    )
+    model_settings: ModelConfig | None = None
     prompt_config: PromptConfig | None = None
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
@@ -109,14 +105,14 @@ class RunRecord(BaseModel):
         provenance = self.provenance.model_copy(deep=True) if self.provenance is not None else None
         prompt_version = project_metadata.get("prompt_version")
         system_prompt = project_metadata.get("system_prompt")
-        model_config = None
+        model_settings = None
         prompt_config = None
         toolset_config = ToolsetConfig()
         evaluator_config = EvaluatorConfig()
         executor_config = ExecutorConfig(backend=self.executor_backend or "local-runner")
         approval_policy = None
         if provenance is not None:
-            model_config = ModelConfig(model=self.resolved_model or self.model)
+            model_settings = ModelConfig(model=self.resolved_model or self.model)
             prompt_config = PromptConfig(
                 prompt_version=prompt_version if isinstance(prompt_version, str) else None,
                 system_prompt=system_prompt if isinstance(system_prompt, str) else None,
@@ -164,7 +160,7 @@ class RunRecord(BaseModel):
             tags=list(self.tags),
             project_metadata=project_metadata,
             dataset_sample_id=self.dataset_sample_id,
-            model_config=model_config,
+            model_settings=model_settings,
             prompt_config=prompt_config,
             toolset_config=toolset_config,
             evaluator_config=evaluator_config,

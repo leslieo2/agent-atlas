@@ -46,7 +46,6 @@ def build_source_runtime_artifact(
 
 class ProvenanceMetadata(BaseModel):
     framework: str | None = None
-    framework_type: str | None = None
     framework_version: str | None = None
     published_agent_snapshot: dict[str, Any] | None = None
     artifact_ref: str | None = None

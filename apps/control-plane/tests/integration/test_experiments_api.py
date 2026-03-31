@@ -65,7 +65,7 @@ def _experiment_payload(
         "spec": {
             "dataset_version_id": dataset_version_id,
             "published_agent_id": "basic",
-            "model_config": {
+            "model_settings": {
                 "model": "gpt-5.4-mini",
                 "temperature": 0,
             },

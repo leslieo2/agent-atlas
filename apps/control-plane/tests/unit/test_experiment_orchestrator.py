@@ -92,7 +92,7 @@ def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> No
         spec=ExperimentSpec(
             dataset_version_id=dataset_version.dataset_version_id,
             published_agent_id="triage-bot",
-            model_config=ModelConfig(model="gpt-5.4", temperature=0.0),
+            model_settings=ModelConfig(model="gpt-5.4", temperature=0.0),
             prompt_config=PromptConfig(prompt_version="2026-03", system_prompt="Be strict."),
             toolset_config=ToolsetConfig(tools=["search"]),
             evaluator_config=EvaluatorConfig(metadata={"kind": "exact"}),

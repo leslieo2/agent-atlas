@@ -39,7 +39,7 @@ class ExperimentStatus(str, Enum):
 class ExperimentSpec(BaseModel):
     dataset_version_id: UUID
     published_agent_id: str
-    model_settings: ModelConfig = Field(alias="model_config", serialization_alias="model_config")
+    model_settings: ModelConfig
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)

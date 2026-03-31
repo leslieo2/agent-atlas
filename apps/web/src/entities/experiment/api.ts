@@ -23,7 +23,7 @@ export async function createExperiment(payload: CreateExperimentInput) {
     spec: {
       dataset_version_id: payload.datasetVersionId,
       published_agent_id: payload.publishedAgentId,
-      model_config: {
+      model_settings: {
         model: payload.model,
         temperature: 0
       },

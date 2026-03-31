@@ -7,7 +7,6 @@ export interface AgentDescriptorResponse {
   "name": string;
   "description": string;
   "framework": string;
-  "framework_type": string;
   "framework_version": string;
   "entrypoint": string;
   "default_model": string;
@@ -97,7 +96,6 @@ export interface DiscoveredAgentResponse {
   "name": string;
   "description": string;
   "framework": string;
-  "framework_type": string;
   "framework_version": string;
   "entrypoint": string;
   "default_model": string;
@@ -204,7 +202,7 @@ export interface ExperimentRunResponse {
 export interface ExperimentSpec {
   "dataset_version_id": string;
   "published_agent_id": string;
-  "model_config": ModelConfig;
+  "model_settings": ModelConfig;
   "prompt_config"?: PromptConfig;
   "toolset_config"?: ToolsetConfig;
   "evaluator_config"?: EvaluatorConfig;
@@ -216,7 +214,7 @@ export interface ExperimentSpec {
 export interface ExperimentSpecRequest {
   "dataset_version_id": string;
   "published_agent_id": string;
-  "model_config": ModelConfig;
+  "model_settings": ModelConfig;
   "prompt_config"?: PromptConfig;
   "toolset_config"?: ToolsetConfig;
   "evaluator_config"?: EvaluatorConfig;
@@ -267,7 +265,6 @@ export interface PromptConfig {
 }
 export interface ProvenanceMetadata {
   "framework"?: string | null;
-  "framework_type"?: string | null;
   "framework_version"?: string | null;
   "published_agent_snapshot"?: Record<string, unknown> | null;
   "artifact_ref"?: string | null;

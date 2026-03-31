@@ -83,7 +83,7 @@ class ExperimentOrchestrator:
                         "system_prompt": prompt_config.system_prompt,
                     },
                     dataset_sample_id=sample.sample_id,
-                    model_config=model_settings.model_copy(deep=True),
+                    model_settings=model_settings.model_copy(deep=True),
                     prompt_config=prompt_config.model_copy(deep=True),
                     toolset_config=experiment.spec.toolset_config.model_copy(deep=True),
                     evaluator_config=experiment.spec.evaluator_config.model_copy(deep=True),

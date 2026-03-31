@@ -20,6 +20,7 @@ from app.execution.application.results import (
     RuntimeExecutionResult,
 )
 from app.execution.contracts import ExecutionRunSpec
+from app.infrastructure.adapters.artifact_builder import SourceArtifactBuilder
 from app.infrastructure.adapters.framework_registry import (
     FrameworkPlugin,
     PublishedAgentExecutionDispatcher,
@@ -390,6 +391,9 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
+    build_result = SourceArtifactBuilder().build(published_agent)
+    published_agent.runtime_artifact = build_result.runtime_artifact
+    published_agent.provenance = build_result.provenance
     payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
@@ -447,6 +451,9 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
+    build_result = SourceArtifactBuilder().build(published_agent)
+    published_agent.runtime_artifact = build_result.runtime_artifact
+    published_agent.provenance = build_result.provenance
     adapter = PublishedLangChainAgentAdapter(agent_loader=StubLoader())
     payload = ExecutionRunSpec(
         project="migration-check",
@@ -538,6 +545,9 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
         ),
         entrypoint="app.agent_plugins.graph_bot:build_agent",
     )
+    build_result = SourceArtifactBuilder().build(published_agent)
+    published_agent.runtime_artifact = build_result.runtime_artifact
+    published_agent.provenance = build_result.provenance
     payload = ExecutionRunSpec(
         project="migration-check",
         dataset="framework-ds",
