@@ -77,25 +77,18 @@ class Settings(BaseSettings):
     )
     trace_backend: TraceBackendMode = Field(
         default=TraceBackendMode.STATE,
-        validation_alias=AliasChoices(
-            "AGENT_ATLAS_TRACING_BACKEND",
-            "AGENT_ATLAS_TRACE_BACKEND",
-        ),
         description="Read-side trace backend mode: state|phoenix.",
     )
     tracing_otlp_endpoint: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("AGENT_ATLAS_TRACING_OTLP_ENDPOINT"),
         description="OTLP endpoint used for neutral runtime/control-plane trace export.",
     )
     tracing_headers: dict[str, str] = Field(
         default_factory=dict,
-        validation_alias=AliasChoices("AGENT_ATLAS_TRACING_HEADERS"),
         description="Optional OTLP export headers.",
     )
     tracing_project_name: str = Field(
         default="agent-atlas",
-        validation_alias=AliasChoices("AGENT_ATLAS_TRACING_PROJECT_NAME"),
         description="Logical tracing project name used for exported Atlas traces.",
     )
     phoenix_base_url: str | None = Field(

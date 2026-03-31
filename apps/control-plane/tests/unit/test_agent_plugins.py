@@ -83,6 +83,7 @@ def test_validator_reports_missing_build_agent(monkeypatch) -> None:
             agent_id="fake",
             name="Fake",
             description="Fake plugin",
+            framework=AdapterKind.OPENAI_AGENTS.value,
             default_model="gpt-5.4-mini",
             tags=[],
         )
@@ -124,6 +125,7 @@ def test_discovery_marks_duplicate_agent_ids_invalid() -> None:
                     agent_id="duplicate",
                     name=source.module_name,
                     description="Duplicate plugin",
+                    framework=AdapterKind.OPENAI_AGENTS.value,
                     default_model="gpt-5.4-mini",
                     tags=[],
                 ),

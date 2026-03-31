@@ -318,7 +318,7 @@ def test_model_runtime_service_live_mode_without_key_raises():
     service.api_key = None
     service.runtime_mode = RuntimeMode.LIVE
 
-    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is not set"):
+    with pytest.raises(RuntimeError, match="AGENT_ATLAS_OPENAI_API_KEY is not set"):
         service.execute(
             AdapterKind.OPENAI_AGENTS,
             model="gpt-5.4-mini",

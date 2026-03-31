@@ -8,6 +8,7 @@ AGENT_MANIFEST = AgentManifest(
     agent_id="customer_service",
     name="Customer Service",
     description="Customer-support style agent that responds with policy-aware service guidance.",
+    framework="openai-agents-sdk",
     default_model="gpt-5.4-mini",
     tags=["example", "support"],
 )

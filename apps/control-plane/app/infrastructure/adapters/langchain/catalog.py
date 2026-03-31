@@ -38,7 +38,7 @@ class LangChainAgentContractValidator:
             module = import_module(source.module_name)
         except Exception as exc:
             return DiscoveredAgent(
-                manifest=self._fallback_manifest(source.module_name),
+                manifest=self._invalid_manifest(source.module_name),
                 entrypoint=source.entrypoint,
                 validation_status=AgentValidationStatus.INVALID,
                 validation_issues=[
@@ -146,7 +146,7 @@ class LangChainAgentContractValidator:
         raw_manifest = getattr(module, "AGENT_MANIFEST", None)
         if raw_manifest is None:
             return (
-                self._fallback_manifest(module_name),
+                self._invalid_manifest(module_name),
                 [
                     AgentValidationIssue(
                         code="manifest_missing",
@@ -159,7 +159,7 @@ class LangChainAgentContractValidator:
             manifest = AgentManifest.model_validate(raw_manifest)
         except ValidationError as exc:
             return (
-                self._fallback_manifest(module_name, raw_manifest=raw_manifest),
+                self._invalid_manifest(module_name),
                 [
                     AgentValidationIssue(
                         code="manifest_invalid",
@@ -235,23 +235,15 @@ class LangChainAgentContractValidator:
         invoke = getattr(candidate, "invoke", None)
         return callable(invoke) or callable(candidate)
 
-    def _fallback_manifest(
-        self,
-        module_name: str,
-        raw_manifest: object | None = None,
-    ) -> AgentManifest:
-        fallback = raw_manifest if isinstance(raw_manifest, dict) else {}
+    def _invalid_manifest(self, module_name: str) -> AgentManifest:
         module_leaf = module_name.rsplit(".", 1)[-1]
-        default_name = module_leaf.replace("_", " ").title()
-        tags = fallback.get("tags", [])
-        normalized_tags = [str(tag) for tag in tags] if isinstance(tags, list) else []
         return AgentManifest(
-            agent_id=str(fallback.get("agent_id") or module_leaf),
-            name=str(fallback.get("name") or default_name),
-            description=str(fallback.get("description") or "Invalid agent manifest"),
-            framework=str(fallback.get("framework") or AdapterKind.LANGCHAIN.value),
-            default_model=str(fallback.get("default_model") or ""),
-            tags=normalized_tags,
+            agent_id=module_leaf,
+            name=module_leaf.replace("_", " ").title(),
+            description="Invalid agent manifest",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="",
+            tags=[],
         )
 
 

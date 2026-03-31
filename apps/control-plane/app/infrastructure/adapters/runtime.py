@@ -236,7 +236,7 @@ class ModelRuntimeService:
 
         try:
             if not self.api_key:
-                raise RuntimeError("OPENAI_API_KEY is not set")
+                raise RuntimeError("AGENT_ATLAS_OPENAI_API_KEY is not set")
             adapter = self.adapters.get(agent_type)
             if adapter is None:
                 raise UnsupportedAdapterError(
@@ -267,7 +267,7 @@ class ModelRuntimeService:
 
         try:
             if not self.api_key:
-                raise RuntimeError("OPENAI_API_KEY is not set")
+                raise RuntimeError("AGENT_ATLAS_OPENAI_API_KEY is not set")
             context = AgentBuildContext(
                 run_id=run_id,
                 project=payload.project,

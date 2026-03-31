@@ -50,7 +50,7 @@ class AgentManifest(BaseModel):
     agent_id: str
     name: str
     description: str
-    framework: str = "openai-agents-sdk"
+    framework: str
     framework_version: str = "1.0.0"
     default_model: str
     tags: list[str] = Field(default_factory=list)

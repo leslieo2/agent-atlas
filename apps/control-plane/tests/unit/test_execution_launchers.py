@@ -114,6 +114,31 @@ def test_local_launcher_materializes_bootstrap_files_and_outputs(tmp_path):
 
 
 def test_local_process_runner_persists_runner_outputs_with_local_launcher(tmp_path):
+    class StubPublishedRuntime:
+        def execute_published(
+            self,
+            run_id,
+            payload: RunnerRunSpec,
+        ) -> PublishedRunExecutionResult:
+            return PublishedRunExecutionResult(
+                runtime_result=RuntimeExecutionResult(
+                    output=f"in-process:{run_id}",
+                    latency_ms=9,
+                    token_usage=4,
+                    provider="stub",
+                ),
+                trace_events=[
+                    TraceIngestEvent(
+                        run_id=payload.run_id,
+                        span_id=f"span-{payload.run_id}-1",
+                        step_type=StepType.LLM,
+                        name=payload.model,
+                        input={"prompt": payload.prompt},
+                        output={"output": "ok", "success": True},
+                    )
+                ],
+            )
+
     payload = _runner_spec()
     handoff = ExecutionHandoff(
         run_id=payload.run_id,
@@ -131,21 +156,24 @@ def test_local_process_runner_persists_runner_outputs_with_local_launcher(tmp_pa
         prompt=payload.prompt,
         tags=list(payload.tags),
         project_metadata=dict(payload.project_metadata),
-        executor_config=dict(payload.executor_config),
         dataset_sample_id=payload.dataset_sample_id,
         framework=payload.framework,
         artifact_ref=payload.artifact_ref,
         image_ref=payload.image_ref,
         trace_backend=payload.trace_backend,
         published_agent_snapshot=payload.published_agent_snapshot,
+        executor_config={**dict(payload.executor_config), "runner_mode": "in-process"},
     )
 
-    runner = LocalProcessRunner(launcher=LocalLauncher(workspace_root=tmp_path))
+    runner = LocalProcessRunner(
+        launcher=LocalLauncher(workspace_root=tmp_path),
+        published_runtime=StubPublishedRuntime(),
+    )
 
     result = runner.execute(handoff)
 
     assert result.execution.runtime_result.output
-    assert result.execution.runtime_result.provider in {"mock", "openai-agents-sdk"}
+    assert result.execution.runtime_result.provider == "stub"
     materialized_root = next(tmp_path.glob(f"{payload.run_id}/*"))
     assert materialized_root.joinpath("workspace/output/runtime_result.json").exists()
     assert materialized_root.joinpath("workspace/output/terminal_result.json").exists()

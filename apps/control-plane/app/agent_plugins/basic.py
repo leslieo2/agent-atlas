@@ -8,6 +8,7 @@ AGENT_MANIFEST = AgentManifest(
     agent_id="basic",
     name="Basic",
     description="Minimal plugin agent for smoke testing the SDK execution path.",
+    framework="openai-agents-sdk",
     default_model="gpt-5.4-mini",
     tags=["example", "smoke"],
 )

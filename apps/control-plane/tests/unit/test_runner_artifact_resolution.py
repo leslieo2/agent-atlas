@@ -106,7 +106,7 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
                 "agent_id": "basic",
                 "name": "Basic",
                 "description": "Basic agent",
-                "framework": "openai-agents-sdk",
+                "framework": AdapterKind.OPENAI_AGENTS.value,
                 "default_model": "gpt-5.4-mini",
                 "tags": ["example"],
             },
@@ -143,7 +143,10 @@ def test_runner_execution_handoff_builds_from_resolved_artifact() -> None:
     assert runner_run_spec_from_handoff(handoff).agent_type == AdapterKind.OPENAI_AGENTS.value
 
 
-def test_local_process_runner_stamps_runner_backend() -> None:
+def test_local_process_runner_stamps_runner_backend(monkeypatch) -> None:
+    monkeypatch.setenv("AGENT_ATLAS_RUNTIME_MODE", "mock")
+    monkeypatch.delenv("AGENT_ATLAS_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     run_id = uuid4()
     handoff = ExecutionHandoff(
         run_id=run_id,
@@ -165,7 +168,7 @@ def test_local_process_runner_stamps_runner_backend() -> None:
                 "agent_id": "basic",
                 "name": "Basic",
                 "description": "Basic agent",
-                "framework": "openai-agents-sdk",
+                "framework": AdapterKind.OPENAI_AGENTS.value,
                 "default_model": "gpt-5.4-mini",
                 "tags": [],
             },

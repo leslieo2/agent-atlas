@@ -14,6 +14,7 @@ AGENT_MANIFEST = AgentManifest(
         "Order-fulfillment validation agent that uses multiple local tools to decide "
         "the next customer-facing action."
     ),
+    framework="openai-agents-sdk",
     default_model="gpt-5-mini",
     tags=["example", "tools", "fulfillment"],
 )
