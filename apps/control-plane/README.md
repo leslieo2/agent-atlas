@@ -10,6 +10,8 @@ Strategically, the backend is moving toward a split where:
   exports
 - Phoenix is an optional trace inspection backend for experiment-heavy debugging workflows
 - immutable artifacts or images and runner orchestration become the execution handoff
+- Kubernetes container runtime becomes the primary execution implementation
+- external systems such as Inspect AI and E2B integrate only through adapters
 - RL integration starts with offline export contracts
 
 For the full-stack workflow, start from the repository root README. Use this document when you are
@@ -35,6 +37,7 @@ Directionally, the backend will also own:
 - runner backend selection and execution control behind a run contract
 - Phoenix-backed trace integration behind backend-owned ports and deep links
 - RL-ready export contracts and curation-oriented filtering
+- canonical evidence records that stay stable across execution backends
 
 The backend should not become the primary place for:
 
@@ -106,6 +109,8 @@ Planned runtime direction:
 - published agents remain repo-local and governed by Atlas
 - execution resolves from published snapshot toward immutable artifact or image references
 - runner orchestration is added behind infrastructure ports
+- Kubernetes container execution is the default production path
+- Inspect AI and E2B stay outside the core model as adapter-backed integrations
 - runtime and control-plane trace export flows use OTLP without making Phoenix the runtime
   contract
 - experiments, datasets, and exports become the primary product loop while runs remain supporting

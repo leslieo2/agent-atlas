@@ -8,7 +8,44 @@ This document defines the target repository and deployment boundaries for the ma
 - agent tracing and observability plane
 - data plane
 
-The goal is to remove ambiguity about where code belongs and what can depend on what.
+The goal is to remove ambiguity about where code belongs, what can depend on what, and which
+systems are allowed to shape Atlas-owned semantics.
+
+## Boundary Freeze Stance
+
+Atlas is converging on two stable centers:
+
+- a neutral control plane
+- a canonical evidence and data plane
+
+Execution and external tooling integrate around those centers, not through them.
+
+The frozen platform contract surface is:
+
+- run submission
+- cancel, status, and heartbeat
+- event ingest
+- terminal result
+- artifact manifest
+
+The long-lived Atlas objects are:
+
+- `PublishedAgentSnapshot`
+- `RunRecord`
+- `RunEvidence`
+- `SampleOutcome`
+- `ExperimentResult`
+- `ExportRecord`
+
+Every execution carrier or external system must map into those contracts and objects.
+
+That means:
+
+- Kubernetes is the primary execution implementation, but Kubernetes resources do not become
+  Atlas core models
+- Inspect AI and E2B are adapter integrations, not platform centers
+- no external runtime, sandbox, or observability system is allowed to reverse-shape the Atlas
+  domain model
 
 ## Current Assessment
 
@@ -20,11 +57,11 @@ The repository already has a strong internal structure:
 - runner framework code is isolated under `runtimes/runner-*`
 - cross-plane payloads already have a neutral home in `packages/contracts/python`
 
-The main architectural gap is not naming. It is runtime ownership.
+The main architectural gap is not naming. It is runtime ownership and model authority.
 
 Today, the default local execution path still executes published runtimes from inside the
 control-plane process. That means the repository has a clean conceptual split, but not yet a hard
-runtime boundary between control plane and runner plane.
+runtime boundary between control plane and execution adapters.
 
 ## Target Ownership Model
 
@@ -42,7 +79,9 @@ Owns:
 - agents, datasets, experiments, exports, policies, and run submission semantics
 - control-plane APIs and operator-facing state
 - publication, provenance, and policy decisions
-- execution intent, not execution mechanics
+- canonical Atlas records such as `PublishedAgentSnapshot`, `RunRecord`, `SampleOutcome`, and
+  `ExportRecord`
+- execution intent, not carrier mechanics
 
 Must not own:
 
@@ -50,6 +89,7 @@ Must not own:
 - container bootstrap
 - OTLP span emission from a live runner
 - trajectory rebuilding pipelines
+- carrier-native object models such as Kubernetes `Job` shapes or E2B session objects
 
 Target location:
 
@@ -78,13 +118,15 @@ Owns:
 - execution handoff validation
 - queue consumption and worker lifecycle
 - run state transitions driven by execution outcomes
-- backend selection for local, container, or Kubernetes carriers
+- backend selection for carriers and adapter integrations
+- the primary Kubernetes container runtime path
 
 Must not own:
 
 - business policy for datasets, exports, or experiments
 - framework-specific SDK logic
 - trace backend query APIs
+- Atlas-first domain objects that bypass the canonical evidence model
 
 Target location:
 
@@ -99,6 +141,12 @@ apps/executor-gateway/
 
 Short term, `apps/control-plane/app/execution` remains the transitional home. Long term, this code
 should move out when worker deployment and backend control become independently operated concerns.
+
+Important rule:
+
+- Kubernetes container execution is the default implementation target
+- Inspect AI, E2B, and similar systems belong behind adapter interfaces in this plane
+- adapters may enrich handoff and evidence mapping, but they must emit Atlas-neutral records
 
 ### 3. Runner Plane
 
@@ -166,6 +214,7 @@ Important rule:
 
 - write-side telemetry contracts must be neutral and shared
 - backend-specific read-side integrations such as Phoenix links stay outside runner packages
+- observability backends project into `RunEvidence`; they do not define the evidence schema
 
 This is the area where the current code is still transitional. `app/agent_tracing/contracts.py`
 currently acts as the source of truth for protocols that are effectively shared across planes.
@@ -199,7 +248,8 @@ apps/eval-worker/
 ```
 
 This plane should become the long-term owner of training-usable records, while the control plane
-keeps ownership of governance metadata and operator intent.
+keeps ownership of governance metadata and operator intent. The data plane is the canonical home
+for evidence normalization rather than a mirror of any one execution or observability backend.
 
 ## Dependency Rules
 
@@ -219,6 +269,8 @@ And the forbidden reverse edges are:
 - `apps/data-ingestion -> apps/control-plane/app/modules/*`
 - `apps/control-plane/app/modules/* -> runtimes/runner-*`
 - `apps/control-plane/app/modules/* -> tracing backend SDKs`
+- `apps/control-plane/app/modules/* -> Kubernetes SDK object models`
+- `apps/control-plane/app/modules/* -> Inspect AI or E2B SDK object models`
 
 ## Recommended Repository Layout
 
@@ -252,19 +304,31 @@ agent-atlas/
 
 The migration should happen in this order.
 
-### Phase 1: Harden Contracts
+### Phase 1: Freeze Platform Boundaries
 
-Move shared tracing and execution protocols to neutral packages.
+Freeze the primary Atlas contract and object model before moving more runtime code around.
 
 Do:
 
-- move shared trace ingest and export protocols out of `app/agent_tracing/contracts.py`
+- keep the primary contract limited to run submission, cancel, status, heartbeat, event ingest,
+  terminal result, and artifact manifest
+- converge Atlas-owned long-lived records on `PublishedAgentSnapshot`, `RunRecord`,
+  `RunEvidence`, `SampleOutcome`, `ExperimentResult`, and `ExportRecord`
 - keep `packages/contracts/python` as the only required runner-facing contract package
 - keep control-plane read models private to control-plane modules
+- make every carrier or vendor integration map into Atlas records instead of adding new Atlas core
+  objects
 
 Do not:
 
 - move vendor-specific Phoenix query adapters into shared packages
+- add Kubernetes, Inspect AI, or E2B concepts as first-class product models
+
+Success condition:
+
+- Atlas can add or swap adapters without changing its core product objects
+- Kubernetes can be the default execution path without Kubernetes resource identity leaking into
+  Atlas semantics
 
 ### Phase 2: Make Runner Execution Truly External
 
@@ -273,7 +337,8 @@ Replace in-process default execution with an out-of-process runner path.
 Do:
 
 - treat `local-process` as a development fallback only
-- add a real local worker or container runner that invokes runner packages as a separate process
+- make Kubernetes container runtime the production-default execution path
+- keep any Inspect AI or E2B support behind adapter boundaries
 - make control-plane and worker talk through execution handoff plus terminal artifacts only
 
 Success condition:

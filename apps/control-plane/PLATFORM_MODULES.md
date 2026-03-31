@@ -26,11 +26,12 @@ stable ports:
 
 Typical control-plane objects:
 
-- `DatasetVersion`
-- `Experiment`
+- `PublishedAgentSnapshot`
 - `RunRecord`
-- `EvalResult`
-- `ExportBatch`
+- `RunEvidence`
+- `SampleOutcome`
+- `ExperimentResult`
+- `ExportRecord`
 - `ApprovalPolicy`
 
 Typical control-plane ports:
@@ -64,6 +65,9 @@ Key rule:
 - the execution plane manages runtime contracts, not Python or TypeScript specific SDK objects
 - it remains under `apps/control-plane/app/` while it shares the control-plane process, wiring,
   and repositories; conceptual plane boundaries do not automatically imply top-level directories
+- Kubernetes is the primary execution implementation
+- Inspect AI, E2B, and similar systems must appear here only as adapters, never as Atlas core
+  models
 
 ### Observability And Ingestion
 

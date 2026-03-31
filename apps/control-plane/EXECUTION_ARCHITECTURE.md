@@ -11,7 +11,7 @@ execution-side runtime packages under `../../runtimes/`.
 The execution subsystem owns:
 
 - execution submission, retry, cancel, and status orchestration
-- translation from control-plane `RunSpec` into execution handoff and runner payload contracts
+- translation from control-plane run submission into execution handoff and runner payload contracts
 - runner backend selection and dispatch
 - launcher and carrier integration such as local and Kubernetes launch requests
 - execution-side result persistence hooks back into control-plane run state
@@ -43,6 +43,10 @@ Interpret that flow as:
 - `experiments` owns batch fan-out and aggregation decisions
 - `execution` owns orchestration and carrier-facing dispatch
 - `runtimes/*` owns framework-specific execution and runtime-side trace/event mapping
+
+The default production target for execution is Kubernetes container runtime. External systems such
+as Inspect AI and E2B belong behind execution adapters and must map into Atlas-neutral handoff,
+event, terminal-result, and artifact-manifest contracts.
 
 ## Internal Layout
 
@@ -122,6 +126,8 @@ That translation must stay centralized in `app/execution/adapters/specs.py` so t
 - control-plane business modules do not learn runner payload shape
 - runtime packages do not import control-plane internals
 - future carrier or runner backend changes stay localized
+- Kubernetes resource identity, Inspect AI objects, and E2B session objects do not leak into Atlas
+  business semantics
 
 ## Tracing And Observability
 
@@ -134,6 +140,7 @@ Rules:
 - runtimes emit runtime-side events and OTLP traces
 - control-plane tracing adapters own query, link, and projection concerns
 - Phoenix remains an optional read-side backend, not the execution contract
+- external systems may contribute adapter-specific evidence, but Atlas evidence remains canonical
 
 ## Extension Guidance
 

@@ -24,6 +24,52 @@ Published Agent -> Dataset -> Experiment -> Curation -> Export
 Atlas should get stronger at producing governed RL-ready data and weaker at features that Phoenix
 already owns well.
 
+## Migration Roadmap V2
+
+The platform direction is now:
+
+- Atlas converges on a neutral control plane plus a canonical evidence and data plane
+- the primary execution implementation is a Kubernetes container runtime
+- external systems such as Inspect AI and E2B integrate only through adapters
+- external runtimes and tools may map into Atlas contracts, but they must not define Atlas core
+  models
+
+### Phase 1: Freeze Platform Boundaries
+
+The platform contract surface should be intentionally narrow.
+
+Atlas primary contracts cover only:
+
+- run submission
+- cancel, status, and heartbeat
+- event ingest
+- terminal result
+- artifact manifest
+
+The long-lived Atlas core objects should converge on:
+
+- `PublishedAgentSnapshot`
+- `RunRecord`
+- `RunEvidence`
+- `SampleOutcome`
+- `ExperimentResult`
+- `ExportRecord`
+
+Rules for this phase:
+
+- Kubernetes, Inspect AI, and E2B map into these contracts and objects instead of introducing
+  carrier-specific or vendor-specific first-class models
+- execution carriers can contribute adapter-specific metadata, but Atlas-owned semantics stay on
+  the canonical objects above
+- no external runtime, sandbox, or observability product should reverse-shape the Atlas domain
+
+Acceptance direction:
+
+- Atlas can swap or add execution and evidence adapters without changing its primary product model
+- Kubernetes becomes the default execution target without making Kubernetes resource names part of
+  Atlas business semantics
+- Inspect AI and E2B stay optional adapter paths rather than platform-defining concepts
+
 ## Boundary
 
 ### Atlas keeps

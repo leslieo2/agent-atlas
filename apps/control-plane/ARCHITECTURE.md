@@ -73,7 +73,8 @@ semantics while external systems keep changing.
 Use that style for:
 
 - run, dataset, eval, export, policy, and provenance services
-- stable control-plane contracts such as `RunSpec`, `RunHandle`, and export metadata
+- stable Atlas-owned contracts such as run submission, run control, evidence ingest, and export
+  metadata
 - adapters for execution backends, trace sinks, artifact stores, judge services, or tool gateways
 
 Do not treat it as the primary mental model for every subsystem in the platform:
@@ -96,6 +97,8 @@ This architecture is optimized for the current and next-stage product shape:
   business logic out of modules
 - a clean split between Atlas-owned control-plane state and external observability backends such as
   Phoenix
+- a model boundary where Kubernetes, Inspect AI, and E2B map into Atlas records rather than define
+  them
 
 This is not a microservice architecture. The backend should stay a single deployable service unless
 that constraint becomes the actual bottleneck.
@@ -467,12 +470,13 @@ This is the most important neutral boundary in the backend.
 
 Control-plane code should depend on execution intent and lifecycle contracts only:
 
-- `RunSpec`
-- `RunHandle`
-- `RunStatus`
-- `CancelRequest`
-- `Heartbeat`
-- `RunTerminalSummary`
+- run submission
+- cancel, status, and heartbeat
+- event ingest
+- terminal result
+- artifact manifest
+- Atlas-owned records such as `PublishedAgentSnapshot`, `RunRecord`, `RunEvidence`,
+  `SampleOutcome`, `ExperimentResult`, and `ExportRecord`
 
 Control-plane code must not depend on:
 
@@ -481,11 +485,13 @@ Control-plane code must not depend on:
 - `kubectl logs`
 - local worker process identifiers
 - queue-specific acknowledgements
+- Inspect AI run objects
+- E2B sandbox or session objects
 
 The required semantics are:
 
 ```text
-submit_run(run_spec)
+submit_run(submission)
 cancel_run(cancel_request)
 retry_run(run_id)
 get_status(run_id)

@@ -8,8 +8,8 @@ It combines:
 - a FastAPI backend that owns agent publication, dataset identity, eval orchestration, provenance,
   and export contracts
 - a Next.js frontend that exposes the operator-facing RL data control plane
-- a Phoenix-first debugging model where raw traces, prompts, playground flows, and experiment
-  analysis live outside Atlas
+- a neutral execution and evidence contract where Kubernetes is the primary runtime path and
+  external systems integrate through adapters
 
 ## What Is In This Repository
 
@@ -57,6 +57,31 @@ The product boundary is:
   export semantics
 - Phoenix owns raw traces, playground, prompts, evaluators, and experiment analysis
 - RL integration starts with offline export first, not direct training orchestration
+- Inspect AI, E2B, and similar systems enter only as adapters around Atlas-owned contracts
+
+## Boundary Freeze
+
+The current platform migration is freezing a narrow Atlas-owned contract surface.
+
+Primary contracts:
+
+- run submission
+- cancel, status, and heartbeat
+- event ingest
+- terminal result
+- artifact manifest
+
+Long-lived Atlas objects:
+
+- `PublishedAgentSnapshot`
+- `RunRecord`
+- `RunEvidence`
+- `SampleOutcome`
+- `ExperimentResult`
+- `ExportRecord`
+
+Execution carriers and external tools must map into those contracts and objects. They must not
+become the source of truth for Atlas domain semantics.
 
 The target first-class Atlas surfaces are:
 
@@ -107,12 +132,13 @@ Hexagonal architecture is still useful, but only locally:
   `apps/control-plane/app/bootstrap/container.py`.
 - Web app: a layered Next.js App Router app. Route entrypoints live in `apps/web/app`, while
   product code follows `app -> widgets -> features -> entities -> shared` in `apps/web/src`.
-- Shared contracts: the long-term neutral boundary for `RunSpec`, event envelopes, artifact
-  manifests, and related cross-plane contracts lives under `packages/contracts/`.
+- Shared contracts: the long-term neutral boundary for run submission, event envelopes, terminal
+  results, artifact manifests, and related cross-plane contracts lives under `packages/contracts/`.
 - Planned packages and worker apps described elsewhere in the docs are directional landing zones
   unless the directory exists in the repository today.
-- External backend direction: Atlas keeps control-plane truth while Phoenix remains the required
-  analysis plane for raw traces and experiment-heavy debugging workflows.
+- External backend direction: Atlas keeps control-plane truth while Phoenix remains an analysis
+  backend for raw traces and experiment-heavy debugging workflows. Kubernetes is the primary
+  execution implementation, while Inspect AI and E2B remain adapter integrations.
 
 Use the subsystem docs for the full architecture rules:
 

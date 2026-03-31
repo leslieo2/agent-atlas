@@ -8,9 +8,10 @@ The repository should be read with one rule in mind:
 - the repository as a whole is not one giant hexagonal application
 - only the control plane defaults to a heavier ports-and-adapters structure internally
 
-This matches the current stage of the product. Contracts such as `RunSpec`, runtime events, and
-export metadata still change across the UI, control plane, workers, and runners, so keeping those
-surfaces in one repository reduces coordination friction.
+This matches the current stage of the product. Contracts such as run submission, runtime events,
+terminal results, artifact manifests, and export metadata still change across the UI, control
+plane, workers, and runners, so keeping those surfaces in one repository reduces coordination
+friction.
 
 ## Top-Level Layout
 
@@ -29,9 +30,7 @@ agent-atlas/
 ├─ runtimes/
 │  ├─ runner-base/
 │  ├─ runner-langgraph/
-│  ├─ runner-openai-agents/
-│  ├─ runner-inspect/
-│  └─ runner-custom/
+│  └─ runner-openai-agents/
 ├─ packages/
 │  ├─ contracts/
 │  │  └─ python/                   # current shared contracts package
@@ -62,8 +61,8 @@ are planned landing zones, not directories that already exist locally.
 Interpret the top level as follows:
 
 - `apps/` contains product-facing services and platform workers.
-- `runtimes/` contains execution-side adapters that consume shared contracts and run agents in a
-  specific framework or carrier.
+- `runtimes/` contains execution-side implementations that consume shared contracts and run agents
+  in a specific framework or Atlas-owned carrier path.
 - `packages/` contains cross-plane shared libraries.
 - `infra/` contains deployment, local compose, container, and observability assets.
 - `schemas/` is the neutral source-of-truth area for platform contracts that should not become
@@ -97,6 +96,8 @@ For the runtime-to-observability boundary specifically:
 - `infra/observability/` is where collector and backend wiring belongs
 - Phoenix remains a tooling backend for trace inspection and links, not the canonical runtime
   contract
+- Inspect AI, E2B, and similar external systems should enter as adapters, not as new first-class
+  runtime families or core models
 
 ## What Uses Hexagonal Design
 
@@ -193,9 +194,9 @@ Current implementation:
 - `schemas/jsonschema/`, `schemas/openapi/`, and `schemas/protobuf/` reserve the neutral schema
   space for cross-language evolution
 
-Directionally, contracts such as `RunSpec`, event envelopes, artifact metadata, eval results, and
-export manifests should live in shared packages or schemas, not as private control-plane models and
-not as runtime-specific SDK objects.
+Directionally, contracts such as run submission, event envelopes, terminal results, artifact
+manifests, and export manifests should live in shared packages or schemas, not as private
+control-plane models and not as runtime-specific SDK objects.
 
 That includes observability handoff. Runtime payloads may carry neutral observability configuration,
 but runtimes should still treat OTLP as the transport boundary and keep vendor-specific read-side
