@@ -60,6 +60,14 @@ def test_module_applications_do_not_import_db_store():
     assert violations == []
 
 
+def test_shared_application_contracts_do_not_depend_on_agent_tracing() -> None:
+    violations = _collect_forbidden_imports(
+        base_dir=Path("app/modules/shared/application"),
+        forbidden_prefixes=("app.agent_tracing",),
+    )
+    assert violations == []
+
+
 def test_non_run_feature_modules_do_not_import_run_application_ports():
     violations = _collect_forbidden_imports(
         base_dir=Path("app/modules"),

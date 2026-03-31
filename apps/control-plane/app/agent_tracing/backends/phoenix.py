@@ -6,7 +6,7 @@ from typing import Any, cast
 from urllib.parse import quote, urlencode
 from uuid import UUID
 
-from app.agent_tracing.contracts import RunTraceLookupPort
+from app.modules.shared.application.contracts import RunTraceLookupPort
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.traces import TraceSpan
 

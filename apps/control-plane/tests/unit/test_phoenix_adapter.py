@@ -10,9 +10,9 @@ from app.agent_tracing.backends.phoenix import (
     build_phoenix_project_url,
     build_phoenix_trace_url,
 )
-from app.agent_tracing.contracts import RunTraceLookup
 from app.bootstrap.wiring.infrastructure import build_infrastructure
 from app.core.config import TraceBackendMode, settings
+from app.modules.shared.application.contracts import RunTraceLookup
 
 
 class _RunLookup:

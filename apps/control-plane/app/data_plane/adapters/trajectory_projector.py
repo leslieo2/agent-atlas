@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.agent_tracing.contracts import TrajectoryStepProjectorPort
+from app.modules.shared.application.contracts import TrajectoryStepProjectorPort
 from app.modules.shared.domain.models import TrajectoryStepRecord, utc_now
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 

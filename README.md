@@ -119,6 +119,7 @@ Use the subsystem docs for the full architecture rules:
 - [prd.md](prd.md)
 - [roadmap.md](roadmap.md)
 - [docs/architecture/repository-layout.md](docs/architecture/repository-layout.md)
+- [docs/architecture/platform-boundaries.md](docs/architecture/platform-boundaries.md)
 - [apps/control-plane/README.md](apps/control-plane/README.md)
 - [apps/control-plane/ARCHITECTURE.md](apps/control-plane/ARCHITECTURE.md)
 - [apps/control-plane/PLATFORM_MODULES.md](apps/control-plane/PLATFORM_MODULES.md)

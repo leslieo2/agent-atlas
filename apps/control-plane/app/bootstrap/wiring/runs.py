@@ -9,13 +9,13 @@ from app.agent_tracing.application import (
     TraceSpanRecorder,
     TrajectoryRecorder,
 )
-from app.agent_tracing.contracts import RunObservationSinkPort
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.execution.application import RunExecutionService
 from app.modules.runs.adapters.outbound.execution.state_sink import RunExecutionStateSink
 from app.modules.runs.adapters.outbound.telemetry import RunTracingStateRecorder
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.application.use_cases import RunCommands, RunQueries
+from app.modules.shared.application.contracts import RunObservationSinkPort
 
 
 @dataclass(frozen=True)

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from app.agent_tracing.contracts import RunTracingStatePort
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.policies import RunAggregate
+from app.modules.shared.application.contracts import RunTracingStatePort
 from app.modules.shared.domain.models import TracePointer, TracingMetadata
 
 
