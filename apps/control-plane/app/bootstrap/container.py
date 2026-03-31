@@ -33,7 +33,7 @@ def get_container() -> AppContainer:
     agents = build_agent_module(infrastructure)
     datasets = build_dataset_module(infrastructure)
     runs = build_run_module(infrastructure)
-    experiments = build_experiment_module(infrastructure, agents)
+    experiments = build_experiment_module(infrastructure, agents, runs)
     exports = build_export_module(infrastructure)
     policies = build_policy_module(infrastructure)
     health = build_health_module(infrastructure)

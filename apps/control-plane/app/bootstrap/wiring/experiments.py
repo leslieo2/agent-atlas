@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from app.bootstrap.wiring.agents import AgentModuleBundle
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
+from app.bootstrap.wiring.runs import RunModuleBundle
 from app.modules.experiments.application.execution import (
     ExperimentAggregationService,
     ExperimentOrchestrator,
@@ -22,6 +23,7 @@ class ExperimentModuleBundle:
 def build_experiment_module(
     infra: InfrastructureBundle,
     agents: AgentModuleBundle,
+    runs: RunModuleBundle,
 ) -> ExperimentModuleBundle:
     experiment_queries = ExperimentQueries(
         experiment_repository=infra.experiment_repository,
@@ -42,9 +44,8 @@ def build_experiment_module(
     experiment_orchestrator = ExperimentOrchestrator(
         experiment_repository=infra.experiment_repository,
         dataset_repository=infra.dataset_repository,
-        run_repository=infra.run_repository,
         agent_catalog=infra.runnable_agent_catalog,
-        execution_control=infra.execution.execution_control,
+        run_submission=runs.run_submission,
         task_queue=infra.execution.task_queue,
     )
     experiment_aggregation_service = ExperimentAggregationService(

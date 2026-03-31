@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
+from app.modules.agents.domain.models import PublishedAgent
 from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
-from app.modules.runs.domain.models import RunRecord
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.models import TrajectoryStepRecord
 
 
@@ -38,3 +39,7 @@ class TrajectoryRepository(Protocol):
     def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStepRecord]: ...
 
     def append(self, step: TrajectoryStepRecord) -> None: ...
+
+
+class RunSubmissionPort(Protocol):
+    def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord: ...

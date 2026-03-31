@@ -60,6 +60,21 @@ BUILTIN_RUNTIME_PLUGIN_MODULES = (
 )
 
 
+def _load_runtime_adapter_builder(plugin_entry: object) -> object | None:
+    try:
+        builder = cast(Any, plugin_entry).load()
+    except Exception:
+        return None
+    return cast(object, builder)
+
+
+def _import_runtime_plugin_module(module_name: str) -> object | None:
+    try:
+        return import_module(module_name)
+    except Exception:
+        return None
+
+
 def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
     chain: list[BaseException] = []
     seen: set[int] = set()
@@ -292,16 +307,14 @@ class ModelRuntimeService:
     def _default_adapters() -> dict[AdapterKind, RuntimeAdapter]:
         adapters: dict[AdapterKind, RuntimeAdapter] = {}
         for plugin_entry in entry_points().select(group=RUNTIME_ADAPTER_ENTRY_POINT_GROUP):
-            try:
-                builder = plugin_entry.load()
-            except Exception:
+            builder = _load_runtime_adapter_builder(plugin_entry)
+            if builder is None:
                 continue
             _register_runtime_adapter(adapters, builder)
 
         for module_name in BUILTIN_RUNTIME_PLUGIN_MODULES:
-            try:
-                module = import_module(module_name)
-            except Exception:
+            module = _import_runtime_plugin_module(module_name)
+            if module is None:
                 continue
             _register_runtime_adapter(
                 adapters,

@@ -52,6 +52,8 @@ def _resolve_submission_agent(agent: PublishedAgent) -> PublishedAgent:
 def _resolved_submission_provenance(
     agent: PublishedAgent,
     effective_agent: PublishedAgent,
+    *,
+    trace_backend: str,
 ) -> ProvenanceMetadata:
     runtime_artifact = agent.effective_runtime_artifact()
     provenance = (
@@ -65,9 +67,33 @@ def _resolved_submission_provenance(
     provenance.published_agent_snapshot = snapshot
     provenance.artifact_ref = runtime_artifact.artifact_ref
     provenance.image_ref = runtime_artifact.image_ref
-    if provenance.trace_backend is None:
-        provenance.trace_backend = "state"
+    provenance.trace_backend = trace_backend
     return provenance
+
+
+def _resolve_executor_config(
+    payload: RunCreateInput,
+    *,
+    default_trace_backend: str,
+) -> tuple[ExecutorConfig, str]:
+    if payload.executor_config is None:
+        executor_config = ExecutorConfig(
+            backend=payload.executor_backend,
+            tracing_backend=default_trace_backend,
+        )
+        return executor_config, default_trace_backend
+
+    explicit_tracing_backend = (
+        payload.executor_config.tracing_backend
+        if "tracing_backend" in payload.executor_config.model_fields_set
+        else None
+    )
+    trace_backend = explicit_tracing_backend or default_trace_backend
+    executor_config = payload.executor_config.model_copy(
+        update={"tracing_backend": trace_backend},
+        deep=True,
+    )
+    return executor_config, trace_backend
 
 
 class RunSubmissionService:
@@ -83,14 +109,26 @@ class RunSubmissionService:
 
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
         effective_agent = _resolve_submission_agent(agent)
-        provenance = _resolved_submission_provenance(agent, effective_agent)
+        executor_config, trace_backend = _resolve_executor_config(
+            payload,
+            default_trace_backend=self.default_trace_backend,
+        )
+        provenance = _resolved_submission_provenance(
+            agent,
+            effective_agent,
+            trace_backend=trace_backend,
+        )
+        provenance.framework_type = provenance.framework
+        provenance.executor_backend = executor_config.backend
         provenance.experiment_id = payload.experiment_id
         provenance.dataset_version_id = payload.dataset_version_id
         provenance.dataset_sample_id = payload.dataset_sample_id
-        provenance.trace_backend = self.default_trace_backend
-        executor_config = payload.executor_config or ExecutorConfig(
-            backend=payload.executor_backend
+        provenance.approval_policy = (
+            payload.approval_policy.model_copy(deep=True) if payload.approval_policy else None
         )
+        provenance.toolset = payload.toolset_config.model_copy(deep=True)
+        provenance.evaluator = payload.evaluator_config.model_copy(deep=True)
+        provenance.executor = executor_config.model_copy(deep=True)
         spec = RunSpec(
             experiment_id=payload.experiment_id,
             dataset_version_id=payload.dataset_version_id,
@@ -98,7 +136,11 @@ class RunSubmissionService:
             dataset=payload.dataset,
             dataset_sample_id=payload.dataset_sample_id,
             agent_id=payload.agent_id,
-            model=effective_agent.default_model,
+            model=(
+                payload.model_settings.model
+                if payload.model_settings is not None
+                else effective_agent.default_model
+            ),
             entrypoint=effective_agent.entrypoint,
             agent_type=effective_agent.adapter_kind(),
             input_summary=payload.input_summary,
