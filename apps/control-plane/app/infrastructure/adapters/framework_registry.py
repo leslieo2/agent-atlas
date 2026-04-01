@@ -9,6 +9,7 @@ from typing import Any, Protocol, cast
 from agent_atlas_contracts.execution import RunnerRunSpec
 from pydantic import SecretStr
 
+from app.core.config import RuntimeMode, settings
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.execution.application.results import PublishedRunExecutionResult
 from app.modules.agents.domain.models import (
@@ -176,6 +177,9 @@ def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
         if plugin is None:
             continue
         plugins[plugin.framework.strip().lower()] = plugin
+
+    if settings.effective_runtime_mode() == RuntimeMode.LIVE:
+        return plugins
 
     for module_name in BUILTIN_FRAMEWORK_PLUGIN_MODULES:
         module = FrameworkRegistry._safe_import(module_name)

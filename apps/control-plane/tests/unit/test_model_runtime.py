@@ -5,7 +5,7 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 from agent_atlas_contracts.execution import ExecutionArtifact, RunnerRunSpec
-from app.core.config import RuntimeMode
+from app.core.config import RuntimeMode, settings
 from app.core.errors import (
     AgentFrameworkMismatchError,
     ModelNotFoundError,
@@ -192,6 +192,24 @@ def test_model_runtime_service_dispatches_through_runtime_adapters():
     assert adapter.calls == [("gpt-5.4-mini", "Check the account state.")]
     assert result.provider == "stub"
     assert result.output == "stub:Check the account state."
+
+
+def test_model_runtime_service_skips_builtin_runtime_plugins_in_live_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.runtime.entry_points",
+        lambda: SimpleNamespace(select=lambda **_kwargs: []),
+    )
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.runtime._import_runtime_plugin_module",
+        lambda module_name: (_ for _ in ()).throw(AssertionError(module_name)),
+    )
+
+    service = ModelRuntimeService()
+
+    assert service.adapters == {}
 
 
 def test_model_runtime_service_normalizes_invalid_model_errors():

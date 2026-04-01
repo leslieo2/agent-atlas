@@ -304,6 +304,9 @@ class ModelRuntimeService:
                 continue
             _register_runtime_adapter(adapters, builder)
 
+        if settings.effective_runtime_mode() == RuntimeMode.LIVE:
+            return adapters
+
         for module_name in BUILTIN_RUNTIME_PLUGIN_MODULES:
             module = _import_runtime_plugin_module(module_name)
             if module is None:
