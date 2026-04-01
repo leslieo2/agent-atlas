@@ -13,8 +13,9 @@ from app.modules.agents.domain.models import (
     ExecutionReference,
     PublishedAgent,
 )
-from app.modules.shared.domain.models import ExecutorConfig
-from pydantic import BaseModel
+from app.modules.runs.domain.models import RunCreateInput
+from app.modules.shared.domain.models import ApprovalPolicySnapshot, ExecutorConfig, ToolsetConfig
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AgentDescriptorResponse(BaseModel):
@@ -187,3 +188,40 @@ class DiscoveredAgentResponse(BaseModel):
 class AgentPublicationResponse(BaseModel):
     agent_id: str
     published: bool
+
+
+class AgentValidationRunStartRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    project: str
+    dataset: str | None = None
+    input_summary: str
+    prompt: str
+    tags: list[str] = Field(default_factory=list)
+    project_metadata: dict[str, object] = Field(default_factory=dict)
+    dataset_sample_id: str | None = None
+    executor_config: ExecutorConfig = Field(
+        default_factory=lambda: ExecutorConfig(backend="external-runner")
+    )
+    toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
+    approval_policy: ApprovalPolicySnapshot | None = None
+
+    def to_domain(self, *, agent_id: str) -> RunCreateInput:
+        tags = list(dict.fromkeys(["validation", *self.tags]))
+        return RunCreateInput(
+            project=self.project,
+            dataset=self.dataset,
+            agent_id=agent_id,
+            input_summary=self.input_summary,
+            prompt=self.prompt,
+            tags=tags,
+            project_metadata=dict(self.project_metadata),
+            dataset_sample_id=self.dataset_sample_id,
+            executor_config=self.executor_config.model_copy(deep=True),
+            toolset_config=self.toolset_config.model_copy(deep=True),
+            approval_policy=(
+                self.approval_policy.model_copy(deep=True)
+                if self.approval_policy is not None
+                else None
+            ),
+        )

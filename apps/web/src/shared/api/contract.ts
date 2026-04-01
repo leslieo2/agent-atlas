@@ -46,6 +46,18 @@ export interface AgentValidationRunReferenceResponse {
   "started_at"?: string | null;
   "completed_at"?: string | null;
 }
+export interface AgentValidationRunStartRequest {
+  "project": string;
+  "dataset"?: string | null;
+  "input_summary": string;
+  "prompt": string;
+  "tags"?: Array<string>;
+  "project_metadata"?: Record<string, unknown>;
+  "dataset_sample_id"?: string | null;
+  "executor_config"?: ExecutorConfig;
+  "toolset_config"?: ToolsetConfig;
+  "approval_policy"?: ApprovalPolicySnapshot_Input | null;
+}
 export type AgentValidationStatus = "valid" | "invalid";
 export interface ApprovalPolicyCreateRequest {
   "name": string;
@@ -59,7 +71,12 @@ export interface ApprovalPolicyResponse {
   "tool_policies": Array<ToolPolicyRule>;
   "created_at": string;
 }
-export interface ApprovalPolicySnapshot {
+export interface ApprovalPolicySnapshot_Input {
+  "approval_policy_id"?: string | null;
+  "name"?: string | null;
+  "tool_policies"?: Array<ToolPolicyRule>;
+}
+export interface ApprovalPolicySnapshot_Output {
   "approval_policy_id"?: string | null;
   "name"?: string | null;
   "tool_policies"?: Array<ToolPolicyRule>;
@@ -237,7 +254,7 @@ export interface ExperimentSpec {
   "evaluator_config"?: EvaluatorConfig;
   "executor_config"?: ExecutorConfig | null;
   "approval_policy_id"?: string | null;
-  "approval_policy"?: ApprovalPolicySnapshot | null;
+  "approval_policy"?: ApprovalPolicySnapshot_Output | null;
   "tags"?: Array<string>;
 }
 export interface ExperimentSpecRequest {
@@ -304,7 +321,7 @@ export interface ProvenanceMetadata {
   "experiment_id"?: string | null;
   "dataset_version_id"?: string | null;
   "dataset_sample_id"?: string | null;
-  "approval_policy"?: ApprovalPolicySnapshot | null;
+  "approval_policy"?: ApprovalPolicySnapshot_Output | null;
   "toolset"?: ToolsetConfig | null;
   "evaluator"?: EvaluatorConfig | null;
   "executor"?: ExecutorConfig | null;

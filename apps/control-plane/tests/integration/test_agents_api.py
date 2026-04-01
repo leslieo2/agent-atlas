@@ -288,3 +288,32 @@ def test_agents_api_ignores_non_validation_runs_in_agent_records(client) -> None
     assert discovered["basic"]["latest_validation"] is None
     assert discovered["basic"]["validation_evidence"] is None
     assert discovered["basic"]["validation_outcome"] is None
+
+
+def test_agents_api_starts_generic_validation_runs_via_agent_entrypoint(client) -> None:
+    response = client.post(
+        "/api/v1/agents/basic/validation-runs",
+        json={
+            "project": "atlas-validation",
+            "dataset": "controlled-validation",
+            "input_summary": "Validate the agent on a controlled project bundle",
+            "prompt": "Edit app.py and report completion.",
+            "tags": ["project-in-container"],
+            "project_metadata": {"validation_image": "atlas-claude-validation:local"},
+            "executor_config": {
+                "backend": "external-runner",
+                "runner_image": "atlas-claude-validation:local",
+                "metadata": {"runner_backend": "k8s-container"},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["agent_id"] == "basic"
+    assert payload["project"] == "atlas-validation"
+    assert payload["dataset"] == "controlled-validation"
+    assert payload["status"] == "queued"
+    assert payload["tags"] == ["validation", "project-in-container"]
+    assert payload["executor_backend"] == "external-runner"
+    assert payload["provenance"]["executor"]["metadata"]["runner_backend"] == "k8s-container"
