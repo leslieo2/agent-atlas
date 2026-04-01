@@ -45,6 +45,7 @@ dev:
 	frontend_pid=''; \
 	phoenix_base_url='http://$(PHOENIX_HOST):$(PHOENIX_PORT)'; \
 	phoenix_otlp_endpoint="$$phoenix_base_url/v1/traces"; \
+	allowed_origins='["http://localhost:3000","http://127.0.0.1:3000"]'; \
 	cleanup() { \
 		status=$$?; \
 		for pid in "$$api_pid" "$$worker_pid" "$$frontend_pid"; do \
@@ -87,9 +88,9 @@ dev:
 		fi; \
 		sleep 1; \
 	done; \
-	AGENT_ATLAS_PHOENIX_BASE_URL="$$phoenix_base_url" AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT="$$phoenix_otlp_endpoint" AGENT_ATLAS_PHOENIX_PROJECT_NAME='$(PHOENIX_PROJECT_NAME)' $(MAKE) -C $(CONTROL_PLANE_DIR) run-api & \
+	AGENT_ATLAS_ALLOWED_ORIGINS="$$allowed_origins" AGENT_ATLAS_PHOENIX_BASE_URL="$$phoenix_base_url" AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT="$$phoenix_otlp_endpoint" AGENT_ATLAS_PHOENIX_PROJECT_NAME='$(PHOENIX_PROJECT_NAME)' $(MAKE) -C $(CONTROL_PLANE_DIR) run-api & \
 	api_pid=$$!; \
-	AGENT_ATLAS_PHOENIX_BASE_URL="$$phoenix_base_url" AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT="$$phoenix_otlp_endpoint" AGENT_ATLAS_PHOENIX_PROJECT_NAME='$(PHOENIX_PROJECT_NAME)' $(MAKE) -C $(CONTROL_PLANE_DIR) run-worker & \
+	AGENT_ATLAS_ALLOWED_ORIGINS="$$allowed_origins" AGENT_ATLAS_PHOENIX_BASE_URL="$$phoenix_base_url" AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT="$$phoenix_otlp_endpoint" AGENT_ATLAS_PHOENIX_PROJECT_NAME='$(PHOENIX_PROJECT_NAME)' $(MAKE) -C $(CONTROL_PLANE_DIR) run-worker & \
 	worker_pid=$$!; \
 	NEXT_PUBLIC_API_BASE_URL=http://$(API_HOST):$(API_PORT) npm --prefix $(WEB_DIR) run dev -- --hostname $(FRONTEND_HOST) --port $(FRONTEND_PORT) & \
 	frontend_pid=$$!; \
