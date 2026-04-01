@@ -546,3 +546,82 @@ def test_experiments_api_live_mode_starter_emits_trace_deeplink_without_explicit
         run_detail = live_client.get(f"/api/v1/runs/{runs[0]['run_id']}")
         assert run_detail.status_code == 200
         assert run_detail.json()["trace_pointer"]["trace_url"] == runs[0]["trace_url"]
+
+
+def test_experiments_api_run_list_falls_back_to_run_trace_pointer_when_evaluation_trace_is_null(
+    monkeypatch,
+    worker_drain,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", False)
+    get_container.cache_clear()
+    install_fake_docker_runtime(
+        monkeypatch,
+        outputs={"alpha": "not-alpha"},
+    )
+
+    from app.main import app
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as live_client:
+        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        assert bootstrap_response.status_code == 200
+
+        dataset_response = live_client.post(
+            "/api/v1/datasets",
+            json={
+                "name": "live-starter-trace-fallback-dataset",
+                "description": "Dataset for experiments trace-url fallback",
+                "source": "crm",
+                "version": "2026-04",
+                "rows": [{"sample_id": "sample-1", "input": "alpha", "expected": "alpha"}],
+            },
+        )
+        assert dataset_response.status_code == 200
+        dataset_version_id = dataset_response.json()["current_version_id"]
+
+        create_response = live_client.post(
+            "/api/v1/experiments",
+            json={
+                "name": "live-starter-trace-fallback-experiment",
+                "spec": {
+                    "dataset_version_id": dataset_version_id,
+                    "published_agent_id": "claude-code-starter",
+                    "model_settings": {"model": "gpt-5.4-mini", "temperature": 0},
+                    "prompt_config": {"prompt_version": "2026-04"},
+                    "toolset_config": {"tools": [], "metadata": {}},
+                    "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
+                    "tags": ["live-starter", "trace-fallback"],
+                },
+            },
+        )
+        assert create_response.status_code == 201
+        experiment_id = create_response.json()["experiment_id"]
+
+        start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
+        assert start_response.status_code == 200
+        assert _drain_background_work(worker_drain, limit=40) >= 1
+
+        runs_response = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
+        assert runs_response.status_code == 200
+        run_id = runs_response.json()[0]["run_id"]
+
+        container = get_container()
+        evaluations = container.infrastructure.run_evaluation_repository.list_for_experiment(
+            experiment_id
+        )
+        evaluation = next((record for record in evaluations if str(record.run_id) == run_id), None)
+        assert evaluation is not None
+        assert evaluation.trace_url is not None
+        container.infrastructure.run_evaluation_repository.save(
+            evaluation.model_copy(update={"trace_url": None})
+        )
+
+        refreshed_runs = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
+        assert refreshed_runs.status_code == 200
+        refreshed_row = refreshed_runs.json()[0]
+        assert refreshed_row["trace_url"] is not None
+
+        run_detail = live_client.get(f"/api/v1/runs/{run_id}")
+        assert run_detail.status_code == 200
+        assert refreshed_row["trace_url"] == run_detail.json()["trace_pointer"]["trace_url"]

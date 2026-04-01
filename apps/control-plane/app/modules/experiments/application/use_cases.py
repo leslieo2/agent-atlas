@@ -122,6 +122,19 @@ class ExperimentQueries:
         for run in runs:
             sample = samples_by_id.get(run.dataset_sample_id or "")
             evaluation = evaluations_by_run.get(run.run_id)
+            trace_url = None
+            if (
+                evaluation
+                and isinstance(evaluation.trace_url, str)
+                and evaluation.trace_url.strip()
+            ):
+                trace_url = evaluation.trace_url.strip()
+            elif (
+                run.trace_pointer is not None
+                and isinstance(run.trace_pointer.trace_url, str)
+                and run.trace_pointer.trace_url.strip()
+            ):
+                trace_url = run.trace_pointer.trace_url.strip()
             details.append(
                 ExperimentRunDetail(
                     run_id=run.run_id,
@@ -161,9 +174,7 @@ class ExperimentQueries:
                     else run.executor_backend,
                     latency_ms=evaluation.latency_ms if evaluation else run.latency_ms,
                     tool_calls=evaluation.tool_calls if evaluation else run.tool_calls,
-                    trace_url=evaluation.trace_url
-                    if evaluation
-                    else (run.trace_pointer.trace_url if run.trace_pointer else None),
+                    trace_url=trace_url,
                 )
             )
         return details
