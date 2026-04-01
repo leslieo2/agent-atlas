@@ -19,7 +19,7 @@ from app.modules.exports.domain.models import ArtifactMetadata
 from app.modules.policies.domain.models import ApprovalPolicyRecord
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.models import TrajectoryStepRecord
-from app.modules.shared.domain.tasks import QueuedTask, TaskStatus
+from app.modules.shared.domain.tasks import QueuedTask, TaskStatus, TaskType
 from app.modules.shared.domain.traces import TraceSpan
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -982,6 +982,26 @@ class StatePersistence:
         return [ArtifactMetadata.model_validate(json.loads(payload)) for payload in payloads]
 
     def enqueue_task(self, task: QueuedTask) -> None:
+        if task.task_type == TaskType.EXPERIMENT_AGGREGATION:
+            existing = self._control.fetchone(
+                f"""
+                SELECT 1
+                FROM {self._control.table('tasks')}
+                WHERE task_type = {self._control.placeholder}
+                  AND target_id = {self._control.placeholder}
+                  AND status IN ({self._control.placeholder}, {self._control.placeholder})
+                LIMIT 1
+                """,
+                (
+                    task.task_type.value,
+                    str(task.target_id),
+                    TaskStatus.PENDING.value,
+                    TaskStatus.RUNNING.value,
+                ),
+            )
+            if existing is not None:
+                return
+
         placeholder = self._control.placeholder
         self._control.execute(  # nosec B608
             f"""

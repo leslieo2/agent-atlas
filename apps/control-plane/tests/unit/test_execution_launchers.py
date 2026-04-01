@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tarfile
 from pathlib import Path
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ from agent_atlas_contracts.execution import (
     TerminalMetrics,
     TerminalResult,
 )
+from agent_atlas_runner_base import materialization as runner_materialization
 from agent_atlas_runner_base.claude_code import main as claude_code_runner_main
 from app.core.errors import AgentFrameworkMismatchError, AppError
 from app.execution.adapters import (
@@ -760,3 +762,243 @@ def test_claude_code_stream_json_runner_writes_neutral_outputs(tmp_path):
     assert terminal_result["producer"]["version"] == "1.2.3"
     assert len(events) == 2
     assert manifest["artifacts"][0]["path"] == "transcripts/claude-stream.jsonl"
+
+
+def test_claude_code_stream_json_runner_materializes_project_bundle_and_tracks_changed_files(
+    tmp_path,
+    monkeypatch,
+):
+    source_project = tmp_path / "source-project"
+    source_project.mkdir(parents=True, exist_ok=True)
+    source_project.joinpath("main.py").write_text("print('before')\n", encoding="utf-8")
+    bundle_path = tmp_path / "project-bundle.tar.gz"
+    with tarfile.open(bundle_path, "w:gz") as archive:
+        archive.add(source_project, arcname="demo-project")
+
+    mount_path = tmp_path / "workspace/project"
+    monkeypatch.setattr(runner_materialization, "WORKSPACE_PROJECT_MOUNT_PATH", mount_path)
+    payload = _runner_spec().model_copy(
+        update={
+            "runner_backend": "k8s-container",
+            "executor_config": {
+                "backend": "external-runner",
+                "runner_image": "ghcr.io/example/claude-runner:latest",
+                "metadata": {
+                    "runner_backend": "k8s-container",
+                    "project_materialization": {
+                        "mode": "artifact_bundle",
+                        "artifact_ref": f"file://{bundle_path}",
+                        "mount_path": "/workspace/project",
+                    },
+                    "claude_code_cli": {
+                        "command": sys.executable,
+                        "args": [
+                            "-c",
+                            (
+                                "from pathlib import Path; "
+                                "import json; "
+                                "target = Path('main.py'); "
+                                "target.write_text(\"print('after')\\n\", encoding='utf-8'); "
+                                "print(json.dumps({'type':'result','result':'edited'}))"
+                            ),
+                        ],
+                        "version": "1.2.3",
+                    },
+                },
+            },
+            "bootstrap": RunnerBootstrapPaths(
+                run_spec_path=str(tmp_path / "workspace/input/run_spec.json"),
+                events_path=str(tmp_path / "workspace/output/events.ndjson"),
+                runtime_result_path=str(tmp_path / "workspace/output/runtime_result.json"),
+                terminal_result_path=str(tmp_path / "workspace/output/terminal_result.json"),
+                artifact_manifest_path=str(tmp_path / "workspace/output/artifact_manifest.json"),
+                artifact_dir=str(tmp_path / "workspace/output/artifacts"),
+            ),
+        }
+    )
+    Path(payload.bootstrap.run_spec_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(payload.bootstrap.run_spec_path).write_text(
+        payload.model_dump_json(indent=2),
+        encoding="utf-8",
+    )
+
+    exit_code = claude_code_runner_main(
+        [
+            "--run-spec",
+            payload.bootstrap.run_spec_path,
+            "--events",
+            payload.bootstrap.events_path,
+            "--runtime-result",
+            payload.bootstrap.runtime_result_path,
+            "--terminal-result",
+            payload.bootstrap.terminal_result_path,
+            "--artifact-manifest",
+            payload.bootstrap.artifact_manifest_path,
+            "--artifact-dir",
+            payload.bootstrap.artifact_dir,
+        ]
+    )
+
+    assert exit_code == 0
+    assert mount_path.joinpath("main.py").read_text(encoding="utf-8") == "print('after')\n"
+    manifest = json.loads(
+        Path(payload.bootstrap.artifact_manifest_path).read_text(encoding="utf-8")
+    )
+    changed_files_artifact = next(
+        item for item in manifest["artifacts"] if item["path"] == "workspace/changed-files.json"
+    )
+    changed_manifest = json.loads(
+        Path(payload.bootstrap.artifact_dir, changed_files_artifact["path"]).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert changed_manifest["modified"] == ["main.py"]
+
+
+def test_claude_code_stream_json_runner_surfaces_materialization_failures_as_neutral_outputs(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        runner_materialization,
+        "WORKSPACE_PROJECT_MOUNT_PATH",
+        tmp_path / "workspace/project",
+    )
+    payload = _runner_spec().model_copy(
+        update={
+            "runner_backend": "k8s-container",
+            "executor_config": {
+                "backend": "external-runner",
+                "runner_image": "ghcr.io/example/claude-runner:latest",
+                "metadata": {
+                    "runner_backend": "k8s-container",
+                    "project_materialization": {
+                        "mode": "artifact_bundle",
+                        "artifact_ref": f"file://{tmp_path / 'missing-bundle.tar.gz'}",
+                        "mount_path": "/workspace/project",
+                    },
+                    "claude_code_cli": {
+                        "command": sys.executable,
+                        "args": ["-c", "print('should-not-run')"],
+                        "version": "1.2.3",
+                    },
+                },
+            },
+            "bootstrap": RunnerBootstrapPaths(
+                run_spec_path=str(tmp_path / "workspace/input/run_spec.json"),
+                events_path=str(tmp_path / "workspace/output/events.ndjson"),
+                runtime_result_path=str(tmp_path / "workspace/output/runtime_result.json"),
+                terminal_result_path=str(tmp_path / "workspace/output/terminal_result.json"),
+                artifact_manifest_path=str(tmp_path / "workspace/output/artifact_manifest.json"),
+                artifact_dir=str(tmp_path / "workspace/output/artifacts"),
+            ),
+        }
+    )
+    Path(payload.bootstrap.run_spec_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(payload.bootstrap.run_spec_path).write_text(
+        payload.model_dump_json(indent=2),
+        encoding="utf-8",
+    )
+
+    exit_code = claude_code_runner_main(
+        [
+            "--run-spec",
+            payload.bootstrap.run_spec_path,
+            "--events",
+            payload.bootstrap.events_path,
+            "--runtime-result",
+            payload.bootstrap.runtime_result_path,
+            "--terminal-result",
+            payload.bootstrap.terminal_result_path,
+            "--artifact-manifest",
+            payload.bootstrap.artifact_manifest_path,
+            "--artifact-dir",
+            payload.bootstrap.artifact_dir,
+        ]
+    )
+
+    assert exit_code == 1
+    runtime_result = json.loads(
+        Path(payload.bootstrap.runtime_result_path).read_text(encoding="utf-8")
+    )
+    terminal_result = json.loads(
+        Path(payload.bootstrap.terminal_result_path).read_text(encoding="utf-8")
+    )
+    manifest = json.loads(
+        Path(payload.bootstrap.artifact_manifest_path).read_text(encoding="utf-8")
+    )
+
+    assert runtime_result["execution_backend"] == "kubernetes-job"
+    assert terminal_result["status"] == "failed"
+    assert terminal_result["reason_code"] == "workspace_materialization_failed"
+    assert manifest["artifacts"][0]["path"] == "logs/materialization-error.txt"
+
+
+def test_claude_code_stream_json_runner_rejects_noncanonical_mount_path(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        runner_materialization,
+        "WORKSPACE_PROJECT_MOUNT_PATH",
+        tmp_path / "workspace/project",
+    )
+    payload = _runner_spec().model_copy(
+        update={
+            "runner_backend": "k8s-container",
+            "executor_config": {
+                "backend": "external-runner",
+                "runner_image": "ghcr.io/example/claude-runner:latest",
+                "metadata": {
+                    "runner_backend": "k8s-container",
+                    "project_materialization": {
+                        "mode": "artifact_bundle",
+                        "artifact_ref": f"file://{tmp_path / 'bundle.tar.gz'}",
+                        "mount_path": str(tmp_path / "custom-workspace"),
+                    },
+                    "claude_code_cli": {
+                        "command": sys.executable,
+                        "args": ["-c", "print('should-not-run')"],
+                        "version": "1.2.3",
+                    },
+                },
+            },
+            "bootstrap": RunnerBootstrapPaths(
+                run_spec_path=str(tmp_path / "workspace/input/run_spec.json"),
+                events_path=str(tmp_path / "workspace/output/events.ndjson"),
+                runtime_result_path=str(tmp_path / "workspace/output/runtime_result.json"),
+                terminal_result_path=str(tmp_path / "workspace/output/terminal_result.json"),
+                artifact_manifest_path=str(tmp_path / "workspace/output/artifact_manifest.json"),
+                artifact_dir=str(tmp_path / "workspace/output/artifacts"),
+            ),
+        }
+    )
+    Path(payload.bootstrap.run_spec_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(payload.bootstrap.run_spec_path).write_text(
+        payload.model_dump_json(indent=2),
+        encoding="utf-8",
+    )
+
+    exit_code = claude_code_runner_main(
+        [
+            "--run-spec",
+            payload.bootstrap.run_spec_path,
+            "--events",
+            payload.bootstrap.events_path,
+            "--runtime-result",
+            payload.bootstrap.runtime_result_path,
+            "--terminal-result",
+            payload.bootstrap.terminal_result_path,
+            "--artifact-manifest",
+            payload.bootstrap.artifact_manifest_path,
+            "--artifact-dir",
+            payload.bootstrap.artifact_dir,
+        ]
+    )
+
+    assert exit_code == 1
+    terminal_result = json.loads(
+        Path(payload.bootstrap.terminal_result_path).read_text(encoding="utf-8")
+    )
+    assert terminal_result["reason_code"] == "workspace_materialization_failed"
+    assert "mount_path=/workspace/project" in terminal_result["reason_message"]

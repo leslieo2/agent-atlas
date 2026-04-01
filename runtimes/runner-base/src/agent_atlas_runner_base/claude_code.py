@@ -7,6 +7,7 @@ import subprocess  # nosec B404 - explicit runner-side CLI invocation
 import sys
 import time
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 from agent_atlas_contracts.execution import (
@@ -20,6 +21,12 @@ from agent_atlas_contracts.execution import (
 from agent_atlas_contracts.runtime import RuntimeExecutionResult, producer_for_runtime
 
 from agent_atlas_runner_base.outputs import RunnerOutputWriter
+from agent_atlas_runner_base.materialization import (
+    changed_files_manifest,
+    materialize_project_bundle,
+    project_materialization_from_executor_config,
+    snapshot_tree,
+)
 
 
 def _string_value(value: object) -> str | None:
@@ -62,11 +69,7 @@ def claude_code_cli_config_from_executor_config(
     if isinstance(raw_command, str):
         command = [raw_command.strip()] if raw_command.strip() else ["claude"]
     elif isinstance(raw_command, Sequence) and not isinstance(raw_command, str | bytes):
-        command = [
-            item.strip()
-            for item in raw_command
-            if isinstance(item, str) and item.strip()
-        ]
+        command = [item.strip() for item in raw_command if isinstance(item, str) and item.strip()]
         if not command:
             command = ["claude"]
     else:
@@ -212,6 +215,13 @@ def _command_for_payload(payload: RunnerRunSpec) -> tuple[list[str], ClaudeCodeC
     return command, config
 
 
+def _neutral_execution_backend(payload: RunnerRunSpec) -> str | None:
+    if payload.runner_backend == "k8s-container":
+        return "kubernetes-job"
+    backend = payload.executor_config.get("backend")
+    return backend if isinstance(backend, str) and backend.strip() else payload.runner_backend
+
+
 def _terminal_artifacts(
     *,
     writer: RunnerOutputWriter,
@@ -249,15 +259,114 @@ def _terminal_artifacts(
     )
 
 
+def _write_failure_outputs(
+    *,
+    writer: RunnerOutputWriter,
+    payload: RunnerRunSpec,
+    producer_version: str | None,
+    reason_code: str,
+    reason_message: str,
+    execution_backend: str | None,
+) -> int:
+    latency_ms = 0
+    artifacts = [
+        writer.write_artifact_text(
+            "logs/materialization-error.txt",
+            reason_message,
+            metadata={"runner_family": "claude-code-cli", "kind": "materialization_error"},
+        )
+    ]
+    writer.write_artifact_manifest(
+        ArtifactManifest(
+            run_id=payload.run_id,
+            experiment_id=payload.experiment_id,
+            attempt=payload.attempt,
+            attempt_id=payload.attempt_id,
+            producer=producer_for_runtime(
+                runtime="claude-code-cli",
+                framework=payload.framework,
+                version=producer_version,
+            ),
+            artifacts=artifacts,
+        )
+    )
+    writer.write_runtime_result(
+        RuntimeExecutionResult(
+            output=reason_message,
+            latency_ms=latency_ms,
+            token_usage=0,
+            provider="claude-code-cli",
+            execution_backend=execution_backend,
+            resolved_model=payload.model,
+        )
+    )
+    writer.write_terminal_result(
+        TerminalResult(
+            run_id=payload.run_id,
+            experiment_id=payload.experiment_id,
+            attempt=payload.attempt,
+            attempt_id=payload.attempt_id,
+            status="failed",
+            reason_code=reason_code,
+            reason_message=reason_message,
+            exit_code=1,
+            output=reason_message,
+            producer=producer_for_runtime(
+                runtime="claude-code-cli",
+                framework=payload.framework,
+                version=producer_version,
+            ),
+            metrics=TerminalMetrics(
+                latency_ms=latency_ms,
+                token_usage=0,
+                tool_calls=0,
+            ),
+        )
+    )
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     bootstrap = _parse_args(argv)
     writer = RunnerOutputWriter(bootstrap)
     payload = writer.load_run_spec()
     command, config = _command_for_payload(payload)
+    execution_backend = _neutral_execution_backend(payload)
+    try:
+        materialization = project_materialization_from_executor_config(payload.executor_config)
+    except Exception as exc:
+        return _write_failure_outputs(
+            writer=writer,
+            payload=payload,
+            producer_version=config.version,
+            reason_code="workspace_materialization_failed",
+            reason_message=str(exc),
+            execution_backend=execution_backend,
+        )
+    workspace_root: Path | None = None
+    workspace_before: dict[str, str] = {}
+    if materialization is not None:
+        try:
+            workspace_root = materialize_project_bundle(materialization)
+        except Exception as exc:
+            return _write_failure_outputs(
+                writer=writer,
+                payload=payload,
+                producer_version=config.version,
+                reason_code="workspace_materialization_failed",
+                reason_message=str(exc),
+                execution_backend=execution_backend,
+            )
+        workspace_before = snapshot_tree(workspace_root)
+
     started_at = time.time()
     completed = subprocess.run(  # nosec B603
         command,
-        cwd=config.cwd or os.getcwd(),
+        cwd=(
+            str(workspace_root)
+            if workspace_root is not None
+            else config.cwd or os.getcwd()
+        ),
         env={**os.environ, **config.env},
         capture_output=True,
         text=True,
@@ -301,6 +410,17 @@ def main(argv: list[str] | None = None) -> int:
         payload=payload,
         producer_version=config.version,
     )
+    if workspace_root is not None:
+        workspace_after = snapshot_tree(workspace_root)
+        changed_manifest = changed_files_manifest(before=workspace_before, after=workspace_after)
+        artifact_manifest.artifacts.append(
+            writer.write_artifact_text(
+                "workspace/changed-files.json",
+                json.dumps(changed_manifest, indent=2, ensure_ascii=False),
+                media_type="application/json",
+                metadata={"runner_family": "claude-code-cli", "kind": "changed_files_manifest"},
+            )
+        )
     writer.write_artifact_manifest(artifact_manifest)
 
     latency_ms = max(int((time.time() - started_at) * 1000), 0)
@@ -309,7 +429,7 @@ def main(argv: list[str] | None = None) -> int:
         latency_ms=latency_ms,
         token_usage=0,
         provider="claude-code-cli",
-        execution_backend="kubernetes-job",
+        execution_backend=execution_backend,
         resolved_model=payload.model,
     )
     writer.write_runtime_result(runtime_result)
