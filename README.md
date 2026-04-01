@@ -8,8 +8,8 @@ It combines:
 - a FastAPI backend that owns agent publication, dataset identity, eval orchestration, provenance,
   and export contracts
 - a Next.js frontend that exposes the operator-facing RL data control plane
-- a neutral execution and evidence contract where Kubernetes is the primary runtime path and
-  external systems integrate through adapters
+- a neutral execution and evidence contract centered on external-runner handoff, with local and
+  Kubernetes paths treated as adapters instead of the product default
 
 ## What Is In This Repository
 
@@ -34,7 +34,8 @@ implementations that should evolve outside the control-plane process.
 
 What exists today:
 
-- repository-local agent discovery and publish / unpublish workflow
+- repository-local agent discovery and publish / unpublish workflow as a transitional control-plane
+  utility
 - worker-backed execution behind a neutral run-control contract
 - dataset management and dataset-driven eval jobs
 - artifact export for downstream analysis
@@ -45,7 +46,7 @@ What is directional, not yet shipped:
 - immutable artifact or image-backed publication
 - richer curation-first export contracts for RL workflows
 - product-level removal of Atlas surfaces that overlap with Phoenix
-- Docker or remote runner orchestration beyond the current local-first path
+- a first-class external runner gateway beyond the current in-repo adapters
 
 ## Product Direction
 
@@ -92,7 +93,7 @@ The target first-class Atlas surfaces are:
 
 This means the long-term shape is:
 
-- repo-local discovery and validation
+- governed publication with discovery and validation still hosted in-repo during the transition
 - governed publication with artifact, image, and runner provenance
 - dataset and sample identity for RL data production
 - eval-driven batch execution and comparison

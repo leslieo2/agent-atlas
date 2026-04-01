@@ -44,9 +44,10 @@ Interpret that flow as:
 - `execution` owns orchestration and carrier-facing dispatch
 - `runtimes/*` owns framework-specific execution and runtime-side trace/event mapping
 
-The default production target for execution is Kubernetes container runtime. External systems such
-as Inspect AI and E2B belong behind execution adapters and must map into Atlas-neutral runner,
-event, terminal-result, and artifact-manifest contracts.
+The stable product seam for execution is the external runner contract. Local and Kubernetes
+carriers are still useful adapters, but they should not be treated as the product default path.
+External systems such as Inspect AI and E2B belong behind execution adapters and must map into
+Atlas-neutral runner, event, terminal-result, and artifact-manifest contracts.
 
 ## Internal Layout
 

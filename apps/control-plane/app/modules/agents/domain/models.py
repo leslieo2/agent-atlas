@@ -92,7 +92,7 @@ class PublishedAgent(ContractPublishedAgent):
     manifest: AgentManifest
     execution_reference: ExecutionReference = Field(default_factory=ExecutionReference)
     default_runtime_profile: ExecutorConfig = Field(  # type: ignore[assignment]
-        default_factory=lambda: ExecutorConfig(backend="k8s-job")
+        default_factory=lambda: ExecutorConfig(backend="external-runner")
     )
 
     @property
@@ -127,7 +127,7 @@ class PublishedAgent(ContractPublishedAgent):
     def capabilities(self) -> list[str]:
         if self.manifest.capabilities:
             return list(self.manifest.capabilities)
-        return ["batch-execution", "phoenix-links", "offline-export"]
+        return ["external-runner-handoff", "phoenix-links", "offline-export"]
 
     def adapter_kind(self) -> AdapterKind:
         return adapter_kind_for_framework(self.framework)
@@ -183,7 +183,7 @@ class DiscoveredAgent(BaseModel):
     has_unpublished_changes: bool = False
     execution_reference: SharedExecutionReferenceMetadata | None = None
     default_runtime_profile: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend="k8s-job")
+        default_factory=lambda: ExecutorConfig(backend="external-runner")
     )
 
     @property
@@ -218,7 +218,7 @@ class DiscoveredAgent(BaseModel):
     def capabilities(self) -> list[str]:
         if self.manifest.capabilities:
             return list(self.manifest.capabilities)
-        return ["batch-execution", "phoenix-links", "offline-export"]
+        return ["external-runner-handoff", "phoenix-links", "offline-export"]
 
     def adapter_kind(self) -> AdapterKind:
         return adapter_kind_for_framework(self.framework)

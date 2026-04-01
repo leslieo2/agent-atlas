@@ -419,6 +419,8 @@ class RunExecutionService:
 
     def _runner_backend(self, payload: ExecutionRunSpec) -> str:
         execution_backend = payload.executor_config.backend.strip().lower()
+        if execution_backend == "external-runner":
+            return self.default_runner_backend
         if execution_backend == "k8s-job":
             return "k8s-container"
         if execution_backend == "local-runner":

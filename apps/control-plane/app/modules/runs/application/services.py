@@ -75,7 +75,6 @@ def _resolve_executor_config(
     *,
     default_runtime_profile: ExecutorConfig,
     default_trace_backend: str,
-    default_k8s_runner_image: str | None,
 ) -> tuple[ExecutorConfig, str]:
     executor_config = default_runtime_profile.model_copy(deep=True)
     if "executor_config" in payload.model_fields_set:
@@ -102,33 +101,7 @@ def _resolve_executor_config(
         update={"tracing_backend": trace_backend},
         deep=True,
     )
-    return _with_k8s_runner_defaults(
-        resolved_executor_config,
-        default_k8s_runner_image=default_k8s_runner_image,
-    ), trace_backend
-
-
-def _with_k8s_runner_defaults(
-    executor_config: ExecutorConfig,
-    *,
-    default_k8s_runner_image: str | None,
-) -> ExecutorConfig:
-    if executor_config.backend.strip().lower() != "k8s-job":
-        return executor_config
-
-    runner_image = (
-        executor_config.runner_image.strip()
-        if isinstance(executor_config.runner_image, str)
-        else ""
-    )
-    if runner_image:
-        return executor_config
-
-    default_image = default_k8s_runner_image.strip() if default_k8s_runner_image else ""
-    if not default_image:
-        return executor_config
-
-    return executor_config.model_copy(update={"runner_image": default_image}, deep=True)
+    return resolved_executor_config, trace_backend
 
 
 def _validate_execution_backend(
@@ -160,12 +133,10 @@ class RunSubmissionService:
         run_repository: RunRepository,
         execution_control: ExecutionControlPort,
         default_trace_backend: str = "state",
-        default_k8s_runner_image: str | None = None,
     ) -> None:
         self.run_repository = run_repository
         self.execution_control = execution_control
         self.default_trace_backend = default_trace_backend
-        self.default_k8s_runner_image = default_k8s_runner_image
 
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
         effective_agent = _resolve_submission_agent(agent)
@@ -173,7 +144,6 @@ class RunSubmissionService:
             payload,
             default_runtime_profile=effective_agent.default_runtime_profile,
             default_trace_backend=self.default_trace_backend,
-            default_k8s_runner_image=self.default_k8s_runner_image,
         )
         provenance = _resolved_submission_provenance(
             effective_agent,

@@ -10,7 +10,6 @@ from app.agent_tracing.application import (
     TrajectoryRecorder,
 )
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
-from app.core.config import settings
 from app.execution.application import RunExecutionService
 from app.modules.runs.adapters.outbound.execution.state_sink import RunExecutionStateSink
 from app.modules.runs.adapters.outbound.telemetry import RunTracingStateRecorder
@@ -35,7 +34,6 @@ def build_run_module(
         run_repository=infra.run_repository,
         execution_control=infra.execution.execution_control,
         default_trace_backend=infra.tracing.trace_backend.backend_name(),
-        default_k8s_runner_image=settings.k8s_default_runner_image,
     )
     telemetry_ingestor = RunObservationService(
         trace_span_recorder=TraceSpanRecorder(

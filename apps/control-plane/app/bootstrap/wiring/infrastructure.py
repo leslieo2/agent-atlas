@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.data_plane.adapters import TraceEventTrajectoryProjector
 from app.execution.adapters import (
     ExecutionControlRegistry,
+    ExternalRunnerExecutionAdapter,
     K8sContainerRunner,
     K8sJobExecutionAdapter,
     K8sLauncher,
@@ -154,6 +155,10 @@ def build_infrastructure() -> InfrastructureBundle:
     )
     execution_control = ExecutionControlRegistry(
         backends={
+            "external-runner": ExternalRunnerExecutionAdapter(
+                task_queue=task_queue,
+                run_repository=run_repository,
+            ),
             "k8s-job": K8sJobExecutionAdapter(
                 task_queue=task_queue,
                 run_repository=run_repository,

@@ -76,10 +76,6 @@ class Settings(BaseSettings):
         default="agent-atlas-runner",
         description="Service account used by Kubernetes runner Jobs.",
     )
-    k8s_default_runner_image: str = Field(
-        default="ghcr.io/example/atlas-runner:latest",
-        description="Default runner image used for Kubernetes-backed run submissions.",
-    )
     k8s_kubectl_command: list[str] = Field(
         default_factory=lambda: ["kubectl"],
         description="Command prefix used to talk to the Kubernetes API via kubectl.",

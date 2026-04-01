@@ -298,6 +298,26 @@ class LocalWorkerExecutionAdapter(_QueuedExecutionBackendAdapter):
         )
 
 
+class ExternalRunnerExecutionAdapter(_QueuedExecutionBackendAdapter):
+    def __init__(self, *, task_queue: TaskQueuePort, run_repository: RunRepository) -> None:
+        super().__init__(
+            backend="external-runner",
+            task_queue=task_queue,
+            run_repository=run_repository,
+            production_ready=True,
+        )
+
+    def _executor_ref(
+        self,
+        run_spec: ExecutionRunSpec,
+        *,
+        attempt: int,
+        attempt_id: UUID,
+    ) -> str:
+        del attempt, attempt_id
+        return f"external-{run_spec.run_id}"
+
+
 class K8sJobExecutionAdapter(_QueuedExecutionBackendAdapter):
     def __init__(
         self,
@@ -383,6 +403,7 @@ class ExecutionControlRegistry(ExecutionControlPort):
 
 __all__ = [
     "ExecutionControlRegistry",
+    "ExternalRunnerExecutionAdapter",
     "K8sJobExecutionAdapter",
     "LocalWorkerExecutionAdapter",
 ]

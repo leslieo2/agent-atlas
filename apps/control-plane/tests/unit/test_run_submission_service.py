@@ -73,7 +73,7 @@ def _seal_agent(agent: PublishedAgent) -> tuple[PublishedAgent, str]:
     return agent, execution_reference.artifact_ref or ""
 
 
-def test_run_create_input_defaults_to_executor_config_k8s_job() -> None:
+def test_run_create_input_defaults_to_executor_config_external_runner() -> None:
     payload = RunCreateInput(
         project="migration-check",
         dataset="framework-ds",
@@ -82,7 +82,7 @@ def test_run_create_input_defaults_to_executor_config_k8s_job() -> None:
         prompt="Inspect the latest run.",
     )
 
-    assert payload.executor_config.backend == "k8s-job"
+    assert payload.executor_config.backend == "external-runner"
 
 
 def test_run_submission_service_uses_published_agent_framework_and_enqueues_execution() -> None:
@@ -138,44 +138,6 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert task.entrypoint == "app.agent_plugins.triage_bot:build_agent"
     assert task.provenance is not None
     assert task.provenance.framework == "langchain"
-
-
-def test_run_submission_service_uses_service_default_k8s_image_for_default_submission() -> None:
-    repository = StubRunRepository()
-    execution_control = StubExecutionControl()
-    service = RunSubmissionService(
-        run_repository=repository,
-        execution_control=execution_control,
-        default_k8s_runner_image="ghcr.io/example/atlas-runner:latest",
-    )
-    payload = RunCreateInput(
-        project="migration-check",
-        dataset="framework-ds",
-        agent_id="triage-bot",
-        input_summary="framework coverage",
-        prompt="Inspect the latest run.",
-    )
-    agent = PublishedAgent(
-        manifest=AgentManifest(
-            agent_id="triage-bot",
-            name="Triage Bot",
-            description="Checks routing and summarizes issues.",
-            framework=AdapterKind.LANGCHAIN.value,
-            default_model="gpt-5.4-mini",
-            tags=["ops"],
-        ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
-    )
-    agent, _artifact_ref = _seal_agent(agent)
-
-    run = service.submit(payload, agent)
-
-    assert run.executor_backend == "k8s-job"
-    assert execution_control.submitted[0].executor_config.backend == "k8s-job"
-    assert (
-        execution_control.submitted[0].executor_config.runner_image
-        == "ghcr.io/example/atlas-runner:latest"
-    )
 
 
 def test_run_submission_service_deep_merges_nested_runtime_profile_overrides() -> None:
@@ -463,7 +425,6 @@ def test_run_submission_service_rejects_k8s_job_without_runner_image():
     service = RunSubmissionService(
         run_repository=repository,
         execution_control=execution_control,
-        default_k8s_runner_image=None,
     )
     payload = RunCreateInput(
         project="migration-check",
@@ -499,7 +460,6 @@ def test_run_submission_service_rejects_k8s_job_with_only_published_image() -> N
     service = RunSubmissionService(
         run_repository=repository,
         execution_control=execution_control,
-        default_k8s_runner_image=None,
     )
     payload = RunCreateInput(
         project="migration-check",

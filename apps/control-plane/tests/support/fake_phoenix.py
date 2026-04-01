@@ -25,8 +25,11 @@ class FakeOtlpTraceExporter:
         service_name: str = "agent-atlas-control-plane",
         link_resolver: Any | None = None,
     ) -> None:
-        del endpoint, headers, api_key, service_name
-        self.base_url = base_url.rstrip("/") if base_url else None
+        del headers, api_key, service_name
+        resolved_base_url = base_url
+        if resolved_base_url is None and endpoint:
+            resolved_base_url = endpoint.removesuffix("/v1/traces")
+        self.base_url = resolved_base_url.rstrip("/") if resolved_base_url else None
         self.project_name = project_name
         self.project_id = f"project-{project_name}"
         self.backend_name_value = backend_name
@@ -48,6 +51,21 @@ class FakeOtlpTraceExporter:
                 experiment_id=first_event.metadata.experiment_id if first_event.metadata else None,
                 run_id=first_event.run_id,
             )
+            if trace_url is None:
+                trace_url = build_phoenix_trace_url(
+                    base_url=self.base_url,
+                    project_id=self.project_id,
+                    trace_id=trace_id,
+                )
+            if project_url is None or project_url == self.base_url:
+                project_url = build_phoenix_project_url(
+                    base_url=self.base_url,
+                    project_id=self.project_id,
+                    experiment_id=(
+                        first_event.metadata.experiment_id if first_event.metadata else None
+                    ),
+                    run_id=first_event.run_id,
+                )
         else:
             trace_url = build_phoenix_trace_url(
                 base_url=self.base_url,

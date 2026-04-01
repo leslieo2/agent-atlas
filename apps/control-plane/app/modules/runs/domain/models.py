@@ -24,6 +24,8 @@ from app.modules.shared.domain.models import (
     utc_now,
 )
 
+DEFAULT_EXECUTION_BACKEND = "external-runner"
+
 
 class RunCreateInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -39,7 +41,7 @@ class RunCreateInput(BaseModel):
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
     executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend="k8s-job")
+        default_factory=lambda: ExecutorConfig(backend="external-runner")
     )
     model_settings: ModelConfig | None = None
     prompt_config: PromptConfig | None = None
@@ -112,7 +114,7 @@ class RunRecord(BaseModel):
         prompt_config = None
         toolset_config = ToolsetConfig()
         evaluator_config = EvaluatorConfig()
-        executor_config = ExecutorConfig(backend=self.executor_backend or "k8s-job")
+        executor_config = ExecutorConfig(backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND)
         approval_policy = None
         if provenance is not None:
             model_settings = ModelConfig(model=self.resolved_model or self.model)
@@ -133,7 +135,7 @@ class RunRecord(BaseModel):
             executor_config = (
                 provenance.executor.model_copy(deep=True)
                 if provenance.executor is not None
-                else ExecutorConfig(backend=self.executor_backend or "k8s-job")
+                else ExecutorConfig(backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND)
             )
             approval_policy = (
                 provenance.approval_policy.model_copy(deep=True)

@@ -46,6 +46,7 @@ def _experiment_payload(
     tags: list[str],
     executor_backend: str = "k8s-job",
     runner_mode: str | None = None,
+    executor_overrides: dict[str, object] | None = None,
 ) -> dict[str, object]:
     executor_config = {
         "backend": executor_backend,
@@ -59,6 +60,8 @@ def _experiment_payload(
     }
     if runner_mode is not None:
         executor_config["metadata"]["runner_mode"] = runner_mode
+    if executor_overrides:
+        executor_config.update(executor_overrides)
 
     return {
         "name": name,

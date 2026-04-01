@@ -32,7 +32,7 @@ class RunCreateRequest(BaseModel):
     project_metadata: dict[str, object] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
     executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend="k8s-job")
+        default_factory=lambda: ExecutorConfig(backend="external-runner")
     )
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     approval_policy: ApprovalPolicySnapshot | None = None

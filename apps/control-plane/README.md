@@ -1,8 +1,9 @@
 # Agent Atlas Control Plane
 
 The backend is the control plane for Agent Atlas. It provides the HTTP API, persists Atlas-owned
-state, submits run intent through a neutral execution-control contract, manages repository-local
-agent publication, coordinates datasets and experiment batches, and produces export artifacts.
+state, submits run intent through a neutral execution-control contract, manages transitional
+repository-local agent publication, coordinates datasets and experiment batches, and produces
+export artifacts.
 
 Strategically, the backend is moving toward a split where:
 
@@ -10,7 +11,7 @@ Strategically, the backend is moving toward a split where:
   exports
 - Phoenix is an optional trace inspection backend for experiment-heavy debugging workflows
 - immutable artifacts or images and runner orchestration become the execution handoff
-- Kubernetes container runtime becomes the primary execution implementation
+- local and Kubernetes carriers remain adapter implementations behind the runner handoff boundary
 - external systems such as Inspect AI and E2B integrate only through adapters
 - RL integration starts with offline export contracts
 
@@ -21,7 +22,7 @@ working directly on the backend service.
 
 Today:
 
-- repository-local agent discovery and publication
+- repository-local agent discovery and publication as a transitional control-plane workflow
 - run creation, lifecycle tracking, and execution dispatch as supporting infrastructure
 - background job processing through the worker
 - trajectory and trace ingestion and normalization behind backend-owned ports
@@ -98,7 +99,7 @@ Local defaults:
 Current runtime model:
 
 - API requests create run records immediately and submit them through `ExecutionControlPort`
-- the current local backend maps that contract to queued worker tasks
+- the current in-repo adapters map that contract to queued worker tasks
 - `app/execution/` owns the control-plane to runner handoff and launcher-side orchestration
 - `app.worker` is a separate process that claims queued jobs and executes them
 - run both `make run-api` and `make run-worker` during development if you want runs to advance past
@@ -106,10 +107,11 @@ Current runtime model:
 
 Planned runtime direction:
 
-- published agents remain repo-local and governed by Atlas
+- published agents stay governed by Atlas while artifact/image handoff replaces repo-local runtime
+  assumptions
 - execution resolves from published snapshot toward immutable artifact or image references
 - runner orchestration is added behind infrastructure ports
-- Kubernetes container execution is the default production path
+- local and Kubernetes execution stay as carrier adapters rather than the product default story
 - Inspect AI and E2B stay outside the core model as adapter-backed integrations
 - runtime and control-plane trace export flows use OTLP without making Phoenix the runtime
   contract

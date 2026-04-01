@@ -2,6 +2,9 @@ from app.execution.adapters.control import (
     ExecutionControlRegistry as ExecutionControlRegistry,
 )
 from app.execution.adapters.control import (
+    ExternalRunnerExecutionAdapter as ExternalRunnerExecutionAdapter,
+)
+from app.execution.adapters.control import (
     K8sJobExecutionAdapter as K8sJobExecutionAdapter,
 )
 from app.execution.adapters.control import (
