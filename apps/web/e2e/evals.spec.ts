@@ -27,7 +27,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
         image_ref: null
       },
       default_runtime_profile: {
-        backend: "k8s-job",
+        backend: "external-runner",
         runner_image: null,
         timeout_seconds: 600,
         max_steps: 32,
@@ -38,7 +38,11 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
         },
         tracing_backend: "state",
         artifact_path: null,
-        metadata: {}
+        metadata: {
+          claude_code_cli: {
+            profile: "default"
+          }
+        }
       }
     }
   ];
@@ -130,7 +134,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
       metadata: {}
     },
     executor_config: {
-      backend: "k8s-job",
+      backend: "external-runner",
       runner_image: null,
       timeout_seconds: 600,
       max_steps: 32,
@@ -138,7 +142,11 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
       resources: {},
       tracing_backend: "phoenix",
       artifact_path: null,
-      metadata: {}
+      metadata: {
+        claude_code_cli: {
+          profile: "default"
+        }
+      }
     },
     approval_policy_id: "policy-default",
     approval_policy: null,
@@ -446,10 +454,15 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
 
   await page.goto("/experiments?agent=basic&datasetVersion=dataset-v2&experiment=exp-002");
 
-  await expect(page.getByRole("heading", { name: "Experiment-first agent data production" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Experiment to evidence loop" })).toBeVisible();
+  await expect(
+    page.getByText(
+      /Execution profile is inherited from the published snapshot: external-runner · Claude Code CLI adapter\./
+    )
+  ).toBeVisible();
   await page.getByRole("button", { name: /candidate · basic/ }).click();
   await expect(page.getByText("sample-regressed")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open Phoenix project" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Open Phoenix deeplink" })).toHaveAttribute(
     "href",
     "http://127.0.0.1:6006/projects/test/exp-002"
   );

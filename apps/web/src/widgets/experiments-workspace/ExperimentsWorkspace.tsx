@@ -23,6 +23,7 @@ import {
 } from "@/src/entities/experiment/query";
 import { usePoliciesQuery } from "@/src/entities/policy/query";
 import type { CompareOutcome, CurationStatus, SampleJudgement, ScoringMode } from "@/src/shared/api/contract";
+import { executionProfileSummary } from "@/src/shared/runtime/identity";
 import { Button } from "@/src/shared/ui/Button";
 import { Field } from "@/src/shared/ui/Field";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
@@ -125,17 +126,6 @@ function matchesRunFilters({
 
 function experimentLabel(record: ExperimentRecord) {
   return `${record.name} · ${record.publishedAgentId}`;
-}
-
-function runtimeProfileLabel(
-  runtimeProfile?: { backend?: string; runner_image?: string | null } | null
-) {
-  if (!runtimeProfile?.backend) {
-    return "snapshot default";
-  }
-  return runtimeProfile.runner_image
-    ? `${runtimeProfile.backend} · ${runtimeProfile.runner_image}`
-    : runtimeProfile.backend;
 }
 
 export default function ExperimentsWorkspace({
@@ -447,7 +437,8 @@ export default function ExperimentsWorkspace({
         </div>
         <p className="muted-note">
           Execution profile is inherited from the published snapshot:{" "}
-          {runtimeProfileLabel(selectedAgent?.defaultRuntimeProfile)}.
+          {executionProfileSummary(selectedAgent?.defaultRuntimeProfile)}. Atlas still tracks the same neutral
+          runner status, evidence, and export loop even when the adapter is Claude Code CLI.
         </p>
         <div className={styles.actions}>
           <Button onClick={() => void handleCreateExperiment()} disabled={createExperimentMutation.isPending}>

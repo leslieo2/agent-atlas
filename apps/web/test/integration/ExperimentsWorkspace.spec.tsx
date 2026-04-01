@@ -77,7 +77,14 @@ describe("Experiments workspace", () => {
         hasUnpublishedChanges: false,
         sourceFingerprint: "basic-fingerprint-123456",
         executionReference: { artifactRef: "source://basic@basic-fingerprint-123456" },
-        defaultRuntimeProfile: { backend: "k8s-job" }
+        defaultRuntimeProfile: {
+          backend: "external-runner",
+          metadata: {
+            claude_code_cli: {
+              profile: "default"
+            }
+          }
+        }
       }
     ]);
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockResolvedValue([
@@ -99,7 +106,14 @@ describe("Experiments workspace", () => {
         hasUnpublishedChanges: false,
         sourceFingerprint: "basic-fingerprint-123456",
         executionReference: { artifactRef: "source://basic@basic-fingerprint-123456" },
-        defaultRuntimeProfile: { backend: "k8s-job" }
+        defaultRuntimeProfile: {
+          backend: "external-runner",
+          metadata: {
+            claude_code_cli: {
+              profile: "default"
+            }
+          }
+        }
       },
       {
         agentId: "archived_basic",
@@ -385,6 +399,14 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(experimentApi.listExperiments).toHaveBeenCalled());
     await waitFor(() => expect(experimentApi.listExperimentRuns).toHaveBeenCalledWith("exp-002"));
     await waitFor(() => expect(experimentApi.compareExperiments).toHaveBeenCalledWith("exp-001", "exp-002"));
+    expect(
+      screen.getByText(
+        /Execution profile is inherited from the published snapshot: external-runner · Claude Code CLI adapter\./i
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Atlas still tracks the same neutral runner status, evidence, and export loop/i)
+    ).toBeInTheDocument();
 
     expect(screen.getByRole("link", { name: "Open Phoenix deeplink" })).toHaveAttribute(
       "href",

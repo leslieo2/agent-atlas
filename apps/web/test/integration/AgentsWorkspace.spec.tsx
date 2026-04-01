@@ -38,7 +38,14 @@ describe("Agents workspace", () => {
         executionReference: {
           artifactRef: "source://basic@basic-fingerprint-123456"
         },
-        defaultRuntimeProfile: { backend: "k8s-job" }
+        defaultRuntimeProfile: {
+          backend: "external-runner",
+          metadata: {
+            claude_code_cli: {
+              profile: "default"
+            }
+          }
+        }
       },
       {
         agentId: "customer_service",
@@ -156,6 +163,7 @@ describe("Agents workspace", () => {
     expect(screen.queryByText("Ready OpenAI smoke agent.")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Framework"), { target: { value: "all" } });
+    expect(screen.getByText("external-runner · Claude Code CLI adapter")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
     await waitFor(() => expect(agentApi.publishAgent).toHaveBeenCalledWith("tools"));
 

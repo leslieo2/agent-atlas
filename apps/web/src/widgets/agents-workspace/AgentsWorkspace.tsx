@@ -8,6 +8,7 @@ import {
   useUnpublishAgentMutation
 } from "@/src/entities/agent/query";
 import type { DiscoveredAgentRecord, ExecutionReferenceRecord } from "@/src/entities/agent/model";
+import { executionProfileSummary } from "@/src/shared/runtime/identity";
 import { Field } from "@/src/shared/ui/Field";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
@@ -81,9 +82,7 @@ function shortSourceFingerprint(sourceFingerprint?: string) {
 }
 
 function defaultRuntimeSummary(agent: DiscoveredAgentRecord) {
-  const backend = agent.defaultRuntimeProfile.backend;
-  const runnerImage = agent.defaultRuntimeProfile.runner_image;
-  return runnerImage ? `${backend} · ${runnerImage}` : backend;
+  return executionProfileSummary(agent.defaultRuntimeProfile);
 }
 
 function validationIssuesLabel(agent: DiscoveredAgentRecord) {

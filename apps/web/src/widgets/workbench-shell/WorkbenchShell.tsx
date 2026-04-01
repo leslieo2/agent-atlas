@@ -56,7 +56,10 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
             <span className={styles.eyebrow}>Control plane + evidence plane</span>
           </div>
           <h1>Agent Atlas</h1>
-          <p>Coordinate experiments and evidence in Atlas. Keep runner internals and deep trace debugging in Phoenix.</p>
+          <p>
+            Coordinate experiments and evidence in Atlas. Runner adapters such as Claude Code CLI stay visible but do
+            not become the product center, and deep trace debugging stays in Phoenix.
+          </p>
         </div>
 
         <motion.nav
@@ -95,7 +98,8 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
           <div className={styles.boundaryNote}>
             <span className={styles.boundaryLabel}>Product boundary</span>
             <p>
-              Atlas owns orchestration, evidence association, curation, and exports. External systems own runner and tracing internals.
+              Atlas owns orchestration, evidence association, curation, and exports. External systems own runner and
+              tracing internals.
             </p>
           </div>
         </div>
