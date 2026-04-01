@@ -12,6 +12,7 @@ class StateSystemStatus:
 
 
 def reset_state() -> None:
+    persistence.rebuild()
     persistence.reset_all()
 
 

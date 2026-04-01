@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
 from app.bootstrap.container import get_container
@@ -20,9 +21,13 @@ def _reset_state() -> None:
 
 @pytest.fixture(autouse=True)
 def reset_in_memory_state(monkeypatch) -> None:
+    state_dir = TemporaryDirectory(prefix="agent-atlas-tests-")
+    state_root = Path(state_dir.name)
     settings.runtime_mode = RuntimeMode.AUTO
     settings.openai_api_key = None
     settings.seed_demo = True
+    settings.control_plane_database_url = f"sqlite:///{state_root / 'control-plane-state.db'}"
+    settings.data_plane_database_url = f"sqlite:///{state_root / 'data-plane-state.db'}"
     settings.phoenix_base_url = "http://phoenix.test:6006"
     settings.tracing_otlp_endpoint = "http://phoenix.test:6006/v1/traces"
     settings.tracing_headers = {}
@@ -32,6 +37,7 @@ def reset_in_memory_state(monkeypatch) -> None:
     _reset_state()
     yield
     _reset_state()
+    state_dir.cleanup()
 
 
 @pytest.fixture

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -20,7 +21,16 @@ from app.main import app
 def _ref_name(ref: str) -> str:
     if not ref.startswith(REF_PREFIX):
         raise ValueError(f"unsupported $ref: {ref}")
-    return ref[len(REF_PREFIX) :]
+    return _ts_identifier(ref[len(REF_PREFIX) :])
+
+
+def _ts_identifier(name: str) -> str:
+    sanitized = re.sub(r"[^0-9A-Za-z_]", "_", name)
+    if not sanitized:
+        raise ValueError("schema name produced empty TypeScript identifier")
+    if sanitized[0].isdigit():
+        sanitized = f"Schema_{sanitized}"
+    return sanitized
 
 
 def _indent(text: str, spaces: int = 2) -> str:
@@ -100,15 +110,26 @@ def _render_type(schema: dict[str, Any]) -> str:
 
 
 def _render_declaration(name: str, schema: dict[str, Any]) -> str:
+    declaration_name = _ts_identifier(name)
     if schema.get("type") == "object" and schema.get("properties"):
         body = _indent(_render_object_literal(schema), 0)
-        return f"export interface {name} {body}"
-    return f"export type {name} = {_render_type(schema)};"
+        return f"export interface {declaration_name} {body}"
+    return f"export type {declaration_name} = {_render_type(schema)};"
 
 
 def render_contract_source() -> str:
     openapi_schema = app.openapi()
     components = openapi_schema.get("components", {}).get("schemas", {})
+    seen_identifiers: dict[str, str] = {}
+    for name in components:
+        identifier = _ts_identifier(name)
+        existing = seen_identifiers.get(identifier)
+        if existing is not None and existing != name:
+            raise ValueError(
+                "schema names collide after TypeScript identifier normalization: "
+                f"{existing!r} and {name!r} -> {identifier!r}"
+            )
+        seen_identifiers[identifier] = name
     declarations = [
         _render_declaration(name, schema)
         for name, schema in sorted(components.items(), key=lambda item: item[0])
