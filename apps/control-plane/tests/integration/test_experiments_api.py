@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 from app.bootstrap.container import get_container
+from app.core.config import RuntimeMode, settings
 from app.core.errors import ProviderAuthError
 from app.execution.application.results import (
     PublishedRunExecutionResult,
@@ -318,3 +319,76 @@ def test_experiments_api_rejects_archived_published_snapshot_for_new_runs(client
         "message": "agent_id 'archived-basic' is not published",
         "agent_id": "archived-basic",
     }
+
+
+def test_experiments_api_live_mode_starts_with_bootstrapped_starter_agent(
+    monkeypatch,
+    worker_drain,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", False)
+    get_container.cache_clear()
+
+    from app.main import app
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as live_client:
+        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        assert bootstrap_response.status_code == 200
+        assert bootstrap_response.json()["agent_id"] == "claude-code-starter"
+
+        dataset_response = live_client.post(
+            "/api/v1/datasets",
+            json={
+                "name": "live-starter-dataset",
+                "description": "Dataset for fresh live starter experiment path",
+                "source": "crm",
+                "version": "2026-04",
+                "rows": [{"sample_id": "sample-1", "input": "alpha", "expected": "alpha"}],
+            },
+        )
+        assert dataset_response.status_code == 200
+        dataset_version_id = dataset_response.json()["current_version_id"]
+
+        create_response = live_client.post(
+            "/api/v1/experiments",
+            json={
+                "name": "live-starter-experiment",
+                "spec": {
+                    "dataset_version_id": dataset_version_id,
+                    "published_agent_id": "claude-code-starter",
+                    "model_settings": {"model": "gpt-5.4-mini", "temperature": 0},
+                    "prompt_config": {"prompt_version": "2026-04"},
+                    "toolset_config": {"tools": [], "metadata": {}},
+                    "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
+                    "executor_config": {
+                        "backend": "external-runner",
+                        "runner_image": "atlas-claude-validation:local",
+                        "metadata": {"runner_backend": "k8s-container"},
+                    },
+                    "tags": ["live-starter"],
+                },
+            },
+        )
+        assert create_response.status_code == 201
+        experiment_id = create_response.json()["experiment_id"]
+
+        start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
+        assert start_response.status_code == 200
+
+        assert worker_drain(limit=10) >= 1
+
+        experiment_detail = live_client.get(f"/api/v1/experiments/{experiment_id}")
+        assert experiment_detail.status_code == 200
+        detail = experiment_detail.json()
+        assert detail["status"] == "completed"
+        assert detail["completed_count"] == 1
+        assert detail["failed_count"] == 0
+
+        runs_response = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
+        assert runs_response.status_code == 200
+        runs = runs_response.json()
+        assert len(runs) == 1
+        run_detail = live_client.get(f"/api/v1/runs/{runs[0]['run_id']}")
+        assert run_detail.status_code == 200
+        assert run_detail.json()["agent_id"] == "claude-code-starter"

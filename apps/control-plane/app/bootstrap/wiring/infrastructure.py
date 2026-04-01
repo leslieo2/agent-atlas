@@ -124,12 +124,16 @@ def build_infrastructure() -> InfrastructureBundle:
         source_catalog=agent_source_catalog,
         validator=framework_registry,
     )
-    published_agent_catalog = StatePublishedAgentCatalog(
-        published_agents=published_agent_repository,
-        discovery=agent_discovery,
-    )
     task_queue = StateTaskQueue()
     effective_runtime_mode = settings.effective_runtime_mode()
+    published_agent_catalog: PublishedAgentCatalogPort
+    if effective_runtime_mode == RuntimeMode.LIVE:
+        published_agent_catalog = published_agent_repository
+    else:
+        published_agent_catalog = StatePublishedAgentCatalog(
+            published_agents=published_agent_repository,
+            discovery=agent_discovery,
+        )
     model_runtime = ModelRuntimeService(
         published_execution_dispatcher=published_execution_dispatcher,
     )
