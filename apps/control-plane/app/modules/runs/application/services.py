@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from app.core.config import RuntimeMode, settings
 from app.core.errors import (
     AgentLoadFailedError,
     UnsupportedOperationError,
 )
 from app.execution.application.ports import ExecutionControlPort
 from app.execution.contracts import ExecutionRunSpec
-from app.execution.metadata import uses_k8s_runner_backend
+from app.execution.metadata import requested_runner_backend, uses_k8s_runner_backend
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -111,6 +112,24 @@ def _validate_execution_backend(
     agent_id: str,
 ) -> None:
     normalized_backend = executor_config.backend.strip().lower()
+    effective_runtime_mode = settings.effective_runtime_mode()
+    if effective_runtime_mode == RuntimeMode.LIVE and normalized_backend == "local-runner":
+        raise UnsupportedOperationError(
+            "local-runner execution is not available in live mode",
+            agent_id=agent_id,
+            executor_backend=executor_config.backend,
+        )
+    if (
+        effective_runtime_mode == RuntimeMode.LIVE
+        and normalized_backend == "external-runner"
+        and not uses_k8s_runner_backend(executor_config)
+        and requested_runner_backend(executor_config) is None
+    ):
+        raise UnsupportedOperationError(
+            "external-runner execution in live mode requires explicit carrier metadata",
+            agent_id=agent_id,
+            executor_backend=executor_config.backend,
+        )
     requires_runner_image = normalized_backend == "k8s-job" or (
         normalized_backend == "external-runner" and uses_k8s_runner_backend(executor_config)
     )

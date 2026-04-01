@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from app.core.config import RuntimeMode, settings
 from app.core.errors import UnsupportedOperationError
 from app.execution.contracts import ExecutionRunSpec, RunHandle
 from app.modules.agents.domain.models import (
@@ -138,6 +139,82 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert task.entrypoint == "app.agent_plugins.triage_bot:build_agent"
     assert task.provenance is not None
     assert task.provenance.framework == "langchain"
+
+
+def test_run_submission_service_rejects_local_runner_in_live_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(backend="local-runner"),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+    )
+    agent, _artifact_ref = _seal_agent(agent)
+
+    with pytest.raises(
+        UnsupportedOperationError,
+        match="local-runner execution is not available in live mode",
+    ):
+        service.submit(payload, agent)
+
+
+def test_run_submission_service_requires_explicit_carrier_for_external_runner_in_live_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(backend="external-runner"),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+    )
+    agent, _artifact_ref = _seal_agent(agent)
+
+    with pytest.raises(
+        UnsupportedOperationError,
+        match="external-runner execution in live mode requires explicit carrier metadata",
+    ):
+        service.submit(payload, agent)
 
 
 def test_run_submission_service_deep_merges_nested_runtime_profile_overrides() -> None:

@@ -8,7 +8,7 @@ from app.agent_tracing.backends import (
     StateTraceBackend,
 )
 from app.agent_tracing.exporters import NoopTraceExporter, OtlpTraceExporter
-from app.core.config import settings
+from app.core.config import RuntimeMode, settings
 from app.data_plane.adapters import TraceEventTrajectoryProjector
 from app.execution.adapters import (
     ExecutionControlRegistry,
@@ -23,6 +23,8 @@ from app.execution.adapters import (
     PublishedArtifactResolver,
     RunnerRegistry,
 )
+from app.execution.adapters.control import _ExecutionBackendAdapter
+from app.execution.adapters.runner import _RunnerExecutor
 from app.execution.application.ports import (
     ArtifactResolverPort,
     ExecutionControlPort,
@@ -127,6 +129,7 @@ def build_infrastructure() -> InfrastructureBundle:
         discovery=agent_discovery,
     )
     task_queue = StateTaskQueue()
+    effective_runtime_mode = settings.effective_runtime_mode()
     model_runtime = ModelRuntimeService(
         published_execution_dispatcher=published_execution_dispatcher,
     )
@@ -142,34 +145,34 @@ def build_infrastructure() -> InfrastructureBundle:
         poll_interval_seconds=settings.k8s_poll_interval_seconds,
         heartbeat_interval_seconds=settings.k8s_heartbeat_interval_seconds,
     )
-    local_process_runner = LocalProcessRunner(
-        published_runtime=model_runtime,
-        launcher=LocalLauncher(),
-    )
-    default_runner_backend = local_process_runner.backend_name()
-    runner = RunnerRegistry(
-        runners={
-            k8s_runner.backend_name(): k8s_runner,
-            local_process_runner.backend_name(): local_process_runner,
-        }
-    )
-    execution_control = ExecutionControlRegistry(
-        backends={
-            "external-runner": ExternalRunnerExecutionAdapter(
-                task_queue=task_queue,
-                run_repository=run_repository,
-            ),
-            "k8s-job": K8sJobExecutionAdapter(
-                task_queue=task_queue,
-                run_repository=run_repository,
-                launcher=k8s_launcher,
-            ),
-            "local-runner": LocalWorkerExecutionAdapter(
-                task_queue=task_queue,
-                run_repository=run_repository,
-            ),
-        }
-    )
+    runners: dict[str, _RunnerExecutor] = {
+        k8s_runner.backend_name(): k8s_runner,
+    }
+    execution_backends: dict[str, _ExecutionBackendAdapter] = {
+        "external-runner": ExternalRunnerExecutionAdapter(
+            task_queue=task_queue,
+            run_repository=run_repository,
+        ),
+        "k8s-job": K8sJobExecutionAdapter(
+            task_queue=task_queue,
+            run_repository=run_repository,
+            launcher=k8s_launcher,
+        ),
+    }
+    default_runner_backend = k8s_runner.backend_name()
+    if effective_runtime_mode != RuntimeMode.LIVE:
+        local_process_runner = LocalProcessRunner(
+            published_runtime=model_runtime,
+            launcher=LocalLauncher(),
+        )
+        runners[local_process_runner.backend_name()] = local_process_runner
+        execution_backends["local-runner"] = LocalWorkerExecutionAdapter(
+            task_queue=task_queue,
+            run_repository=run_repository,
+        )
+        default_runner_backend = local_process_runner.backend_name()
+    runner = RunnerRegistry(runners=runners)
+    execution_control = ExecutionControlRegistry(backends=execution_backends)
     trace_backend: TraceBackendPort
     trace_exporter: TraceExporterPort
     trace_link_resolver = None

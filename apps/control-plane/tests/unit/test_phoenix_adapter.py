@@ -5,7 +5,8 @@ from app.agent_tracing.backends.phoenix import (
     build_phoenix_trace_url,
 )
 from app.bootstrap.wiring.infrastructure import build_infrastructure
-from app.core.config import settings
+from app.core.config import RuntimeMode, settings
+from pydantic import SecretStr
 
 
 def test_build_phoenix_urls():
@@ -54,3 +55,14 @@ def test_build_infrastructure_keeps_state_backend_with_phoenix_links(monkeypatch
 
     assert infrastructure.tracing.trace_backend.backend_name() == "state"
     assert infrastructure.tracing.trace_exporter.backend_name_value == "phoenix"
+
+
+def test_build_infrastructure_removes_local_runtime_authority_in_live_mode(monkeypatch):
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "openai_api_key", SecretStr("sk-test"))
+
+    infrastructure = build_infrastructure()
+
+    assert infrastructure.execution.default_runner_backend == "k8s-container"
+    assert "local-process" not in infrastructure.execution.runner.runners
+    assert "local-runner" not in infrastructure.execution.execution_control.backends

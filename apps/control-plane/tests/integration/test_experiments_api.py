@@ -153,6 +153,10 @@ def test_experiments_api_supports_compare_and_run_curation(
     start_baseline = client.post(f"/api/v1/experiments/{baseline_experiment_id}/start")
     assert start_baseline.status_code == 200
     assert _drain_background_work(worker_drain, limit=40) >= 1
+    wait_until(
+        lambda: client.get(f"/api/v1/experiments/{baseline_experiment_id}").json()["status"]
+        == "completed"
+    )
 
     _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "not-beta"})
     candidate_response = client.post(
@@ -174,6 +178,7 @@ def test_experiments_api_supports_compare_and_run_curation(
         lambda: client.get(f"/api/v1/experiments/{candidate_experiment_id}").json()["status"]
         == "completed"
     )
+    assert _drain_background_work(worker_drain, limit=40) >= 0
 
     detail_response = client.get(f"/api/v1/experiments/{candidate_experiment_id}")
     assert detail_response.status_code == 200

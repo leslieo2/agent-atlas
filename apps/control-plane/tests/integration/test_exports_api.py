@@ -68,6 +68,10 @@ def test_exports_api_creates_compare_aware_rl_rows(
     baseline_experiment_id = baseline_response.json()["experiment_id"]
     assert client.post(f"/api/v1/experiments/{baseline_experiment_id}/start").status_code == 200
     assert _drain_background_work(worker_drain, limit=40, rounds=6) >= 1
+    wait_until(
+        lambda: client.get(f"/api/v1/experiments/{baseline_experiment_id}").json()["status"]
+        == "completed"
+    )
 
     _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "not-beta"})
     candidate_response = client.post(
@@ -88,6 +92,7 @@ def test_exports_api_creates_compare_aware_rl_rows(
         lambda: client.get(f"/api/v1/experiments/{candidate_experiment_id}").json()["status"]
         == "completed"
     )
+    assert _drain_background_work(worker_drain, limit=40, rounds=6) >= 0
 
     export_response = client.post(
         "/api/v1/exports",
@@ -194,6 +199,11 @@ def test_k8s_experiment_loop_recovers_trace_artifacts_and_export_chain(
     baseline_experiment_id = baseline_response.json()["experiment_id"]
     assert client.post(f"/api/v1/experiments/{baseline_experiment_id}/start").status_code == 200
     assert _drain_background_work(worker_drain, limit=80, rounds=8) >= 1
+    wait_until(
+        lambda: client.get(f"/api/v1/experiments/{baseline_experiment_id}").json()["status"]
+        == "completed",
+        timeout=5.0,
+    )
 
     install_fake_k8s_runtime(
         monkeypatch,
@@ -223,6 +233,7 @@ def test_k8s_experiment_loop_recovers_trace_artifacts_and_export_chain(
         == "completed",
         timeout=5.0,
     )
+    assert _drain_background_work(worker_drain, limit=80, rounds=8) >= 0
 
     detail_response = client.get(f"/api/v1/experiments/{candidate_experiment_id}")
     assert detail_response.status_code == 200
