@@ -206,6 +206,7 @@ def _command_for_payload(payload: RunnerRunSpec) -> tuple[list[str], ClaudeCodeC
         *config.command,
         *config.args,
         "--print",
+        "--verbose",
         "--output-format",
         "stream-json",
     ]
