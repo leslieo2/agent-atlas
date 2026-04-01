@@ -4,7 +4,10 @@ from app.agent_tracing.backends.phoenix import (
     build_phoenix_project_url,
     build_phoenix_trace_url,
 )
-from app.bootstrap.wiring.infrastructure import build_infrastructure
+from app.bootstrap.wiring.infrastructure import (
+    _default_phoenix_otlp_endpoint,
+    build_infrastructure,
+)
 from app.core.config import RuntimeMode, settings
 from pydantic import SecretStr
 
@@ -50,6 +53,27 @@ def test_build_infrastructure_defaults_to_state_backend_without_phoenix(monkeypa
 def test_build_infrastructure_keeps_state_backend_with_phoenix_links(monkeypatch):
     monkeypatch.setattr(settings, "phoenix_base_url", "http://phoenix.local:6006")
     monkeypatch.setattr(settings, "tracing_otlp_endpoint", "http://phoenix.local:6006/v1/traces")
+
+    infrastructure = build_infrastructure()
+
+    assert infrastructure.tracing.trace_backend.backend_name() == "state"
+    assert infrastructure.tracing.trace_exporter.backend_name_value == "phoenix"
+
+
+def test_default_phoenix_otlp_endpoint_uses_standard_trace_path():
+    assert (
+        _default_phoenix_otlp_endpoint("http://phoenix.local:6006")
+        == "http://phoenix.local:6006/v1/traces"
+    )
+    assert (
+        _default_phoenix_otlp_endpoint("http://phoenix.local:6006/")
+        == "http://phoenix.local:6006/v1/traces"
+    )
+
+
+def test_build_infrastructure_derives_otlp_endpoint_from_phoenix_base_url(monkeypatch):
+    monkeypatch.setattr(settings, "phoenix_base_url", "http://phoenix.local:6006")
+    monkeypatch.setattr(settings, "tracing_otlp_endpoint", None)
 
     infrastructure = build_infrastructure()
 

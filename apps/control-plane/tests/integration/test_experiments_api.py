@@ -477,3 +477,72 @@ def test_experiments_api_live_mode_bootstrapped_starter_uses_default_runtime_pro
         assert run_detail.json()["runner_backend"] == "docker-container"
         assert run_detail.json()["container_image"] == "atlas-claude-validation:local"
         assert run_detail.json()["trace_pointer"]["trace_url"] is not None
+
+
+def test_experiments_api_live_mode_starter_emits_trace_deeplink_without_explicit_otlp_endpoint(
+    monkeypatch,
+    worker_drain,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", False)
+    monkeypatch.setattr(settings, "tracing_otlp_endpoint", None)
+    monkeypatch.setattr(settings, "phoenix_base_url", "http://phoenix.test:6006")
+    get_container.cache_clear()
+    install_fake_docker_runtime(
+        monkeypatch,
+        outputs={"alpha": "alpha"},
+    )
+
+    from app.main import app
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as live_client:
+        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        assert bootstrap_response.status_code == 200
+
+        dataset_response = live_client.post(
+            "/api/v1/datasets",
+            json={
+                "name": "live-starter-phoenix-deeplink-dataset",
+                "description": "Dataset for derived Phoenix OTLP endpoint path",
+                "source": "crm",
+                "version": "2026-04",
+                "rows": [{"sample_id": "sample-1", "input": "alpha", "expected": "alpha"}],
+            },
+        )
+        assert dataset_response.status_code == 200
+        dataset_version_id = dataset_response.json()["current_version_id"]
+
+        create_response = live_client.post(
+            "/api/v1/experiments",
+            json={
+                "name": "live-starter-phoenix-deeplink-experiment",
+                "spec": {
+                    "dataset_version_id": dataset_version_id,
+                    "published_agent_id": "claude-code-starter",
+                    "model_settings": {"model": "gpt-5.4-mini", "temperature": 0},
+                    "prompt_config": {"prompt_version": "2026-04"},
+                    "toolset_config": {"tools": [], "metadata": {}},
+                    "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
+                    "tags": ["live-starter", "phoenix-deeplink"],
+                },
+            },
+        )
+        assert create_response.status_code == 201
+        experiment_id = create_response.json()["experiment_id"]
+
+        start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
+        assert start_response.status_code == 200
+
+        assert _drain_background_work(worker_drain, limit=40) >= 1
+
+        runs_response = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
+        assert runs_response.status_code == 200
+        runs = runs_response.json()
+        assert len(runs) == 1
+        assert runs[0]["trace_url"] is not None
+        assert runs[0]["trace_url"].startswith("http://phoenix.test:6006/projects/")
+
+        run_detail = live_client.get(f"/api/v1/runs/{runs[0]['run_id']}")
+        assert run_detail.status_code == 200
+        assert run_detail.json()["trace_pointer"]["trace_url"] == runs[0]["trace_url"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import urlsplit, urlunsplit
 
 from app.agent_tracing.adapters import TraceIngestProjector
 from app.agent_tracing.backends import (
@@ -106,6 +107,20 @@ class InfrastructureBundle:
     execution: ExecutionInfrastructure
 
 
+def _default_phoenix_otlp_endpoint(base_url: str | None) -> str | None:
+    if not isinstance(base_url, str):
+        return None
+    normalized = base_url.strip()
+    if not normalized:
+        return None
+    split = urlsplit(normalized)
+    if not split.scheme or not split.netloc:
+        return None
+    base_path = split.path.rstrip("/")
+    trace_path = f"{base_path}/v1/traces" if base_path else "/v1/traces"
+    return urlunsplit((split.scheme, split.netloc, trace_path, "", ""))
+
+
 def build_infrastructure() -> InfrastructureBundle:
     run_repository = StateRunRepository()
     trajectory_repository = StateTrajectoryRepository()
@@ -186,6 +201,9 @@ def build_infrastructure() -> InfrastructureBundle:
     phoenix_api_key = (
         settings.phoenix_api_key.get_secret_value() if settings.phoenix_api_key else None
     )
+    tracing_otlp_endpoint = settings.tracing_otlp_endpoint or _default_phoenix_otlp_endpoint(
+        settings.phoenix_base_url
+    )
     trace_backend = StateTraceBackend(
         repository=trace_repository,
         backend_name="state",
@@ -205,12 +223,12 @@ def build_infrastructure() -> InfrastructureBundle:
     ):
         tracing_headers["api_key"] = phoenix_api_key
 
-    if settings.tracing_otlp_endpoint:
+    if tracing_otlp_endpoint:
         trace_reference_backend = (
             "phoenix" if trace_link_resolver is not None else trace_backend.backend_name()
         )
         trace_exporter = OtlpTraceExporter(
-            endpoint=settings.tracing_otlp_endpoint,
+            endpoint=tracing_otlp_endpoint,
             project_name=settings.tracing_project_name,
             backend_name=trace_reference_backend,
             headers=tracing_headers,
