@@ -4,10 +4,12 @@ import { ArrowUpRight } from "lucide-react";
 import { useMemo } from "react";
 import {
   useDiscoveredAgentsQuery,
+  usePublishedAgentsQuery,
   usePublishAgentMutation,
   useUnpublishAgentMutation
 } from "@/src/entities/agent/query";
 import type {
+  AgentRecord,
   AgentValidationEvidenceSummaryRecord,
   AgentValidationOutcomeSummaryRecord,
   AgentValidationRunReferenceRecord,
@@ -25,10 +27,44 @@ import styles from "./AgentsWorkspace.module.css";
 type AgentGroup = {
   title: string;
   description: string;
-  items: DiscoveredAgentRecord[];
+  items: AgentWorkspaceRecord[];
 };
 
 type AgentReadiness = "ready" | "published_with_drift" | "draft" | "invalid";
+
+type AgentWorkspaceRecord = DiscoveredAgentRecord & {
+  dataSource: "discovered" | "published";
+};
+
+function fallbackValidationTimestamp(agent: AgentRecord) {
+  return (
+    agent.latestValidation?.completedAt ??
+    agent.latestValidation?.startedAt ??
+    agent.latestValidation?.createdAt ??
+    agent.publishedAt ??
+    new Date(0).toISOString()
+  );
+}
+
+function inferValidationStatus(agent: AgentRecord) {
+  const status = (agent.validationOutcome?.status ?? agent.latestValidation?.status ?? "").trim().toLowerCase();
+  if (status === "failed" || status === "runtime_error" || status === "invalid") {
+    return "invalid" as const;
+  }
+  return "valid" as const;
+}
+
+function mapPublishedAgent(agent: AgentRecord): AgentWorkspaceRecord {
+  return {
+    ...agent,
+    publishState: "published",
+    validationStatus: inferValidationStatus(agent),
+    validationIssues: [],
+    lastValidatedAt: fallbackValidationTimestamp(agent),
+    hasUnpublishedChanges: false,
+    dataSource: "published"
+  };
+}
 
 function getAgentReadiness(agent: DiscoveredAgentRecord): AgentReadiness {
   if (agent.validationStatus === "invalid") {
@@ -320,9 +356,17 @@ function AgentCard({
 
 export default function AgentsWorkspace() {
   const discoveredAgentsQuery = useDiscoveredAgentsQuery();
+  const publishedAgentsQuery = usePublishedAgentsQuery();
   const publishMutation = usePublishAgentMutation();
   const unpublishMutation = useUnpublishAgentMutation();
-  const agents = useMemo<DiscoveredAgentRecord[]>(() => discoveredAgentsQuery.data ?? [], [discoveredAgentsQuery.data]);
+  const agents = useMemo<AgentWorkspaceRecord[]>(() => {
+    const discovered = (discoveredAgentsQuery.data ?? []).map((agent) => ({ ...agent, dataSource: "discovered" as const }));
+    const discoveredIds = new Set(discovered.map((agent) => agent.agentId));
+    const publishedOnly = (publishedAgentsQuery.data ?? [])
+      .filter((agent) => !discoveredIds.has(agent.agentId))
+      .map(mapPublishedAgent);
+    return [...discovered, ...publishedOnly];
+  }, [discoveredAgentsQuery.data, publishedAgentsQuery.data]);
 
   const groups = useMemo<AgentGroup[]>(
     () => [
@@ -354,7 +398,10 @@ export default function AgentsWorkspace() {
     (publishMutation.error instanceof Error && publishMutation.error.message) ||
     (unpublishMutation.error instanceof Error && unpublishMutation.error.message) ||
     (discoveredAgentsQuery.error instanceof Error && discoveredAgentsQuery.error.message) ||
+    (publishedAgentsQuery.error instanceof Error && publishedAgentsQuery.error.message) ||
     "";
+
+  const isLoading = discoveredAgentsQuery.isLoading || publishedAgentsQuery.isLoading;
 
   return (
     <section className="page-stack">
@@ -401,9 +448,16 @@ export default function AgentsWorkspace() {
       </div>
 
       {errorMessage ? <Notice>{errorMessage}</Notice> : null}
-      {discoveredAgentsQuery.isLoading ? <Notice>Loading agents...</Notice> : null}
+      {isLoading ? <Notice>Loading agents...</Notice> : null}
+      {!isLoading && !agents.length ? (
+        <Notice>
+          No agent records are available yet. Published snapshots will appear here once the first live agent is created,
+          validated, and sealed.
+        </Notice>
+      ) : null}
 
-      {groups.map((group) => (
+      {agents.length
+        ? groups.map((group) => (
         <Panel key={group.title} tone="plain" className={styles.group}>
           <div className="surface-header">
             <div>
@@ -430,7 +484,8 @@ export default function AgentsWorkspace() {
             <Notice>No agents in this section.</Notice>
           )}
         </Panel>
-      ))}
+          ))
+        : null}
     </section>
   );
 }

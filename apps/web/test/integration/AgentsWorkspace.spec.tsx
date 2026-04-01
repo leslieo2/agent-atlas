@@ -2,7 +2,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as agentApi from "@/src/entities/agent/api";
-import type { DiscoveredAgentRecord } from "@/src/entities/agent/model";
+import type { AgentRecord, DiscoveredAgentRecord } from "@/src/entities/agent/model";
 import { renderWithQueryClient } from "@/test/setup";
 import AgentsWorkspace from "@/src/widgets/agents-workspace/AgentsWorkspace";
 
@@ -127,10 +127,12 @@ describe("Agents workspace", () => {
     ];
 
     (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockReset();
+    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockReset();
     (agentApi.publishAgent as unknown as MockedApiFn).mockReset();
     (agentApi.unpublishAgent as unknown as MockedApiFn).mockReset();
 
     (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockImplementation(async () => discoveredAgents);
+    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockResolvedValue([]);
     (agentApi.publishAgent as unknown as MockedApiFn).mockImplementation(async (agentId: string) => {
       discoveredAgents = discoveredAgents.map((agent) =>
         agent.agentId === agentId ? { ...agent, publishState: "published" } : agent
@@ -150,6 +152,7 @@ describe("Agents workspace", () => {
 
     expect(await screen.findByRole("heading", { name: "Agents" })).toBeInTheDocument();
     await waitFor(() => expect(agentApi.listDiscoveredAgents).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalledTimes(1));
 
     expect(await screen.findByText("Ready OpenAI smoke agent.")).toBeInTheDocument();
     expect(screen.getByText("Published agent with local changes.")).toBeInTheDocument();
@@ -191,5 +194,59 @@ describe("Agents workspace", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Unpublish" })[0]);
     await waitFor(() => expect(agentApi.unpublishAgent).toHaveBeenCalledWith("basic"));
+  });
+
+  it("renders published agents in live mode when discovery returns no records", async () => {
+    const publishedAgents: AgentRecord[] = [
+      {
+        agentId: "live-agent",
+        name: "Live Agent",
+        description: "Published snapshot from the live catalog.",
+        framework: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
+        entrypoint: "snapshots/live-agent:run",
+        defaultModel: "gpt-5.4-mini",
+        tags: ["live"],
+        capabilities: ["submit"],
+        publishedAt: "2026-04-01T08:00:00Z",
+        sourceFingerprint: "live-agent-fingerprint-123456",
+        executionReference: {
+          artifactRef: "bundle://live-agent-snapshot"
+        },
+        latestValidation: {
+          runId: "run-live-validation-001",
+          status: "succeeded",
+          createdAt: "2026-04-01T08:10:00Z",
+          startedAt: "2026-04-01T08:11:00Z",
+          completedAt: "2026-04-01T08:12:00Z"
+        },
+        validationEvidence: {
+          artifactRef: "bundle://live-agent-validation",
+          traceUrl: "http://phoenix.local/trace/live-agent-validation"
+        },
+        validationOutcome: {
+          status: "succeeded",
+          reason: "Published validation passed."
+        },
+        defaultRuntimeProfile: {
+          backend: "external-runner"
+        }
+      }
+    ];
+
+    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockResolvedValue([]);
+    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockResolvedValue(publishedAgents);
+
+    renderWithQueryClient(<AgentsWorkspace />);
+
+    expect(await screen.findByText("Published snapshot from the live catalog.")).toBeInTheDocument();
+    expect(screen.getByText("Live Agent")).toBeInTheDocument();
+    expect(screen.getByText("Use this ready snapshot to create the next experiment.")).toBeInTheDocument();
+    expect(screen.getByText("bundle://live-agent-validation")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open validation evidence" })).toHaveAttribute(
+      "href",
+      "http://phoenix.local/trace/live-agent-validation"
+    );
+    expect(screen.queryByText("No agent records are available yet.")).not.toBeInTheDocument();
   });
 });
