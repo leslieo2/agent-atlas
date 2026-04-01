@@ -6,7 +6,7 @@ The current style direction is:
 
 `Mission Control / Control Room Dashboard`
 
-In practice, this means a calm dark workspace with strong hierarchy, restrained accents, and dense but readable operational information. The interface should feel like a tool for running, inspecting, and diagnosing work, not a marketing site and not a generic SaaS card grid.
+In practice, this means a calm dark workspace with strong hierarchy, restrained accents, and dense but readable operational information. The interface should feel like a tool for orchestration, evidence review, and curation, not a marketing site and not a generic SaaS card grid.
 
 ## Product Fit
 
@@ -343,4 +343,4 @@ A new page or refactor should pass these questions:
 - Does the page read clearly in grayscale except for status cues?
 - Are accents mostly reserved for action and state?
 - Would the interface still feel coherent if most shadows were removed?
-- Does the page still feel like the same product as Runs, Agents, Playground, and Trajectory?
+- Does the page still feel like the same product as Agents, Datasets, Experiments, and Exports?

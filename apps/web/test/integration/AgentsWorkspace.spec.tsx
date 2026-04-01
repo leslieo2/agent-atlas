@@ -157,12 +157,8 @@ describe("Agents workspace", () => {
         .map((link) => link.getAttribute("href"))
     ).not.toEqual(expect.arrayContaining(["/experiments?agent=archived_basic"]));
     expect(screen.getByText("source://basic@basic-fingerprint-123456")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Framework"), { target: { value: "mcp" } });
     expect(await screen.findByText("Unsupported framework plugin.")).toBeInTheDocument();
-    expect(screen.queryByText("Ready OpenAI smoke agent.")).not.toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Framework"), { target: { value: "all" } });
+    expect(screen.queryByLabelText("Framework")).not.toBeInTheDocument();
     expect(screen.getByText("external-runner · Claude Code CLI adapter")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
     await waitFor(() => expect(agentApi.publishAgent).toHaveBeenCalledWith("tools"));

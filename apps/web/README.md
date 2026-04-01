@@ -3,28 +3,28 @@
 The frontend is the operator interface for Agent Atlas. It provides the browser UI for control-plane
 orchestration and evidence-plane workflows around agents, datasets, experiments, and exports.
 
-The frontend is intentionally a control-plane UI, not a direct vendor console for tracing or
-experimentation. When external observability backends such as Phoenix are integrated, the frontend
-should continue to consume Atlas-owned APIs, summaries, and deep links instead of binding directly
-to vendor SDKs.
+The frontend is intentionally a control-plane UI, not a runtime host or vendor console. When
+external observability backends such as Phoenix are integrated, the frontend should continue to
+consume Atlas-owned APIs, evidence summaries, and deep links instead of binding directly to vendor
+SDKs or runner-specific protocols.
 
 For the full-stack workflow, start from the repository root README. Use this document when you are
 working directly on the frontend application.
 
 ## What This App Owns
 
-- Agents workspace and publication-oriented interaction flows
+- Agents workspace and snapshot-oriented interaction flows
 - datasets and eval workspaces
 - export-oriented interaction flows
 - client-side data fetching, mapping, and caching for control-plane views
 - frontend architecture and design system rules for the UI layer
 - evidence summaries and deep links that stay attached to Atlas-owned records
 
-Supporting, but not long-term primary, surfaces:
+Supporting, but not long-term product surfaces:
 
 - run-level drill-downs under eval workflows
 - trajectory summaries and Phoenix links for debugging
-- no separate legacy workbench routes; Atlas now centers the four primary workspaces
+- no separate legacy runtime-host routes; Atlas now centers the four primary workspaces
 
 ## Architecture
 
@@ -68,28 +68,24 @@ Important setting:
 If the backend is not running at `http://127.0.0.1:8000`, update `NEXT_PUBLIC_API_BASE_URL` before
 starting the dev server.
 
-## Implemented Workbench Surfaces
+## Implemented Workspaces
 
 - Agents: review agent definitions, seal Atlas snapshots, and inspect provenance plus execution references
 - Datasets: upload and manage sample sets
 - Experiments: create batch runs and inspect result summaries and failures
 - Export actions: download offline artifacts from run and eval workflows
 
-Legacy surfaces still present in the codebase but being downscoped:
-
-- Runs
-- Trajectory Viewer
-- Playground
+Residual debug-oriented scaffolding is being removed from the codebase as the backend subtraction work lands. It should not define the default frontend product story.
 
 ## Product Direction
 
 The frontend should evolve in a way that reinforces Atlas as the control plane:
 
 - center the IA on `Agents`, `Datasets`, `Experiments`, and `Exports`
-- show publication, compatibility, execution-profile, and provenance state inside Atlas-owned records
+- show snapshot status, execution-profile, provenance, and evidence state inside Atlas-owned records
 - keep tracing UI limited to evidence summaries, reference fields, evidence association, and Phoenix deep links
 - avoid rebuilding a complete observability product inside the frontend
-- avoid growing manual-run or playground surfaces as first-class product workflows
+- avoid growing runtime-host, manual-run, or playground surfaces as first-class product workflows
 - preserve explicit snake_case-to-camelCase payload mapping when backend contracts expand
 
 ## Developer Commands

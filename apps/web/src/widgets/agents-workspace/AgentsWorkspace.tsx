@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   useDiscoveredAgentsQuery,
   usePublishAgentMutation,
@@ -9,7 +9,6 @@ import {
 } from "@/src/entities/agent/query";
 import type { DiscoveredAgentRecord, ExecutionReferenceRecord } from "@/src/entities/agent/model";
 import { executionProfileSummary } from "@/src/shared/runtime/identity";
-import { Field } from "@/src/shared/ui/Field";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Notice } from "@/src/shared/ui/Notice";
@@ -85,14 +84,8 @@ function defaultRuntimeSummary(agent: DiscoveredAgentRecord) {
   return executionProfileSummary(agent.defaultRuntimeProfile);
 }
 
-function validationIssuesLabel(agent: DiscoveredAgentRecord) {
-  if (agent.framework === "openai-agents-sdk") {
-    return "OpenAI Agents compatibility issues";
-  }
-  if (agent.framework === "langchain") {
-    return "LangChain compatibility issues";
-  }
-  return "Adapter compatibility issues";
+function validationIssuesLabel() {
+  return "Readiness issues";
 }
 
 function AgentCard({
@@ -142,10 +135,6 @@ function AgentCard({
           <span className={`${styles.metaValue} mono`}>{agent.agentId}</span>
         </div>
         <div className={styles.metaItem}>
-          <span className={styles.metaLabel}>Framework</span>
-          <span className={styles.metaValue}>{agent.framework}</span>
-        </div>
-        <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Default model</span>
           <span className={styles.metaValue}>{agent.defaultModel || "-"}</span>
         </div>
@@ -181,7 +170,8 @@ function AgentCard({
 
       {!isValid ? (
         <div>
-          <p className="page-eyebrow">{validationIssuesLabel(agent)}</p>
+          <p className="page-eyebrow">{validationIssuesLabel()}</p>
+          <p className="muted-note">Atlas keeps validation on snapshot readiness and provenance, not framework-first routing.</p>
           <ul className={styles.issueList}>
             {agent.validationIssues.map((issue) => (
               <li key={`${agent.agentId}-${issue.code}-${issue.message}`}>{issue.message}</li>
@@ -220,41 +210,32 @@ export default function AgentsWorkspace() {
   const discoveredAgentsQuery = useDiscoveredAgentsQuery();
   const publishMutation = usePublishAgentMutation();
   const unpublishMutation = useUnpublishAgentMutation();
-  const [frameworkFilter, setFrameworkFilter] = useState("all");
   const agents = useMemo<DiscoveredAgentRecord[]>(() => discoveredAgentsQuery.data ?? [], [discoveredAgentsQuery.data]);
-  const frameworkOptions = useMemo(
-    () => ["all", ...Array.from(new Set(agents.map((agent) => agent.framework))).sort()],
-    [agents]
-  );
-  const filteredAgents = useMemo(
-    () => (frameworkFilter === "all" ? agents : agents.filter((agent) => agent.framework === frameworkFilter)),
-    [agents, frameworkFilter]
-  );
 
   const groups = useMemo<AgentGroup[]>(
     () => [
       {
         title: "Ready",
         description: "Valid published agents ready to generate RL evaluation data.",
-        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "ready")
+        items: agents.filter((agent) => getAgentReadiness(agent) === "ready")
       },
       {
         title: "Published with draft changes",
         description: "Current repository code differs from the published snapshot.",
-        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "published_with_drift")
+        items: agents.filter((agent) => getAgentReadiness(agent) === "published_with_drift")
       },
       {
         title: "Draft",
         description: "Valid agent definitions that are not yet sealed as Atlas snapshots.",
-        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "draft")
+        items: agents.filter((agent) => getAgentReadiness(agent) === "draft")
       },
       {
         title: "Invalid",
-        description: "Agent definitions that currently fail compatibility or publication checks.",
-        items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "invalid")
+        description: "Agent definitions that currently fail readiness or snapshot checks.",
+        items: agents.filter((agent) => getAgentReadiness(agent) === "invalid")
       }
     ],
-    [filteredAgents]
+    [agents]
   );
 
   const errorMessage =
@@ -274,7 +255,7 @@ export default function AgentsWorkspace() {
           </p>
           <div className="page-tag-list">
             <span className="page-tag">
-              Visible <strong>{filteredAgents.length}</strong>
+              Visible <strong>{agents.length}</strong>
             </span>
             <span className="page-tag">
               Ready to run <strong>{groups[0].items.length}</strong>
@@ -304,24 +285,6 @@ export default function AgentsWorkspace() {
         <MetricCard label="Draft" value={groups[2].items.length} />
         <MetricCard label="Invalid" value={groups[3].items.length} />
       </div>
-
-      <Panel tone="plain">
-        <div className={styles.filterRow}>
-          <Field label="Framework" htmlFor="agents-framework-filter">
-            <select
-              id="agents-framework-filter"
-              value={frameworkFilter}
-              onChange={(event) => setFrameworkFilter(event.target.value)}
-            >
-              {frameworkOptions.map((framework) => (
-                <option key={framework} value={framework}>
-                  {framework}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      </Panel>
 
       {errorMessage ? <Notice>{errorMessage}</Notice> : null}
       {discoveredAgentsQuery.isLoading ? <Notice>Loading agents...</Notice> : null}

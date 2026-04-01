@@ -11,7 +11,7 @@ const navItems = [
   {
     href: "/agents",
     label: "Agents",
-    description: "Govern agent snapshots, provenance, and compatibility before experiments.",
+    description: "Govern agent snapshots, provenance, and execution readiness before experiments.",
     icon: Shapes,
     match: (pathname: string) => pathname.startsWith("/agents")
   },

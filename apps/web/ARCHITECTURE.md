@@ -12,7 +12,7 @@ Allowed responsibilities:
 
 - `app/`: routing, layout, metadata, URL params, and page entrypoints.
 - `src/widgets/`: page or workspace composition. A widget can orchestrate multiple features and entities.
-- `src/features/`: a focused user capability such as filtering runs, launching a replay, or rendering a results table.
+- `src/features/`: a focused user capability such as filtering evidence rows or rendering a results table.
 - `src/entities/`: domain models, API clients, mappers, entity-scoped query hooks, and entity-level presentation helpers.
 - `src/shared/`: low-level UI primitives and generic utilities with no product workflow knowledge.
 
@@ -21,7 +21,7 @@ External backend rule:
 - observability or evaluation vendors such as Phoenix stay behind backend-owned APIs, summaries, and deep links
 - frontend entities should not call vendor APIs directly
 - first-class Atlas workspaces should converge on `Agents`, `Datasets`, `Experiments`, and `Exports`
-- runs, tracing, and manual execution are supporting drill-downs, not the target product center
+- run details, tracing deep links, and other evidence drill-downs are supporting views, not the target product center
 
 ## Current Conventions
 
@@ -50,6 +50,6 @@ External backend rule:
 - Keep the backend as the integration boundary for external observability and eval systems.
 - Prefer Phoenix deep links over rebuilding trace, prompt, evaluator, or experiment tooling in the
   frontend.
-- Treat legacy workbench surfaces such as standalone runs or playground flows as transitional, not
-  as the long-term information architecture.
+- Treat legacy runtime-host surfaces such as standalone runs or playground flows as transitional
+  residue, not as the long-term information architecture.
 - Do not introduce a separate global client store unless state starts crossing multiple workspaces in ways React Query cannot model cleanly.
