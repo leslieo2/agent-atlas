@@ -135,6 +135,12 @@ class ExperimentQueries:
                 and run.trace_pointer.trace_url.strip()
             ):
                 trace_url = run.trace_pointer.trace_url.strip()
+            elif (
+                run.trace_pointer is not None
+                and isinstance(run.trace_pointer.project_url, str)
+                and run.trace_pointer.project_url.strip()
+            ):
+                trace_url = run.trace_pointer.project_url.strip()
             details.append(
                 ExperimentRunDetail(
                     run_id=run.run_id,
