@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from app.core.errors import AgentValidationFailedError, PublishedAgentNotFoundError
+from app.core.errors import (
+    AgentValidationFailedError,
+    PublishedAgentNotFoundError,
+    UnsupportedOperationError,
+)
 from app.modules.agents.application.ports import (
     AgentSourceDiscoveryPort,
     PublishedAgentCatalogPort,
@@ -16,13 +20,15 @@ from app.modules.agents.domain.models import (
 class AgentDiscoveryQueries:
     def __init__(
         self,
-        discovery: AgentSourceDiscoveryPort,
+        discovery: AgentSourceDiscoveryPort | None,
         published_agents: PublishedAgentRepositoryPort,
     ) -> None:
         self.discovery = discovery
         self.published_agents = published_agents
 
     def list_agents(self) -> list[DiscoveredAgent]:
+        if self.discovery is None:
+            return []
         published_by_id = {agent.agent_id: agent for agent in self.published_agents.list_agents()}
         discovered_agents = self.discovery.list_agents()
         enriched_agents: list[DiscoveredAgent] = []
@@ -60,13 +66,18 @@ def _is_valid_published_agent(agent: PublishedAgent) -> bool:
 class AgentPublicationCommands:
     def __init__(
         self,
-        discovery: AgentSourceDiscoveryPort,
+        discovery: AgentSourceDiscoveryPort | None,
         published_agents: PublishedAgentRepositoryPort,
     ) -> None:
         self.discovery = discovery
         self.published_agents = published_agents
 
     def publish(self, agent_id: str) -> PublishedAgent:
+        if self.discovery is None:
+            raise UnsupportedOperationError(
+                "repo-local agent discovery is not available in live mode",
+                agent_id=agent_id,
+            )
         discovered = self._get_discovered_agent(agent_id)
         if discovered.validation_status != AgentValidationStatus.VALID:
             issue_summary = "; ".join(issue.message for issue in discovered.validation_issues) or (
@@ -86,6 +97,11 @@ class AgentPublicationCommands:
         return True
 
     def _get_discovered_agent(self, agent_id: str) -> DiscoveredAgent:
+        if self.discovery is None:
+            raise UnsupportedOperationError(
+                "repo-local agent discovery is not available in live mode",
+                agent_id=agent_id,
+            )
         for agent in self.discovery.list_agents():
             if agent.agent_id == agent_id:
                 return agent

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.bootstrap.container import get_container
+from app.core.config import RuntimeMode, settings
 from app.modules.agents.domain.models import (
     AgentManifest,
     AgentValidationIssue,
@@ -136,4 +137,29 @@ def test_unpublish_returns_404_for_missing_published_agent(client) -> None:
         "code": "published_agent_not_found",
         "message": "published agent 'not-published' was not found",
         "agent_id": "not-published",
+    }
+
+
+def test_agents_api_live_mode_uses_published_snapshots_without_repo_local_discovery(
+    monkeypatch,
+    client,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    get_container.cache_clear()
+
+    published_response = client.get("/api/v1/agents/published")
+    assert published_response.status_code == 200
+    published = {item["agent_id"]: item for item in published_response.json()}
+    assert "basic" in published
+
+    discovered_response = client.get("/api/v1/agents/discovered")
+    assert discovered_response.status_code == 200
+    assert discovered_response.json() == []
+
+    publish_response = client.post("/api/v1/agents/basic/publish")
+    assert publish_response.status_code == 400
+    assert publish_response.json()["detail"] == {
+        "code": "unsupported_operation",
+        "message": "repo-local agent discovery is not available in live mode",
+        "agent_id": "basic",
     }

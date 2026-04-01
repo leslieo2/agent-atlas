@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
+from app.core.config import RuntimeMode, settings
 from app.modules.agents.application.use_cases import (
     AgentDiscoveryQueries,
     AgentPublicationCommands,
@@ -20,18 +21,24 @@ class AgentModuleBundle:
 
 
 def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
+    live_mode = settings.effective_runtime_mode() == RuntimeMode.LIVE
+
     def agent_exists(agent_id: str) -> bool:
+        if live_mode:
+            return infra.published_agent_repository.get_agent(agent_id) is not None
         return infra.published_agent_catalog.get_agent(agent_id) is not None
 
     published_agent_catalog_queries = PublishedAgentCatalogQueries(
-        published_agents=infra.published_agent_catalog
+        published_agents=(
+            infra.published_agent_repository if live_mode else infra.published_agent_catalog
+        )
     )
     agent_discovery_queries = AgentDiscoveryQueries(
-        discovery=infra.agent_discovery,
+        discovery=None if live_mode else infra.agent_discovery,
         published_agents=infra.published_agent_repository,
     )
     agent_publication_commands = AgentPublicationCommands(
-        discovery=infra.agent_discovery,
+        discovery=None if live_mode else infra.agent_discovery,
         published_agents=infra.published_agent_repository,
     )
 
