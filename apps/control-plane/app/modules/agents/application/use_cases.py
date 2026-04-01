@@ -22,8 +22,16 @@ from app.modules.agents.domain.models import (
     AgentValidationRunReference,
     AgentValidationStatus,
     DiscoveredAgent,
+    ExecutionReference,
     PublishedAgent,
+    compute_source_fingerprint,
 )
+from app.modules.agents.domain.starter_assets import (
+    CLAUDE_CODE_STARTER_AGENT_ID,
+    CLAUDE_CODE_STARTER_ENTRYPOINT,
+    claude_code_starter_manifest,
+)
+from app.modules.shared.domain.models import ExecutorConfig, build_source_execution_reference
 
 
 class AgentDiscoveryQueries:
@@ -200,3 +208,33 @@ class AgentPublicationCommands:
                 "discovery catalog"
             ),
         )
+
+
+class AgentBootstrapCommands:
+    def __init__(self, published_agents: PublishedAgentRepositoryPort) -> None:
+        self.published_agents = published_agents
+
+    def bootstrap_claude_code(self) -> PublishedAgent:
+        existing = self.published_agents.get_agent(CLAUDE_CODE_STARTER_AGENT_ID)
+        if existing is not None and _is_valid_published_agent(existing):
+            return existing
+
+        manifest = claude_code_starter_manifest()
+        source_fingerprint = compute_source_fingerprint(
+            manifest,
+            CLAUDE_CODE_STARTER_ENTRYPOINT,
+        )
+        published = PublishedAgent(
+            manifest=manifest,
+            entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
+            source_fingerprint=source_fingerprint,
+            execution_reference=ExecutionReference.model_validate(
+                build_source_execution_reference(
+                    agent_id=manifest.agent_id,
+                    source_fingerprint=source_fingerprint,
+                ).model_dump(mode="json")
+            ),
+            default_runtime_profile=ExecutorConfig(backend="external-runner"),
+        )
+        self.published_agents.save_agent(published)
+        return published

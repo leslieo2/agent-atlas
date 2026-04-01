@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from app.bootstrap.providers.agents import (
+    get_agent_bootstrap_commands,
     get_agent_discovery_queries,
     get_agent_publication_commands,
     get_published_agent_catalog_queries,
@@ -14,6 +15,7 @@ from app.modules.agents.adapters.inbound.http.schemas import (
     DiscoveredAgentResponse,
 )
 from app.modules.agents.application.use_cases import (
+    AgentBootstrapCommands,
     AgentDiscoveryQueries,
     AgentPublicationCommands,
     PublishedAgentCatalogQueries,
@@ -79,3 +81,18 @@ def unpublish_agent(
         return AgentPublicationResponse(agent_id=agent_id, published=False)
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+
+
+@router.post("/bootstrap/claude-code", response_model=AgentDescriptorResponse)
+def bootstrap_claude_code_agent(
+    commands: Annotated[AgentBootstrapCommands, Depends(get_agent_bootstrap_commands)],
+) -> AgentDescriptorResponse:
+    try:
+        return AgentDescriptorResponse.from_domain(commands.bootstrap_claude_code())
+    except AppError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "agent_descriptor_invalid", "message": str(exc)},
+        ) from exc

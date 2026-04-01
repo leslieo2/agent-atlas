@@ -11,9 +11,11 @@ from app.modules.agents.domain.models import (
     AgentValidationStatus,
     DiscoveredAgent,
 )
+from app.modules.agents.domain.starter_assets import CLAUDE_CODE_STARTER_ENTRYPOINT
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import TracePointer
+from fastapi.testclient import TestClient
 
 
 def test_agents_api_supports_discovery_publish_unpublish_and_invalid_publish(
@@ -169,6 +171,44 @@ def test_agents_api_live_mode_uses_published_snapshots_without_repo_local_discov
         "message": "repo-local agent discovery is not available in live mode",
         "agent_id": "basic",
     }
+
+
+def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discovery(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", False)
+    get_container.cache_clear()
+    from app.main import app
+
+    with TestClient(app) as live_client:
+        published_response = live_client.get("/api/v1/agents/published")
+        assert published_response.status_code == 200
+        assert published_response.json() == []
+
+        discovered_response = live_client.get("/api/v1/agents/discovered")
+        assert discovered_response.status_code == 200
+        assert discovered_response.json() == []
+
+        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        assert bootstrap_response.status_code == 200
+        assert bootstrap_response.json()["agent_id"] == "claude-code-starter"
+        assert bootstrap_response.json()["entrypoint"] == CLAUDE_CODE_STARTER_ENTRYPOINT
+        assert bootstrap_response.json()["framework"] == "openai-agents-sdk"
+        assert bootstrap_response.json()["default_runtime_profile"]["backend"] == "external-runner"
+
+        published_after_bootstrap = live_client.get("/api/v1/agents/published")
+        assert published_after_bootstrap.status_code == 200
+        published = {item["agent_id"]: item for item in published_after_bootstrap.json()}
+        assert published["claude-code-starter"]["source_fingerprint"]
+        assert (
+            published["claude-code-starter"]["execution_reference"]["artifact_ref"]
+            == f"source://claude-code-starter@{published['claude-code-starter']['source_fingerprint']}"
+        )
+
+        second_bootstrap = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        assert second_bootstrap.status_code == 200
+        assert second_bootstrap.json()["agent_id"] == "claude-code-starter"
 
 
 def test_agents_api_surfaces_latest_generic_validation_run_summary(client) -> None:

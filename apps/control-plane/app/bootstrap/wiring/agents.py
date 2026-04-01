@@ -7,6 +7,7 @@ from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.core.config import RuntimeMode, settings
 from app.modules.agents.application.ports import AgentValidationRecordPort
 from app.modules.agents.application.use_cases import (
+    AgentBootstrapCommands,
     AgentDiscoveryQueries,
     AgentPublicationCommands,
     PublishedAgentCatalogQueries,
@@ -71,6 +72,7 @@ class AgentModuleBundle:
     published_agent_catalog_queries: PublishedAgentCatalogQueries
     agent_discovery_queries: AgentDiscoveryQueries
     agent_publication_commands: AgentPublicationCommands
+    agent_bootstrap_commands: AgentBootstrapCommands
 
 
 def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
@@ -97,10 +99,14 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
         discovery=None if live_mode else infra.agent_discovery,
         published_agents=infra.published_agent_repository,
     )
+    agent_bootstrap_commands = AgentBootstrapCommands(
+        published_agents=infra.published_agent_repository,
+    )
 
     return AgentModuleBundle(
         agent_exists=agent_exists,
         published_agent_catalog_queries=published_agent_catalog_queries,
         agent_discovery_queries=agent_discovery_queries,
         agent_publication_commands=agent_publication_commands,
+        agent_bootstrap_commands=agent_bootstrap_commands,
     )
