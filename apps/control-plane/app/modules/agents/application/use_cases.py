@@ -30,8 +30,9 @@ from app.modules.agents.domain.starter_assets import (
     CLAUDE_CODE_STARTER_AGENT_ID,
     CLAUDE_CODE_STARTER_ENTRYPOINT,
     claude_code_starter_manifest,
+    claude_code_starter_runtime_profile,
 )
-from app.modules.shared.domain.models import ExecutorConfig, build_source_execution_reference
+from app.modules.shared.domain.models import build_source_execution_reference
 
 
 class AgentDiscoveryQueries:
@@ -234,7 +235,7 @@ class AgentBootstrapCommands:
                     source_fingerprint=source_fingerprint,
                 ).model_dump(mode="json")
             ),
-            default_runtime_profile=ExecutorConfig(backend="external-runner"),
+            default_runtime_profile=claude_code_starter_runtime_profile(),
         )
         self.published_agents.save_agent(published)
         return published
