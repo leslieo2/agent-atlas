@@ -854,6 +854,90 @@ def test_run_execution_service_uses_configured_runner_backend_for_external_runne
     assert runner_payload.runner_backend == "k8s-container"
 
 
+def test_run_execution_service_respects_non_k8s_runner_backend_override_for_external_runner():
+    run_id = uuid4()
+    run_repository = StateRunRepository()
+    trajectory_repository = StateTrajectoryRepository()
+    trace_repository = StateTraceRepository()
+
+    run_repository.save(
+        RunRecord(
+            run_id=run_id,
+            input_summary="external runner docker carrier selection",
+            project="control-plane",
+            dataset="crm-v2",
+            agent_id="basic",
+            model="gpt-5.4-mini",
+            entrypoint="app.agent_plugins.basic:build_agent",
+            agent_type=AdapterKind.OPENAI_AGENTS,
+            status=RunStatus.QUEUED,
+        )
+    )
+
+    captured: dict[str, object] = {}
+
+    class CapturingRunner:
+        def execute(self, payload):
+            captured["payload"] = payload
+            return RunnerExecutionResult(
+                runner_backend=payload.runner_backend,
+                artifact_ref=payload.artifact_ref,
+                image_ref=payload.image_ref,
+                execution=PublishedRunExecutionResult(
+                    runtime_result=RuntimeExecutionResult(
+                        output="ok",
+                        latency_ms=5,
+                        token_usage=8,
+                        provider="mock",
+                        resolved_model="gpt-5.4-mini",
+                    )
+                ),
+            )
+
+    from app.execution.application import RunExecutionService
+
+    service = RunExecutionService(
+        artifact_resolver=_FixedArtifactResolver(),
+        runner=CapturingRunner(),
+        sink=RunExecutionStateSink(
+            run_repository=run_repository,
+            observation_sink=_build_telemetry_ingestor(
+                run_repository=run_repository,
+                trace_repository=trace_repository,
+                trajectory_repository=trajectory_repository,
+            ),
+        ),
+        default_runner_backend="local-process",
+    )
+
+    payload = ExecutionRunSpec(
+        project="control-plane",
+        dataset="crm-v2",
+        agent_id="basic",
+        model="gpt-5.4-mini",
+        entrypoint="app.agent_plugins.basic:build_agent",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        input_summary="external runner docker carrier selection",
+        prompt="Launch Claude Code via local docker carrier.",
+        executor_config=ExecutorConfig(
+            backend="external-runner",
+            runner_image="atlas-claude-validation:local",
+            metadata={
+                "runner_backend": "docker-container",
+                "claude_code_cli": {
+                    "command": "claude",
+                    "args": ["--dangerously-skip-permissions"],
+                },
+            },
+        ),
+    )
+
+    service.execute_run(run_id, payload)
+
+    runner_payload = captured["payload"]
+    assert runner_payload.runner_backend == "docker-container"
+
+
 def test_run_execution_service_keeps_local_runner_explicitly_local():
     run_id = uuid4()
     run_repository = StateRunRepository()

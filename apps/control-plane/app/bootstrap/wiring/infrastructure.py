@@ -11,6 +11,7 @@ from app.agent_tracing.exporters import NoopTraceExporter, OtlpTraceExporter
 from app.core.config import RuntimeMode, settings
 from app.data_plane.adapters import TraceEventTrajectoryProjector
 from app.execution.adapters import (
+    DockerContainerRunner,
     ExecutionControlRegistry,
     ExternalRunnerExecutionAdapter,
     K8sContainerRunner,
@@ -149,7 +150,9 @@ def build_infrastructure() -> InfrastructureBundle:
         poll_interval_seconds=settings.k8s_poll_interval_seconds,
         heartbeat_interval_seconds=settings.k8s_heartbeat_interval_seconds,
     )
+    docker_runner = DockerContainerRunner(launcher=LocalLauncher())
     runners: dict[str, _RunnerExecutor] = {
+        docker_runner.backend_name(): docker_runner,
         k8s_runner.backend_name(): k8s_runner,
     }
     execution_backends: dict[str, _ExecutionBackendAdapter] = {

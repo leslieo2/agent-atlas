@@ -8,7 +8,7 @@ from app.execution.application.results import (
     PublishedRunExecutionResult,
     RuntimeExecutionResult,
 )
-from tests.support.fake_k8s import install_fake_k8s_runtime
+from tests.support.fake_docker import install_fake_docker_runtime
 
 
 def _drain_background_work(worker_drain, *, limit: int, rounds: int = 6) -> int:
@@ -402,10 +402,9 @@ def test_experiments_api_live_mode_bootstrapped_starter_uses_default_runtime_pro
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     monkeypatch.setattr(settings, "seed_demo", False)
     get_container.cache_clear()
-    install_fake_k8s_runtime(
+    install_fake_docker_runtime(
         monkeypatch,
         outputs={"alpha": "alpha"},
-        artifact_contents={"alpha": "starter alpha"},
     )
 
     from app.main import app
@@ -420,7 +419,7 @@ def test_experiments_api_live_mode_bootstrapped_starter_uses_default_runtime_pro
         )
         assert (
             bootstrap_response.json()["default_runtime_profile"]["metadata"]["runner_backend"]
-            == "k8s-container"
+            == "docker-container"
         )
 
         dataset_response = live_client.post(
@@ -475,5 +474,6 @@ def test_experiments_api_live_mode_bootstrapped_starter_uses_default_runtime_pro
 
         run_detail = live_client.get(f"/api/v1/runs/{runs[0]['run_id']}")
         assert run_detail.status_code == 200
-        assert run_detail.json()["runner_backend"] == "k8s-container"
+        assert run_detail.json()["runner_backend"] == "docker-container"
         assert run_detail.json()["container_image"] == "atlas-claude-validation:local"
+        assert run_detail.json()["trace_pointer"]["trace_url"] is not None

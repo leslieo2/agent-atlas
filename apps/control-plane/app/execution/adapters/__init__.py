@@ -29,6 +29,9 @@ from app.execution.adapters.launchers import (
     LocalLaunchSession as LocalLaunchSession,
 )
 from app.execution.adapters.runner import (
+    DockerContainerRunner as DockerContainerRunner,
+)
+from app.execution.adapters.runner import (
     LocalProcessRunner as LocalProcessRunner,
 )
 from app.execution.adapters.runner import (

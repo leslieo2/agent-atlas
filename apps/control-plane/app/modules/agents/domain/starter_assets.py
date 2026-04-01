@@ -30,7 +30,7 @@ def claude_code_starter_runtime_profile() -> ExecutorConfig:
         backend="external-runner",
         runner_image=CLAUDE_CODE_STARTER_RUNNER_IMAGE,
         metadata={
-            "runner_backend": "k8s-container",
+            "runner_backend": "docker-container",
             "claude_code_cli": {
                 "command": "claude",
                 "args": ["--dangerously-skip-permissions"],

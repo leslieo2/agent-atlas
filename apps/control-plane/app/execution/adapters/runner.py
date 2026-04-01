@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess  # nosec B404 - runner invocation is a controlled local module entrypoint
 import sys
+import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Protocol
@@ -187,6 +189,88 @@ class LocalProcessRunner:
         return isinstance(mode, str) and mode.strip().lower() == "in-process"
 
 
+class DockerContainerRunner:
+    def __init__(
+        self,
+        launcher: LocalLauncher | None = None,
+        *,
+        command: Sequence[str] | None = None,
+    ) -> None:
+        self.launcher = launcher or LocalLauncher()
+        self.command = list(command) if command is not None else ["docker"]
+
+    @staticmethod
+    def backend_name() -> str:
+        return "docker-container"
+
+    def execute(self, payload: RunnerRunSpec) -> RunnerExecutionResult:
+        session = self.launcher.prepare(payload)
+        runner_image = payload.executor_config.get("runner_image")
+        if not isinstance(runner_image, str) or not runner_image.strip():
+            raise RuntimeError("docker-container runner requires executor_config.runner_image")
+
+        prefix = f"agent-atlas-docker-{str(payload.run_id)[:8]}-"
+        with tempfile.TemporaryDirectory(prefix=prefix) as temp_dir:
+            temp_home = Path(temp_dir) / "home"
+            temp_home.mkdir(parents=True, exist_ok=True)
+            _copy_claude_auth_material(temp_home)
+
+            input_dir = session.work_dir / "workspace/input"
+            output_dir = session.work_dir / "workspace/output"
+            completed = subprocess.run(  # nosec B603
+                [
+                    *self.command,
+                    "run",
+                    "--rm",
+                    "-e",
+                    "HOME=/home/atlas",
+                    "-v",
+                    f"{temp_home}:/home/atlas",
+                    "-v",
+                    f"{input_dir}:/workspace/input",
+                    "-v",
+                    f"{output_dir}:/workspace/output",
+                    runner_image,
+                    "python",
+                    "-m",
+                    "agent_atlas_runner_base.claude_code",
+                    *payload.bootstrap.as_entrypoint_args(),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        terminal_result = _load_terminal_result(session)
+        if completed.returncode != 0 or (
+            terminal_result is not None and terminal_result.status != "succeeded"
+        ):
+            _raise_runner_failure(
+                terminal_result=terminal_result,
+                stderr=completed.stderr,
+                stdout=completed.stdout,
+                model=payload.model,
+            )
+
+        execution = _load_published_execution_result(session)
+        execution = PublishedRunExecutionResult(
+            runtime_result=execution.runtime_result.model_copy(
+                update={
+                    "container_image": execution.runtime_result.container_image or runner_image,
+                }
+            ),
+            event_envelopes=list(execution.event_envelopes),
+            terminal_result=execution.terminal_result,
+            artifact_manifest=execution.artifact_manifest,
+        )
+        return RunnerExecutionResult(
+            runner_backend=self.backend_name(),
+            artifact_ref=payload.artifact_ref,
+            image_ref=payload.image_ref,
+            execution=execution,
+        )
+
+
 def _load_published_execution_result(session) -> PublishedRunExecutionResult:
     events_path = Path(session.payload.bootstrap.events_path)
     runtime_result = _load_runtime_result(session)
@@ -224,6 +308,15 @@ def _load_published_execution_result(session) -> PublishedRunExecutionResult:
         terminal_result=terminal_result,
         artifact_manifest=artifact_manifest,
     )
+
+
+def _copy_claude_auth_material(target_home: Path) -> None:
+    host_claude_dir = Path.home() / ".claude"
+    host_claude_json = Path.home() / ".claude.json"
+    if not host_claude_dir.exists() or not host_claude_json.exists():
+        raise ProviderAuthError("docker-container runner requires host Claude auth")
+    shutil.copytree(host_claude_dir, target_home / ".claude")
+    shutil.copy2(host_claude_json, target_home / ".claude.json")
 
 
 def _load_runtime_result(session) -> RuntimeExecutionResult | None:
@@ -355,6 +448,7 @@ class RunnerRegistry:
 
 
 __all__ = [
+    "DockerContainerRunner",
     "LocalProcessRunner",
     "PublishedArtifactResolver",
     "RunnerRegistry",

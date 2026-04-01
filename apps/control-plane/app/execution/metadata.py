@@ -33,6 +33,7 @@ def requested_runner_backend(executor_config: object) -> str | None:
 
 
 def uses_k8s_runner_backend(executor_config: object) -> bool:
-    return requested_runner_backend(executor_config) == "k8s-container" or (
-        runner_image(executor_config) is not None
-    )
+    configured_runner_backend = requested_runner_backend(executor_config)
+    if configured_runner_backend is not None:
+        return configured_runner_backend == "k8s-container"
+    return runner_image(executor_config) is not None

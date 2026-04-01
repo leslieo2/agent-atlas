@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tarfile
 from pathlib import Path
@@ -22,6 +23,7 @@ from agent_atlas_runner_base import materialization as runner_materialization
 from agent_atlas_runner_base.claude_code import main as claude_code_runner_main
 from app.core.errors import AgentFrameworkMismatchError, AppError
 from app.execution.adapters import (
+    DockerContainerRunner,
     K8sContainerRunner,
     K8sLauncher,
     LocalLauncher,
@@ -258,6 +260,101 @@ Path(args.events).write_text("", encoding="utf-8")
     assert result.execution.runtime_result.execution_backend == "langgraph"
     assert result.execution.runtime_result.container_image == "ghcr.io/example/runner:123"
     assert result.execution.runtime_result.resolved_model == "gpt-5.4-mini-resolved"
+
+
+def test_docker_container_runner_executes_runner_image_with_local_launcher(
+    tmp_path,
+    monkeypatch,
+):
+    payload = _runner_spec().model_copy(
+        update={
+            "runner_backend": "docker-container",
+            "executor_config": {
+                **dict(_runner_spec().executor_config),
+                "backend": "external-runner",
+                "runner_image": "atlas-claude-validation:local",
+                "metadata": {
+                    "runner_backend": "docker-container",
+                    "claude_code_cli": {
+                        "command": "claude",
+                        "args": ["--dangerously-skip-permissions"],
+                        "version": "starter",
+                    },
+                },
+            },
+        }
+    )
+
+    monkeypatch.setattr(
+        "app.execution.adapters.runner._copy_claude_auth_material",
+        lambda target_home: target_home.mkdir(parents=True, exist_ok=True),
+    )
+
+    def _fake_run(cmd, *, capture_output, text, check):
+        assert capture_output is True
+        assert text is True
+        assert check is False
+        assert cmd[:2] == ["docker", "run"]
+        assert "atlas-claude-validation:local" in cmd
+        mounts = {
+            cmd[index + 1].split(":", 1)[1]: Path(cmd[index + 1].split(":", 1)[0])
+            for index, arg in enumerate(cmd)
+            if arg == "-v"
+        }
+        input_dir = mounts["/workspace/input"]
+        output_dir = mounts["/workspace/output"]
+        run_spec = RunnerRunSpec.model_validate_json(
+            input_dir.joinpath("run_spec.json").read_text(encoding="utf-8")
+        )
+        runtime_result = RuntimeExecutionResult(
+            output="after",
+            latency_ms=17,
+            token_usage=0,
+            provider="claude-code-cli",
+            execution_backend="external-runner",
+            resolved_model=run_spec.model,
+        )
+        output_dir.joinpath("runtime_result.json").write_text(
+            runtime_result.model_dump_json(indent=2),
+            encoding="utf-8",
+        )
+        terminal_result = TerminalResult(
+            run_id=run_spec.run_id,
+            experiment_id=run_spec.experiment_id,
+            attempt=run_spec.attempt,
+            attempt_id=run_spec.attempt_id,
+            status="succeeded",
+            output="after",
+            producer=ProducerInfo(runtime="claude-code-cli", framework=run_spec.framework),
+            metrics=TerminalMetrics(latency_ms=17, token_usage=0, tool_calls=0),
+        )
+        output_dir.joinpath("terminal_result.json").write_text(
+            terminal_result.model_dump_json(indent=2),
+            encoding="utf-8",
+        )
+        artifact_manifest = ArtifactManifest(
+            run_id=run_spec.run_id,
+            experiment_id=run_spec.experiment_id,
+            attempt=run_spec.attempt,
+            attempt_id=run_spec.attempt_id,
+            producer=ProducerInfo(runtime="claude-code-cli", framework=run_spec.framework),
+            artifacts=[],
+        )
+        output_dir.joinpath("artifact_manifest.json").write_text(
+            artifact_manifest.model_dump_json(indent=2),
+            encoding="utf-8",
+        )
+        output_dir.joinpath("events.ndjson").write_text("", encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("app.execution.adapters.runner.subprocess.run", _fake_run)
+
+    runner = DockerContainerRunner(launcher=LocalLauncher(workspace_root=tmp_path))
+    result = runner.execute(payload)
+
+    assert result.runner_backend == "docker-container"
+    assert result.execution.runtime_result.container_image == "atlas-claude-validation:local"
+    assert result.execution.runtime_result.execution_backend == "external-runner"
 
 
 def test_local_process_runner_rehydrates_serialized_app_error(tmp_path):
