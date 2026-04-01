@@ -12,11 +12,6 @@ class RuntimeMode(StrEnum):
     MOCK = "mock"
 
 
-class TraceBackendMode(StrEnum):
-    STATE = "state"
-    PHOENIX = "phoenix"
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="AGENT_ATLAS_",
@@ -97,10 +92,6 @@ class Settings(BaseSettings):
         default=5.0,
         description="Heartbeat interval while waiting on a Kubernetes runner Job.",
     )
-    trace_backend: TraceBackendMode = Field(
-        default=TraceBackendMode.STATE,
-        description="Read-side trace backend mode: state|phoenix.",
-    )
     tracing_otlp_endpoint: str | None = Field(
         default=None,
         description="OTLP endpoint used for neutral runtime/control-plane trace export.",
@@ -120,11 +111,7 @@ class Settings(BaseSettings):
     phoenix_api_key: SecretStr | None = Field(
         default=None,
         repr=False,
-        description="Optional Phoenix API key used for export and query clients.",
-    )
-    phoenix_query_limit: int = Field(
-        default=500,
-        description="Maximum number of Phoenix spans to fetch when reconstructing a run trace.",
+        description="Optional Phoenix API key used for OTLP export and deeplink resolution.",
     )
 
     def effective_runtime_mode(self, api_key: SecretStr | None = None) -> RuntimeMode:

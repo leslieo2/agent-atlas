@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
-from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
+from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     ExecutorConfig,
@@ -15,9 +15,7 @@ from app.modules.shared.domain.models import (
     ToolsetConfig,
     TracePointer,
     TracingMetadata,
-    TrajectoryStepRecord,
 )
-from app.modules.shared.domain.traces import TraceSpan
 
 
 class RunCreateRequest(BaseModel):
@@ -96,43 +94,3 @@ class CancelRunResponse(BaseModel):
     cancelled: bool
     status: RunStatus
     termination_reason: str | None = None
-
-
-class TrajectoryStepResponse(BaseModel):
-    id: str
-    run_id: UUID
-    step_type: StepType
-    parent_step_id: str | None = None
-    prompt: str
-    output: str
-    model: str | None = None
-    temperature: float
-    latency_ms: int
-    token_usage: int
-    success: bool
-    tool_name: str | None = None
-    started_at: datetime
-
-    @classmethod
-    def from_domain(cls, step: TrajectoryStepRecord) -> TrajectoryStepResponse:
-        return cls.model_validate(step.model_dump())
-
-
-class RunTraceSpanResponse(BaseModel):
-    run_id: UUID
-    span_id: str
-    parent_span_id: str | None
-    step_type: StepType
-    input: dict[str, object]
-    output: dict[str, object]
-    tool_name: str | None = None
-    latency_ms: int
-    token_usage: int
-    image_digest: str | None = None
-    prompt_version: str | None = None
-    trace_backend: str | None = None
-    received_at: datetime
-
-    @classmethod
-    def from_domain(cls, span: TraceSpan) -> RunTraceSpanResponse:
-        return cls.model_validate(span.model_dump())

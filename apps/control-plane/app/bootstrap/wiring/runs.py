@@ -57,8 +57,6 @@ def build_run_module(
     )
     run_queries = RunQueries(
         run_repository=infra.run_repository,
-        trajectory_repository=infra.tracing.trajectory_repository,
-        trace_backend=infra.tracing.trace_backend,
     )
     run_commands = RunCommands(
         run_repository=infra.run_repository,

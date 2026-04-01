@@ -4,12 +4,11 @@ from dataclasses import dataclass
 
 from app.agent_tracing.adapters import TraceIngestProjector
 from app.agent_tracing.backends import (
-    PhoenixTraceBackend,
     PhoenixTraceLinkResolver,
     StateTraceBackend,
 )
 from app.agent_tracing.exporters import NoopTraceExporter, OtlpTraceExporter
-from app.core.config import TraceBackendMode, settings
+from app.core.config import settings
 from app.data_plane.adapters import TraceEventTrajectoryProjector
 from app.execution.adapters import (
     ExecutionControlRegistry,
@@ -40,7 +39,6 @@ from app.infrastructure.adapters.framework_registry import (
 )
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.task_queue import StateTaskQueue
-from app.infrastructure.adapters.trace_lookup import StateRunTraceLookup
 from app.infrastructure.repositories import (
     StateApprovalPolicyRepository,
     StatePublishedAgentRepository,
@@ -173,40 +171,33 @@ def build_infrastructure() -> InfrastructureBundle:
     phoenix_api_key = (
         settings.phoenix_api_key.get_secret_value() if settings.phoenix_api_key else None
     )
-    if settings.trace_backend == TraceBackendMode.PHOENIX:
-        if not settings.phoenix_base_url:
-            raise RuntimeError("Phoenix trace queries require AGENT_ATLAS_PHOENIX_BASE_URL.")
-        trace_backend = PhoenixTraceBackend(
-            run_lookup=StateRunTraceLookup(run_repository),
-            base_url=settings.phoenix_base_url,
-            project_name=settings.tracing_project_name,
-            api_key=phoenix_api_key,
-            query_limit=settings.phoenix_query_limit,
-        )
+    trace_backend = StateTraceBackend(
+        repository=trace_repository,
+        backend_name="state",
+    )
+    if settings.phoenix_base_url:
         trace_link_resolver = PhoenixTraceLinkResolver(
             base_url=settings.phoenix_base_url,
             project_name=settings.tracing_project_name,
             api_key=phoenix_api_key,
         )
-    else:
-        trace_backend = StateTraceBackend(
-            repository=trace_repository,
-            backend_name=settings.trace_backend.value,
-        )
 
     tracing_headers = dict(settings.tracing_headers)
     if (
-        settings.trace_backend == TraceBackendMode.PHOENIX
+        settings.phoenix_base_url
         and phoenix_api_key is not None
         and "api_key" not in tracing_headers
     ):
         tracing_headers["api_key"] = phoenix_api_key
 
     if settings.tracing_otlp_endpoint:
+        trace_reference_backend = (
+            "phoenix" if trace_link_resolver is not None else trace_backend.backend_name()
+        )
         trace_exporter = OtlpTraceExporter(
             endpoint=settings.tracing_otlp_endpoint,
             project_name=settings.tracing_project_name,
-            backend_name=trace_backend.backend_name(),
+            backend_name=trace_reference_backend,
             headers=tracing_headers,
             link_resolver=trace_link_resolver,
         )

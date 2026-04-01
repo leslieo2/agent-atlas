@@ -7,28 +7,18 @@ from app.core.errors import AgentNotPublishedError
 from app.execution.application.ports import ExecutionControlPort
 from app.execution.contracts import CancelRequest
 from app.modules.agents.application.ports import PublishedAgentCatalogPort
-from app.modules.runs.application.ports import (
-    RunRepository,
-    TraceBackendPort,
-    TrajectoryRepository,
-)
+from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.enums import RunStatus
-from app.modules.shared.domain.models import TrajectoryStepRecord
-from app.modules.shared.domain.traces import TraceSpan
 
 
 class RunQueries:
     def __init__(
         self,
         run_repository: RunRepository,
-        trajectory_repository: TrajectoryRepository,
-        trace_backend: TraceBackendPort,
     ) -> None:
         self.run_repository = run_repository
-        self.trajectory_repository = trajectory_repository
-        self.trace_backend = trace_backend
 
     def list_runs(
         self,
@@ -76,12 +66,6 @@ class RunQueries:
 
     def get_run(self, run_id: str | UUID) -> RunRecord | None:
         return self.run_repository.get(run_id)
-
-    def get_trajectory(self, run_id: str | UUID) -> list[TrajectoryStepRecord]:
-        return self.trajectory_repository.list_for_run(run_id)
-
-    def get_traces(self, run_id: str | UUID) -> list[TraceSpan]:
-        return self.trace_backend.list_for_run(run_id)
 
 
 class RunCommands:
