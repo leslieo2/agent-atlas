@@ -2,8 +2,8 @@
 
 import { ArrowUpRight, Download, Radar, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { DiscoveredAgentRecord } from "@/src/entities/agent/model";
-import { useDiscoveredAgentsQuery } from "@/src/entities/agent/query";
+import type { AgentRecord, DiscoveredAgentRecord } from "@/src/entities/agent/model";
+import { useDiscoveredAgentsQuery, usePublishedAgentsQuery } from "@/src/entities/agent/query";
 import { useDatasetsQuery } from "@/src/entities/dataset/query";
 import { getExportDownloadUrl } from "@/src/entities/export/api";
 import { useCreateExportMutation } from "@/src/entities/export/query";
@@ -38,6 +38,8 @@ type Props = {
   initialDatasetVersionId?: string;
   initialExperimentId?: string;
 };
+
+type ExperimentAgentOption = Pick<AgentRecord, "agentId" | "name" | "defaultRuntimeProfile">;
 
 function parseTags(value: string) {
   return value
@@ -147,6 +149,7 @@ export default function ExperimentsWorkspace({
   initialExperimentId = ""
 }: Props) {
   const discoveredAgentsQuery = useDiscoveredAgentsQuery();
+  const publishedAgentsQuery = usePublishedAgentsQuery();
   const datasetsQuery = useDatasetsQuery();
   const policiesQuery = usePoliciesQuery();
   const experimentsQuery = useExperimentsQuery();
@@ -154,17 +157,32 @@ export default function ExperimentsWorkspace({
   const startExperimentMutation = useStartExperimentMutation();
   const cancelExperimentMutation = useCancelExperimentMutation();
   const createExportMutation = useCreateExportMutation();
+  const isAgentsLoading = discoveredAgentsQuery.isPending || publishedAgentsQuery.isPending;
 
-  const agents = useMemo(
-    () =>
-      (discoveredAgentsQuery.data ?? []).filter(
-        (agent): agent is DiscoveredAgentRecord =>
-          agent.publishState === "published" &&
-          agent.validationStatus === "valid" &&
-          !agent.hasUnpublishedChanges
-      ),
-    [discoveredAgentsQuery.data]
-  );
+  const agents = useMemo<ExperimentAgentOption[]>(() => {
+    const readyDiscovered = (discoveredAgentsQuery.data ?? []).filter(
+      (agent): agent is DiscoveredAgentRecord =>
+        agent.publishState === "published" &&
+        agent.validationStatus === "valid" &&
+        !agent.hasUnpublishedChanges
+    );
+    const readyIds = new Set(readyDiscovered.map((agent) => agent.agentId));
+    const publishedOnly = (publishedAgentsQuery.data ?? [])
+      .filter((agent) => !readyIds.has(agent.agentId))
+      .map((agent) => ({
+        agentId: agent.agentId,
+        name: agent.name,
+        defaultRuntimeProfile: agent.defaultRuntimeProfile
+      }));
+    return [
+      ...readyDiscovered.map((agent) => ({
+        agentId: agent.agentId,
+        name: agent.name,
+        defaultRuntimeProfile: agent.defaultRuntimeProfile
+      })),
+      ...publishedOnly
+    ];
+  }, [discoveredAgentsQuery.data, publishedAgentsQuery.data]);
   const datasets = useMemo(() => datasetsQuery.data ?? [], [datasetsQuery.data]);
   const policies = useMemo(() => policiesQuery.data ?? [], [policiesQuery.data]);
   const experiments = useMemo(() => experimentsQuery.data ?? [], [experimentsQuery.data]);
@@ -256,7 +274,7 @@ export default function ExperimentsWorkspace({
 
   useEffect(() => {
     if (!agents.length) {
-      if (agentId) {
+      if (!isAgentsLoading && agentId) {
         setAgentId("");
       }
       return;
@@ -265,7 +283,7 @@ export default function ExperimentsWorkspace({
       return;
     }
     setAgentId(agents[0].agentId);
-  }, [agentId, agents]);
+  }, [agentId, agents, isAgentsLoading]);
 
   useEffect(() => {
     if (!datasetVersionId && datasetVersions[0]) {
@@ -379,11 +397,10 @@ export default function ExperimentsWorkspace({
             </p>
           </div>
         </div>
-        {discoveredAgentsQuery.isPending ? <Notice>Loading agents...</Notice> : null}
-        {!discoveredAgentsQuery.isPending && !agents.length ? (
+        {isAgentsLoading ? <Notice>Loading agents...</Notice> : null}
+        {!isAgentsLoading && !agents.length ? (
           <Notice>
-            No ready published agents are available. Publish a valid snapshot with no draft drift before creating an
-            experiment.
+            No published agents are available yet. Bootstrap or publish a live snapshot before creating an experiment.
           </Notice>
         ) : null}
         <div className={styles.filtersGrid}>

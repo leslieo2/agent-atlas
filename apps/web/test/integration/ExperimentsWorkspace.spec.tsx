@@ -394,8 +394,9 @@ describe("Experiments workspace", () => {
 
     expect(await screen.findByRole("heading", { name: "Experiment to evidence loop" })).toBeInTheDocument();
     await waitFor(() => expect(agentApi.listDiscoveredAgents).toHaveBeenCalled());
-    expect(screen.getByRole("combobox", { name: "Published agent" })).toHaveTextContent("Basic");
-    expect(screen.getByRole("combobox", { name: "Published agent" })).not.toHaveTextContent("Archived Basic");
+    await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
+    expect(screen.getByRole("combobox", { name: "Published agent" })).toHaveValue("basic");
+    expect(screen.getByRole("option", { name: "Archived Basic" })).toBeInTheDocument();
     await waitFor(() => expect(experimentApi.listExperiments).toHaveBeenCalled());
     await waitFor(() => expect(experimentApi.listExperimentRuns).toHaveBeenCalledWith("exp-002"));
     await waitFor(() => expect(experimentApi.compareExperiments).toHaveBeenCalledWith("exp-001", "exp-002"));
@@ -465,13 +466,16 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(experimentApi.startExperiment).toHaveBeenCalledWith("exp-003"));
   });
 
-  it("falls back to a ready published agent when the URL points at an archived snapshot", async () => {
+  it("keeps a published-only live agent selectable when discovery is empty", async () => {
+    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockResolvedValue([]);
+
     renderWithQueryClient(<ExperimentsWorkspace initialAgentId="archived_basic" initialDatasetVersionId="dataset-v2" />);
 
     const agentSelect = await screen.findByRole("combobox", { name: "Published agent" });
 
     await waitFor(() => expect(agentApi.listDiscoveredAgents).toHaveBeenCalled());
-    expect(agentSelect).toHaveValue("basic");
-    expect(agentSelect).toHaveTextContent("Basic");
+    await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
+    expect(agentSelect).toHaveValue("archived_basic");
+    expect(agentSelect).toHaveTextContent("Archived Basic");
   });
 });
