@@ -50,7 +50,7 @@ function experimentTone(status: string) {
   if (status === "completed") {
     return "success";
   }
-  if (status === "failed" || status === "cancelled" || status === "lost") {
+  if (status === "failed" || status === "cancelled") {
     return "error";
   }
   return "warn";
@@ -126,6 +126,19 @@ function matchesRunFilters({
 
 function experimentLabel(record: ExperimentRecord) {
   return `${record.name} · ${record.publishedAgentId}`;
+}
+
+function experimentNextStep(record: ExperimentRecord | null) {
+  if (!record) {
+    return "Create an experiment from a ready snapshot to start collecting evidence.";
+  }
+  if (record.status === "completed") {
+    return "Review the evidence summary, compare against a baseline if needed, then curate runs for export.";
+  }
+  if (record.status === "failed" || record.status === "cancelled") {
+    return "Inspect the current evidence summary before deciding whether to retry or compare.";
+  }
+  return "Let the run finish, then move into compare and curation once evidence is available.";
 }
 
 export default function ExperimentsWorkspace({
@@ -360,6 +373,10 @@ export default function ExperimentsWorkspace({
           <div>
             <p className="surface-kicker">Create experiment</p>
             <h3 className="panel-title">Bind snapshot, dataset version, and policy</h3>
+            <p className="muted-note">
+              Start with one ready published snapshot, pair it with a dataset version, then let Atlas create the
+              evidence loop you will compare and curate.
+            </p>
           </div>
         </div>
         {discoveredAgentsQuery.isPending ? <Notice>Loading agents...</Notice> : null}
@@ -436,15 +453,17 @@ export default function ExperimentsWorkspace({
           </Field>
         </div>
         <p className="muted-note">
-          Execution profile is inherited from the published snapshot:{" "}
-          {executionProfileSummary(selectedAgent?.defaultRuntimeProfile)}. Atlas still tracks the same neutral
-          runner status, evidence, and export loop even when the adapter is Claude Code CLI.
+          Only ready, published snapshots with no draft drift appear in this selector. Execution profile is inherited
+          from the published snapshot: {executionProfileSummary(selectedAgent?.defaultRuntimeProfile)}. Atlas still
+          tracks the same neutral runner status, evidence, and export loop even when the adapter is Claude Code CLI.
         </p>
         <div className={styles.actions}>
           <Button onClick={() => void handleCreateExperiment()} disabled={createExperimentMutation.isPending}>
             <Radar size={14} /> {createExperimentMutation.isPending ? "Creating..." : "Create and start"}
           </Button>
-          {actionMessage ? <p className={styles.actionNote}>{actionMessage}</p> : null}
+          <p className={styles.actionNote}>
+            {actionMessage || "Atlas creates the record and immediately starts the run on the current neutral execution path."}
+          </p>
         </div>
       </Panel>
 
@@ -480,6 +499,7 @@ export default function ExperimentsWorkspace({
           <div>
             <p className="surface-kicker">Summary</p>
             <h3 className="panel-title">Selected experiment evidence</h3>
+            <p className="muted-note">{experimentNextStep(selectedExperiment)}</p>
           </div>
             {selectedExperiment ? (
               <div className="toolbar">
@@ -549,6 +569,9 @@ export default function ExperimentsWorkspace({
           <div>
             <p className="surface-kicker">Runs</p>
             <h3 className="panel-title">Curate sample outcomes before export</h3>
+            <p className="muted-note">
+              Use compare and curation to decide which evidence-backed rows should move into the next export.
+            </p>
           </div>
           <div className="toolbar">
             <Button onClick={() => void handleExport()} disabled={!selectedExperiment || createExportMutation.isPending}>

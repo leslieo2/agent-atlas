@@ -176,9 +176,10 @@ describe("Agents workspace", () => {
     expect(screen.getByText("source://basic@basic-fingerprint-123456")).toBeInTheDocument();
     expect(screen.getByText("run-validation-001")).toBeInTheDocument();
     expect(screen.getByText("bundle://basic-validation-001")).toBeInTheDocument();
-    expect(screen.getByText("Validation run completed with evidence attached.")).toBeInTheDocument();
+    expect(screen.getAllByText("Validation run completed with evidence attached.")).toHaveLength(2);
+    expect(screen.getByText("Use this ready snapshot to create the next experiment.")).toBeInTheDocument();
     expect(screen.getByText("Edited sample project and captured changed files.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open validation trace" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open validation evidence" })).toHaveAttribute(
       "href",
       "http://phoenix.local/trace/validation-001"
     );

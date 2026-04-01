@@ -324,8 +324,8 @@ export default function ExportsWorkspace({
             </span>
             <p className="page-info-detail">
               {candidateExperimentId
-                ? "Compare-aware export mode is active."
-                : "Export rows directly from one experiment or switch into compare-aware mode by selecting a candidate."}
+                ? "Compare-aware export mode is active. Finalize the preview rows, then create the handoff file."
+                : "Pick one experiment first, then tighten the preview rows before creating the handoff file."}
             </p>
           </div>
         </div>
@@ -349,8 +349,8 @@ export default function ExportsWorkspace({
               <p className="surface-kicker">Create export</p>
               <h3 className="panel-title">Filter evidence-backed sample outcomes into a training file</h3>
               <p className="muted-note">
-                This is the Atlas export handoff surface. Atlas decides what leaves the platform; Phoenix stays a
-                debugging deeplink outside the export loop.
+                This is the Atlas export handoff surface. First confirm the source, then narrow the preview rows, then
+                create the offline file that leaves the platform.
               </p>
             </div>
           </div>
@@ -567,7 +567,11 @@ export default function ExportsWorkspace({
             <Button onClick={handleCreateExport} disabled={createExportMutation.isPending}>
               <Download size={14} /> {createExportMutation.isPending ? "Creating..." : "Create export"}
             </Button>
-            <p className={styles.actionNote}>The export uses the current source selection and row filters.</p>
+            <p className={styles.actionNote}>
+              {sourceExperiment
+                ? `Create a ${format.toUpperCase()} handoff from the current preview rows for ${sourceExperiment.datasetName}.`
+                : "Select a source experiment before creating the export handoff."}
+            </p>
           </div>
         </Panel>
 

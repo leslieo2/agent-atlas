@@ -133,6 +133,28 @@ function validationEvidenceLabel(validationEvidence?: AgentValidationEvidenceSum
   return "-";
 }
 
+function hasBlockingValidationOutcome(agent: DiscoveredAgentRecord) {
+  const status = validationSummaryStatus(agent.latestValidation, agent.validationOutcome).trim().toLowerCase();
+  return status === "failed" || status === "runtime_error" || status === "invalid";
+}
+
+function nextStepLabel(agent: DiscoveredAgentRecord) {
+  const readiness = getAgentReadiness(agent);
+  if (readiness === "invalid") {
+    return "Resolve readiness issues before Atlas can publish or run this agent.";
+  }
+  if (readiness === "published_with_drift") {
+    return "Re-publish this agent so new experiments use the latest sealed snapshot.";
+  }
+  if (readiness === "draft") {
+    return "Publish this validated draft when you want it available for experiments.";
+  }
+  if (hasBlockingValidationOutcome(agent)) {
+    return "Review the latest validation evidence before using this snapshot in a new experiment.";
+  }
+  return "Use this ready snapshot to create the next experiment.";
+}
+
 function AgentCard({
   agent,
   onPublish,
@@ -174,7 +196,60 @@ function AgentCard({
         </p>
       ) : null}
 
+      <div>
+        <p className="page-eyebrow">Next step</p>
+        <p className="muted-note">{nextStepLabel(agent)}</p>
+      </div>
+
+      {agent.latestValidation || agent.validationOutcome || agent.validationEvidence ? (
+        <div>
+          <div className="toolbar">
+            <p className="page-eyebrow">Latest validation</p>
+            <StatusPill tone={validationRunTone(validationSummaryStatus(agent.latestValidation, agent.validationOutcome))}>
+              {validationSummaryStatus(agent.latestValidation, agent.validationOutcome)}
+            </StatusPill>
+          </div>
+          <p className="muted-note">
+            {agent.validationOutcome?.reason ?? "Validation evidence is available for the latest run."}
+          </p>
+          <div className={styles.meta}>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Validation run</span>
+              <span className={`${styles.metaValue} mono`}>{agent.latestValidation?.runId ?? "-"}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Validated at</span>
+              <span className={styles.metaValue}>{formatValidationTimestamp(agent.latestValidation)}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Evidence ref</span>
+              <span className={`${styles.metaValue} mono`}>{validationEvidenceLabel(agent.validationEvidence)}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Outcome</span>
+              <span className={styles.metaValue}>{agent.validationOutcome?.reason ?? "Validation summary available"}</span>
+            </div>
+          </div>
+          {agent.validationEvidence?.terminalSummary ? (
+            <p className="muted-note">{agent.validationEvidence.terminalSummary}</p>
+          ) : null}
+          {agent.validationEvidence?.traceUrl ? (
+            <Button href={agent.validationEvidence.traceUrl} variant="ghost">
+              Open validation evidence <ArrowUpRight size={14} />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className={styles.meta}>
+        <div className={styles.metaItem}>
+          <span className={styles.metaLabel}>Execution profile</span>
+          <span className={`${styles.metaValue} mono`}>{defaultRuntimeSummary(agent)}</span>
+        </div>
+        <div className={styles.metaItem}>
+          <span className={styles.metaLabel}>Last validated</span>
+          <span className={styles.metaValue}>{new Date(agent.lastValidatedAt).toLocaleString("en")}</span>
+        </div>
         <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Agent ID</span>
           <span className={`${styles.metaValue} mono`}>{agent.agentId}</span>
@@ -203,52 +278,7 @@ function AgentCard({
           <span className={styles.metaLabel}>Source fingerprint</span>
           <span className={`${styles.metaValue} mono`}>{shortSourceFingerprint(agent.sourceFingerprint)}</span>
         </div>
-        <div className={styles.metaItem}>
-          <span className={styles.metaLabel}>Execution profile</span>
-          <span className={`${styles.metaValue} mono`}>{defaultRuntimeSummary(agent)}</span>
-        </div>
-        <div className={styles.metaItem}>
-          <span className={styles.metaLabel}>Last validated</span>
-          <span className={styles.metaValue}>{new Date(agent.lastValidatedAt).toLocaleString("en")}</span>
-        </div>
       </div>
-
-      {agent.latestValidation || agent.validationOutcome || agent.validationEvidence ? (
-        <div>
-          <div className="toolbar">
-            <p className="page-eyebrow">Latest validation</p>
-            <StatusPill tone={validationRunTone(validationSummaryStatus(agent.latestValidation, agent.validationOutcome))}>
-              {validationSummaryStatus(agent.latestValidation, agent.validationOutcome)}
-            </StatusPill>
-          </div>
-          <div className={styles.meta}>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Validation run</span>
-              <span className={`${styles.metaValue} mono`}>{agent.latestValidation?.runId ?? "-"}</span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Latest evidence</span>
-              <span className={`${styles.metaValue} mono`}>{validationEvidenceLabel(agent.validationEvidence)}</span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Latest outcome</span>
-              <span className={styles.metaValue}>{agent.validationOutcome?.reason ?? "Validation summary available"}</span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Validated at</span>
-              <span className={styles.metaValue}>{formatValidationTimestamp(agent.latestValidation)}</span>
-            </div>
-          </div>
-          {agent.validationEvidence?.terminalSummary ? (
-            <p className="muted-note">{agent.validationEvidence.terminalSummary}</p>
-          ) : null}
-          {agent.validationEvidence?.traceUrl ? (
-            <Button href={agent.validationEvidence.traceUrl} variant="ghost">
-              Open validation trace <ArrowUpRight size={14} />
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
 
       {!isValid ? (
         <div>
@@ -333,7 +363,8 @@ export default function AgentsWorkspace() {
           <p className="page-eyebrow">Agent control plane</p>
           <h2 className="section-title">Agents</h2>
           <p className="kicker">
-            Govern Atlas agent snapshots, provenance, and execution references before they enter experiment orchestration.
+            Keep agent snapshots ready to run, review the latest validation evidence, and hand the right snapshot into
+            experiment orchestration.
           </p>
           <div className="page-tag-list">
             <span className="page-tag">
@@ -355,7 +386,8 @@ export default function AgentsWorkspace() {
               {groups[3].items.length} invalid
             </span>
             <p className="page-info-detail">
-              Only ready snapshots can seed new experiments. Re-publish drifted agents to refresh Atlas-owned provenance.
+              Start with ready snapshots, re-publish drifted ones, and use the latest validation summary to decide what
+              to run next.
             </p>
           </div>
         </div>
