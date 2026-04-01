@@ -13,7 +13,7 @@ In practice, this means a calm dark workspace with strong hierarchy, restrained 
 This product is an operator-facing workbench. Users need to:
 
 - scan current state quickly,
-- compare runs, agents, and traces,
+- compare experiments, agents, datasets, and evidence summaries,
 - move between work surfaces without losing context,
 - notice failures and blocked states immediately,
 - act from the same screen where they observe.
@@ -93,7 +93,7 @@ If a section tries to explain, summarize, and convert at the same time, split it
 ### Style Keywords
 
 - control room
-- local-first operations workbench
+- operator evidence workbench
 - dark analytical surface
 - restrained futuristic
 - technical but calm
@@ -223,7 +223,7 @@ Examples:
 
 - filters + runs table
 - run graph
-- playground controls
+- curation controls
 
 This area should always dominate over decorative surfaces.
 
@@ -231,7 +231,7 @@ This area should always dominate over decorative surfaces.
 
 Secondary regions should support the main task.
 
-- trace output
+- evidence summary
 - step inspector
 - status side panel
 
@@ -292,8 +292,8 @@ This product should use utility copy, not campaign copy.
 Good:
 
 - Runs unavailable. Check the API connection and try again.
-- Select a run to inspect its trajectory and execution details.
-- Valid repository plugins that are not yet exposed.
+- Select an experiment to inspect evidence, outcomes, and export readiness.
+- Valid agent definitions that are not yet sealed as Atlas snapshots.
 
 Bad:
 

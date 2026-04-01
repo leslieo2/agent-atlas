@@ -88,12 +88,12 @@ function defaultRuntimeSummary(agent: DiscoveredAgentRecord) {
 
 function validationIssuesLabel(agent: DiscoveredAgentRecord) {
   if (agent.framework === "openai-agents-sdk") {
-    return "OpenAI Agents SDK validation issues";
+    return "OpenAI Agents compatibility issues";
   }
   if (agent.framework === "langchain") {
-    return "LangChain validation issues";
+    return "LangChain compatibility issues";
   }
-  return "Unsupported framework issues";
+  return "Adapter compatibility issues";
 }
 
 function AgentCard({
@@ -133,7 +133,7 @@ function AgentCard({
 
       {hasDraftChanges ? (
         <p className={styles.driftNotice}>
-          Publish the current repository draft before creating new experiments so execution matches the sealed snapshot.
+          Re-publish this agent before creating new experiments so Atlas orchestration points at the latest sealed snapshot.
         </p>
       ) : null}
 
@@ -171,7 +171,7 @@ function AgentCard({
           <span className={`${styles.metaValue} mono`}>{shortSourceFingerprint(agent.sourceFingerprint)}</span>
         </div>
         <div className={styles.metaItem}>
-          <span className={styles.metaLabel}>Default runtime</span>
+          <span className={styles.metaLabel}>Execution profile</span>
           <span className={`${styles.metaValue} mono`}>{defaultRuntimeSummary(agent)}</span>
         </div>
         <div className={styles.metaItem}>
@@ -246,12 +246,12 @@ export default function AgentsWorkspace() {
       },
       {
         title: "Draft",
-        description: "Valid repository plugins that are not yet published for eval orchestration.",
+        description: "Valid agent definitions that are not yet sealed as Atlas snapshots.",
         items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "draft")
       },
       {
         title: "Invalid",
-        description: "Discovered plugins that currently fail framework-specific contract validation.",
+        description: "Agent definitions that currently fail compatibility or publication checks.",
         items: filteredAgents.filter((agent) => getAgentReadiness(agent) === "invalid")
       }
     ],
@@ -271,8 +271,7 @@ export default function AgentsWorkspace() {
           <p className="page-eyebrow">Agent control plane</p>
           <h2 className="section-title">Agents</h2>
           <p className="kicker">
-            Discover repository-local drafts, seal immutable snapshots, and attach stable execution references for the
-            neutral runner path.
+            Govern Atlas agent snapshots, provenance, and execution references before they enter experiment orchestration.
           </p>
           <div className="page-tag-list">
             <span className="page-tag">
@@ -294,7 +293,7 @@ export default function AgentsWorkspace() {
               {groups[3].items.length} invalid
             </span>
             <p className="page-info-detail">
-              Only ready agents can seed new experiments. Re-publish drifted agents to refresh the sealed snapshot.
+              Only ready snapshots can seed new experiments. Re-publish drifted agents to refresh Atlas-owned provenance.
             </p>
           </div>
         </div>

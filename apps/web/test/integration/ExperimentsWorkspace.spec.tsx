@@ -378,7 +378,7 @@ describe("Experiments workspace", () => {
       />
     );
 
-    expect(await screen.findByRole("heading", { name: "Experiment-first agent data production" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Experiment to evidence loop" })).toBeInTheDocument();
     await waitFor(() => expect(agentApi.listDiscoveredAgents).toHaveBeenCalled());
     expect(screen.getByRole("combobox", { name: "Published agent" })).toHaveTextContent("Basic");
     expect(screen.getByRole("combobox", { name: "Published agent" })).not.toHaveTextContent("Archived Basic");
@@ -386,7 +386,7 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(experimentApi.listExperimentRuns).toHaveBeenCalledWith("exp-002"));
     await waitFor(() => expect(experimentApi.compareExperiments).toHaveBeenCalledWith("exp-001", "exp-002"));
 
-    expect(screen.getByRole("link", { name: "Open Phoenix project" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open Phoenix deeplink" })).toHaveAttribute(
       "href",
       "http://phoenix.local/project/exp-002"
     );

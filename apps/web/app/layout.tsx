@@ -15,7 +15,7 @@ const fontVariables = {
 
 export const metadata: Metadata = {
   title: "Agent Atlas",
-  description: "An RL data control plane for published agents, datasets, experiments, and exports."
+  description: "An RL-oriented control plane and evidence plane for agents, datasets, experiments, and exports."
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

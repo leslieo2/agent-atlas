@@ -11,7 +11,7 @@ const navItems = [
   {
     href: "/agents",
     label: "Agents",
-    description: "Publish governed snapshots that are safe to send into eval collection.",
+    description: "Govern agent snapshots, provenance, and compatibility before experiments.",
     icon: Shapes,
     match: (pathname: string) => pathname.startsWith("/agents")
   },
@@ -53,10 +53,10 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
         <div className={styles.brand}>
           <div className={styles.brandRow}>
             <span className={styles.brandBadge}>AA</span>
-            <span className={styles.eyebrow}>RL data control plane</span>
+            <span className={styles.eyebrow}>Control plane + evidence plane</span>
           </div>
           <h1>Agent Atlas</h1>
-          <p>Operate the agent-to-export pipeline in Atlas. Keep trace-level debugging in Phoenix.</p>
+          <p>Coordinate experiments and evidence in Atlas. Keep runner internals and deep trace debugging in Phoenix.</p>
         </div>
 
         <motion.nav
@@ -95,7 +95,7 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
           <div className={styles.boundaryNote}>
             <span className={styles.boundaryLabel}>Product boundary</span>
             <p>
-              Atlas owns publishing, datasets, eval curation, and exports. Phoenix remains the debugging destination.
+              Atlas owns orchestration, evidence association, curation, and exports. External systems own runner and tracing internals.
             </p>
           </div>
         </div>

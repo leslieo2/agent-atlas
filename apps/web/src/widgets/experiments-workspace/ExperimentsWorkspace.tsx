@@ -131,7 +131,7 @@ function runtimeProfileLabel(
   runtimeProfile?: { backend?: string; runner_image?: string | null } | null
 ) {
   if (!runtimeProfile?.backend) {
-    return "published snapshot default";
+    return "snapshot default";
   }
   return runtimeProfile.runner_image
     ? `${runtimeProfile.backend} · ${runtimeProfile.runner_image}`
@@ -352,10 +352,10 @@ export default function ExperimentsWorkspace({
       <div className={styles.hero}>
         <div>
           <p className="page-eyebrow">Experiment control plane</p>
-          <h2 className="page-title">Experiment-first agent data production</h2>
+          <h2 className="page-title">Experiment to evidence loop</h2>
           <p className="muted-note">
-            Atlas owns experiment setup, run summaries, curation, and export handoff. Deep trace debugging still opens
-            in Phoenix.
+            Atlas submits experiments through the neutral runner seam, collects canonical evidence, and prepares
+            curated rows for export. Phoenix remains a deeplink for deeper trace inspection.
           </p>
         </div>
         <div className={styles.metricGrid}>
@@ -369,7 +369,7 @@ export default function ExperimentsWorkspace({
         <div className={styles.sectionHeader}>
           <div>
             <p className="surface-kicker">Create experiment</p>
-            <h3 className="panel-title">Bind agent, dataset version, executor, and policy</h3>
+            <h3 className="panel-title">Bind snapshot, dataset version, and policy</h3>
           </div>
         </div>
         {discoveredAgentsQuery.isPending ? <Notice>Loading agents...</Notice> : null}
@@ -446,7 +446,7 @@ export default function ExperimentsWorkspace({
           </Field>
         </div>
         <p className="muted-note">
-          Runtime profile is inherited from the published snapshot:{" "}
+          Execution profile is inherited from the published snapshot:{" "}
           {runtimeProfileLabel(selectedAgent?.defaultRuntimeProfile)}.
         </p>
         <div className={styles.actions}>
@@ -486,10 +486,10 @@ export default function ExperimentsWorkspace({
 
         <Panel>
           <div className={styles.sectionHeader}>
-            <div>
-              <p className="surface-kicker">Summary</p>
-              <h3 className="panel-title">Selected experiment metrics</h3>
-            </div>
+          <div>
+            <p className="surface-kicker">Summary</p>
+            <h3 className="panel-title">Selected experiment evidence</h3>
+          </div>
             {selectedExperiment ? (
               <div className="toolbar">
                 <Button
@@ -511,7 +511,7 @@ export default function ExperimentsWorkspace({
               </div>
               {selectedExperiment.tracing?.projectUrl ? (
                 <Button href={selectedExperiment.tracing.projectUrl} variant="ghost">
-                  Open Phoenix project <ArrowUpRight size={14} />
+                  Open Phoenix deeplink <ArrowUpRight size={14} />
                 </Button>
               ) : null}
             </>
@@ -557,7 +557,7 @@ export default function ExperimentsWorkspace({
         <div className={styles.sectionHeader}>
           <div>
             <p className="surface-kicker">Runs</p>
-            <h3 className="panel-title">Curate run outputs before export</h3>
+            <h3 className="panel-title">Curate sample outcomes before export</h3>
           </div>
           <div className="toolbar">
             <Button onClick={() => void handleExport()} disabled={!selectedExperiment || createExportMutation.isPending}>
@@ -655,7 +655,7 @@ export default function ExperimentsWorkspace({
                 <th>Status</th>
                 <th>Judgement</th>
                 <th>Compare</th>
-                <th>Trace</th>
+                <th>Phoenix</th>
                 <th>Curation</th>
               </tr>
             </thead>
@@ -687,7 +687,7 @@ export default function ExperimentsWorkspace({
                         Open Phoenix <ArrowUpRight size={14} />
                       </Button>
                     ) : (
-                      <span className="muted-note">No trace</span>
+                      <span className="muted-note">No deeplink</span>
                     )}
                   </td>
                   <td>

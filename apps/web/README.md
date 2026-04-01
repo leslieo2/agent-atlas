@@ -1,7 +1,7 @@
 # Agent Atlas Frontend
 
-The frontend is the operator interface for Agent Atlas. It provides the browser UI for published
-agent governance, dataset management, eval workflows, and export actions.
+The frontend is the operator interface for Agent Atlas. It provides the browser UI for control-plane
+orchestration and evidence-plane workflows around agents, datasets, experiments, and exports.
 
 The frontend is intentionally a control-plane UI, not a direct vendor console for tracing or
 experimentation. When external observability backends such as Phoenix are integrated, the frontend
@@ -18,6 +18,7 @@ working directly on the frontend application.
 - export-oriented interaction flows
 - client-side data fetching, mapping, and caching for control-plane views
 - frontend architecture and design system rules for the UI layer
+- evidence summaries and deep links that stay attached to Atlas-owned records
 
 Supporting, but not long-term primary, surfaces:
 
@@ -69,7 +70,7 @@ starting the dev server.
 
 ## Implemented Workbench Surfaces
 
-- Agents: discover, validate, publish, and inspect repository-local agent plugins
+- Agents: review agent definitions, seal Atlas snapshots, and inspect provenance plus execution references
 - Datasets: upload and manage sample sets
 - Experiments: create batch runs and inspect result summaries and failures
 - Export actions: download offline artifacts from run and eval workflows
@@ -85,8 +86,8 @@ Legacy surfaces still present in the codebase but being downscoped:
 The frontend should evolve in a way that reinforces Atlas as the control plane:
 
 - center the IA on `Agents`, `Datasets`, `Experiments`, and `Exports`
-- show framework, publication, build, runner, and provenance state inside Atlas
-- keep raw-trace and experiment-heavy flows Phoenix-backed through Atlas-owned APIs or deep links
+- show publication, compatibility, execution-profile, and provenance state inside Atlas-owned records
+- keep tracing UI limited to evidence summaries, reference fields, evidence association, and Phoenix deep links
 - avoid rebuilding a complete observability product inside the frontend
 - avoid growing manual-run or playground surfaces as first-class product workflows
 - preserve explicit snake_case-to-camelCase payload mapping when backend contracts expand

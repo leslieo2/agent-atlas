@@ -347,9 +347,10 @@ export default function ExportsWorkspace({
           <div className="surface-header">
             <div>
               <p className="surface-kicker">Create export</p>
-              <h3 className="panel-title">Filter experiment runs into a training file</h3>
+              <h3 className="panel-title">Filter evidence-backed sample outcomes into a training file</h3>
               <p className="muted-note">
-                This is the Atlas handoff surface. Phoenix explains failures; Atlas decides what leaves the platform.
+                This is the Atlas export handoff surface. Atlas decides what leaves the platform; Phoenix stays a
+                debugging deeplink outside the export loop.
               </p>
             </div>
           </div>
@@ -359,7 +360,8 @@ export default function ExportsWorkspace({
               <div className={styles.sectionHeading}>
                 <h4>Source selection</h4>
                 <p className="muted-note">
-                  Choose one experiment for direct export, or switch into candidate-plus-baseline compare mode.
+                  Choose one experiment for direct export, or switch into candidate-plus-baseline compare mode over the
+                  same evidence model.
                 </p>
               </div>
 
@@ -425,10 +427,10 @@ export default function ExportsWorkspace({
 
             <div className={styles.sectionBlock}>
               <div className={styles.filterHeader}>
-                <div className={styles.sectionHeading}>
-                  <h4>Row filters</h4>
-                  <p className="muted-note">Narrow the export set before creating the offline handoff.</p>
-                </div>
+              <div className={styles.sectionHeading}>
+                <h4>Row filters</h4>
+                <p className="muted-note">Narrow the export set before creating the RL-ready handoff.</p>
+              </div>
                 <Button variant="ghost" onClick={handleResetFilters} disabled={!activeFilters.length}>
                   <RotateCcw size={14} /> Reset filters
                 </Button>
