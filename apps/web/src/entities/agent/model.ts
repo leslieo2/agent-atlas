@@ -8,6 +8,26 @@ export interface ExecutionReferenceRecord {
   imageRef?: string | null;
 }
 
+export interface AgentValidationRunReferenceRecord {
+  runId: string;
+  status: string;
+  createdAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface AgentValidationEvidenceSummaryRecord {
+  artifactRef?: string | null;
+  imageRef?: string | null;
+  traceUrl?: string | null;
+  terminalSummary?: string | null;
+}
+
+export interface AgentValidationOutcomeSummaryRecord {
+  status: string;
+  reason?: string | null;
+}
+
 export interface AgentRecord {
   agentId: string;
   name: string;
@@ -22,6 +42,9 @@ export interface AgentRecord {
   sourceFingerprint?: string;
   executionReference?: ExecutionReferenceRecord | null;
   defaultRuntimeProfile: ExecutorConfig;
+  latestValidation?: AgentValidationRunReferenceRecord | null;
+  validationEvidence?: AgentValidationEvidenceSummaryRecord | null;
+  validationOutcome?: AgentValidationOutcomeSummaryRecord | null;
 }
 
 export interface AgentValidationIssueRecord {
@@ -39,4 +62,7 @@ export interface DiscoveredAgentRecord extends AgentRecord {
   sourceFingerprint?: string;
   executionReference?: ExecutionReferenceRecord | null;
   defaultRuntimeProfile: ExecutorConfig;
+  latestValidation?: AgentValidationRunReferenceRecord | null;
+  validationEvidence?: AgentValidationEvidenceSummaryRecord | null;
+  validationOutcome?: AgentValidationOutcomeSummaryRecord | null;
 }

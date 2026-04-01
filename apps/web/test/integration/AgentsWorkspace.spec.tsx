@@ -38,6 +38,23 @@ describe("Agents workspace", () => {
         executionReference: {
           artifactRef: "source://basic@basic-fingerprint-123456"
         },
+        latestValidation: {
+          runId: "run-validation-001",
+          status: "succeeded",
+          createdAt: "2026-03-26T08:55:00Z",
+          startedAt: "2026-03-26T08:56:00Z",
+          completedAt: "2026-03-26T08:57:00Z"
+        },
+        validationEvidence: {
+          artifactRef: "bundle://basic-validation-001",
+          imageRef: null,
+          traceUrl: "http://phoenix.local/trace/validation-001",
+          terminalSummary: "Edited sample project and captured changed files."
+        },
+        validationOutcome: {
+          status: "succeeded",
+          reason: "Validation run completed with evidence attached."
+        },
         defaultRuntimeProfile: {
           backend: "external-runner",
           metadata: {
@@ -157,6 +174,14 @@ describe("Agents workspace", () => {
         .map((link) => link.getAttribute("href"))
     ).not.toEqual(expect.arrayContaining(["/experiments?agent=archived_basic"]));
     expect(screen.getByText("source://basic@basic-fingerprint-123456")).toBeInTheDocument();
+    expect(screen.getByText("run-validation-001")).toBeInTheDocument();
+    expect(screen.getByText("bundle://basic-validation-001")).toBeInTheDocument();
+    expect(screen.getByText("Validation run completed with evidence attached.")).toBeInTheDocument();
+    expect(screen.getByText("Edited sample project and captured changed files.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open validation trace" })).toHaveAttribute(
+      "href",
+      "http://phoenix.local/trace/validation-001"
+    );
     expect(await screen.findByText("Unsupported framework plugin.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Framework")).not.toBeInTheDocument();
     expect(screen.getByText("external-runner · Claude Code CLI adapter")).toBeInTheDocument();

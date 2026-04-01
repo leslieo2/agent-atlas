@@ -7,7 +7,13 @@ import {
   usePublishAgentMutation,
   useUnpublishAgentMutation
 } from "@/src/entities/agent/query";
-import type { DiscoveredAgentRecord, ExecutionReferenceRecord } from "@/src/entities/agent/model";
+import type {
+  AgentValidationEvidenceSummaryRecord,
+  AgentValidationOutcomeSummaryRecord,
+  AgentValidationRunReferenceRecord,
+  DiscoveredAgentRecord,
+  ExecutionReferenceRecord
+} from "@/src/entities/agent/model";
 import { executionProfileSummary } from "@/src/shared/runtime/identity";
 import { Button } from "@/src/shared/ui/Button";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
@@ -59,6 +65,17 @@ function publishTone(agent: DiscoveredAgentRecord) {
   return readiness === "ready" ? "success" : "warn";
 }
 
+function validationRunTone(status?: string | null) {
+  const normalized = status?.trim().toLowerCase() ?? "";
+  if (normalized === "succeeded" || normalized === "passed" || normalized === "valid") {
+    return "success";
+  }
+  if (normalized === "failed" || normalized === "runtime_error" || normalized === "invalid") {
+    return "error";
+  }
+  return "warn";
+}
+
 function executionReferenceSummary(executionReference?: ExecutionReferenceRecord | null) {
   if (!executionReference) {
     return "-";
@@ -86,6 +103,34 @@ function defaultRuntimeSummary(agent: DiscoveredAgentRecord) {
 
 function validationIssuesLabel() {
   return "Readiness issues";
+}
+
+function formatValidationTimestamp(validationRun?: AgentValidationRunReferenceRecord | null) {
+  const value = validationRun?.completedAt ?? validationRun?.startedAt ?? validationRun?.createdAt ?? null;
+  if (!value) {
+    return "-";
+  }
+  return new Date(value).toLocaleString("en");
+}
+
+function validationSummaryStatus(
+  validationRun?: AgentValidationRunReferenceRecord | null,
+  validationOutcome?: AgentValidationOutcomeSummaryRecord | null
+) {
+  return validationOutcome?.status ?? validationRun?.status ?? "unknown";
+}
+
+function validationEvidenceLabel(validationEvidence?: AgentValidationEvidenceSummaryRecord | null) {
+  if (!validationEvidence) {
+    return "-";
+  }
+  if (validationEvidence.artifactRef) {
+    return validationEvidence.artifactRef;
+  }
+  if (validationEvidence.imageRef) {
+    return validationEvidence.imageRef;
+  }
+  return "-";
 }
 
 function AgentCard({
@@ -167,6 +212,43 @@ function AgentCard({
           <span className={styles.metaValue}>{new Date(agent.lastValidatedAt).toLocaleString("en")}</span>
         </div>
       </div>
+
+      {agent.latestValidation || agent.validationOutcome || agent.validationEvidence ? (
+        <div>
+          <div className="toolbar">
+            <p className="page-eyebrow">Latest validation</p>
+            <StatusPill tone={validationRunTone(validationSummaryStatus(agent.latestValidation, agent.validationOutcome))}>
+              {validationSummaryStatus(agent.latestValidation, agent.validationOutcome)}
+            </StatusPill>
+          </div>
+          <div className={styles.meta}>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Validation run</span>
+              <span className={`${styles.metaValue} mono`}>{agent.latestValidation?.runId ?? "-"}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Latest evidence</span>
+              <span className={`${styles.metaValue} mono`}>{validationEvidenceLabel(agent.validationEvidence)}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Latest outcome</span>
+              <span className={styles.metaValue}>{agent.validationOutcome?.reason ?? "Validation summary available"}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Validated at</span>
+              <span className={styles.metaValue}>{formatValidationTimestamp(agent.latestValidation)}</span>
+            </div>
+          </div>
+          {agent.validationEvidence?.terminalSummary ? (
+            <p className="muted-note">{agent.validationEvidence.terminalSummary}</p>
+          ) : null}
+          {agent.validationEvidence?.traceUrl ? (
+            <Button href={agent.validationEvidence.traceUrl} variant="ghost">
+              Open validation trace <ArrowUpRight size={14} />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {!isValid ? (
         <div>
