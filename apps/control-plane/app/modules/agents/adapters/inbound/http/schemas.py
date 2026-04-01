@@ -4,7 +4,10 @@ from datetime import datetime
 
 from app.modules.agents.domain.models import (
     AgentPublishState,
+    AgentValidationEvidenceSummary,
     AgentValidationIssue,
+    AgentValidationOutcomeSummary,
+    AgentValidationRunReference,
     AgentValidationStatus,
     DiscoveredAgent,
     ExecutionReference,
@@ -28,6 +31,9 @@ class AgentDescriptorResponse(BaseModel):
     source_fingerprint: str
     execution_reference: ExecutionReference
     default_runtime_profile: ExecutorConfig
+    latest_validation: AgentValidationRunReferenceResponse | None = None
+    validation_evidence: AgentValidationEvidenceSummaryResponse | None = None
+    validation_outcome: AgentValidationOutcomeSummaryResponse | None = None
 
     @classmethod
     def from_domain(cls, agent: PublishedAgent) -> AgentDescriptorResponse:
@@ -45,6 +51,21 @@ class AgentDescriptorResponse(BaseModel):
             source_fingerprint=agent.source_fingerprint_or_raise(),
             execution_reference=agent.execution_reference_or_raise(),
             default_runtime_profile=agent.default_runtime_profile.model_copy(deep=True),
+            latest_validation=(
+                AgentValidationRunReferenceResponse.from_domain(agent.latest_validation)
+                if agent.latest_validation is not None
+                else None
+            ),
+            validation_evidence=(
+                AgentValidationEvidenceSummaryResponse.from_domain(agent.validation_evidence)
+                if agent.validation_evidence is not None
+                else None
+            ),
+            validation_outcome=(
+                AgentValidationOutcomeSummaryResponse.from_domain(agent.validation_outcome)
+                if agent.validation_outcome is not None
+                else None
+            ),
         )
 
 
@@ -55,6 +76,44 @@ class AgentValidationIssueResponse(BaseModel):
     @classmethod
     def from_domain(cls, issue: AgentValidationIssue) -> AgentValidationIssueResponse:
         return cls.model_validate(issue.model_dump())
+
+
+class AgentValidationRunReferenceResponse(BaseModel):
+    run_id: str
+    status: str
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+    @classmethod
+    def from_domain(
+        cls, record: AgentValidationRunReference
+    ) -> AgentValidationRunReferenceResponse:
+        return cls.model_validate(record.model_dump(mode="json"))
+
+
+class AgentValidationEvidenceSummaryResponse(BaseModel):
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    trace_url: str | None = None
+    terminal_summary: str | None = None
+
+    @classmethod
+    def from_domain(
+        cls, summary: AgentValidationEvidenceSummary
+    ) -> AgentValidationEvidenceSummaryResponse:
+        return cls.model_validate(summary.model_dump(mode="json"))
+
+
+class AgentValidationOutcomeSummaryResponse(BaseModel):
+    status: str
+    reason: str | None = None
+
+    @classmethod
+    def from_domain(
+        cls, summary: AgentValidationOutcomeSummary
+    ) -> AgentValidationOutcomeSummaryResponse:
+        return cls.model_validate(summary.model_dump(mode="json"))
 
 
 class DiscoveredAgentResponse(BaseModel):
@@ -76,6 +135,9 @@ class DiscoveredAgentResponse(BaseModel):
     source_fingerprint: str
     execution_reference: ExecutionReference | None = None
     default_runtime_profile: ExecutorConfig
+    latest_validation: AgentValidationRunReferenceResponse | None = None
+    validation_evidence: AgentValidationEvidenceSummaryResponse | None = None
+    validation_outcome: AgentValidationOutcomeSummaryResponse | None = None
 
     @classmethod
     def from_domain(cls, agent: DiscoveredAgent) -> DiscoveredAgentResponse:
@@ -104,6 +166,21 @@ class DiscoveredAgentResponse(BaseModel):
                 else None
             ),
             default_runtime_profile=agent.default_runtime_profile.model_copy(deep=True),
+            latest_validation=(
+                AgentValidationRunReferenceResponse.from_domain(agent.latest_validation)
+                if agent.latest_validation is not None
+                else None
+            ),
+            validation_evidence=(
+                AgentValidationEvidenceSummaryResponse.from_domain(agent.validation_evidence)
+                if agent.validation_evidence is not None
+                else None
+            ),
+            validation_outcome=(
+                AgentValidationOutcomeSummaryResponse.from_domain(agent.validation_outcome)
+                if agent.validation_outcome is not None
+                else None
+            ),
         )
 
 

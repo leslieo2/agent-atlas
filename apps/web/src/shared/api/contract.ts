@@ -16,15 +16,35 @@ export interface AgentDescriptorResponse {
   "source_fingerprint": string;
   "execution_reference": ExecutionReference;
   "default_runtime_profile": ExecutorConfig;
+  "latest_validation"?: AgentValidationRunReferenceResponse | null;
+  "validation_evidence"?: AgentValidationEvidenceSummaryResponse | null;
+  "validation_outcome"?: AgentValidationOutcomeSummaryResponse | null;
 }
 export interface AgentPublicationResponse {
   "agent_id": string;
   "published": boolean;
 }
 export type AgentPublishState = "draft" | "published";
+export interface AgentValidationEvidenceSummaryResponse {
+  "artifact_ref"?: string | null;
+  "image_ref"?: string | null;
+  "trace_url"?: string | null;
+  "terminal_summary"?: string | null;
+}
 export interface AgentValidationIssueResponse {
   "code": string;
   "message": string;
+}
+export interface AgentValidationOutcomeSummaryResponse {
+  "status": string;
+  "reason"?: string | null;
+}
+export interface AgentValidationRunReferenceResponse {
+  "run_id": string;
+  "status": string;
+  "created_at": string;
+  "started_at"?: string | null;
+  "completed_at"?: string | null;
 }
 export type AgentValidationStatus = "valid" | "invalid";
 export interface ApprovalPolicyCreateRequest {
@@ -111,6 +131,9 @@ export interface DiscoveredAgentResponse {
   "source_fingerprint": string;
   "execution_reference"?: ExecutionReference | null;
   "default_runtime_profile": ExecutorConfig;
+  "latest_validation"?: AgentValidationRunReferenceResponse | null;
+  "validation_evidence"?: AgentValidationEvidenceSummaryResponse | null;
+  "validation_outcome"?: AgentValidationOutcomeSummaryResponse | null;
 }
 export interface EvaluatorConfig {
   "scoring_mode"?: ScoringMode;

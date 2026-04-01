@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+from uuid import UUID
 
 from agent_atlas_contracts.runtime import (
     AgentBuildContext as ContractAgentBuildContext,
@@ -21,7 +22,7 @@ from agent_atlas_contracts.runtime import (
 )
 from pydantic import BaseModel, Field
 
-from app.modules.shared.domain.enums import AdapterKind
+from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ExecutionReferenceMetadata as SharedExecutionReferenceMetadata,
 )
@@ -88,12 +89,54 @@ class AgentValidationIssue(BaseModel):
     message: str
 
 
+class AgentValidationOutcomeStatus(str, Enum):
+    PASSED = "passed"
+    FAILED = "failed"
+    RUNNING = "running"
+
+
+class AgentValidationRunReference(BaseModel):
+    run_id: UUID
+    status: RunStatus
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
+class AgentValidationRecord(BaseModel):
+    agent_id: str
+    run_id: UUID
+    status: RunStatus
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    trace_url: str | None = None
+    terminal_summary: str | None = None
+
+
+class AgentValidationEvidenceSummary(BaseModel):
+    artifact_ref: str | None = None
+    image_ref: str | None = None
+    trace_url: str | None = None
+    terminal_summary: str | None = None
+
+
+class AgentValidationOutcomeSummary(BaseModel):
+    status: AgentValidationOutcomeStatus
+    reason: str | None = None
+
+
 class PublishedAgent(ContractPublishedAgent):
     manifest: AgentManifest
     execution_reference: ExecutionReference = Field(default_factory=ExecutionReference)
     default_runtime_profile: ExecutorConfig = Field(  # type: ignore[assignment]
         default_factory=lambda: ExecutorConfig(backend="external-runner")
     )
+    latest_validation: AgentValidationRunReference | None = None
+    validation_evidence: AgentValidationEvidenceSummary | None = None
+    validation_outcome: AgentValidationOutcomeSummary | None = None
 
     @property
     def agent_id(self) -> str:
@@ -185,6 +228,9 @@ class DiscoveredAgent(BaseModel):
     default_runtime_profile: ExecutorConfig = Field(
         default_factory=lambda: ExecutorConfig(backend="external-runner")
     )
+    latest_validation: AgentValidationRunReference | None = None
+    validation_evidence: AgentValidationEvidenceSummary | None = None
+    validation_outcome: AgentValidationOutcomeSummary | None = None
 
     @property
     def agent_id(self) -> str:

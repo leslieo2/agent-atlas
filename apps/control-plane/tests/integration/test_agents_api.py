@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from uuid import uuid4
+
 from app.bootstrap.container import get_container
 from app.core.config import RuntimeMode, settings
 from app.modules.agents.domain.models import (
@@ -8,6 +11,9 @@ from app.modules.agents.domain.models import (
     AgentValidationStatus,
     DiscoveredAgent,
 )
+from app.modules.runs.domain.models import RunRecord
+from app.modules.shared.domain.enums import AdapterKind, RunStatus
+from app.modules.shared.domain.models import TracePointer
 
 
 def test_agents_api_supports_discovery_publish_unpublish_and_invalid_publish(
@@ -163,3 +169,82 @@ def test_agents_api_live_mode_uses_published_snapshots_without_repo_local_discov
         "message": "repo-local agent discovery is not available in live mode",
         "agent_id": "basic",
     }
+
+
+def test_agents_api_surfaces_latest_generic_validation_run_summary(client) -> None:
+    container = get_container()
+    run = RunRecord(
+        run_id=uuid4(),
+        attempt_id=uuid4(),
+        input_summary="controlled validation",
+        status=RunStatus.SUCCEEDED,
+        project="atlas-validation",
+        dataset="controlled-validation",
+        agent_id="basic",
+        model="gpt-5.4-mini",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        tags=["validation", "project-in-container"],
+        created_at=datetime(2026, 4, 1, 16, 0, tzinfo=UTC),
+        started_at=datetime(2026, 4, 1, 16, 1, tzinfo=UTC),
+        completed_at=datetime(2026, 4, 1, 16, 2, tzinfo=UTC),
+        artifact_ref="state://artifacts/validation-run",
+        image_ref="docker://atlas-claude-validation:local",
+        trace_pointer=TracePointer(
+            backend="phoenix",
+            trace_url="https://phoenix.example/trace/validation",
+        ),
+    )
+    container.infrastructure.run_repository.save(run)
+
+    discovered_response = client.get("/api/v1/agents/discovered")
+    assert discovered_response.status_code == 200
+    discovered = {item["agent_id"]: item for item in discovered_response.json()}
+
+    assert discovered["basic"]["latest_validation"] == {
+        "run_id": str(run.run_id),
+        "status": "succeeded",
+        "created_at": "2026-04-01T16:00:00Z",
+        "started_at": "2026-04-01T16:01:00Z",
+        "completed_at": "2026-04-01T16:02:00Z",
+    }
+    assert discovered["basic"]["validation_evidence"] == {
+        "artifact_ref": "state://artifacts/validation-run",
+        "image_ref": "docker://atlas-claude-validation:local",
+        "trace_url": "https://phoenix.example/trace/validation",
+        "terminal_summary": None,
+    }
+    assert discovered["basic"]["validation_outcome"] == {
+        "status": "passed",
+        "reason": None,
+    }
+
+    published_response = client.get("/api/v1/agents/published")
+    assert published_response.status_code == 200
+    published = {item["agent_id"]: item for item in published_response.json()}
+    assert published["basic"]["latest_validation"]["run_id"] == str(run.run_id)
+
+
+def test_agents_api_ignores_non_validation_runs_in_agent_records(client) -> None:
+    container = get_container()
+    run = RunRecord(
+        run_id=uuid4(),
+        attempt_id=uuid4(),
+        input_summary="normal production run",
+        status=RunStatus.SUCCEEDED,
+        project="atlas",
+        dataset="prod",
+        agent_id="basic",
+        model="gpt-5.4-mini",
+        agent_type=AdapterKind.OPENAI_AGENTS,
+        tags=["production"],
+        created_at=datetime(2026, 4, 1, 16, 5, tzinfo=UTC),
+    )
+    container.infrastructure.run_repository.save(run)
+
+    discovered_response = client.get("/api/v1/agents/discovered")
+    assert discovered_response.status_code == 200
+    discovered = {item["agent_id"]: item for item in discovered_response.json()}
+
+    assert discovered["basic"]["latest_validation"] is None
+    assert discovered["basic"]["validation_evidence"] is None
+    assert discovered["basic"]["validation_outcome"] is None

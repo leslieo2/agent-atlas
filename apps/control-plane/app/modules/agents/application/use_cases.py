@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+from typing import cast
+
 from app.core.errors import (
     AgentValidationFailedError,
     PublishedAgentNotFoundError,
@@ -7,10 +10,16 @@ from app.core.errors import (
 )
 from app.modules.agents.application.ports import (
     AgentSourceDiscoveryPort,
+    AgentValidationRecordPort,
     PublishedAgentCatalogPort,
     PublishedAgentRepositoryPort,
 )
 from app.modules.agents.domain.models import (
+    AgentValidationEvidenceSummary,
+    AgentValidationOutcomeStatus,
+    AgentValidationOutcomeSummary,
+    AgentValidationRecord,
+    AgentValidationRunReference,
     AgentValidationStatus,
     DiscoveredAgent,
     PublishedAgent,
@@ -22,36 +31,115 @@ class AgentDiscoveryQueries:
         self,
         discovery: AgentSourceDiscoveryPort | None,
         published_agents: PublishedAgentRepositoryPort,
+        validation_records: AgentValidationRecordPort,
     ) -> None:
         self.discovery = discovery
         self.published_agents = published_agents
+        self.validation_records = validation_records
 
     def list_agents(self) -> list[DiscoveredAgent]:
         if self.discovery is None:
             return []
         published_by_id = {agent.agent_id: agent for agent in self.published_agents.list_agents()}
+        latest_validation_by_agent = _latest_validation_runs(self.validation_records.list_records())
         discovered_agents = self.discovery.list_agents()
         enriched_agents: list[DiscoveredAgent] = []
         for agent in discovered_agents:
             published_agent = published_by_id.get(agent.agent_id)
             if published_agent is None or not _is_valid_published_agent(published_agent):
-                enriched_agents.append(agent.with_publication(None))
+                enriched_agents.append(
+                    cast(
+                        DiscoveredAgent,
+                        _attach_validation_summary(
+                            agent.with_publication(None),
+                            latest_validation_by_agent.get(agent.agent_id),
+                        ),
+                    )
+                )
                 continue
-            enriched_agents.append(agent.with_publication(published_agent))
+            enriched_agents.append(
+                cast(
+                    DiscoveredAgent,
+                    _attach_validation_summary(
+                        agent.with_publication(published_agent),
+                        latest_validation_by_agent.get(agent.agent_id),
+                    ),
+                )
+            )
         return enriched_agents
 
 
 class PublishedAgentCatalogQueries:
-    def __init__(self, published_agents: PublishedAgentCatalogPort) -> None:
+    def __init__(
+        self,
+        published_agents: PublishedAgentCatalogPort,
+        validation_records: AgentValidationRecordPort,
+    ) -> None:
         self.published_agents = published_agents
+        self.validation_records = validation_records
 
     def list_agents(self) -> list[PublishedAgent]:
+        latest_validation_by_agent = _latest_validation_runs(self.validation_records.list_records())
         valid_agents = [
-            agent
+            cast(
+                PublishedAgent,
+                _attach_validation_summary(agent, latest_validation_by_agent.get(agent.agent_id)),
+            )
             for agent in self.published_agents.list_agents()
             if _is_valid_published_agent(agent)
         ]
         return sorted(valid_agents, key=lambda agent: agent.agent_id)
+
+
+def _latest_validation_runs(
+    records: Iterable[AgentValidationRecord],
+) -> dict[str, AgentValidationRecord]:
+    latest_by_agent: dict[str, AgentValidationRecord] = {}
+    ordered = sorted(records, key=lambda record: record.created_at, reverse=True)
+    for record in ordered:
+        if not record.agent_id:
+            continue
+        latest_by_agent.setdefault(record.agent_id, record)
+    return latest_by_agent
+
+
+def _validation_outcome_status(record: AgentValidationRecord) -> AgentValidationOutcomeStatus:
+    if record.status == "succeeded":
+        return AgentValidationOutcomeStatus.PASSED
+    if record.status in {"failed", "cancelled", "lost"}:
+        return AgentValidationOutcomeStatus.FAILED
+    return AgentValidationOutcomeStatus.RUNNING
+
+
+def _attach_validation_summary(
+    agent: PublishedAgent | DiscoveredAgent,
+    record: AgentValidationRecord | None,
+) -> PublishedAgent | DiscoveredAgent:
+    if record is None:
+        return agent
+
+    return agent.model_copy(
+        update={
+            "latest_validation": AgentValidationRunReference(
+                run_id=record.run_id,
+                status=record.status,
+                created_at=record.created_at,
+                started_at=record.started_at,
+                completed_at=record.completed_at,
+            ),
+            "validation_evidence": AgentValidationEvidenceSummary(
+                artifact_ref=record.artifact_ref,
+                image_ref=record.image_ref,
+                trace_url=record.trace_url,
+                terminal_summary=record.terminal_summary,
+            ),
+            "validation_outcome": AgentValidationOutcomeSummary(
+                status=_validation_outcome_status(record),
+                reason=record.terminal_summary,
+            ),
+        },
+        deep=True,
+    )
 
 
 def _is_valid_published_agent(agent: PublishedAgent) -> bool:

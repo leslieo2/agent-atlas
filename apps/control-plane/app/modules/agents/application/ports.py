@@ -8,6 +8,7 @@ from pydantic import SecretStr
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentModuleSource,
+    AgentValidationRecord,
     DiscoveredAgent,
     PublishedAgent,
 )
@@ -34,6 +35,10 @@ class PublishedAgentCatalogPort(Protocol):
     def list_agents(self) -> list[PublishedAgent]: ...
 
     def get_agent(self, agent_id: str) -> PublishedAgent | None: ...
+
+
+class AgentValidationRecordPort(Protocol):
+    def list_records(self) -> list[AgentValidationRecord]: ...
 
 
 class FrameworkRegistryPort(Protocol):
