@@ -117,11 +117,16 @@ class FakeKubectlK8sClient:
             return ""
         output = self.outputs.get(run_spec.prompt, run_spec.prompt)
         runner_image = run_spec.executor_config.get("runner_image")
+        metadata = run_spec.executor_config.get("metadata")
+        claude_code_cli = metadata.get("claude_code_cli") if isinstance(metadata, dict) else None
+        runtime_name = (
+            "claude-code-cli" if isinstance(claude_code_cli, dict) else "openai-agents-sdk"
+        )
         runtime_result = RuntimeExecutionResult(
             output=output,
             latency_ms=12,
             token_usage=21,
-            provider="openai-agents-sdk",
+            provider=runtime_name,
             resolved_model=run_spec.model,
             execution_backend="kubernetes-job",
             container_image=runner_image if isinstance(runner_image, str) else None,
@@ -134,12 +139,12 @@ class FakeKubectlK8sClient:
             event_id=f"evt-{run_spec.run_id}",
             sequence=1,
             event_type="llm.response",
-            producer=ProducerInfo(runtime="openai-agents-sdk", framework=run_spec.framework),
+            producer=ProducerInfo(runtime=runtime_name, framework=run_spec.framework),
             payload={
                 "step_type": "llm",
                 "name": run_spec.model,
                 "input": {"prompt": run_spec.prompt},
-                "output": {"output": output, "success": True, "provider": "openai-agents-sdk"},
+                "output": {"output": output, "success": True, "provider": runtime_name},
                 "latency_ms": 12,
                 "token_usage": 21,
             },
@@ -151,7 +156,7 @@ class FakeKubectlK8sClient:
             attempt_id=run_spec.attempt_id,
             status="succeeded",
             output=output,
-            producer=ProducerInfo(runtime="openai-agents-sdk", framework=run_spec.framework),
+            producer=ProducerInfo(runtime=runtime_name, framework=run_spec.framework),
             metrics=TerminalMetrics(latency_ms=12, token_usage=21, tool_calls=0),
         )
         artifact_manifest = ArtifactManifest(
@@ -159,14 +164,20 @@ class FakeKubectlK8sClient:
             experiment_id=run_spec.experiment_id,
             attempt=run_spec.attempt,
             attempt_id=run_spec.attempt_id,
-            producer=ProducerInfo(runtime="openai-agents-sdk", framework=run_spec.framework),
+            producer=ProducerInfo(runtime=runtime_name, framework=run_spec.framework),
             artifacts=[
                 {
                     "path": "reports/summary.txt",
                     "kind": "file",
                     "media_type": "text/plain",
                     "metadata": {"kind": "summary"},
-                }
+                },
+                {
+                    "path": "transcripts/claude-stream.jsonl",
+                    "kind": "file",
+                    "media_type": "application/x-ndjson",
+                    "metadata": {"kind": "transcript", "runner_family": runtime_name},
+                },
             ],
         )
         return "\n".join(
@@ -210,10 +221,15 @@ class FakeKubectlK8sClient:
             return False
         target_path.mkdir(parents=True, exist_ok=True)
         target_path.joinpath("reports").mkdir(parents=True, exist_ok=True)
+        target_path.joinpath("transcripts").mkdir(parents=True, exist_ok=True)
         content = self.artifact_contents.get(
             run_spec.prompt, self.outputs.get(run_spec.prompt, "done")
         )
         target_path.joinpath("reports/summary.txt").write_text(content, encoding="utf-8")
+        target_path.joinpath("transcripts/claude-stream.jsonl").write_text(
+            json.dumps({"type": "result", "result": content}) + "\n",
+            encoding="utf-8",
+        )
         return True
 
 

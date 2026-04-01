@@ -11,6 +11,8 @@ from agent_atlas_contracts.execution import (
 )
 from pydantic import BaseModel, Field
 
+from agent_atlas_runner_base.claude_code import claude_code_k8s_command
+
 
 class K8sJobLaunchRequest(BaseModel):
     job_name: str
@@ -176,6 +178,9 @@ class K8sLauncher:
 
     @staticmethod
     def _command(payload: RunnerRunSpec) -> list[str]:
+        claude_code_command = claude_code_k8s_command(payload.executor_config)
+        if claude_code_command is not None:
+            return claude_code_command
         metadata = payload.executor_config.get("metadata", {})
         if isinstance(metadata, dict):
             raw_command = metadata.get("command")

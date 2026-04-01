@@ -454,6 +454,47 @@ def test_run_submission_service_rejects_k8s_job_without_runner_image():
     assert execution_control.submitted == []
 
 
+def test_run_submission_service_rejects_k8s_carried_external_runner_without_runner_image() -> None:
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(
+            backend="external-runner",
+            metadata={
+                "runner_backend": "k8s-container",
+                "claude_code_cli": {"command": "claude"},
+            },
+        ),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.OPENAI_AGENTS.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="app.agent_plugins.triage_bot:build_agent",
+    )
+    agent, _artifact_ref = _seal_agent(agent)
+
+    with pytest.raises(UnsupportedOperationError, match="runner_image"):
+        service.submit(payload, agent)
+
+    assert repository.saved == []
+    assert execution_control.submitted == []
+
+
 def test_run_submission_service_rejects_k8s_job_with_only_published_image() -> None:
     repository = StubRunRepository()
     execution_control = StubExecutionControl()

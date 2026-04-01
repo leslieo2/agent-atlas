@@ -8,6 +8,7 @@ from app.core.errors import (
 )
 from app.execution.application.ports import ExecutionControlPort
 from app.execution.contracts import ExecutionRunSpec
+from app.execution.metadata import uses_k8s_runner_backend
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -109,7 +110,11 @@ def _validate_execution_backend(
     executor_config: ExecutorConfig,
     agent_id: str,
 ) -> None:
-    if executor_config.backend.strip().lower() != "k8s-job":
+    normalized_backend = executor_config.backend.strip().lower()
+    requires_runner_image = normalized_backend == "k8s-job" or (
+        normalized_backend == "external-runner" and uses_k8s_runner_backend(executor_config)
+    )
+    if not requires_runner_image:
         return
 
     runner_image = (
@@ -121,7 +126,7 @@ def _validate_execution_backend(
         return
 
     raise UnsupportedOperationError(
-        "k8s-job execution requires executor_config.runner_image",
+        "k8s-carried execution requires executor_config.runner_image",
         agent_id=agent_id,
         executor_backend=executor_config.backend,
     )

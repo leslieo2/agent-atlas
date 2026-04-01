@@ -9,6 +9,16 @@ from app.execution.application.results import (
 )
 
 
+def _drain_background_work(worker_drain, *, limit: int, rounds: int = 6) -> int:
+    processed_total = 0
+    for _ in range(rounds):
+        processed = worker_drain(limit=limit)
+        processed_total += processed
+        if processed == 0:
+            break
+    return processed_total
+
+
 def _install_runtime(
     monkeypatch,
     outputs: dict[str, str],
@@ -93,6 +103,7 @@ def test_experiments_api_supports_compare_and_run_curation(
     monkeypatch,
     client,
     worker_drain,
+    wait_until,
 ) -> None:
     dataset_response = client.post(
         "/api/v1/datasets",
@@ -141,7 +152,7 @@ def test_experiments_api_supports_compare_and_run_curation(
     baseline_experiment_id = baseline_response.json()["experiment_id"]
     start_baseline = client.post(f"/api/v1/experiments/{baseline_experiment_id}/start")
     assert start_baseline.status_code == 200
-    assert worker_drain(limit=40) >= 1
+    assert _drain_background_work(worker_drain, limit=40) >= 1
 
     _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "not-beta"})
     candidate_response = client.post(
@@ -158,7 +169,11 @@ def test_experiments_api_supports_compare_and_run_curation(
     candidate_experiment_id = candidate_response.json()["experiment_id"]
     start_candidate = client.post(f"/api/v1/experiments/{candidate_experiment_id}/start")
     assert start_candidate.status_code == 200
-    assert worker_drain(limit=40) >= 1
+    assert _drain_background_work(worker_drain, limit=40) >= 1
+    wait_until(
+        lambda: client.get(f"/api/v1/experiments/{candidate_experiment_id}").json()["status"]
+        == "completed"
+    )
 
     detail_response = client.get(f"/api/v1/experiments/{candidate_experiment_id}")
     assert detail_response.status_code == 200
@@ -183,6 +198,27 @@ def test_experiments_api_supports_compare_and_run_curation(
     assert runs["sample-regressed"]["artifact_ref"]
     assert runs["sample-regressed"]["executor_backend"] == "local-runner"
 
+    compare_response = client.get(
+        "/api/v1/experiments/compare",
+        params={
+            "baseline_experiment_id": baseline_experiment_id,
+            "candidate_experiment_id": candidate_experiment_id,
+        },
+    )
+    wait_until(
+        lambda: (
+            client.get(
+                "/api/v1/experiments/compare",
+                params={
+                    "baseline_experiment_id": baseline_experiment_id,
+                    "candidate_experiment_id": candidate_experiment_id,
+                },
+            )
+            .json()["distribution"]
+            .get("regressed")
+            == 1
+        )
+    )
     compare_response = client.get(
         "/api/v1/experiments/compare",
         params={

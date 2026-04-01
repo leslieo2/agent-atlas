@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -16,6 +17,7 @@ from agent_atlas_contracts.execution import (
     TerminalMetrics,
     TerminalResult,
 )
+from agent_atlas_runner_base.claude_code import main as claude_code_runner_main
 from app.core.errors import AgentFrameworkMismatchError, AppError
 from app.execution.adapters import (
     K8sContainerRunner,
@@ -452,6 +454,33 @@ def test_k8s_launcher_mounts_common_parent_including_runtime_result_path():
     assert container["volumeMounts"][1]["mountPath"] == "/workspace/output"
 
 
+def test_k8s_launcher_uses_claude_code_stream_json_entrypoint_for_external_runner():
+    payload = _runner_spec().model_copy(
+        update={
+            "runner_backend": "k8s-container",
+            "executor_config": {
+                "backend": "external-runner",
+                "runner_image": "ghcr.io/example/claude-runner:latest",
+                "metadata": {
+                    "runner_backend": "k8s-container",
+                    "claude_code_cli": {
+                        "command": "claude",
+                        "args": ["--allowedTools", "Read"],
+                        "version": "1.0.0",
+                    },
+                },
+            },
+        }
+    )
+
+    request = K8sLauncher(namespace="atlas-tests").build_request(payload)
+
+    container = request.job_manifest["spec"]["template"]["spec"]["containers"][0]
+    assert container["command"] == [sys.executable, "-m", "agent_atlas_runner_base.claude_code"]
+    assert request.image == "ghcr.io/example/claude-runner:latest"
+    assert request.args[:2] == ["--run-spec", "/workspace/input/run_spec.json"]
+
+
 def test_k8s_container_runner_collects_callback_outputs_and_persists_artifacts(tmp_path):
     payload = _runner_spec().model_copy(
         update={
@@ -650,3 +679,84 @@ def test_k8s_launcher_requires_explicit_runner_image_even_when_published_image_e
 
     with pytest.raises(ValueError, match="runner_image"):
         K8sLauncher(namespace="atlas-tests").build_request(payload)
+
+
+def test_claude_code_stream_json_runner_writes_neutral_outputs(tmp_path):
+    payload = _runner_spec().model_copy(
+        update={
+            "runner_backend": "k8s-container",
+            "executor_config": {
+                "backend": "external-runner",
+                "runner_image": "ghcr.io/example/claude-runner:latest",
+                "metadata": {
+                    "runner_backend": "k8s-container",
+                    "claude_code_cli": {
+                        "command": sys.executable,
+                        "args": [
+                            "-c",
+                            (
+                                "import json, sys; "
+                                "print(json.dumps({'type':'assistant','message':'working'})); "
+                                "print(json.dumps({'type':'result','result':'done'}))"
+                            ),
+                        ],
+                        "version": "1.2.3",
+                    },
+                },
+            },
+            "bootstrap": RunnerBootstrapPaths(
+                run_spec_path=str(tmp_path / "workspace/input/run_spec.json"),
+                events_path=str(tmp_path / "workspace/output/events.ndjson"),
+                runtime_result_path=str(tmp_path / "workspace/output/runtime_result.json"),
+                terminal_result_path=str(tmp_path / "workspace/output/terminal_result.json"),
+                artifact_manifest_path=str(tmp_path / "workspace/output/artifact_manifest.json"),
+                artifact_dir=str(tmp_path / "workspace/output/artifacts"),
+            ),
+        }
+    )
+    Path(payload.bootstrap.run_spec_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(payload.bootstrap.run_spec_path).write_text(
+        payload.model_dump_json(indent=2),
+        encoding="utf-8",
+    )
+
+    exit_code = claude_code_runner_main(
+        [
+            "--run-spec",
+            payload.bootstrap.run_spec_path,
+            "--events",
+            payload.bootstrap.events_path,
+            "--runtime-result",
+            payload.bootstrap.runtime_result_path,
+            "--terminal-result",
+            payload.bootstrap.terminal_result_path,
+            "--artifact-manifest",
+            payload.bootstrap.artifact_manifest_path,
+            "--artifact-dir",
+            payload.bootstrap.artifact_dir,
+        ]
+    )
+
+    assert exit_code == 0
+    runtime_result = json.loads(
+        Path(payload.bootstrap.runtime_result_path).read_text(encoding="utf-8")
+    )
+    terminal_result = json.loads(
+        Path(payload.bootstrap.terminal_result_path).read_text(encoding="utf-8")
+    )
+    manifest = json.loads(
+        Path(payload.bootstrap.artifact_manifest_path).read_text(encoding="utf-8")
+    )
+    events = [
+        json.loads(line)
+        for line in Path(payload.bootstrap.events_path).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    assert runtime_result["provider"] == "claude-code-cli"
+    assert runtime_result["output"] == "done"
+    assert runtime_result["execution_backend"] == "kubernetes-job"
+    assert terminal_result["status"] == "succeeded"
+    assert terminal_result["producer"]["version"] == "1.2.3"
+    assert len(events) == 2
+    assert manifest["artifacts"][0]["path"] == "transcripts/claude-stream.jsonl"
