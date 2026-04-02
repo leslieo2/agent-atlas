@@ -297,11 +297,21 @@ def test_docker_container_runner_executes_runner_image_with_local_launcher(
         assert check is False
         assert cmd[:2] == ["docker", "run"]
         assert "atlas-claude-validation:local" in cmd
-        mounts = {
-            cmd[index + 1].split(":", 1)[1]: Path(cmd[index + 1].split(":", 1)[0])
+        pythonpath_flag = next(
+            cmd[index + 1]
             for index, arg in enumerate(cmd)
-            if arg == "-v"
-        }
+            if arg == "-e" and "PYTHONPATH=" in cmd[index + 1]
+        )
+        assert "/workspace/packages/contracts/python/src" in pythonpath_flag
+        assert "/workspace/runtimes/runner-base/src" in pythonpath_flag
+        mounts = {}
+        for index, arg in enumerate(cmd):
+            if arg != "-v":
+                continue
+            host_path, container_path, *_mode = cmd[index + 1].split(":")
+            mounts[container_path] = Path(host_path)
+        assert mounts["/workspace/packages/contracts/python/src"].name == "src"
+        assert mounts["/workspace/runtimes/runner-base/src"].name == "src"
         input_dir = mounts["/workspace/input"]
         output_dir = mounts["/workspace/output"]
         run_spec = RunnerRunSpec.model_validate_json(

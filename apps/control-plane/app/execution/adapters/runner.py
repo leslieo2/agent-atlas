@@ -41,6 +41,17 @@ from app.execution.contracts import ExecutionRunSpec
 from app.modules.agents.domain.models import PublishedAgent
 
 CLAUDE_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_")
+REPO_ROOT = Path(__file__).resolve().parents[5]
+RUNNER_SOURCE_OVERLAYS: tuple[tuple[Path, str], ...] = (
+    (
+        REPO_ROOT / "packages" / "contracts" / "python" / "src",
+        "/workspace/packages/contracts/python/src",
+    ),
+    (
+        REPO_ROOT / "runtimes" / "runner-base" / "src",
+        "/workspace/runtimes/runner-base/src",
+    ),
+)
 
 
 class _RunnerExecutor(Protocol):
@@ -217,6 +228,7 @@ class DockerContainerRunner:
             temp_home = Path(temp_dir) / "home"
             temp_home.mkdir(parents=True, exist_ok=True)
             _copy_claude_auth_material(temp_home)
+            overlay_mounts, overlay_pythonpath = _runner_source_overlay_args()
 
             input_dir = session.work_dir / "workspace/input"
             output_dir = session.work_dir / "workspace/output"
@@ -227,12 +239,15 @@ class DockerContainerRunner:
                     "--rm",
                     "-e",
                     "HOME=/home/atlas",
+                    "-e",
+                    f"PYTHONPATH={overlay_pythonpath}",
                     "-v",
                     f"{temp_home}:/home/atlas",
                     "-v",
                     f"{input_dir}:/workspace/input",
                     "-v",
                     f"{output_dir}:/workspace/output",
+                    *overlay_mounts,
                     runner_image,
                     "python",
                     "-m",
@@ -320,6 +335,17 @@ def _copy_claude_auth_material(target_home: Path) -> None:
         raise ProviderAuthError("docker-container runner requires host Claude auth")
     shutil.copytree(host_claude_dir, target_home / ".claude")
     shutil.copy2(host_claude_json, target_home / ".claude.json")
+
+
+def _runner_source_overlay_args() -> tuple[list[str], str]:
+    mounts: list[str] = []
+    pythonpath_entries: list[str] = []
+    for source_path, target_path in RUNNER_SOURCE_OVERLAYS:
+        if not source_path.exists():
+            continue
+        mounts.extend(["-v", f"{source_path}:{target_path}:ro"])
+        pythonpath_entries.append(target_path)
+    return mounts, ":".join(pythonpath_entries)
 
 
 def _with_local_claude_cli_env(payload: RunnerRunSpec) -> RunnerRunSpec:
