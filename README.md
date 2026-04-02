@@ -1,34 +1,79 @@
 # Agent Atlas
 
-Agent Atlas is a self-hosted control plane for turning published agents and datasets into governed
+Agent Atlas is a self-hosted control plane for turning agents and datasets into governed,
 RL-ready execution data.
 
-It combines:
+It gives teams one product surface for:
 
-- a FastAPI backend that owns agent publication, dataset identity, eval orchestration, provenance,
-  and export contracts
-- a Next.js frontend that exposes the operator-facing RL data control plane
-- a neutral execution and evidence contract centered on external-runner handoff, with local and
-  Kubernetes paths treated as adapters instead of the product default
+- governing agent publication and readiness
+- defining datasets, slices, provenance, and export eligibility
+- running and comparing experiments over published agents
+- exporting curated offline files for downstream RL or post-training workflows
 
-## What Is In This Repository
+Atlas is the product center for agent governance, datasets, experiments, and exports. Phoenix
+remains the trace and debugging backend. Runner adapters such as Claude Code CLI stay visible, but
+they do not become the product itself.
 
-- `apps/web/`: operator-facing web UI
-- `apps/control-plane/`: FastAPI control plane, worker process, feature modules, tests, and
-  backend-specific tooling
-- planned product-plane services such as `apps/data-ingestion/`, `apps/export-worker/`,
-  `apps/eval-worker/`, `apps/executor-gateway/`, and `apps/data-plane-api/`: target landing zones
-  for the next split, not directories that exist in this checkout today
-- `packages/contracts/`: neutral cross-plane contract package
-- `runtimes/`: execution-side runtime packages, including shared runner bootstrap and launcher code
-- `infra/`, `schemas/`, and `docs/`: deployment assets, shared schemas, and architecture docs
-- `Makefile`: root entrypoint for installing dependencies and running the common full-stack
-  workflows
+## Core Surfaces
 
-Repository placement follows one rule: place code by execution ownership, not by conceptual name.
-`apps/control-plane/app/*` holds in-process control-plane subsystems, `packages/*` holds shared
-libraries, `schemas/*` holds language-neutral definitions, and `runtimes/*` holds execution-side
-implementations that should evolve outside the control-plane process.
+Agent Atlas is organized around four first-class product surfaces:
+
+- `Agents`: govern agent snapshots, readiness, publication state, and validation follow-through
+- `Datasets`: define dataset identity, slices, provenance, and export eligibility
+- `Experiments`: batch runs, compare baselines, review outcomes, and curate export-ready rows
+- `Exports`: package curated evidence into offline RL handoff files
+
+These four surfaces are the current product spine of the repository and the default operator path
+through the system.
+
+## First Five Minutes
+
+The default local product loop is:
+
+1. start the local stack with `make dev`
+2. open `Agents` and create the starter agent
+3. open `Datasets` and create or import a dataset
+4. open `Experiments` and run the dataset against the published agent
+5. open `Exports` and create an offline file from the resulting evidence
+
+If this loop works, Atlas is behaving like a product instead of a loose collection of subsystems.
+
+## Quick Start
+
+From the repository root:
+
+```bash
+make install
+cp apps/control-plane/.env.example apps/control-plane/.env
+cp apps/web/.env.example apps/web/.env.local
+make dev
+```
+
+This starts the local stack with the default ports:
+
+- Phoenix: `http://127.0.0.1:6006`
+- backend API: `http://127.0.0.1:8000`
+- frontend: `http://127.0.0.1:3000`
+
+Stop all three development processes together with `Ctrl-C`.
+`make dev` starts Phoenix through Docker, so make sure Docker Desktop or the Docker daemon is running first.
+
+## Product Direction
+
+Agent Atlas is where teams govern agent versions, datasets, experiments, and export-ready
+evidence.
+
+The current division of responsibility is:
+
+- Agent Atlas owns agent governance, datasets, experiments, provenance, curation, and export
+  semantics
+- Phoenix owns raw traces, prompts, evaluators, playground workflows, and deep debugging
+  interfaces
+- RL integration starts with offline export first, not direct training orchestration
+- Inspect AI, E2B, and similar systems enter as adapters around Atlas-owned contracts
+
+This README should describe Atlas first as a product, then as a repository. The remaining sections
+cover current capability, boundary rules, and contributor-facing architecture context.
 
 ## Current Capability Snapshot
 
@@ -47,18 +92,6 @@ What is directional, not yet shipped:
 - richer curation-first export contracts for RL workflows
 - product-level removal of Atlas surfaces that overlap with Phoenix
 - a first-class external runner gateway beyond the current in-repo adapters
-
-## Product Direction
-
-Agent Atlas is not trying to become another hosted observability or experimentation product.
-
-The product boundary is:
-
-- Agent Atlas owns published agent governance, datasets, experiments, provenance, curation, and
-  export semantics
-- Phoenix owns raw traces, playground, prompts, evaluators, and experiment analysis
-- RL integration starts with offline export first, not direct training orchestration
-- Inspect AI, E2B, and similar systems enter only as adapters around Atlas-owned contracts
 
 ## Boundary Freeze
 
@@ -100,10 +133,31 @@ This means the long-term shape is:
 - Phoenix-linked debugging instead of Atlas-native trace tooling
 - RL-ready offline export
 
+## What Is In This Repository
+
+For contributors, the repository is organized by execution ownership rather than by abstract
+concept names.
+
+- `apps/web/`: operator-facing web UI
+- `apps/control-plane/`: FastAPI control plane, worker process, feature modules, tests, and
+  backend-specific tooling
+- planned product-plane services such as `apps/data-ingestion/`, `apps/export-worker/`,
+  `apps/eval-worker/`, `apps/executor-gateway/`, and `apps/data-plane-api/`: target landing zones
+  for the next split, not directories that exist in this checkout today
+- `packages/contracts/`: neutral cross-plane contract package
+- `runtimes/`: execution-side runtime packages, including shared runner bootstrap and launcher code
+- `infra/`, `schemas/`, and `docs/`: deployment assets, shared schemas, and architecture docs
+- `Makefile`: root entrypoint for installing dependencies and running the common full-stack
+  workflows
+
+`apps/control-plane/app/*` holds in-process control-plane subsystems, `packages/*` holds shared
+libraries, `schemas/*` holds language-neutral definitions, and `runtimes/*` holds execution-side
+implementations that should evolve outside the control-plane process.
+
 ## Platform Architecture
 
-The product should be described first as a layered platform, not as one giant hexagonal
-application.
+For technical contributors, the platform is best understood as layered planes rather than as one
+giant hexagonal application.
 
 The platform planes are:
 
@@ -194,26 +248,6 @@ Install these before working in the repository:
 - [`uv`](https://docs.astral.sh/uv/) for backend environment and dependency management
 - Node.js and `npm` for the frontend
 - Docker if you want `make dev` to launch the local Phoenix server for you
-
-## Quick Start
-
-From the repository root:
-
-```bash
-make install
-cp apps/control-plane/.env.example apps/control-plane/.env
-cp apps/web/.env.example apps/web/.env.local
-make dev
-```
-
-This starts the local stack with the default ports:
-
-- Phoenix: `http://127.0.0.1:6006`
-- backend API: `http://127.0.0.1:8000`
-- frontend: `http://127.0.0.1:3000`
-
-Stop all three development processes together with `Ctrl-C`.
-`make dev` starts Phoenix through Docker, so make sure Docker Desktop or the Docker daemon is running first.
 
 ## Local Development Workflow
 
