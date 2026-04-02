@@ -11,6 +11,10 @@ This document defines the target repository and deployment boundaries for the ma
 The goal is to remove ambiguity about where code belongs, what can depend on what, and which
 systems are allowed to shape Atlas-owned semantics.
 
+If you want the compact platform picture first, start with
+[overview.md](overview.md). This document is the detailed ownership and dependency version of that
+same model.
+
 ## Boundary Freeze Stance
 
 Atlas is converging on two stable centers:

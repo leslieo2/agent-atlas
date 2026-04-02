@@ -141,10 +141,41 @@ Hexagonal architecture is still useful, but only locally:
   backend for raw traces and experiment-heavy debugging workflows. Kubernetes is the primary
   execution implementation, while Inspect AI and E2B remain adapter integrations.
 
+### Platform Diagram
+
+```text
+Web UI (Agents / Datasets / Experiments / Exports)
+                    |
+               HTTPS / JSON
+                    v
+Control Plane (Atlas-owned product semantics + neutral run/evidence APIs)
+     | run intent            | evidence / query            | product-owned records
+     v                       v                             v
+Execution Plane      Observability / Eval Plane         Data Plane
+     \______________________ Runner / Agent Runtime ______________________/
+                               | tool / model / OTLP
+                               v
+                    Tool Gateway / Model Gateway / Phoenix
+
+Data Plane -------------------------------------------------> Training Plane
+```
+
+Use this as the quick mental model:
+
+- the control plane is the product center
+- execution and runner layers exist to carry Atlas run intent, not to define Atlas domain objects
+- observability backends such as Phoenix project into Atlas evidence instead of becoming the
+  product truth
+- the data plane is where evidence becomes training-usable data
+
+The full version of this diagram and the corresponding boundary rules live in
+[docs/architecture/overview.md](docs/architecture/overview.md).
+
 Use the subsystem docs for the full architecture rules:
 
 - [prd.md](prd.md)
 - [roadmap.md](roadmap.md)
+- [docs/architecture/overview.md](docs/architecture/overview.md)
 - [docs/architecture/repository-layout.md](docs/architecture/repository-layout.md)
 - [docs/architecture/platform-boundaries.md](docs/architecture/platform-boundaries.md)
 - [apps/control-plane/README.md](apps/control-plane/README.md)
