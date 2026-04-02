@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listDiscoveredAgents, listPublishedAgents, publishAgent, unpublishAgent } from "./api";
+import {
+  bootstrapClaudeCodeAgent,
+  listDiscoveredAgents,
+  listPublishedAgents,
+  publishAgent,
+  unpublishAgent
+} from "./api";
 
 export const discoveredAgentsQueryRoot = ["agents", "discovered"] as const;
 export const publishedAgentsQueryRoot = ["agents", "published"] as const;
@@ -43,6 +49,18 @@ export function useUnpublishAgentMutation() {
 
   return useMutation({
     mutationFn: (agentId: string) => unpublishAgent(agentId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: discoveredAgentsQueryRoot });
+      void queryClient.invalidateQueries({ queryKey: publishedAgentsQueryRoot });
+    }
+  });
+}
+
+export function useBootstrapClaudeCodeAgentMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => bootstrapClaudeCodeAgent(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: discoveredAgentsQueryRoot });
       void queryClient.invalidateQueries({ queryKey: publishedAgentsQueryRoot });

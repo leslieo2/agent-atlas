@@ -9,6 +9,7 @@ import AgentsWorkspace from "@/src/widgets/agents-workspace/AgentsWorkspace";
 vi.mock("@/src/entities/agent/api", () => ({
   listPublishedAgents: vi.fn(),
   listDiscoveredAgents: vi.fn(),
+  bootstrapClaudeCodeAgent: vi.fn(),
   publishAgent: vi.fn(),
   unpublishAgent: vi.fn()
 }));
@@ -128,11 +129,13 @@ describe("Agents workspace", () => {
 
     (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockReset();
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockReset();
+    (agentApi.bootstrapClaudeCodeAgent as unknown as MockedApiFn).mockReset();
     (agentApi.publishAgent as unknown as MockedApiFn).mockReset();
     (agentApi.unpublishAgent as unknown as MockedApiFn).mockReset();
 
     (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockImplementation(async () => discoveredAgents);
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockResolvedValue([]);
+    (agentApi.bootstrapClaudeCodeAgent as unknown as MockedApiFn).mockResolvedValue(null);
     (agentApi.publishAgent as unknown as MockedApiFn).mockImplementation(async (agentId: string) => {
       discoveredAgents = discoveredAgents.map((agent) =>
         agent.agentId === agentId ? { ...agent, publishState: "published" } : agent
@@ -248,5 +251,64 @@ describe("Agents workspace", () => {
       "http://phoenix.local/trace/live-agent-validation"
     );
     expect(screen.queryByText("No agent records are available yet.")).not.toBeInTheDocument();
+  });
+
+  it("creates the first starter agent from the empty state bootstrap action", async () => {
+    let publishedAgents: AgentRecord[] = [];
+    const starterAgent: AgentRecord = {
+      agentId: "claude-code-starter",
+      name: "Claude Code Starter",
+      description: "Published starter snapshot created from the formal live bootstrap route.",
+      framework: "openai-agents-sdk",
+      frameworkVersion: "0.1.0",
+      entrypoint: "snapshots/claude-code-starter:run",
+      defaultModel: "gpt-5.4-mini",
+      tags: ["starter", "live"],
+      capabilities: ["submit"],
+      publishedAt: "2026-04-02T09:00:00Z",
+      sourceFingerprint: "claude-code-starter-fingerprint-123456",
+      executionReference: {
+        artifactRef: "bundle://claude-code-starter"
+      },
+      latestValidation: {
+        runId: "run-claude-code-starter-validation",
+        status: "succeeded",
+        createdAt: "2026-04-02T09:01:00Z",
+        startedAt: "2026-04-02T09:02:00Z",
+        completedAt: "2026-04-02T09:03:00Z"
+      },
+      validationEvidence: {
+        artifactRef: "bundle://claude-code-starter-validation",
+        traceUrl: "http://phoenix.local/trace/claude-code-starter-validation"
+      },
+      validationOutcome: {
+        status: "succeeded",
+        reason: "Starter bootstrap completed with reusable validation evidence."
+      },
+      defaultRuntimeProfile: {
+        backend: "external-runner"
+      }
+    };
+
+    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockResolvedValue([]);
+    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
+    (agentApi.bootstrapClaudeCodeAgent as unknown as MockedApiFn).mockImplementation(async () => {
+      publishedAgents = [starterAgent];
+      return starterAgent;
+    });
+
+    renderWithQueryClient(<AgentsWorkspace />);
+
+    expect(await screen.findByText("Start the first live starter agent")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Claude Code starter" }));
+
+    await waitFor(() => expect(agentApi.bootstrapClaudeCodeAgent).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Published starter snapshot created from the formal live bootstrap route.")).toBeInTheDocument();
+    expect(screen.getByText("Created Claude Code Starter. Atlas can now publish the first live starter snapshot from this surface.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Create experiment/i })).toHaveAttribute(
+      "href",
+      "/experiments?agent=claude-code-starter"
+    );
   });
 });

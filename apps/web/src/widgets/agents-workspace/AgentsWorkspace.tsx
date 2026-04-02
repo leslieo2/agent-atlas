@@ -1,8 +1,9 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
+  useBootstrapClaudeCodeAgentMutation,
   useDiscoveredAgentsQuery,
   usePublishedAgentsQuery,
   usePublishAgentMutation,
@@ -357,8 +358,10 @@ function AgentCard({
 export default function AgentsWorkspace() {
   const discoveredAgentsQuery = useDiscoveredAgentsQuery();
   const publishedAgentsQuery = usePublishedAgentsQuery();
+  const bootstrapMutation = useBootstrapClaudeCodeAgentMutation();
   const publishMutation = usePublishAgentMutation();
   const unpublishMutation = useUnpublishAgentMutation();
+  const [actionMessage, setActionMessage] = useState("");
   const agents = useMemo<AgentWorkspaceRecord[]>(() => {
     const discovered = (discoveredAgentsQuery.data ?? []).map((agent) => ({ ...agent, dataSource: "discovered" as const }));
     const discoveredIds = new Set(discovered.map((agent) => agent.agentId));
@@ -395,6 +398,7 @@ export default function AgentsWorkspace() {
   );
 
   const errorMessage =
+    (bootstrapMutation.error instanceof Error && bootstrapMutation.error.message) ||
     (publishMutation.error instanceof Error && publishMutation.error.message) ||
     (unpublishMutation.error instanceof Error && unpublishMutation.error.message) ||
     (discoveredAgentsQuery.error instanceof Error && discoveredAgentsQuery.error.message) ||
@@ -402,6 +406,15 @@ export default function AgentsWorkspace() {
     "";
 
   const isLoading = discoveredAgentsQuery.isLoading || publishedAgentsQuery.isLoading;
+
+  async function handleBootstrap() {
+    try {
+      const agent = await bootstrapMutation.mutateAsync();
+      setActionMessage(`Created ${agent.name}. Atlas can now publish the first live starter snapshot from this surface.`);
+    } catch {
+      // Error state is surfaced through the shared notice area.
+    }
+  }
 
   return (
     <section className="page-stack">
@@ -447,13 +460,30 @@ export default function AgentsWorkspace() {
         <MetricCard label="Invalid" value={groups[3].items.length} />
       </div>
 
+      {actionMessage ? <Notice>{actionMessage}</Notice> : null}
       {errorMessage ? <Notice>{errorMessage}</Notice> : null}
       {isLoading ? <Notice>Loading agents...</Notice> : null}
       {!isLoading && !agents.length ? (
-        <Notice>
-          No agent records are available yet. Published snapshots will appear here once the first live agent is created,
-          validated, and sealed.
-        </Notice>
+        <Panel tone="plain">
+          <div className="surface-header">
+            <div>
+              <p className="surface-kicker">No agents yet</p>
+              <h3 className="panel-title">Start the first live starter agent</h3>
+              <p className="muted-note">
+                Published snapshots appear here once Atlas creates the first live starter asset from the formal bootstrap
+                path.
+              </p>
+            </div>
+          </div>
+          <div className={styles.actions}>
+            <Button onClick={() => void handleBootstrap()} disabled={bootstrapMutation.isPending}>
+              {bootstrapMutation.isPending ? "Creating starter agent..." : "Create Claude Code starter"}
+            </Button>
+            <Notice>
+              This uses the existing live bootstrap route and keeps the result on the current Agents surface.
+            </Notice>
+          </div>
+        </Panel>
       ) : null}
 
       {agents.length

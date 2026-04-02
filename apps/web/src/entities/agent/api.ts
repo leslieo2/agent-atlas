@@ -27,3 +27,11 @@ export async function unpublishAgent(agentId: string) {
     method: "POST"
   });
 }
+
+export async function bootstrapClaudeCodeAgent() {
+  return mapAgent(
+    await request<AgentDescriptorResponse>("/api/v1/agents/bootstrap/claude-code", {
+      method: "POST"
+    })
+  );
+}
