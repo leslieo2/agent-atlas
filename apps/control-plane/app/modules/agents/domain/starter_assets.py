@@ -9,6 +9,9 @@ CLAUDE_CODE_STARTER_ENTRYPOINT = (
     "app.modules.agents.domain.starter_assets:build_claude_code_starter"
 )
 CLAUDE_CODE_STARTER_RUNNER_IMAGE = "atlas-claude-validation:local"
+CLAUDE_CODE_STARTER_SYSTEM_PROMPT = (
+    "Reply with the user prompt text only. No greeting or explanation."
+)
 
 
 def claude_code_starter_manifest() -> AgentManifest:
@@ -36,6 +39,7 @@ def claude_code_starter_runtime_profile() -> ExecutorConfig:
             "claude_code_cli": {
                 "command": "claude",
                 "args": ["--dangerously-skip-permissions"],
+                "system_prompt": CLAUDE_CODE_STARTER_SYSTEM_PROMPT,
                 "version": "starter",
             },
         },

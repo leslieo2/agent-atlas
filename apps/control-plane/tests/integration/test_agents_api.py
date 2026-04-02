@@ -197,6 +197,12 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
         assert bootstrap_response.json()["agent_family"] == AgentFamily.CLAUDE_CODE.value
         assert bootstrap_response.json()["framework"] == "claude-code-cli"
         assert bootstrap_response.json()["default_runtime_profile"]["backend"] == "external-runner"
+        assert (
+            bootstrap_response.json()["default_runtime_profile"]["metadata"]["claude_code_cli"][
+                "system_prompt"
+            ]
+            == "Reply with the user prompt text only. No greeting or explanation."
+        )
 
         published_after_bootstrap = live_client.get("/api/v1/agents/published")
         assert published_after_bootstrap.status_code == 200

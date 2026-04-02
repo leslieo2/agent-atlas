@@ -45,6 +45,7 @@ class ClaudeCodeCliConfig:
         cwd: str | None = None,
         env: Mapping[str, str] | None = None,
         profile: str | None = None,
+        system_prompt: str | None = None,
         version: str | None = None,
     ) -> None:
         self.command = list(command)
@@ -52,6 +53,7 @@ class ClaudeCodeCliConfig:
         self.cwd = cwd
         self.env = dict(env or {})
         self.profile = profile
+        self.system_prompt = system_prompt
         self.version = version
 
 
@@ -99,6 +101,7 @@ def claude_code_cli_config_from_executor_config(
         cwd=_string_value(raw_config.get("cwd")),
         env=env,
         profile=_string_value(raw_config.get("profile")),
+        system_prompt=_string_value(raw_config.get("system_prompt")),
         version=_string_value(raw_config.get("version")),
     )
 
@@ -212,6 +215,8 @@ def _command_for_payload(payload: RunnerRunSpec) -> tuple[list[str], ClaudeCodeC
     ]
     if config.profile is not None:
         command.extend(["--profile", config.profile])
+    if config.system_prompt is not None:
+        command.extend(["--system-prompt", config.system_prompt])
     command.append(payload.prompt)
     return command, config
 

@@ -810,6 +810,7 @@ def test_claude_code_stream_json_runner_writes_neutral_outputs(tmp_path):
                         ],
                         "env": {"ANTHROPIC_AUTH_TOKEN": "token-from-config"},
                         "profile": "starter",
+                        "system_prompt": "Reply with the final answer only.",
                         "version": "1.2.3",
                     },
                 },
@@ -875,6 +876,7 @@ def test_claude_code_stream_json_runner_writes_neutral_outputs(tmp_path):
     assert "--model" not in event_payload["argv"]
     assert event_payload["argv"][:2] == ["--print", "--verbose"]
     assert "--profile" in event_payload["argv"]
+    assert "--system-prompt" in event_payload["argv"]
     assert manifest["artifacts"][0]["path"] == "transcripts/claude-stream.jsonl"
 
 
