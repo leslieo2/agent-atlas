@@ -12,45 +12,45 @@ install-export:
 	uv sync --extra dev --extra export
 
 fmt:
-	uv run ruff format app tests
-	uv run python -m compileall -q app tests
+	uv run --extra dev ruff format app tests
+	uv run --extra dev python -m compileall -q app tests
 
 lint:
-	uv run ruff check app tests
-	uv run ruff format --check app tests
+	uv run --extra dev ruff check app tests
+	uv run --extra dev ruff format --check app tests
 
 typecheck:
-	uv run mypy app
+	uv run --extra dev mypy app
 
 test:
-	uv run pytest
+	uv run --extra dev pytest
 
 test-unit:
-	uv run pytest -m unit --no-cov
+	uv run --extra dev pytest -m unit --no-cov
 
 test-integration:
-	uv run pytest -m integration
+	uv run --extra dev pytest -m integration
 
 test-e2e:
-	uv run pytest -m e2e
+	uv run --extra dev pytest -m e2e
 
 test-e2e-live:
-	AGENT_ATLAS_LIVE_TESTS=1 AGENT_ATLAS_RUNTIME_MODE=live AGENT_ATLAS_RUNNER_MODE=local AGENT_ATLAS_SEED_DEMO=false AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL=sqlite:///$(CURDIR)/.agent-atlas-pytest-live-control.db AGENT_ATLAS_DATA_PLANE_DATABASE_URL=sqlite:///$(CURDIR)/.agent-atlas-pytest-live-data.db uv run pytest tests/e2e/test_live_smoke.py --no-cov
+	AGENT_ATLAS_LIVE_TESTS=1 AGENT_ATLAS_RUNTIME_MODE=live AGENT_ATLAS_RUNNER_MODE=local AGENT_ATLAS_SEED_DEMO=false AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL=sqlite:///$(CURDIR)/.agent-atlas-pytest-live-control.db AGENT_ATLAS_DATA_PLANE_DATABASE_URL=sqlite:///$(CURDIR)/.agent-atlas-pytest-live-data.db uv run --extra dev pytest tests/e2e/test_live_smoke.py --no-cov
 
 test-tdd-unit:
-	uv run pytest -m unit --no-cov -x --ff
+	uv run --extra dev pytest -m unit --no-cov -x --ff
 
 test-tdd-integration:
-	uv run pytest -m integration -x --ff
+	uv run --extra dev pytest -m integration -x --ff
 
 test-check:
-	uv run pytest --cov=app --cov-report=term-missing
+	uv run --extra dev pytest --cov=app --cov-report=term-missing
 
 security:
 	@if [ -f bandit-baseline.json ]; then \
-		uv run bandit -r app -x tests -b bandit-baseline.json; \
+		uv run --extra dev bandit -r app -x tests -b bandit-baseline.json; \
 	else \
-		uv run bandit -r app -x tests; \
+		uv run --extra dev bandit -r app -x tests; \
 	fi
 
 contract-sync:
