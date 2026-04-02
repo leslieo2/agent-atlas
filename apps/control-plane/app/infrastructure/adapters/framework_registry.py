@@ -20,9 +20,11 @@ from app.modules.agents.domain.models import (
     AgentValidationStatus,
     DiscoveredAgent,
     PublishedAgent,
-    adapter_kind_for_framework,
+    adapter_kind_for_agent_family,
 )
 from app.modules.shared.domain.enums import AdapterKind
+
+CLAUDE_CODE_FRAMEWORK = "claude-code-cli"
 
 
 class FrameworkDiscoveryValidator(Protocol):
@@ -177,6 +179,8 @@ def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
         if plugin is None:
             continue
         plugins[plugin.framework.strip().lower()] = plugin
+        if plugin.framework.strip().lower() == AdapterKind.OPENAI_AGENTS.value:
+            plugins.setdefault(CLAUDE_CODE_FRAMEWORK, plugin)
 
     if settings.effective_runtime_mode() == RuntimeMode.LIVE:
         return plugins
@@ -192,6 +196,8 @@ def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
         if plugin is None:
             continue
         plugins.setdefault(plugin.framework.strip().lower(), plugin)
+        if plugin.framework.strip().lower() == AdapterKind.OPENAI_AGENTS.value:
+            plugins.setdefault(CLAUDE_CODE_FRAMEWORK, plugin)
 
     return plugins
 
@@ -215,8 +221,17 @@ class PublishedAgentExecutionDispatcher:
                 agent_id=payload.agent_id,
             ) from exc
 
+        expected_family = published_agent.agent_family
         expected_framework = published_agent.framework
         actual_framework = payload.framework
+        actual_family = payload.framework_type or payload.agent_family
+        if actual_family and actual_family.strip().lower() != expected_family.strip().lower():
+            raise AgentFrameworkMismatchError(
+                "run payload agent family does not match published snapshot",
+                agent_id=payload.agent_id,
+                expected_framework=expected_family,
+                actual_framework=actual_family,
+            )
         if actual_framework and (
             actual_framework.strip().lower() != expected_framework.strip().lower()
         ):
@@ -227,7 +242,7 @@ class PublishedAgentExecutionDispatcher:
                 actual_framework=actual_framework,
             )
 
-        expected_agent_type = adapter_kind_for_framework(expected_framework)
+        expected_agent_type = adapter_kind_for_agent_family(expected_family)
         if payload.agent_type != expected_agent_type.value:
             raise AgentFrameworkMismatchError(
                 "run payload adapter kind does not match published snapshot framework",
@@ -262,8 +277,17 @@ class PublishedAgentExecutionDispatcher:
                 agent_id=payload.agent_id,
             ) from exc
 
+        expected_family = published_agent.agent_family
         expected_framework = published_agent.framework
         actual_framework = payload.framework
+        actual_family = payload.framework_type or payload.agent_family
+        if actual_family and actual_family.strip().lower() != expected_family.strip().lower():
+            raise AgentFrameworkMismatchError(
+                "run payload agent family does not match published snapshot",
+                agent_id=payload.agent_id,
+                expected_framework=expected_family,
+                actual_framework=actual_family,
+            )
         if actual_framework and (
             actual_framework.strip().lower() != expected_framework.strip().lower()
         ):
@@ -274,7 +298,7 @@ class PublishedAgentExecutionDispatcher:
                 actual_framework=actual_framework,
             )
 
-        expected_agent_type = adapter_kind_for_framework(expected_framework)
+        expected_agent_type = adapter_kind_for_agent_family(expected_family)
         if payload.agent_type != expected_agent_type.value:
             raise AgentFrameworkMismatchError(
                 "run payload adapter kind does not match published snapshot framework",

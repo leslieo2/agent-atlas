@@ -3,11 +3,13 @@ from __future__ import annotations
 from agents import Agent
 
 from app.modules.agents.domain.models import AgentBuildContext, AgentManifest
+from app.modules.shared.domain.enums import AgentFamily
 
 AGENT_MANIFEST = AgentManifest(
     agent_id="basic",
     name="Basic",
     description="Minimal plugin agent for smoke testing the SDK execution path.",
+    agent_family=AgentFamily.OPENAI_AGENTS.value,
     framework="openai-agents-sdk",
     default_model="gpt-5.4-mini",
     tags=["example", "smoke"],

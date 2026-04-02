@@ -32,6 +32,7 @@ export interface AgentRecord {
   agentId: string;
   name: string;
   description: string;
+  agentFamily?: string;
   framework: string;
   frameworkVersion: string;
   entrypoint: string;

@@ -16,6 +16,7 @@ from app.modules.agents.domain.models import (
     DiscoveredAgent,
     PublishedAgent,
 )
+from app.modules.shared.domain.enums import AgentFamily
 
 
 def _validation_context() -> AgentBuildContext:
@@ -240,6 +241,7 @@ class OpenAIAgentContractValidator:
             agent_id=module_leaf,
             name=module_leaf.replace("_", " ").title(),
             description="Invalid agent manifest",
+            agent_family=AgentFamily.OPENAI_AGENTS.value,
             framework="openai-agents-sdk",
             default_model="",
             tags=[],

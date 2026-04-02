@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.modules.agents.domain.models import AgentManifest
+from app.modules.shared.domain.enums import AgentFamily
 from app.modules.shared.domain.models import ExecutorConfig
 
 CLAUDE_CODE_STARTER_AGENT_ID = "claude-code-starter"
@@ -15,7 +16,8 @@ def claude_code_starter_manifest() -> AgentManifest:
         agent_id=CLAUDE_CODE_STARTER_AGENT_ID,
         name="Claude Code Starter",
         description="Starter agent template for live-mode Atlas validation and experiment flows.",
-        framework="openai-agents-sdk",
+        agent_family=AgentFamily.CLAUDE_CODE.value,
+        framework="claude-code-cli",
         default_model="gpt-5.4-mini",
         tags=["starter", "claude-code", "live-bootstrap"],
     )

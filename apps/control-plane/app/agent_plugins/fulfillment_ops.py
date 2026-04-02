@@ -6,6 +6,7 @@ from agents import Agent, ModelSettings, RunContextWrapper, function_tool
 
 from app.core.errors import AppError
 from app.modules.agents.domain.models import AgentBuildContext, AgentManifest
+from app.modules.shared.domain.enums import AgentFamily
 
 AGENT_MANIFEST = AgentManifest(
     agent_id="fulfillment_ops",
@@ -14,6 +15,7 @@ AGENT_MANIFEST = AgentManifest(
         "Order-fulfillment validation agent that uses multiple local tools to decide "
         "the next customer-facing action."
     ),
+    agent_family=AgentFamily.OPENAI_AGENTS.value,
     framework="openai-agents-sdk",
     default_model="gpt-5-mini",
     tags=["example", "tools", "fulfillment"],

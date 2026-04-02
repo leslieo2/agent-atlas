@@ -32,6 +32,13 @@ class AdapterKind(str, Enum):
     MCP = "mcp"
 
 
+class AgentFamily(str, Enum):
+    OPENAI_AGENTS = "openai-agents"
+    LANGCHAIN = "langchain"
+    MCP = "mcp"
+    CLAUDE_CODE = "claude-code"
+
+
 class ScoringMode(str, Enum):
     EXACT_MATCH = "exact_match"
     CONTAINS = "contains"

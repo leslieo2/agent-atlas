@@ -104,6 +104,13 @@ class RunExecutionProjector:
         runner_submission = context.runner_submission
         return TraceTelemetryMetadata(
             agent_id=context.payload.agent_id,
+            agent_family=(
+                runner_submission.framework_type
+                if runner_submission is not None and runner_submission.framework_type
+                else provenance.agent_family
+                if provenance
+                else None
+            ),
             framework=(
                 runner_submission.framework
                 if runner_submission is not None and runner_submission.framework
@@ -112,9 +119,9 @@ class RunExecutionProjector:
                 else None
             ),
             framework_type=(
-                runner_submission.framework
-                if runner_submission is not None and runner_submission.framework
-                else provenance.framework
+                runner_submission.framework_type
+                if runner_submission is not None and runner_submission.framework_type
+                else provenance.agent_family
                 if provenance
                 else None
             ),
@@ -383,6 +390,7 @@ class RunExecutionService:
             )
             runner_submission = RunnerSubmissionRecord(
                 runner_backend=runner_payload.runner_backend,
+                framework_type=runner_payload.framework_type,
                 framework=runner_payload.framework,
                 artifact_ref=runner_payload.artifact_ref,
                 image_ref=runner_payload.image_ref,

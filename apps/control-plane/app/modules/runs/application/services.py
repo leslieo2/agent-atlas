@@ -63,6 +63,7 @@ def _resolved_submission_provenance(
         deep=True,
     ).to_snapshot()
     provenance = ProvenanceMetadata()
+    provenance.agent_family = effective_agent.agent_family
     provenance.framework = effective_agent.framework
     provenance.framework_version = effective_agent.framework_version
     provenance.published_agent_snapshot = snapshot

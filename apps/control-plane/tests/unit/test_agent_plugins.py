@@ -19,6 +19,7 @@ from app.infrastructure.adapters.agent_catalog import (
     StatePublishedAgentCatalog,
 )
 from app.infrastructure.adapters.framework_registry import (
+    CLAUDE_CODE_FRAMEWORK,
     FrameworkPlugin,
     FrameworkRegistry,
     PublishedAgentExecutionDispatcher,
@@ -463,6 +464,7 @@ def test_framework_plugin_discovery_falls_back_to_builtin_modules(monkeypatch) -
     discovered = discover_framework_plugins()
 
     assert discovered == {
+        CLAUDE_CODE_FRAMEWORK: openai_plugin,
         AdapterKind.OPENAI_AGENTS.value: openai_plugin,
         AdapterKind.LANGCHAIN.value: langchain_plugin,
     }

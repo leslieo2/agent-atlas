@@ -46,6 +46,7 @@ class AgentManifest(BaseModel):
     agent_id: str
     name: str
     description: str
+    agent_family: str | None = None
     framework: str
     framework_version: str = "1.0.0"
     default_model: str
@@ -87,6 +88,10 @@ class PublishedAgent(BaseModel):
         return self.manifest.description
 
     @property
+    def agent_family(self) -> str | None:
+        return self.manifest.agent_family
+
+    @property
     def framework(self) -> str:
         return self.manifest.framework
 
@@ -112,6 +117,7 @@ class PublishedAgent(BaseModel):
 
 class TraceTelemetryMetadata(BaseModel):
     agent_id: str | None = None
+    agent_family: str | None = None
     framework: str | None = None
     framework_type: str | None = None
     framework_version: str | None = None

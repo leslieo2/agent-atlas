@@ -22,6 +22,7 @@ class AgentDescriptorResponse(BaseModel):
     agent_id: str
     name: str
     description: str
+    agent_family: str
     framework: str
     framework_version: str
     entrypoint: str
@@ -42,6 +43,7 @@ class AgentDescriptorResponse(BaseModel):
             agent_id=agent.agent_id,
             name=agent.name,
             description=agent.description,
+            agent_family=agent.agent_family,
             framework=agent.framework,
             framework_version=agent.framework_version,
             entrypoint=agent.entrypoint,
@@ -121,6 +123,7 @@ class DiscoveredAgentResponse(BaseModel):
     agent_id: str
     name: str
     description: str
+    agent_family: str
     framework: str
     framework_version: str
     entrypoint: str
@@ -146,6 +149,7 @@ class DiscoveredAgentResponse(BaseModel):
             agent_id=agent.agent_id,
             name=agent.name,
             description=agent.description,
+            agent_family=agent.agent_family,
             framework=agent.framework,
             framework_version=agent.framework_version,
             entrypoint=agent.entrypoint,

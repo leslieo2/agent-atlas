@@ -39,6 +39,7 @@ def build_source_execution_reference(
 
 
 class ProvenanceMetadata(BaseModel):
+    agent_family: str | None = None
     framework: str | None = None
     framework_version: str | None = None
     published_agent_snapshot: dict[str, Any] | None = None

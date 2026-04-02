@@ -33,9 +33,10 @@ class RunFailureDetails:
 @dataclass(frozen=True)
 class RunnerSubmissionRecord:
     runner_backend: str
-    framework: str | None
-    artifact_ref: str | None
-    image_ref: str | None
+    framework_type: str | None = None
+    framework: str | None = None
+    artifact_ref: str | None = None
+    image_ref: str | None = None
 
 
 @dataclass(frozen=True)

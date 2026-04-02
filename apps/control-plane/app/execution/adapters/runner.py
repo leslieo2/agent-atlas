@@ -101,6 +101,7 @@ class PublishedArtifactResolver:
             )
 
         return ExecutionArtifact(
+            agent_family=published_agent.agent_family,
             framework=framework,
             entrypoint=entrypoint,
             source_fingerprint=source_fingerprint,

@@ -16,7 +16,7 @@ from app.modules.agents.domain.models import (
     DiscoveredAgent,
     PublishedAgent,
 )
-from app.modules.shared.domain.enums import AdapterKind
+from app.modules.shared.domain.enums import AdapterKind, AgentFamily
 
 
 def _validation_context() -> AgentBuildContext:
@@ -241,6 +241,7 @@ class LangChainAgentContractValidator:
             agent_id=module_leaf,
             name=module_leaf.replace("_", " ").title(),
             description="Invalid agent manifest",
+            agent_family=AgentFamily.LANGCHAIN.value,
             framework=AdapterKind.LANGCHAIN.value,
             default_model="",
             tags=[],

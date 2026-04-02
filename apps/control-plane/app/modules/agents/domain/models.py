@@ -22,7 +22,7 @@ from agent_atlas_contracts.runtime import (
 )
 from pydantic import BaseModel, Field
 
-from app.modules.shared.domain.enums import AdapterKind, RunStatus
+from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
 from app.modules.shared.domain.models import (
     ExecutionReferenceMetadata as SharedExecutionReferenceMetadata,
 )
@@ -51,15 +51,32 @@ def compute_source_fingerprint(manifest: AgentManifest, entrypoint: str) -> str:
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def adapter_kind_for_framework(framework: str) -> AdapterKind:
+def agent_family_for_framework(framework: str) -> AgentFamily:
     normalized = framework.strip().lower()
     if normalized == AdapterKind.OPENAI_AGENTS.value:
-        return AdapterKind.OPENAI_AGENTS
+        return AgentFamily.OPENAI_AGENTS
     if normalized == AdapterKind.LANGCHAIN.value:
-        return AdapterKind.LANGCHAIN
+        return AgentFamily.LANGCHAIN
     if normalized == AdapterKind.MCP.value:
-        return AdapterKind.MCP
+        return AgentFamily.MCP
+    if normalized == "claude-code-cli":
+        return AgentFamily.CLAUDE_CODE
     raise ValueError(f"unsupported published agent framework '{framework}'")
+
+
+def adapter_kind_for_agent_family(agent_family: str) -> AdapterKind:
+    normalized = agent_family.strip().lower()
+    if normalized in {AgentFamily.OPENAI_AGENTS.value, AgentFamily.CLAUDE_CODE.value}:
+        return AdapterKind.OPENAI_AGENTS
+    if normalized == AgentFamily.LANGCHAIN.value:
+        return AdapterKind.LANGCHAIN
+    if normalized == AgentFamily.MCP.value:
+        return AdapterKind.MCP
+    raise ValueError(f"unsupported agent family '{agent_family}'")
+
+
+def adapter_kind_for_framework(framework: str) -> AdapterKind:
+    return adapter_kind_for_agent_family(agent_family_for_framework(framework).value)
 
 
 class AgentManifest(ContractAgentManifest):
@@ -155,6 +172,13 @@ class PublishedAgent(ContractPublishedAgent):
         return self.manifest.framework
 
     @property
+    def agent_family(self) -> str:
+        raw_family = self.manifest.agent_family
+        if isinstance(raw_family, str) and raw_family.strip():
+            return raw_family
+        return agent_family_for_framework(self.framework).value
+
+    @property
     def default_model(self) -> str:
         return self.manifest.default_model
 
@@ -173,7 +197,7 @@ class PublishedAgent(ContractPublishedAgent):
         return ["external-runner-handoff", "phoenix-links", "offline-export"]
 
     def adapter_kind(self) -> AdapterKind:
-        return adapter_kind_for_framework(self.framework)
+        return adapter_kind_for_agent_family(self.agent_family)
 
     def source_fingerprint_or_raise(self) -> str:
         fingerprint = self.source_fingerprint.strip()
@@ -249,6 +273,13 @@ class DiscoveredAgent(BaseModel):
         return self.manifest.framework
 
     @property
+    def agent_family(self) -> str:
+        raw_family = self.manifest.agent_family
+        if isinstance(raw_family, str) and raw_family.strip():
+            return raw_family
+        return agent_family_for_framework(self.framework).value
+
+    @property
     def default_model(self) -> str:
         return self.manifest.default_model
 
@@ -267,7 +298,7 @@ class DiscoveredAgent(BaseModel):
         return ["external-runner-handoff", "phoenix-links", "offline-export"]
 
     def adapter_kind(self) -> AdapterKind:
-        return adapter_kind_for_framework(self.framework)
+        return adapter_kind_for_agent_family(self.agent_family)
 
     def with_publish_state(self, publish_state: AgentPublishState) -> DiscoveredAgent:
         return self.model_copy(update={"publish_state": publish_state})

@@ -13,7 +13,7 @@ from app.modules.agents.domain.models import (
 )
 from app.modules.agents.domain.starter_assets import CLAUDE_CODE_STARTER_ENTRYPOINT
 from app.modules.runs.domain.models import RunRecord
-from app.modules.shared.domain.enums import AdapterKind, RunStatus
+from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
 from app.modules.shared.domain.models import TracePointer
 from fastapi.testclient import TestClient
 
@@ -194,7 +194,8 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
         assert bootstrap_response.status_code == 200
         assert bootstrap_response.json()["agent_id"] == "claude-code-starter"
         assert bootstrap_response.json()["entrypoint"] == CLAUDE_CODE_STARTER_ENTRYPOINT
-        assert bootstrap_response.json()["framework"] == "openai-agents-sdk"
+        assert bootstrap_response.json()["agent_family"] == AgentFamily.CLAUDE_CODE.value
+        assert bootstrap_response.json()["framework"] == "claude-code-cli"
         assert bootstrap_response.json()["default_runtime_profile"]["backend"] == "external-runner"
 
         published_after_bootstrap = live_client.get("/api/v1/agents/published")

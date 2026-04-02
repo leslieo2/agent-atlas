@@ -14,6 +14,7 @@ def utc_now() -> datetime:
 class ProducerInfo(BaseModel):
     kind: str = "runner"
     runtime: str | None = None
+    agent_family: str | None = None
     framework: str | None = None
     language: str | None = None
     version: str | None = None
@@ -192,6 +193,7 @@ class RunSpec(BaseModel):
     evaluator_config: dict[str, Any] = Field(default_factory=dict)
     executor_config: dict[str, Any] = Field(default_factory=dict)
     approval_policy: dict[str, Any] | None = None
+    agent_family: str | None = None
     framework: str | None = None
     framework_type: str | None = None
     framework_version: str | None = None
@@ -271,7 +273,9 @@ class RunnerRunSpec(BaseModel):
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     executor_config: dict[str, Any] = Field(default_factory=dict)
+    agent_family: str | None = None
     framework: str | None = None
+    framework_type: str | None = None
     artifact_ref: str | None = None
     image_ref: str | None = None
     trace_backend: str | None = None
@@ -281,6 +285,7 @@ class RunnerRunSpec(BaseModel):
 
 
 class ExecutionArtifact(BaseModel):
+    agent_family: str | None = None
     framework: str | None = None
     entrypoint: str | None = None
     source_fingerprint: str | None = None

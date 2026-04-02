@@ -6,6 +6,7 @@ export interface AgentDescriptorResponse {
   "agent_id": string;
   "name": string;
   "description": string;
+  "agent_family": string;
   "framework": string;
   "framework_version": string;
   "entrypoint": string;
@@ -133,6 +134,7 @@ export interface DiscoveredAgentResponse {
   "agent_id": string;
   "name": string;
   "description": string;
+  "agent_family": string;
   "framework": string;
   "framework_version": string;
   "entrypoint": string;
@@ -310,6 +312,7 @@ export interface PromptConfig {
   "prompt_version"?: string | null;
 }
 export interface ProvenanceMetadata {
+  "agent_family"?: string | null;
   "framework"?: string | null;
   "framework_version"?: string | null;
   "published_agent_snapshot"?: Record<string, unknown> | null;
