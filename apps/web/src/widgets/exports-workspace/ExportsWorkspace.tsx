@@ -240,6 +240,18 @@ export default function ExportsWorkspace({
   );
 
   useEffect(() => {
+    setExperimentId(initialExperimentId);
+  }, [initialExperimentId]);
+
+  useEffect(() => {
+    setBaselineExperimentId(initialBaselineExperimentId);
+  }, [initialBaselineExperimentId]);
+
+  useEffect(() => {
+    setCandidateExperimentId(initialCandidateExperimentId);
+  }, [initialCandidateExperimentId]);
+
+  useEffect(() => {
     if (!selectedSourceExperimentId && experiments[0]) {
       setExperimentId(experiments[0].experimentId);
     }

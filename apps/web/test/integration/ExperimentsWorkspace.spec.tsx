@@ -479,4 +479,56 @@ describe("Experiments workspace", () => {
     expect(agentSelect).toHaveValue("archived_basic");
     expect(agentSelect).toHaveTextContent("Archived Basic");
   });
+
+  it("syncs dataset selection when the page handoff updates the initial dataset version", async () => {
+    (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([
+      {
+        name: "crm-v2",
+        description: "Support data",
+        source: "crm",
+        createdAt: "2026-03-24T00:00:00Z",
+        currentVersionId: "dataset-v2",
+        version: "2026-03",
+        rows: [],
+        versions: [
+          {
+            datasetVersionId: "dataset-v2",
+            datasetName: "crm-v2",
+            version: "2026-03",
+            createdAt: "2026-03-24T00:00:00Z",
+            rowCount: 2,
+            rows: []
+          }
+        ]
+      },
+      {
+        name: "returns-v3",
+        description: "Returns data",
+        source: "returns",
+        createdAt: "2026-03-25T00:00:00Z",
+        currentVersionId: "dataset-v3",
+        version: "2026-04",
+        rows: [],
+        versions: [
+          {
+            datasetVersionId: "dataset-v3",
+            datasetName: "returns-v3",
+            version: "2026-04",
+            createdAt: "2026-03-25T00:00:00Z",
+            rowCount: 1,
+            rows: []
+          }
+        ]
+      }
+    ]);
+
+    const view = renderWithQueryClient(<ExperimentsWorkspace initialDatasetVersionId="dataset-v2" />);
+
+    const datasetSelect = await screen.findByRole("combobox", { name: "Dataset version" });
+    await waitFor(() => expect(datasetSelect).toHaveValue("dataset-v2"));
+
+    view.rerender(<ExperimentsWorkspace initialDatasetVersionId="dataset-v3" />);
+
+    await waitFor(() => expect(datasetSelect).toHaveValue("dataset-v3"));
+  });
 });

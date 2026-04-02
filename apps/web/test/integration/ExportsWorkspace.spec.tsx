@@ -151,4 +151,64 @@ describe("Exports workspace", () => {
 
     expect(await screen.findByText(/Created export export-001\./)).toBeInTheDocument();
   });
+
+  it("syncs the selected experiment when the page handoff updates the initial experiment id", async () => {
+    (experimentApi.listExperiments as unknown as MockedApiFn).mockResolvedValue([
+      {
+        experimentId: "exp-002",
+        name: "candidate",
+        datasetName: "crm-v2",
+        datasetVersionId: "dataset-v2",
+        publishedAgentId: "basic",
+        status: "completed",
+        tags: ["candidate"],
+        scoringMode: "exact_match",
+        executorBackend: "k8s-job",
+        sampleCount: 2,
+        completedCount: 2,
+        passedCount: 1,
+        failedCount: 1,
+        unscoredCount: 0,
+        runtimeErrorCount: 0,
+        passRate: 0.5,
+        failureDistribution: { mismatch: 1 },
+        tracing: null,
+        errorCode: null,
+        errorMessage: null,
+        createdAt: "2026-03-25T00:00:00Z"
+      },
+      {
+        experimentId: "exp-003",
+        name: "follow-up",
+        datasetName: "returns-v3",
+        datasetVersionId: "dataset-v3",
+        publishedAgentId: "basic",
+        status: "completed",
+        tags: ["follow-up"],
+        scoringMode: "exact_match",
+        executorBackend: "k8s-job",
+        sampleCount: 1,
+        completedCount: 1,
+        passedCount: 1,
+        failedCount: 0,
+        unscoredCount: 0,
+        runtimeErrorCount: 0,
+        passRate: 1,
+        failureDistribution: {},
+        tracing: null,
+        errorCode: null,
+        errorMessage: null,
+        createdAt: "2026-03-26T00:00:00Z"
+      }
+    ]);
+
+    const view = renderWithQueryClient(<ExportsWorkspace initialExperimentId="exp-002" />);
+
+    const experimentSelect = await screen.findByRole("combobox", { name: "Experiment" });
+    await waitFor(() => expect(experimentSelect).toHaveValue("exp-002"));
+
+    view.rerender(<ExportsWorkspace initialExperimentId="exp-003" />);
+
+    await waitFor(() => expect(experimentSelect).toHaveValue("exp-003"));
+  });
 });

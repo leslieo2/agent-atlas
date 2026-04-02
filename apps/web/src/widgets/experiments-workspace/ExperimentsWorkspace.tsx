@@ -143,7 +143,7 @@ function experimentNextStep(record: ExperimentRecord | null) {
   return "Let the run finish, then move into compare and curation once evidence is available.";
 }
 
-function datasetVersionOptionLabel(datasetName: string, version: string | null) {
+function datasetVersionOptionLabel(datasetName: string, version: string | null | undefined) {
   return `${datasetName} · ${version ? `Version ${version}` : "Unversioned"}`;
 }
 
@@ -275,6 +275,18 @@ export default function ExperimentsWorkspace({
   const sliceOptions = useMemo(() => uniqueStrings(runs.map((run) => run.slice)), [runs]);
   const tagOptions = useMemo(() => uniqueStrings(runs.flatMap((run) => run.tags)), [runs]);
   const errorCodeOptions = useMemo(() => uniqueStrings(runs.map((run) => run.errorCode)), [runs]);
+
+  useEffect(() => {
+    setAgentId(initialAgentId);
+  }, [initialAgentId]);
+
+  useEffect(() => {
+    setDatasetVersionId(initialDatasetVersionId);
+  }, [initialDatasetVersionId]);
+
+  useEffect(() => {
+    setSelectedExperimentId(initialExperimentId);
+  }, [initialExperimentId]);
 
   useEffect(() => {
     if (!agents.length) {
