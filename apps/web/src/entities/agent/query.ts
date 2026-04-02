@@ -4,6 +4,7 @@ import {
   listDiscoveredAgents,
   listPublishedAgents,
   publishAgent,
+  startValidationRun,
   unpublishAgent
 } from "./api";
 
@@ -61,6 +62,19 @@ export function useBootstrapClaudeCodeAgentMutation() {
 
   return useMutation({
     mutationFn: () => bootstrapClaudeCodeAgent(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: discoveredAgentsQueryRoot });
+      void queryClient.invalidateQueries({ queryKey: publishedAgentsQueryRoot });
+    }
+  });
+}
+
+export function useStartValidationRunMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ agentId, payload }: { agentId: string; payload: Parameters<typeof startValidationRun>[1] }) =>
+      startValidationRun(agentId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: discoveredAgentsQueryRoot });
       void queryClient.invalidateQueries({ queryKey: publishedAgentsQueryRoot });

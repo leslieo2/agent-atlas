@@ -7,6 +7,7 @@ import {
   useDiscoveredAgentsQuery,
   usePublishedAgentsQuery,
   usePublishAgentMutation,
+  useStartValidationRunMutation,
   useUnpublishAgentMutation
 } from "@/src/entities/agent/query";
 import type {
@@ -192,18 +193,37 @@ function nextStepLabel(agent: DiscoveredAgentRecord) {
   return "Use this ready snapshot to create the next experiment.";
 }
 
+function validationPayload(agent: DiscoveredAgentRecord) {
+  return {
+    project: "atlas-validation",
+    dataset: "controlled-validation",
+    input_summary: `Validate ${agent.name} from the Agents surface`,
+    prompt: "alpha",
+    tags: ["agents-surface"],
+    project_metadata: {
+      validation_target: agent.agentId,
+      validation_surface: "agents"
+    },
+    executor_config: agent.defaultRuntimeProfile
+  };
+}
+
 function AgentCard({
   agent,
   onPublish,
   onUnpublish,
+  onValidate,
   isPublishing,
-  isUnpublishing
+  isUnpublishing,
+  isValidating
 }: {
   agent: DiscoveredAgentRecord;
   onPublish: (agentId: string) => void;
   onUnpublish: (agentId: string) => void;
+  onValidate: (agent: DiscoveredAgentRecord) => void;
   isPublishing: boolean;
   isUnpublishing: boolean;
+  isValidating: boolean;
 }) {
   const isValid = agent.validationStatus === "valid";
   const isPublished = agent.publishState === "published";
@@ -345,6 +365,11 @@ function AgentCard({
             Unpublish
           </Button>
         ) : null}
+        {isValid ? (
+          <Button variant="secondary" onClick={() => onValidate(agent)} disabled={isValidating}>
+            Run validation
+          </Button>
+        ) : null}
         {isRunnableSnapshot ? (
           <Button href={`/experiments?agent=${encodeURIComponent(agent.agentId)}`} variant="secondary">
             Create experiment <ArrowUpRight size={14} />
@@ -361,6 +386,7 @@ export default function AgentsWorkspace() {
   const bootstrapMutation = useBootstrapClaudeCodeAgentMutation();
   const publishMutation = usePublishAgentMutation();
   const unpublishMutation = useUnpublishAgentMutation();
+  const validationMutation = useStartValidationRunMutation();
   const [actionMessage, setActionMessage] = useState("");
   const agents = useMemo<AgentWorkspaceRecord[]>(() => {
     const discovered = (discoveredAgentsQuery.data ?? []).map((agent) => ({ ...agent, dataSource: "discovered" as const }));
@@ -401,6 +427,7 @@ export default function AgentsWorkspace() {
     (bootstrapMutation.error instanceof Error && bootstrapMutation.error.message) ||
     (publishMutation.error instanceof Error && publishMutation.error.message) ||
     (unpublishMutation.error instanceof Error && unpublishMutation.error.message) ||
+    (validationMutation.error instanceof Error && validationMutation.error.message) ||
     (discoveredAgentsQuery.error instanceof Error && discoveredAgentsQuery.error.message) ||
     (publishedAgentsQuery.error instanceof Error && publishedAgentsQuery.error.message) ||
     "";
@@ -410,7 +437,23 @@ export default function AgentsWorkspace() {
   async function handleBootstrap() {
     try {
       const agent = await bootstrapMutation.mutateAsync();
-      setActionMessage(`Created ${agent.name}. Atlas can now publish the first live starter snapshot from this surface.`);
+      setActionMessage(
+        `Created ${agent.name}. Atlas can now validate it, unpublish it back to draft, or hand the ready snapshot into experiments from this surface.`
+      );
+    } catch {
+      // Error state is surfaced through the shared notice area.
+    }
+  }
+
+  async function handleValidation(agent: DiscoveredAgentRecord) {
+    try {
+      const run = await validationMutation.mutateAsync({
+        agentId: agent.agentId,
+        payload: validationPayload(agent)
+      });
+      setActionMessage(
+        `Started validation run ${run.run_id} for ${agent.name}. Atlas will attach the latest validation evidence here once the run settles.`
+      );
     } catch {
       // Error state is surfaced through the shared notice area.
     }
@@ -505,8 +548,10 @@ export default function AgentsWorkspace() {
                   agent={agent}
                   onPublish={(agentId) => publishMutation.mutate(agentId)}
                   onUnpublish={(agentId) => unpublishMutation.mutate(agentId)}
+                  onValidate={(currentAgent) => void handleValidation(currentAgent)}
                   isPublishing={publishMutation.isPending}
                   isUnpublishing={unpublishMutation.isPending}
+                  isValidating={validationMutation.isPending}
                 />
               ))}
             </div>

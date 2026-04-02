@@ -35,6 +35,7 @@ from app.execution.application.ports import (
 from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
+    StateLiveAgentDiscovery,
     StatePublishedAgentCatalog,
 )
 from app.infrastructure.adapters.framework_registry import (
@@ -46,6 +47,7 @@ from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.adapters.task_queue import StateTaskQueue
 from app.infrastructure.repositories import (
     StateApprovalPolicyRepository,
+    StateLiveAgentMarkerRepository,
     StatePublishedAgentRepository,
     StateSystemStatus,
 )
@@ -96,12 +98,14 @@ class InfrastructureBundle:
     run_evaluation_repository: StateRunEvaluationRepository
     export_repository: StateExportRepository
     published_agent_repository: StatePublishedAgentRepository
+    live_agent_marker_repository: StateLiveAgentMarkerRepository
     approval_policy_repository: StateApprovalPolicyRepository
     system_status: StateSystemStatus
     agent_source_catalog: FilesystemAgentSourceCatalog
     framework_registry: FrameworkRegistryPort
     published_execution_dispatcher: PublishedAgentExecutionPort
     agent_discovery: FilesystemAgentDiscovery
+    live_agent_discovery: StateLiveAgentDiscovery
     published_agent_catalog: PublishedAgentCatalogPort
     tracing: TracingInfrastructure
     execution: ExecutionInfrastructure
@@ -130,6 +134,7 @@ def build_infrastructure() -> InfrastructureBundle:
     run_evaluation_repository = StateRunEvaluationRepository()
     export_repository = StateExportRepository()
     published_agent_repository = StatePublishedAgentRepository()
+    live_agent_marker_repository = StateLiveAgentMarkerRepository()
     approval_policy_repository = StateApprovalPolicyRepository()
     system_status = StateSystemStatus()
     agent_source_catalog = FilesystemAgentSourceCatalog()
@@ -140,6 +145,7 @@ def build_infrastructure() -> InfrastructureBundle:
         source_catalog=agent_source_catalog,
         validator=framework_registry,
     )
+    live_agent_discovery = StateLiveAgentDiscovery(markers=live_agent_marker_repository)
     task_queue = StateTaskQueue()
     effective_runtime_mode = settings.effective_runtime_mode()
     published_agent_catalog: PublishedAgentCatalogPort
@@ -264,12 +270,14 @@ def build_infrastructure() -> InfrastructureBundle:
         run_evaluation_repository=run_evaluation_repository,
         export_repository=export_repository,
         published_agent_repository=published_agent_repository,
+        live_agent_marker_repository=live_agent_marker_repository,
         approval_policy_repository=approval_policy_repository,
         system_status=system_status,
         agent_source_catalog=agent_source_catalog,
         framework_registry=framework_registry,
         published_execution_dispatcher=published_execution_dispatcher,
         agent_discovery=agent_discovery,
+        live_agent_discovery=live_agent_discovery,
         published_agent_catalog=published_agent_catalog,
         tracing=tracing,
         execution=execution,

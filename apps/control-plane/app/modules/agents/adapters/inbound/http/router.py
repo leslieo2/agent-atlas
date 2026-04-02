@@ -6,9 +6,9 @@ from app.bootstrap.providers.agents import (
     get_agent_bootstrap_commands,
     get_agent_discovery_queries,
     get_agent_publication_commands,
+    get_agent_validation_commands,
     get_published_agent_catalog_queries,
 )
-from app.bootstrap.providers.runs import get_run_commands
 from app.core.errors import AppError
 from app.modules.agents.adapters.inbound.http.schemas import (
     AgentDescriptorResponse,
@@ -20,6 +20,7 @@ from app.modules.agents.application.use_cases import (
     AgentBootstrapCommands,
     AgentDiscoveryQueries,
     AgentPublicationCommands,
+    AgentValidationCommands,
     PublishedAgentCatalogQueries,
 )
 from app.modules.runs.adapters.inbound.http.schemas import RunResponse
@@ -30,7 +31,7 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 
 
 class ValidationRunCommands(Protocol):
-    def create_run(self, payload: RunCreateInput) -> RunRecord: ...
+    def create_run(self, agent_id: str, payload: RunCreateInput) -> RunRecord: ...
 
 
 @router.get("/published", response_model=list[AgentDescriptorResponse])
@@ -110,10 +111,10 @@ def bootstrap_claude_code_agent(
 def start_validation_run(
     agent_id: str,
     payload: AgentValidationRunStartRequest,
-    commands: Annotated[ValidationRunCommands, Depends(get_run_commands)],
+    commands: Annotated[AgentValidationCommands, Depends(get_agent_validation_commands)],
 ) -> RunResponse:
     try:
-        run = commands.create_run(payload.to_domain(agent_id=agent_id))
+        run = commands.create_run(agent_id, payload.to_domain(agent_id=agent_id))
         return RunResponse.from_domain(run)
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc

@@ -11,7 +11,11 @@ from app.modules.agents.domain.models import (
     AgentValidationStatus,
     DiscoveredAgent,
 )
-from app.modules.agents.domain.starter_assets import CLAUDE_CODE_STARTER_ENTRYPOINT
+from app.modules.agents.domain.starter_assets import (
+    CLAUDE_CODE_STARTER_AGENT_ID,
+    CLAUDE_CODE_STARTER_ENTRYPOINT,
+    claude_code_starter_runtime_profile,
+)
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
 from app.modules.shared.domain.models import TracePointer
@@ -167,8 +171,8 @@ def test_agents_api_live_mode_uses_published_snapshots_without_repo_local_discov
     publish_response = client.post("/api/v1/agents/basic/publish")
     assert publish_response.status_code == 400
     assert publish_response.json()["detail"] == {
-        "code": "unsupported_operation",
-        "message": "repo-local agent discovery is not available in live mode",
+        "code": "agent_validation_failed",
+        "message": "agent 'basic' is not available in the current discovery catalog",
         "agent_id": "basic",
     }
 
@@ -216,6 +220,97 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
         second_bootstrap = live_client.post("/api/v1/agents/bootstrap/claude-code")
         assert second_bootstrap.status_code == 200
         assert second_bootstrap.json()["agent_id"] == "claude-code-starter"
+
+
+def test_agents_api_live_mode_bootstrap_keeps_starter_reachable_for_publish_and_drift(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", False)
+    get_container.cache_clear()
+    from app.main import app
+
+    with TestClient(app) as live_client:
+        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        assert bootstrap_response.status_code == 200
+
+        discovered_after_bootstrap = live_client.get("/api/v1/agents/discovered")
+        assert discovered_after_bootstrap.status_code == 200
+        discovered = {item["agent_id"]: item for item in discovered_after_bootstrap.json()}
+        assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["publish_state"] == "published"
+        assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["has_unpublished_changes"] is False
+
+        unpublish_response = live_client.post("/api/v1/agents/claude-code-starter/unpublish")
+        assert unpublish_response.status_code == 200
+
+        discovered_after_unpublish = live_client.get("/api/v1/agents/discovered")
+        assert discovered_after_unpublish.status_code == 200
+        discovered = {item["agent_id"]: item for item in discovered_after_unpublish.json()}
+        assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["publish_state"] == "draft"
+        assert (
+            discovered[CLAUDE_CODE_STARTER_AGENT_ID]["default_runtime_profile"]["runner_image"]
+            == "atlas-claude-validation:local"
+        )
+
+        republish_response = live_client.post("/api/v1/agents/claude-code-starter/publish")
+        assert republish_response.status_code == 200
+        assert republish_response.json()["agent_id"] == CLAUDE_CODE_STARTER_AGENT_ID
+
+        container = get_container()
+        published = container.infrastructure.published_agent_repository.get_agent(
+            CLAUDE_CODE_STARTER_AGENT_ID
+        )
+        assert published is not None
+        stale = published.model_copy(
+            update={"source_fingerprint": "stale-starter-fingerprint"},
+            deep=True,
+        )
+        container.infrastructure.published_agent_repository.save_agent(stale)
+
+        discovered_after_drift = live_client.get("/api/v1/agents/discovered")
+        assert discovered_after_drift.status_code == 200
+        discovered = {item["agent_id"]: item for item in discovered_after_drift.json()}
+        assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["publish_state"] == "published"
+        assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["has_unpublished_changes"] is True
+
+
+def test_agents_api_live_mode_validation_runs_accept_state_backed_starter_drafts(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", False)
+    get_container.cache_clear()
+    from app.main import app
+
+    with TestClient(app) as live_client:
+        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        assert bootstrap_response.status_code == 200
+
+        unpublish_response = live_client.post("/api/v1/agents/claude-code-starter/unpublish")
+        assert unpublish_response.status_code == 200
+
+        response = live_client.post(
+            "/api/v1/agents/claude-code-starter/validation-runs",
+            json={
+                "project": "atlas-validation",
+                "dataset": "controlled-validation",
+                "input_summary": "Validate the starter from the Agents surface",
+                "prompt": "alpha",
+                "tags": ["agents-surface"],
+                "project_metadata": {"validation_surface": "agents"},
+                "executor_config": claude_code_starter_runtime_profile().model_dump(mode="json"),
+            },
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["agent_id"] == CLAUDE_CODE_STARTER_AGENT_ID
+        assert payload["status"] == "queued"
+        assert set(payload["tags"]) >= {"validation", "agents-surface"}
+        assert payload["executor_backend"] == "external-runner"
+        assert payload["provenance"]["published_agent_snapshot"]["manifest"]["agent_id"] == (
+            CLAUDE_CODE_STARTER_AGENT_ID
+        )
 
 
 def test_agents_api_surfaces_latest_generic_validation_run_summary(client) -> None:

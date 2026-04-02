@@ -10,9 +10,11 @@ from app.modules.agents.application.use_cases import (
     AgentBootstrapCommands,
     AgentDiscoveryQueries,
     AgentPublicationCommands,
+    AgentValidationCommands,
     PublishedAgentCatalogQueries,
 )
 from app.modules.agents.domain.models import AgentValidationRecord
+from app.modules.runs.application.services import RunSubmissionService
 
 
 class StateAgentValidationRecords:
@@ -73,11 +75,13 @@ class AgentModuleBundle:
     agent_discovery_queries: AgentDiscoveryQueries
     agent_publication_commands: AgentPublicationCommands
     agent_bootstrap_commands: AgentBootstrapCommands
+    agent_validation_commands: AgentValidationCommands
 
 
 def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     live_mode = settings.effective_runtime_mode() == RuntimeMode.LIVE
     validation_records: AgentValidationRecordPort = StateAgentValidationRecords(infra)
+    live_discovery = infra.live_agent_discovery if live_mode else infra.agent_discovery
 
     def agent_exists(agent_id: str) -> bool:
         if live_mode:
@@ -91,16 +95,26 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
         validation_records=validation_records,
     )
     agent_discovery_queries = AgentDiscoveryQueries(
-        discovery=None if live_mode else infra.agent_discovery,
+        discovery=live_discovery,
         published_agents=infra.published_agent_repository,
         validation_records=validation_records,
     )
     agent_publication_commands = AgentPublicationCommands(
-        discovery=None if live_mode else infra.agent_discovery,
+        discovery=live_discovery,
         published_agents=infra.published_agent_repository,
     )
     agent_bootstrap_commands = AgentBootstrapCommands(
         published_agents=infra.published_agent_repository,
+        live_agent_markers=infra.live_agent_marker_repository if live_mode else None,
+    )
+    agent_validation_commands = AgentValidationCommands(
+        discovery=live_discovery,
+        published_agents=infra.published_agent_repository,
+        submission_service=RunSubmissionService(
+            run_repository=infra.run_repository,
+            execution_control=infra.execution.execution_control,
+            default_trace_backend=infra.tracing.trace_backend.backend_name(),
+        ),
     )
 
     return AgentModuleBundle(
@@ -109,4 +123,5 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
         agent_discovery_queries=agent_discovery_queries,
         agent_publication_commands=agent_publication_commands,
         agent_bootstrap_commands=agent_bootstrap_commands,
+        agent_validation_commands=agent_validation_commands,
     )

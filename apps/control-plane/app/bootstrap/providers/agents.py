@@ -5,6 +5,7 @@ from app.modules.agents.application.use_cases import (
     AgentBootstrapCommands,
     AgentDiscoveryQueries,
     AgentPublicationCommands,
+    AgentValidationCommands,
     PublishedAgentCatalogQueries,
 )
 
@@ -23,3 +24,7 @@ def get_agent_publication_commands() -> AgentPublicationCommands:
 
 def get_agent_bootstrap_commands() -> AgentBootstrapCommands:
     return get_container().agents.agent_bootstrap_commands
+
+
+def get_agent_validation_commands() -> AgentValidationCommands:
+    return get_container().agents.agent_validation_commands

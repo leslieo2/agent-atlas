@@ -11,7 +11,8 @@ vi.mock("@/src/entities/agent/api", () => ({
   listDiscoveredAgents: vi.fn(),
   bootstrapClaudeCodeAgent: vi.fn(),
   publishAgent: vi.fn(),
-  unpublishAgent: vi.fn()
+  unpublishAgent: vi.fn(),
+  startValidationRun: vi.fn()
 }));
 
 type MockedApiFn = ReturnType<typeof vi.fn>;
@@ -132,6 +133,7 @@ describe("Agents workspace", () => {
     (agentApi.bootstrapClaudeCodeAgent as unknown as MockedApiFn).mockReset();
     (agentApi.publishAgent as unknown as MockedApiFn).mockReset();
     (agentApi.unpublishAgent as unknown as MockedApiFn).mockReset();
+    (agentApi.startValidationRun as unknown as MockedApiFn).mockReset();
 
     (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockImplementation(async () => discoveredAgents);
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockResolvedValue([]);
@@ -148,6 +150,10 @@ describe("Agents workspace", () => {
       );
       return { agent_id: agentId, published: false };
     });
+    (agentApi.startValidationRun as unknown as MockedApiFn).mockImplementation(async (agentId: string) => ({
+      run_id: `validation-${agentId}`,
+      status: "queued"
+    }));
   });
 
   it("groups discovered agents and routes published agents into experiments", async () => {
@@ -192,6 +198,18 @@ describe("Agents workspace", () => {
     expect(await screen.findByText("Unsupported framework plugin.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Framework")).not.toBeInTheDocument();
     expect(screen.getByText("external-runner · Claude Code CLI adapter")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Run validation" })[0]);
+    await waitFor(() =>
+      expect(agentApi.startValidationRun).toHaveBeenCalledWith(
+        "basic",
+        expect.objectContaining({
+          project: "atlas-validation",
+          dataset: "controlled-validation",
+          input_summary: "Validate Basic from the Agents surface",
+          prompt: "alpha"
+        })
+      )
+    );
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
     await waitFor(() => expect(agentApi.publishAgent).toHaveBeenCalledWith("tools"));
 
@@ -255,6 +273,7 @@ describe("Agents workspace", () => {
 
   it("creates the first starter agent from the empty state bootstrap action", async () => {
     let publishedAgents: AgentRecord[] = [];
+    let discoveredAgents: DiscoveredAgentRecord[] = [];
     const starterAgent: AgentRecord = {
       agentId: "claude-code-starter",
       name: "Claude Code Starter",
@@ -286,15 +305,39 @@ describe("Agents workspace", () => {
         reason: "Starter bootstrap completed with reusable validation evidence."
       },
       defaultRuntimeProfile: {
-        backend: "external-runner"
+        backend: "external-runner",
+        runner_image: "atlas-claude-validation:local",
+        metadata: {
+          runner_backend: "docker-container",
+          claude_code_cli: {
+            command: "claude",
+            version: "starter"
+          }
+        }
       }
     };
+    const starterDiscovered: DiscoveredAgentRecord = {
+      ...starterAgent,
+      publishState: "published",
+      validationStatus: "valid",
+      validationIssues: [],
+      lastValidatedAt: "2026-04-02T09:03:00Z",
+      hasUnpublishedChanges: false
+    };
 
-    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockResolvedValue([]);
+    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockImplementation(async () => discoveredAgents);
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
     (agentApi.bootstrapClaudeCodeAgent as unknown as MockedApiFn).mockImplementation(async () => {
       publishedAgents = [starterAgent];
+      discoveredAgents = [starterDiscovered];
       return starterAgent;
+    });
+    (agentApi.unpublishAgent as unknown as MockedApiFn).mockImplementation(async (agentId: string) => {
+      publishedAgents = [];
+      discoveredAgents = discoveredAgents.map((agent) =>
+        agent.agentId === agentId ? { ...agent, publishState: "draft", publishedAt: undefined } : agent
+      );
+      return { agent_id: agentId, published: false };
     });
 
     renderWithQueryClient(<AgentsWorkspace />);
@@ -305,10 +348,19 @@ describe("Agents workspace", () => {
 
     await waitFor(() => expect(agentApi.bootstrapClaudeCodeAgent).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Published starter snapshot created from the formal live bootstrap route.")).toBeInTheDocument();
-    expect(screen.getByText("Created Claude Code Starter. Atlas can now publish the first live starter snapshot from this surface.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Created Claude Code Starter. Atlas can now validate it, unpublish it back to draft, or hand the ready snapshot into experiments from this surface."
+      )
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Create experiment/i })).toHaveAttribute(
       "href",
       "/experiments?agent=claude-code-starter"
     );
+
+    fireEvent.click(screen.getByRole("button", { name: "Unpublish" }));
+    await waitFor(() => expect(agentApi.unpublishAgent).toHaveBeenCalledWith("claude-code-starter"));
+    expect(await screen.findByRole("button", { name: "Publish" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run validation" })).toBeInTheDocument();
   });
 });

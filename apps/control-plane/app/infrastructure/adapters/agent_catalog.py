@@ -6,6 +6,7 @@ from typing import Protocol
 
 from app.modules.agents.application.ports import (
     AgentSourceDiscoveryPort,
+    LiveAgentMarkerRepositoryPort,
     PublishedAgentRepositoryPort,
 )
 from app.modules.agents.domain.models import (
@@ -14,6 +15,12 @@ from app.modules.agents.domain.models import (
     AgentValidationStatus,
     DiscoveredAgent,
     PublishedAgent,
+)
+from app.modules.agents.domain.starter_assets import (
+    CLAUDE_CODE_STARTER_AGENT_ID,
+    CLAUDE_CODE_STARTER_ENTRYPOINT,
+    claude_code_starter_manifest,
+    claude_code_starter_runtime_profile,
 )
 
 
@@ -128,3 +135,24 @@ class StatePublishedAgentCatalog:
                 continue
             eligible[published_agent.agent_id] = published_agent
         return eligible
+
+
+class StateLiveAgentDiscovery:
+    def __init__(self, markers: LiveAgentMarkerRepositoryPort) -> None:
+        self.markers = markers
+
+    def list_agents(self) -> list[DiscoveredAgent]:
+        discovered: list[DiscoveredAgent] = []
+        for agent_id in self.markers.list_agent_ids():
+            if agent_id != CLAUDE_CODE_STARTER_AGENT_ID:
+                continue
+            discovered.append(
+                DiscoveredAgent(
+                    manifest=claude_code_starter_manifest(),
+                    entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
+                    validation_status=AgentValidationStatus.VALID,
+                    validation_issues=[],
+                    default_runtime_profile=claude_code_starter_runtime_profile(),
+                )
+            )
+        return sorted(discovered, key=lambda agent: agent.agent_id)

@@ -11,6 +11,7 @@ from app.core.errors import (
 from app.modules.agents.application.ports import (
     AgentSourceDiscoveryPort,
     AgentValidationRecordPort,
+    LiveAgentMarkerRepositoryPort,
     PublishedAgentCatalogPort,
     PublishedAgentRepositoryPort,
 )
@@ -32,6 +33,8 @@ from app.modules.agents.domain.starter_assets import (
     claude_code_starter_manifest,
     claude_code_starter_runtime_profile,
 )
+from app.modules.runs.application.services import RunSubmissionService
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.models import build_source_execution_reference
 
 
@@ -204,18 +207,22 @@ class AgentPublicationCommands:
                 return agent
         raise AgentValidationFailedError(
             agent_id=agent_id,
-            message=(
-                f"agent '{agent_id}' is not available in the current repository-local "
-                "discovery catalog"
-            ),
+            message=(f"agent '{agent_id}' is not available in the current discovery catalog"),
         )
 
 
 class AgentBootstrapCommands:
-    def __init__(self, published_agents: PublishedAgentRepositoryPort) -> None:
+    def __init__(
+        self,
+        published_agents: PublishedAgentRepositoryPort,
+        live_agent_markers: LiveAgentMarkerRepositoryPort | None = None,
+    ) -> None:
         self.published_agents = published_agents
+        self.live_agent_markers = live_agent_markers
 
     def bootstrap_claude_code(self) -> PublishedAgent:
+        if self.live_agent_markers is not None:
+            self.live_agent_markers.save_agent_id(CLAUDE_CODE_STARTER_AGENT_ID)
         existing = self.published_agents.get_agent(CLAUDE_CODE_STARTER_AGENT_ID)
         if existing is not None and _is_valid_published_agent(existing):
             return existing
@@ -239,3 +246,51 @@ class AgentBootstrapCommands:
         )
         self.published_agents.save_agent(published)
         return published
+
+
+class AgentValidationCommands:
+    def __init__(
+        self,
+        discovery: AgentSourceDiscoveryPort | None,
+        published_agents: PublishedAgentRepositoryPort,
+        submission_service: RunSubmissionService,
+    ) -> None:
+        self.discovery = discovery
+        self.published_agents = published_agents
+        self.submission_service = submission_service
+
+    def create_run(self, agent_id: str, payload: RunCreateInput) -> RunRecord:
+        agent = self._resolve_agent(agent_id)
+        return self.submission_service.submit(payload, agent)
+
+    def _resolve_agent(self, agent_id: str) -> PublishedAgent:
+        existing = self.published_agents.get_agent(agent_id)
+        if existing is not None and _is_valid_published_agent(existing):
+            discovered = self._get_discovered_agent(agent_id)
+            if discovered is None:
+                return existing
+            if discovered.validation_status != AgentValidationStatus.VALID:
+                issue_summary = (
+                    "; ".join(issue.message for issue in discovered.validation_issues)
+                    or "agent contract validation failed"
+                )
+                raise AgentValidationFailedError(agent_id=agent_id, message=issue_summary)
+            return discovered.to_published(existing=existing)
+
+        discovered = self._get_discovered_agent(agent_id)
+        if discovered is None:
+            raise PublishedAgentNotFoundError(agent_id)
+        if discovered.validation_status != AgentValidationStatus.VALID:
+            issue_summary = "; ".join(issue.message for issue in discovered.validation_issues) or (
+                "agent contract validation failed"
+            )
+            raise AgentValidationFailedError(agent_id=agent_id, message=issue_summary)
+        return discovered.to_published(existing=None)
+
+    def _get_discovered_agent(self, agent_id: str) -> DiscoveredAgent | None:
+        if self.discovery is None:
+            return None
+        for agent in self.discovery.list_agents():
+            if agent.agent_id == agent_id:
+                return agent
+        return None
