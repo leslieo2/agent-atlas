@@ -210,8 +210,8 @@ def _command_for_payload(payload: RunnerRunSpec) -> tuple[list[str], ClaudeCodeC
         "--output-format",
         "stream-json",
     ]
-    if payload.model.strip():
-        command.extend(["--model", payload.model])
+    if config.profile is not None:
+        command.extend(["--profile", config.profile])
     command.append(payload.prompt)
     return command, config
 

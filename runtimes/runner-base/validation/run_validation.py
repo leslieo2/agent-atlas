@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -16,6 +17,7 @@ PROMPT = (
     "Do not change any other file. "
     "When finished, reply with one short confirmation sentence."
 )
+CLAUDE_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_")
 
 
 def _parse_args() -> argparse.Namespace:
@@ -89,6 +91,11 @@ def _runner_run_spec() -> dict[str, object]:
                 "claude_code_cli": {
                     "command": "claude",
                     "args": ["--dangerously-skip-permissions"],
+                    "env": {
+                        key: value
+                        for key, value in dict(os.environ).items()
+                        if key.startswith(CLAUDE_ENV_PREFIXES)
+                    },
                     "version": "validation",
                 },
             },

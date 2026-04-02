@@ -40,6 +40,8 @@ from app.execution.application.results import RunnerExecutionResult
 from app.execution.contracts import ExecutionRunSpec
 from app.modules.agents.domain.models import PublishedAgent
 
+CLAUDE_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_")
+
 
 class _RunnerExecutor(Protocol):
     def execute(self, payload: RunnerRunSpec) -> RunnerExecutionResult: ...
@@ -205,7 +207,7 @@ class DockerContainerRunner:
         return "docker-container"
 
     def execute(self, payload: RunnerRunSpec) -> RunnerExecutionResult:
-        session = self.launcher.prepare(payload)
+        session = self.launcher.prepare(_with_local_claude_cli_env(payload))
         runner_image = payload.executor_config.get("runner_image")
         if not isinstance(runner_image, str) or not runner_image.strip():
             raise RuntimeError("docker-container runner requires executor_config.runner_image")
@@ -318,6 +320,36 @@ def _copy_claude_auth_material(target_home: Path) -> None:
         raise ProviderAuthError("docker-container runner requires host Claude auth")
     shutil.copytree(host_claude_dir, target_home / ".claude")
     shutil.copy2(host_claude_json, target_home / ".claude.json")
+
+
+def _with_local_claude_cli_env(payload: RunnerRunSpec) -> RunnerRunSpec:
+    metadata = payload.executor_config.get("metadata")
+    if not isinstance(metadata, Mapping):
+        return payload
+    raw_cli = metadata.get("claude_code_cli")
+    if not isinstance(raw_cli, Mapping):
+        return payload
+
+    merged_env: dict[str, str] = (
+        {
+            key: value
+            for key, value in raw_cli.get("env", {}).items()
+            if isinstance(key, str) and isinstance(value, str)
+        }
+        if isinstance(raw_cli.get("env"), Mapping)
+        else {}
+    )
+    for key, value in os.environ.items():
+        if key.startswith(CLAUDE_ENV_PREFIXES):
+            merged_env.setdefault(key, value)
+
+    updated_cli = dict(raw_cli)
+    updated_cli["env"] = merged_env
+    updated_metadata = dict(metadata)
+    updated_metadata["claude_code_cli"] = updated_cli
+    updated_executor_config = dict(payload.executor_config)
+    updated_executor_config["metadata"] = updated_metadata
+    return payload.model_copy(update={"executor_config": updated_executor_config})
 
 
 def _load_runtime_result(session) -> RuntimeExecutionResult | None:

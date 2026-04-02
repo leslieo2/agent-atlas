@@ -289,6 +289,7 @@ def test_docker_container_runner_executes_runner_image_with_local_launcher(
         "app.execution.adapters.runner._copy_claude_auth_material",
         lambda target_home: target_home.mkdir(parents=True, exist_ok=True),
     )
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "token-from-host")
 
     def _fake_run(cmd, *, capture_output, text, check):
         assert capture_output is True
@@ -305,6 +306,10 @@ def test_docker_container_runner_executes_runner_image_with_local_launcher(
         output_dir = mounts["/workspace/output"]
         run_spec = RunnerRunSpec.model_validate_json(
             input_dir.joinpath("run_spec.json").read_text(encoding="utf-8")
+        )
+        assert (
+            run_spec.executor_config["metadata"]["claude_code_cli"]["env"]["ANTHROPIC_AUTH_TOKEN"]
+            == "token-from-host"
         )
         runtime_result = RuntimeExecutionResult(
             output="after",
@@ -794,11 +799,17 @@ def test_claude_code_stream_json_runner_writes_neutral_outputs(tmp_path):
                         "args": [
                             "-c",
                             (
-                                "import json, sys; "
-                                "print(json.dumps({'type':'assistant','message':'working'})); "
+                                "import json, os, sys; "
+                                "payload = {'argv': sys.argv[1:], "
+                                "'env': os.getenv('ANTHROPIC_AUTH_TOKEN')}; "
+                                "assistant = {'type':'assistant', "
+                                "'message':json.dumps(payload)}; "
+                                "print(json.dumps(assistant)); "
                                 "print(json.dumps({'type':'result','result':'done'}))"
                             ),
                         ],
+                        "env": {"ANTHROPIC_AUTH_TOKEN": "token-from-config"},
+                        "profile": "starter",
                         "version": "1.2.3",
                     },
                 },
@@ -858,6 +869,12 @@ def test_claude_code_stream_json_runner_writes_neutral_outputs(tmp_path):
     assert terminal_result["status"] == "succeeded"
     assert terminal_result["producer"]["version"] == "1.2.3"
     assert len(events) == 2
+    event_payload = json.loads(events[0]["payload"]["output"]["output"])
+    assert event_payload["env"] == "token-from-config"
+    assert event_payload["argv"][-1] == "Summarize the incident."
+    assert "--model" not in event_payload["argv"]
+    assert event_payload["argv"][:2] == ["--print", "--verbose"]
+    assert "--profile" in event_payload["argv"]
     assert manifest["artifacts"][0]["path"] == "transcripts/claude-stream.jsonl"
 
 
