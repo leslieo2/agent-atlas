@@ -92,6 +92,10 @@ class Settings(BaseSettings):
         default=None,
         description="OTLP endpoint used for neutral runtime/control-plane trace export.",
     )
+    tracing_otlp_timeout_seconds: float = Field(
+        default=1.0,
+        description="Timeout budget for a single OTLP trace export attempt.",
+    )
     tracing_headers: dict[str, str] = Field(
         default_factory=dict,
         description="Optional OTLP export headers.",

@@ -232,6 +232,7 @@ def build_infrastructure() -> InfrastructureBundle:
             project_name=settings.tracing_project_name,
             backend_name=trace_reference_backend,
             headers=tracing_headers,
+            timeout=settings.tracing_otlp_timeout_seconds,
             link_resolver=trace_link_resolver,
         )
     else:

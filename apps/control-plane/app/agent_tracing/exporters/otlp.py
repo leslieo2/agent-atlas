@@ -22,13 +22,14 @@ class OtlpTraceExporter:
         project_name: str,
         backend_name: str = "otlp",
         headers: dict[str, str] | None = None,
+        timeout: float | None = None,
         service_name: str = "agent-atlas-control-plane",
         link_resolver: TraceLinkResolverPort | None = None,
     ) -> None:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
         resource = Resource.create(
             {
@@ -38,8 +39,14 @@ class OtlpTraceExporter:
         )
         self.provider = TracerProvider(resource=resource)
         self.provider.add_span_processor(
-            SimpleSpanProcessor(
-                OTLPSpanExporter(endpoint=endpoint, headers=dict(headers or {})),
+            BatchSpanProcessor(
+                OTLPSpanExporter(
+                    endpoint=endpoint,
+                    headers=dict(headers or {}),
+                    timeout=timeout,
+                ),
+                schedule_delay_millis=1,
+                export_timeout_millis=max(int((timeout or 1.0) * 1000), 1),
             )
         )
         self.tracer = self.provider.get_tracer("agent_atlas.tracing")

@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 import pytest
+from app.agent_tracing.exporters.otlp import OtlpTraceExporter
 from app.bootstrap.container import get_container
+from app.bootstrap.wiring import infrastructure as infrastructure_wiring
 from app.core.config import RuntimeMode, settings
 from app.core.errors import ProviderAuthError
 from app.execution.application.results import (
@@ -547,6 +552,99 @@ def test_experiments_api_live_mode_starter_emits_trace_deeplink_without_explicit
         run_detail = live_client.get(f"/api/v1/runs/{runs[0]['run_id']}")
         assert run_detail.status_code == 200
         assert run_detail.json()["trace_pointer"]["trace_url"] == runs[0]["trace_url"]
+
+
+def test_experiments_api_live_mode_starter_completes_with_non_null_trace_url_when_otlp_returns_bad_gateway(  # noqa: E501
+    monkeypatch,
+    worker_drain,
+) -> None:
+    class _BadGatewayHandler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            content_length = int(self.headers.get("content-length", "0"))
+            if content_length:
+                self.rfile.read(content_length)
+            self.send_response(502)
+            self.end_headers()
+            self.wfile.write(b"bad gateway")
+
+        def log_message(self, format, *args) -> None:
+            return
+
+    server = HTTPServer(("127.0.0.1", 0), _BadGatewayHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    port = server.server_address[1]
+
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", False)
+    monkeypatch.setattr(settings, "phoenix_base_url", f"http://127.0.0.1:{port}")
+    monkeypatch.setattr(settings, "tracing_otlp_endpoint", f"http://127.0.0.1:{port}/v1/traces")
+    monkeypatch.setattr(settings, "tracing_otlp_timeout_seconds", 1.0)
+    monkeypatch.setattr(infrastructure_wiring, "OtlpTraceExporter", OtlpTraceExporter)
+    get_container.cache_clear()
+    install_fake_docker_runtime(
+        monkeypatch,
+        outputs={"alpha": "alpha"},
+    )
+
+    from app.main import app
+    from fastapi.testclient import TestClient
+
+    try:
+        with TestClient(app) as live_client:
+            bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+            assert bootstrap_response.status_code == 200
+
+            dataset_response = live_client.post(
+                "/api/v1/datasets",
+                json={
+                    "name": "live-starter-phoenix-bad-gateway-dataset",
+                    "description": "Dataset for failing OTLP export path",
+                    "source": "crm",
+                    "version": "2026-04",
+                    "rows": [{"sample_id": "sample-1", "input": "alpha", "expected": "alpha"}],
+                },
+            )
+            assert dataset_response.status_code == 200
+            dataset_version_id = dataset_response.json()["current_version_id"]
+
+            create_response = live_client.post(
+                "/api/v1/experiments",
+                json={
+                    "name": "live-starter-phoenix-bad-gateway-experiment",
+                    "spec": {
+                        "dataset_version_id": dataset_version_id,
+                        "published_agent_id": "claude-code-starter",
+                        "model_settings": {"model": "gpt-5.4-mini", "temperature": 0},
+                        "prompt_config": {"prompt_version": "2026-04"},
+                        "toolset_config": {"tools": [], "metadata": {}},
+                        "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
+                        "tags": ["live-starter", "phoenix-bad-gateway"],
+                    },
+                },
+            )
+            assert create_response.status_code == 201
+            experiment_id = create_response.json()["experiment_id"]
+
+            start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
+            assert start_response.status_code == 200
+
+            assert _drain_background_work(worker_drain, limit=40) >= 1
+
+            experiment_response = live_client.get(f"/api/v1/experiments/{experiment_id}")
+            assert experiment_response.status_code == 200
+            assert experiment_response.json()["status"] == "completed"
+
+            runs_response = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
+            assert runs_response.status_code == 200
+            runs = runs_response.json()
+            assert len(runs) == 1
+            assert runs[0]["run_status"] == "succeeded"
+            assert runs[0]["trace_url"] is not None
+            assert runs[0]["trace_url"].startswith(f"http://127.0.0.1:{port}")
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_experiments_api_run_list_falls_back_to_run_trace_pointer_when_evaluation_trace_is_null(

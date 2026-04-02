@@ -60,6 +60,29 @@ def test_build_infrastructure_keeps_state_backend_with_phoenix_links(monkeypatch
     assert infrastructure.tracing.trace_exporter.backend_name_value == "phoenix"
 
 
+def test_build_infrastructure_passes_tracing_timeout_to_otlp_exporter(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class CapturingExporter:
+        def __init__(self, **kwargs) -> None:
+            captured.update(kwargs)
+            self.backend_name_value = kwargs["backend_name"]
+
+    monkeypatch.setattr(settings, "phoenix_base_url", "http://phoenix.local:6006")
+    monkeypatch.setattr(settings, "tracing_otlp_endpoint", "http://phoenix.local:6006/v1/traces")
+    monkeypatch.setattr(settings, "tracing_otlp_timeout_seconds", 0.75)
+    monkeypatch.setattr(
+        "app.bootstrap.wiring.infrastructure.OtlpTraceExporter",
+        CapturingExporter,
+    )
+
+    infrastructure = build_infrastructure()
+
+    assert infrastructure.tracing.trace_backend.backend_name() == "state"
+    assert infrastructure.tracing.trace_exporter.backend_name_value == "phoenix"
+    assert captured["timeout"] == 0.75
+
+
 def test_default_phoenix_otlp_endpoint_uses_standard_trace_path():
     assert (
         _default_phoenix_otlp_endpoint("http://phoenix.local:6006")

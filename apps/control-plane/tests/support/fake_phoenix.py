@@ -22,10 +22,11 @@ class FakeOtlpTraceExporter:
         base_url: str | None = None,
         headers: dict[str, str] | None = None,
         api_key: str | None = None,
+        timeout: float | None = None,
         service_name: str = "agent-atlas-control-plane",
         link_resolver: Any | None = None,
     ) -> None:
-        del headers, api_key, service_name
+        del headers, api_key, timeout, service_name
         resolved_base_url = base_url
         if resolved_base_url is None and endpoint:
             resolved_base_url = endpoint.removesuffix("/v1/traces")
