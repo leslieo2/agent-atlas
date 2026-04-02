@@ -128,7 +128,7 @@ function datasetSummary(dataset: Dataset | null) {
   return parts.join(" · ");
 }
 
-function datasetVersionLabel(version: string | null) {
+function datasetVersionLabel(version: string | null | undefined) {
   return version ? `Version ${version}` : "Unversioned";
 }
 

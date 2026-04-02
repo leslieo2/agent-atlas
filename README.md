@@ -273,6 +273,7 @@ make test
 make build
 make backend-ci
 make frontend-ci
+make frontend-e2e
 make ci
 ```
 
@@ -285,8 +286,9 @@ What they do:
 - `make test`: run backend pytest and frontend Vitest suites
 - `make build`: run the frontend production build
 - `make backend-ci`: run control-plane CI checks from `apps/control-plane/Makefile`
-- `make frontend-ci`: run web CI checks from `apps/web/package.json`
-- `make ci`: run both backend and frontend CI flows
+- `make frontend-ci`: run hermetic web CI checks from `apps/web/package.json`
+- `make frontend-e2e`: run frontend local browser smoke checks
+- `make ci`: run both backend and hermetic frontend CI flows
 
 ## Environment Configuration
 
@@ -366,6 +368,7 @@ npm run typecheck
 npm run test
 npm run build
 npm run ci
+npm run verify:full
 ```
 
 Additional frontend commands:
@@ -375,7 +378,9 @@ Additional frontend commands:
 - `npm run lint:fix`
 - `npm run test:coverage`
 - `npm run test:e2e`
+- `npm run verify:ci`
 - `npm run verify`
+- `npm run verify:full`
 - `npm run check`
 
 ## Testing And CI
@@ -394,10 +399,21 @@ For broader verification:
 make ci
 ```
 
+If you also want browser smoke coverage against a local backend stack:
+
+```bash
+make frontend-e2e
+```
+
 If you are working in only one subproject, use the subsystem-local CI entrypoint:
 
 - backend: `cd apps/control-plane && make ci`
 - frontend: `cd apps/web && npm run ci`
+
+Use the local full frontend verification bundle only when you explicitly want Playwright against a
+local backend:
+
+- frontend: `cd apps/web && npm run verify:full`
 
 ## Where To Go Next
 

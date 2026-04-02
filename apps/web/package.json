@@ -23,9 +23,10 @@
     "test:tdd": "vitest --watch",
     "test:tdd:unit": "vitest test/unit --watch",
     "test:tdd:integration": "vitest test/integration --watch",
-    "ci": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:e2e && npm run build",
+    "ci": "npm run verify:ci",
     "verify": "npm run lint && npm run typecheck && npm run test:coverage",
-    "verify:full": "npm run ci",
+    "verify:ci": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
+    "verify:full": "npm run verify:ci && npm run test:e2e",
     "check": "npm run format:check && npm run lint && npm run typecheck",
     "lint-staged": "npx lint-staged"
   },

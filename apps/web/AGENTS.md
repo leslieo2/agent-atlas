@@ -25,8 +25,9 @@ This is a Next.js App Router frontend in TypeScript.
 - `npm run test`: run Vitest suite.
 - `npm run test:watch`: watch mode for rapid iteration.
 - `npm run build`: production build.
-- `npm run ci`: full pipeline (`lint + typecheck + test + build`).
+- `npm run ci`: hermetic frontend CI bundle (`lint + typecheck + coverage + build`).
 - `npm run check` / `npm run verify`: grouped checks for daily work.
+- `npm run verify:full`: local full verification bundle (`npm run ci` + Playwright e2e).
 
 ## Coding Style & Naming Conventions
 - Tooling: ESLint + Prettier.

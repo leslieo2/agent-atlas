@@ -19,7 +19,7 @@ This repository is organized as a monorepo with product-facing apps at the top l
   - `make fmt` — run Ruff formatter and Python compile check.
   - `make lint` — run Ruff lint/format checks.
   - `make typecheck` — run mypy on `app/`.
-  - `make test` — run pytest.
+  - `make test` — run pytest without the coverage gate for fast local verification.
   - `make test-check` — run pytest with coverage checks (`--cov-fail-under=70`).
   - `make security` — run Bandit scan on backend code.
   - `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` — start API locally.
@@ -30,7 +30,8 @@ This repository is organized as a monorepo with product-facing apps at the top l
   - `npm run typecheck` — run TypeScript strict check (`tsc --noEmit`).
   - `npm run test` — run Vitest suite.
   - `npm run build` — production build.
-  - `npm run ci` — run lint + typecheck + test + build.
+  - `npm run ci` — run the hermetic frontend CI bundle (`lint + typecheck + coverage + build`).
+  - `npm run verify:full` — run the local full frontend verification bundle, including Playwright e2e.
 
 ## Coding Style & Naming Conventions
 - Python: 4-space indentation, LF line endings, quote-style double, line length 100 (`ruff` config).

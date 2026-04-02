@@ -99,6 +99,7 @@ npm run typecheck
 npm run test
 npm run build
 npm run ci
+npm run verify:full
 ```
 
 Additional frontend commands:
@@ -113,6 +114,7 @@ Additional frontend commands:
 - `npm run test:e2e:live`
 - `npm run test:e2e:ui`
 - `npm run verify`
+- `npm run verify:ci`
 - `npm run verify:full`
 - `npm run check`
 
@@ -133,4 +135,11 @@ For the standard frontend CI bundle:
 ```bash
 cd /Users/leslie/PycharmProjects/agent-atlas/apps/web
 npm run ci
+```
+
+For the full local verification bundle, including browser smoke coverage against a local backend:
+
+```bash
+cd /Users/leslie/PycharmProjects/agent-atlas/apps/web
+npm run verify:full
 ```

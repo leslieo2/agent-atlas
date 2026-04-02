@@ -11,8 +11,8 @@ Run commands from `apps/control-plane/`.
 - `make fmt`: format code with Ruff and verify Python files compile.
 - `make lint`: run Ruff lint and format checks.
 - `make typecheck`: run mypy against `app/`.
-- `make test`: run the full pytest suite with coverage defaults.
-- `make test-check`: run pytest with terminal coverage reporting.
+- `make test`: run the full pytest suite without the coverage gate for fast local verification.
+- `make test-check`: run pytest with terminal coverage reporting and the default coverage threshold.
 - `make security`: run Bandit against `app/`.
 - `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`: start the API locally.
 
@@ -20,7 +20,7 @@ Run commands from `apps/control-plane/`.
 Use Python 3.12+, 4-space indentation, LF line endings, double quotes, and a 100-character line limit. Ruff handles formatting and import ordering; mypy enforces type discipline. Use `snake_case` for modules, functions, and variables, and `PascalCase` for classes. Keep API payload mapping explicit and deterministic; avoid hidden schema inference.
 
 ## Testing Guidelines
-Pytest is the test runner. Put tests in `tests/` with names like `test_runs_api.py`. Use markers intentionally: `unit`, `integration`, and `e2e`. The default pytest config enforces `--cov=app` with `--cov-fail-under=70`, so new work should maintain or improve coverage. Use `make test`, or narrower targets such as `make test-unit` and `make test-integration` during development.
+Pytest is the test runner. Put tests in `tests/` with names like `test_runs_api.py`. Use markers intentionally: `unit`, `integration`, and `e2e`. The default pytest config enforces `--cov=app` with `--cov-fail-under=70`, so use `make test-check` or `make ci` when you need the coverage gate, and `make test` / narrower targets such as `make test-unit` and `make test-integration` during development.
 
 ## Commit & Pull Request Guidelines
 Recent history uses Conventional Commits such as `feat:`; continue with `feat:`, `fix:`, `refactor:`, and `test:`. PRs should explain what changed, why it changed, and any impacted endpoints or flows. Include command results for `make lint`, `make typecheck`, and `make test`. For API changes, add example request/response payloads.

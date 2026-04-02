@@ -202,6 +202,8 @@ make ci
 
 Additional focused commands:
 
+- `make test`: run the backend suite without the coverage gate for fast local verification
+- `make test-check`: run the backend coverage gate
 - `make test-unit`
 - `make test-integration`
 - `make test-e2e`

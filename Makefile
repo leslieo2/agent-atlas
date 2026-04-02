@@ -1,4 +1,4 @@
-.PHONY: help install backend-install frontend-install dev lint typecheck test build backend-ci frontend-ci ci
+.PHONY: help install backend-install frontend-install dev lint typecheck test build backend-ci frontend-ci frontend-e2e ci
 
 CONTROL_PLANE_DIR := apps/control-plane
 WEB_DIR := apps/web
@@ -26,8 +26,9 @@ help:
 		'  make test            Run backend and frontend tests' \
 		'  make build           Run frontend production build' \
 		'  make backend-ci      Run backend CI checks' \
-		'  make frontend-ci     Run frontend CI checks' \
-		'  make ci              Run backend and frontend CI checks'
+		'  make frontend-ci     Run hermetic frontend CI checks' \
+		'  make frontend-e2e    Run frontend local browser smoke checks' \
+		'  make ci              Run backend and hermetic frontend CI checks'
 
 install: backend-install frontend-install
 
@@ -143,6 +144,9 @@ backend-ci:
 	$(MAKE) -C $(CONTROL_PLANE_DIR) ci
 
 frontend-ci:
-	npm --prefix $(WEB_DIR) run ci
+	npm --prefix $(WEB_DIR) run verify:ci
+
+frontend-e2e:
+	npm --prefix $(WEB_DIR) run test:e2e
 
 ci: backend-ci frontend-ci

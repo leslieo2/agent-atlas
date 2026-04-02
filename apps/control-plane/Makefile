@@ -23,7 +23,7 @@ typecheck:
 	uv run --extra dev mypy app
 
 test:
-	uv run --extra dev pytest
+	uv run --extra dev pytest --no-cov
 
 test-unit:
 	uv run --extra dev pytest -m unit --no-cov
@@ -44,7 +44,7 @@ test-tdd-integration:
 	uv run --extra dev pytest -m integration -x --ff
 
 test-check:
-	uv run --extra dev pytest --cov=app --cov-report=term-missing
+	uv run --extra dev pytest
 
 security:
 	@if [ -f bandit-baseline.json ]; then \
@@ -68,5 +68,5 @@ run-worker:
 ci:
 	$(MAKE) lint
 	$(MAKE) typecheck
-	$(MAKE) test
+	$(MAKE) test-check
 	$(MAKE) security
