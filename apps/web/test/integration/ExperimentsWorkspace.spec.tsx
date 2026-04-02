@@ -397,6 +397,7 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
     expect(screen.getByRole("combobox", { name: "Published agent" })).toHaveValue("basic");
     expect(screen.getByRole("option", { name: "Archived Basic" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "crm-v2 · Version 2026-03" })).toBeInTheDocument();
     await waitFor(() => expect(experimentApi.listExperiments).toHaveBeenCalled());
     await waitFor(() => expect(experimentApi.listExperimentRuns).toHaveBeenCalledWith("exp-002"));
     await waitFor(() => expect(experimentApi.compareExperiments).toHaveBeenCalledWith("exp-001", "exp-002"));

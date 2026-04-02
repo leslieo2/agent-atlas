@@ -128,6 +128,10 @@ function datasetSummary(dataset: Dataset | null) {
   return parts.join(" · ");
 }
 
+function datasetVersionLabel(version: string | null) {
+  return version ? `Version ${version}` : "Unversioned";
+}
+
 export default function DatasetsWorkspace() {
   const datasetsQuery = useDatasetsQuery();
   const createDatasetMutation = useCreateDatasetMutation();
@@ -486,7 +490,7 @@ export default function DatasetsWorkspace() {
                     </div>
                     <div className={styles.datasetMeta}>
                       <strong>{datasetRecord.rows.length} rows</strong>
-                      <span className="muted-note">{datasetRecord.version || "unversioned"}</span>
+                      <span className="muted-note">{datasetVersionLabel(datasetRecord.version)}</span>
                     </div>
                   </button>
                 );

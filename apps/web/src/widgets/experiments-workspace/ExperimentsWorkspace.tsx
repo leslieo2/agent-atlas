@@ -143,6 +143,10 @@ function experimentNextStep(record: ExperimentRecord | null) {
   return "Let the run finish, then move into compare and curation once evidence is available.";
 }
 
+function datasetVersionOptionLabel(datasetName: string, version: string | null) {
+  return `${datasetName} · ${version ? `Version ${version}` : "Unversioned"}`;
+}
+
 export default function ExperimentsWorkspace({
   initialAgentId = "",
   initialDatasetVersionId = "",
@@ -192,7 +196,7 @@ export default function ExperimentsWorkspace({
       datasets.flatMap((dataset) =>
         dataset.versions.map((version) => ({
           ...version,
-          datasetLabel: `${dataset.name}${version.version ? ` · ${version.version}` : ""}`
+          datasetLabel: datasetVersionOptionLabel(dataset.name, version.version)
         }))
       ),
     [datasets]

@@ -133,6 +133,7 @@ describe("Datasets workspace", () => {
       "href",
       "/experiments?datasetVersion=dataset-version-crm-v2"
     );
+    expect(screen.getByText("Version 2026-03-rl-v2")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Slice filter"), { target: { value: "returns" } });
     expect(screen.getByText("cancel my order")).toBeInTheDocument();
