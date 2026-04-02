@@ -901,7 +901,7 @@ def test_claude_code_stream_json_runner_materializes_project_bundle_and_tracks_c
     with tarfile.open(bundle_path, "w:gz") as archive:
         archive.add(source_project, arcname="demo-project")
 
-    mount_path = tmp_path / "workspace/project"
+    mount_path = tmp_path / runner_materialization.CANONICAL_MOUNT_PATH.lstrip("/")
     monkeypatch.setattr(runner_materialization, "WORKSPACE_PROJECT_MOUNT_PATH", mount_path)
     payload = _runner_spec().model_copy(
         update={
@@ -914,7 +914,7 @@ def test_claude_code_stream_json_runner_materializes_project_bundle_and_tracks_c
                     "project_materialization": {
                         "mode": "artifact_bundle",
                         "artifact_ref": f"file://{bundle_path}",
-                        "mount_path": "/workspace/project",
+                        "mount_path": runner_materialization.CANONICAL_MOUNT_PATH,
                     },
                     "claude_code_cli": {
                         "command": sys.executable,
@@ -988,7 +988,7 @@ def test_claude_code_stream_json_runner_surfaces_materialization_failures_as_neu
     monkeypatch.setattr(
         runner_materialization,
         "WORKSPACE_PROJECT_MOUNT_PATH",
-        tmp_path / "workspace/project",
+        tmp_path / runner_materialization.CANONICAL_MOUNT_PATH.lstrip("/"),
     )
     payload = _runner_spec().model_copy(
         update={
@@ -1001,7 +1001,7 @@ def test_claude_code_stream_json_runner_surfaces_materialization_failures_as_neu
                     "project_materialization": {
                         "mode": "artifact_bundle",
                         "artifact_ref": f"file://{tmp_path / 'missing-bundle.tar.gz'}",
-                        "mount_path": "/workspace/project",
+                        "mount_path": runner_materialization.CANONICAL_MOUNT_PATH,
                     },
                     "claude_code_cli": {
                         "command": sys.executable,
@@ -1067,7 +1067,7 @@ def test_claude_code_stream_json_runner_rejects_noncanonical_mount_path(
     monkeypatch.setattr(
         runner_materialization,
         "WORKSPACE_PROJECT_MOUNT_PATH",
-        tmp_path / "workspace/project",
+        tmp_path / runner_materialization.CANONICAL_MOUNT_PATH.lstrip("/"),
     )
     payload = _runner_spec().model_copy(
         update={
@@ -1127,4 +1127,7 @@ def test_claude_code_stream_json_runner_rejects_noncanonical_mount_path(
         Path(payload.bootstrap.terminal_result_path).read_text(encoding="utf-8")
     )
     assert terminal_result["reason_code"] == "workspace_materialization_failed"
-    assert "mount_path=/workspace/project" in terminal_result["reason_message"]
+    assert (
+        f"mount_path={runner_materialization.CANONICAL_MOUNT_PATH}"
+        in terminal_result["reason_message"]
+    )

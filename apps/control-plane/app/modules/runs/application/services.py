@@ -14,6 +14,7 @@ from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.runs.domain.policies import RunAggregate
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.models import ExecutorConfig, ProvenanceMetadata
 
 
@@ -122,7 +123,7 @@ def _validate_execution_backend(
         )
     if (
         effective_runtime_mode == RuntimeMode.LIVE
-        and normalized_backend == "external-runner"
+        and normalized_backend == EXTERNAL_RUNNER_EXECUTION_BACKEND
         and not uses_k8s_runner_backend(executor_config)
         and requested_runner_backend(executor_config) is None
     ):
@@ -132,7 +133,8 @@ def _validate_execution_backend(
             executor_backend=executor_config.backend,
         )
     requires_runner_image = normalized_backend == "k8s-job" or (
-        normalized_backend == "external-runner" and uses_k8s_runner_backend(executor_config)
+        normalized_backend == EXTERNAL_RUNNER_EXECUTION_BACKEND
+        and uses_k8s_runner_backend(executor_config)
     )
     if not requires_runner_image:
         return

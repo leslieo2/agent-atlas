@@ -21,6 +21,7 @@ from app.execution.application.results import (
 )
 from app.execution.contracts import ExecutionRunSpec, runner_run_spec_from_run_spec
 from app.execution.metadata import requested_runner_backend, uses_k8s_runner_backend
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus, StepType
 from app.modules.shared.domain.models import TraceTelemetryMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
@@ -428,7 +429,7 @@ class RunExecutionService:
 
     def _runner_backend(self, payload: ExecutionRunSpec) -> str:
         execution_backend = payload.executor_config.backend.strip().lower()
-        if execution_backend == "external-runner":
+        if execution_backend == EXTERNAL_RUNNER_EXECUTION_BACKEND:
             if uses_k8s_runner_backend(payload.executor_config):
                 return "k8s-container"
             configured_runner_backend = requested_runner_backend(payload.executor_config)

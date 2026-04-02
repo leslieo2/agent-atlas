@@ -1,4 +1,8 @@
 import type { ExecutorConfig } from "@/src/shared/api/contract";
+import {
+  CLAUDE_CODE_CLI_ADAPTER,
+  CLAUDE_CODE_CLI_ADAPTER_LABEL
+} from "@/src/shared/runtime/constants";
 
 function readAdapterName(metadata: Record<string, unknown>) {
   const adapterName = metadata.runner_adapter;
@@ -12,7 +16,7 @@ function readAdapterName(metadata: Record<string, unknown>) {
   }
 
   if (metadata.claude_code_cli && typeof metadata.claude_code_cli === "object") {
-    return "claude-code-cli";
+    return CLAUDE_CODE_CLI_ADAPTER;
   }
 
   return null;
@@ -24,8 +28,8 @@ export function formatRunnerAdapterLabel(adapterName: string | null) {
   }
 
   const normalized = adapterName.trim().toLowerCase();
-  if (normalized === "claude-code-cli") {
-    return "Claude Code CLI adapter";
+  if (normalized === CLAUDE_CODE_CLI_ADAPTER) {
+    return CLAUDE_CODE_CLI_ADAPTER_LABEL;
   }
 
   return `${adapterName} adapter`;

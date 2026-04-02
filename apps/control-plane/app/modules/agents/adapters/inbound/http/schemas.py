@@ -14,6 +14,7 @@ from app.modules.agents.domain.models import (
     PublishedAgent,
 )
 from app.modules.runs.domain.models import RunCreateInput
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.models import ApprovalPolicySnapshot, ExecutorConfig, ToolsetConfig
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -205,7 +206,7 @@ class AgentValidationRunStartRequest(BaseModel):
     project_metadata: dict[str, object] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
     executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend="external-runner")
+        default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     approval_policy: ApprovalPolicySnapshot | None = None

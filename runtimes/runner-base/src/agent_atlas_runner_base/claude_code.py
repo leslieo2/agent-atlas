@@ -20,6 +20,7 @@ from agent_atlas_contracts.execution import (
 )
 from agent_atlas_contracts.runtime import RuntimeExecutionResult, producer_for_runtime
 
+from agent_atlas_runner_base.constants import CLAUDE_CODE_CLI_RUNTIME
 from agent_atlas_runner_base.outputs import RunnerOutputWriter
 from agent_atlas_runner_base.materialization import (
     changed_files_manifest,
@@ -181,7 +182,7 @@ def _build_event(
         sequence=sequence,
         event_type=event_type,
         producer=producer_for_runtime(
-            runtime="claude-code-cli",
+            runtime=CLAUDE_CODE_CLI_RUNTIME,
             framework=payload.framework,
             version=producer_version,
         ),
@@ -240,7 +241,7 @@ def _terminal_artifacts(
     transcript_entry = writer.write_artifact_text(
         "transcripts/claude-stream.jsonl",
         stdout,
-        metadata={"runner_family": "claude-code-cli"},
+        metadata={"runner_family": CLAUDE_CODE_CLI_RUNTIME},
     )
     artifacts.append(transcript_entry)
     if stderr.strip():
@@ -248,7 +249,7 @@ def _terminal_artifacts(
             writer.write_artifact_text(
                 "logs/claude-stderr.txt",
                 stderr,
-                metadata={"runner_family": "claude-code-cli"},
+                metadata={"runner_family": CLAUDE_CODE_CLI_RUNTIME},
             )
         )
     return ArtifactManifest(
@@ -257,7 +258,7 @@ def _terminal_artifacts(
         attempt=payload.attempt,
         attempt_id=payload.attempt_id,
         producer=producer_for_runtime(
-            runtime="claude-code-cli",
+            runtime=CLAUDE_CODE_CLI_RUNTIME,
             framework=payload.framework,
             version=producer_version,
         ),
@@ -279,7 +280,7 @@ def _write_failure_outputs(
         writer.write_artifact_text(
             "logs/materialization-error.txt",
             reason_message,
-            metadata={"runner_family": "claude-code-cli", "kind": "materialization_error"},
+            metadata={"runner_family": CLAUDE_CODE_CLI_RUNTIME, "kind": "materialization_error"},
         )
     ]
     writer.write_artifact_manifest(
@@ -289,7 +290,7 @@ def _write_failure_outputs(
             attempt=payload.attempt,
             attempt_id=payload.attempt_id,
             producer=producer_for_runtime(
-                runtime="claude-code-cli",
+                runtime=CLAUDE_CODE_CLI_RUNTIME,
                 framework=payload.framework,
                 version=producer_version,
             ),
@@ -301,7 +302,7 @@ def _write_failure_outputs(
             output=reason_message,
             latency_ms=latency_ms,
             token_usage=0,
-            provider="claude-code-cli",
+            provider=CLAUDE_CODE_CLI_RUNTIME,
             execution_backend=execution_backend,
             resolved_model=payload.model,
         )
@@ -318,7 +319,7 @@ def _write_failure_outputs(
             exit_code=1,
             output=reason_message,
             producer=producer_for_runtime(
-                runtime="claude-code-cli",
+                runtime=CLAUDE_CODE_CLI_RUNTIME,
                 framework=payload.framework,
                 version=producer_version,
             ),
@@ -424,7 +425,7 @@ def main(argv: list[str] | None = None) -> int:
                 "workspace/changed-files.json",
                 json.dumps(changed_manifest, indent=2, ensure_ascii=False),
                 media_type="application/json",
-                metadata={"runner_family": "claude-code-cli", "kind": "changed_files_manifest"},
+                metadata={"runner_family": CLAUDE_CODE_CLI_RUNTIME, "kind": "changed_files_manifest"},
             )
         )
     writer.write_artifact_manifest(artifact_manifest)
@@ -434,7 +435,7 @@ def main(argv: list[str] | None = None) -> int:
         output=final_output or completed.stdout.strip() or completed.stderr.strip(),
         latency_ms=latency_ms,
         token_usage=0,
-        provider="claude-code-cli",
+        provider=CLAUDE_CODE_CLI_RUNTIME,
         execution_backend=execution_backend,
         resolved_model=payload.model,
     )
@@ -456,7 +457,7 @@ def main(argv: list[str] | None = None) -> int:
             exit_code=completed.returncode,
             output=runtime_result.output,
             producer=producer_for_runtime(
-                runtime="claude-code-cli",
+                runtime=CLAUDE_CODE_CLI_RUNTIME,
                 framework=payload.framework,
                 version=config.version,
             ),

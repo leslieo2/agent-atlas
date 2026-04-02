@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from app.bootstrap.container import get_container
 from app.core.config import RuntimeMode, settings
+from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.agents.domain.models import (
     AgentManifest,
     AgentValidationIssue,
@@ -17,6 +18,7 @@ from app.modules.agents.domain.starter_assets import (
     claude_code_starter_runtime_profile,
 )
 from app.modules.runs.domain.models import RunRecord
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
 from app.modules.shared.domain.models import TracePointer
 from fastapi.testclient import TestClient
@@ -199,8 +201,11 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
         assert bootstrap_response.json()["agent_id"] == "claude-code-starter"
         assert bootstrap_response.json()["entrypoint"] == CLAUDE_CODE_STARTER_ENTRYPOINT
         assert bootstrap_response.json()["agent_family"] == AgentFamily.CLAUDE_CODE.value
-        assert bootstrap_response.json()["framework"] == "claude-code-cli"
-        assert bootstrap_response.json()["default_runtime_profile"]["backend"] == "external-runner"
+        assert bootstrap_response.json()["framework"] == CLAUDE_CODE_CLI_FRAMEWORK
+        assert (
+            bootstrap_response.json()["default_runtime_profile"]["backend"]
+            == EXTERNAL_RUNNER_EXECUTION_BACKEND
+        )
         assert (
             bootstrap_response.json()["default_runtime_profile"]["metadata"]["claude_code_cli"][
                 "system_prompt"

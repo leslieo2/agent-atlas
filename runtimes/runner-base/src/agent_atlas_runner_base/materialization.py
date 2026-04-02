@@ -10,8 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-CANONICAL_MOUNT_PATH = "/workspace/project"
-WORKSPACE_PROJECT_MOUNT_PATH = Path(CANONICAL_MOUNT_PATH)
+from agent_atlas_runner_base.constants import CANONICAL_MOUNT_PATH, WORKSPACE_PROJECT_MOUNT_PATH
 
 
 def _string_value(value: object) -> str | None:
@@ -47,7 +46,7 @@ def project_materialization_from_executor_config(
         raise ValueError(f"unsupported project materialization mode: {mode}")
     if mount_path is not None and mount_path != CANONICAL_MOUNT_PATH:
         raise ValueError(
-            "artifact_bundle materialization only supports mount_path=/workspace/project"
+            f"artifact_bundle materialization only supports mount_path={CANONICAL_MOUNT_PATH}"
         )
 
     readonly = bool(raw_config.get("readonly", False))

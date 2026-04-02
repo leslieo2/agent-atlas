@@ -9,8 +9,9 @@ import tempfile
 from pathlib import Path
 from uuid import uuid4
 
+from agent_atlas_runner_base.constants import CANONICAL_MOUNT_PATH, CLAUDE_CODE_CLI_RUNTIME
+
 BUNDLE_ARTIFACT_REF = "file:///opt/atlas-validation/project-bundle.tar.gz"
-CANONICAL_MOUNT_PATH = "/workspace/project"
 DEFAULT_IMAGE_TAG = "atlas-claude-validation:local"
 PROMPT = (
     "Edit app.py so TARGET becomes \"after\". "
@@ -100,7 +101,7 @@ def _runner_run_spec() -> dict[str, object]:
                 },
             },
         },
-        "framework": "claude-code-cli",
+        "framework": CLAUDE_CODE_CLI_RUNTIME,
         "artifact_ref": None,
         "image_ref": None,
         "trace_backend": "state",
@@ -109,7 +110,7 @@ def _runner_run_spec() -> dict[str, object]:
             "manifest": {
                 "agent_id": "claude-code-validation",
                 "name": "Claude Validation Carrier",
-                "framework": "claude-code-cli",
+                "framework": CLAUDE_CODE_CLI_RUNTIME,
             }
         },
         "bootstrap": {

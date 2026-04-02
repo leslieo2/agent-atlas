@@ -8,6 +8,7 @@ from agent_atlas_contracts.runtime import RuntimeExecutionResult as SharedRuntim
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.execution.contracts import ExecutionRunSpec
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
@@ -24,7 +25,7 @@ from app.modules.shared.domain.models import (
     utc_now,
 )
 
-DEFAULT_EXECUTION_BACKEND = "external-runner"
+DEFAULT_EXECUTION_BACKEND = EXTERNAL_RUNNER_EXECUTION_BACKEND
 
 
 class RunCreateInput(BaseModel):
@@ -41,7 +42,7 @@ class RunCreateInput(BaseModel):
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
     executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend="external-runner")
+        default_factory=lambda: ExecutorConfig(backend=DEFAULT_EXECUTION_BACKEND)
     )
     model_settings: ModelConfig | None = None
     prompt_config: PromptConfig | None = None

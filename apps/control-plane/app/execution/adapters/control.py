@@ -19,6 +19,7 @@ from app.execution.contracts import (
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
 from app.modules.shared.application.ports import TaskQueuePort
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.shared.domain.models import utc_now
 from app.modules.shared.domain.tasks import QueuedTask, TaskType
@@ -301,7 +302,7 @@ class LocalWorkerExecutionAdapter(_QueuedExecutionBackendAdapter):
 class ExternalRunnerExecutionAdapter(_QueuedExecutionBackendAdapter):
     def __init__(self, *, task_queue: TaskQueuePort, run_repository: RunRepository) -> None:
         super().__init__(
-            backend="external-runner",
+            backend=EXTERNAL_RUNNER_EXECUTION_BACKEND,
             task_queue=task_queue,
             run_repository=run_repository,
             production_ready=True,

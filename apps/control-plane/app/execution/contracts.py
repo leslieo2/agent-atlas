@@ -14,6 +14,7 @@ from agent_atlas_contracts.execution import (
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
@@ -112,7 +113,7 @@ class ExecutionRunSpec(BaseModel):
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
     executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend="external-runner")
+        default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
     approval_policy: ApprovalPolicySnapshot | None = None
     provenance: ProvenanceMetadata | None = None

@@ -22,6 +22,8 @@ from agent_atlas_contracts.runtime import (
 )
 from pydantic import BaseModel, Field
 
+from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
 from app.modules.shared.domain.models import (
     ExecutionReferenceMetadata as SharedExecutionReferenceMetadata,
@@ -59,7 +61,7 @@ def agent_family_for_framework(framework: str) -> AgentFamily:
         return AgentFamily.LANGCHAIN
     if normalized == AdapterKind.MCP.value:
         return AgentFamily.MCP
-    if normalized == "claude-code-cli":
+    if normalized == CLAUDE_CODE_CLI_FRAMEWORK:
         return AgentFamily.CLAUDE_CODE
     raise ValueError(f"unsupported published agent framework '{framework}'")
 
@@ -149,7 +151,7 @@ class PublishedAgent(ContractPublishedAgent):
     manifest: AgentManifest
     execution_reference: ExecutionReference = Field(default_factory=ExecutionReference)
     default_runtime_profile: ExecutorConfig = Field(  # type: ignore[assignment]
-        default_factory=lambda: ExecutorConfig(backend="external-runner")
+        default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
     latest_validation: AgentValidationRunReference | None = None
     validation_evidence: AgentValidationEvidenceSummary | None = None
@@ -250,7 +252,7 @@ class DiscoveredAgent(BaseModel):
     has_unpublished_changes: bool = False
     execution_reference: SharedExecutionReferenceMetadata | None = None
     default_runtime_profile: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend="external-runner")
+        default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
     latest_validation: AgentValidationRunReference | None = None
     validation_evidence: AgentValidationEvidenceSummary | None = None

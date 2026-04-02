@@ -12,6 +12,7 @@ from pydantic import SecretStr
 from app.core.config import RuntimeMode, settings
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.execution.application.results import PublishedRunExecutionResult
+from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentManifest,
@@ -24,7 +25,8 @@ from app.modules.agents.domain.models import (
 )
 from app.modules.shared.domain.enums import AdapterKind
 
-CLAUDE_CODE_FRAMEWORK = "claude-code-cli"
+# Compatibility alias for callers that still import the framework literal here.
+CLAUDE_CODE_FRAMEWORK = CLAUDE_CODE_CLI_FRAMEWORK
 
 
 class FrameworkDiscoveryValidator(Protocol):
@@ -180,7 +182,7 @@ def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
             continue
         plugins[plugin.framework.strip().lower()] = plugin
         if plugin.framework.strip().lower() == AdapterKind.OPENAI_AGENTS.value:
-            plugins.setdefault(CLAUDE_CODE_FRAMEWORK, plugin)
+            plugins.setdefault(CLAUDE_CODE_CLI_FRAMEWORK, plugin)
 
     if settings.effective_runtime_mode() == RuntimeMode.LIVE:
         return plugins
@@ -197,7 +199,7 @@ def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
             continue
         plugins.setdefault(plugin.framework.strip().lower(), plugin)
         if plugin.framework.strip().lower() == AdapterKind.OPENAI_AGENTS.value:
-            plugins.setdefault(CLAUDE_CODE_FRAMEWORK, plugin)
+            plugins.setdefault(CLAUDE_CODE_CLI_FRAMEWORK, plugin)
 
     return plugins
 

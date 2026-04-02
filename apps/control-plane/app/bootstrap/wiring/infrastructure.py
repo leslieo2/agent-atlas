@@ -68,6 +68,7 @@ from app.modules.runs.adapters.outbound.persistence.state import (
     StateTrajectoryRepository,
 )
 from app.modules.runs.application.ports import TraceBackendPort, TraceExporterPort
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 
 
 @dataclass(frozen=True)
@@ -177,7 +178,7 @@ def build_infrastructure() -> InfrastructureBundle:
         k8s_runner.backend_name(): k8s_runner,
     }
     execution_backends: dict[str, _ExecutionBackendAdapter] = {
-        "external-runner": ExternalRunnerExecutionAdapter(
+        EXTERNAL_RUNNER_EXECUTION_BACKEND: ExternalRunnerExecutionAdapter(
             task_queue=task_queue,
             run_repository=run_repository,
         ),
