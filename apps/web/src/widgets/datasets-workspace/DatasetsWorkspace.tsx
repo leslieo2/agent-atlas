@@ -13,13 +13,6 @@ import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
 import styles from "./DatasetsWorkspace.module.css";
 
-function parseTagsText(value: string) {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function normalizeDatasetName(value: string) {
   return value.trim();
 }
@@ -44,47 +37,6 @@ async function readFileAsText(file: File) {
     reader.onerror = () => reject(reader.error ?? new Error("Failed to read dataset file."));
     reader.readAsText(file);
   });
-}
-
-function buildManualDatasetRows({
-  datasetName,
-  sampleInput,
-  expectedOutput,
-  sampleTagsText,
-  slice,
-  rowSource,
-  exportEligible
-}: {
-  datasetName: string;
-  sampleInput: string;
-  expectedOutput: string;
-  sampleTagsText: string;
-  slice: string;
-  rowSource: string;
-  exportEligible: boolean;
-}): DatasetRow[] {
-  const normalizedName = normalizeDatasetName(datasetName);
-  const input = sampleInput.trim();
-
-  if (!normalizedName) {
-    throw new Error("Dataset name is required before creating a dataset.");
-  }
-  if (!input) {
-    throw new Error("Sample input is required before creating a dataset.");
-  }
-
-  return [
-    {
-      sampleId: `${normalizedName}-sample-1`,
-      input,
-      expected: expectedOutput.trim() || null,
-      tags: parseTagsText(sampleTagsText),
-      slice: slice.trim() || null,
-      source: rowSource.trim() || null,
-      metadata: null,
-      exportEligible
-    }
-  ];
 }
 
 function collectUnique(values: Array<string | null | undefined>) {
@@ -141,12 +93,6 @@ export default function DatasetsWorkspace() {
   const [datasetDescription, setDatasetDescription] = useState("");
   const [datasetSource, setDatasetSource] = useState("");
   const [datasetVersion, setDatasetVersion] = useState("");
-  const [sampleInput, setSampleInput] = useState("");
-  const [expectedOutput, setExpectedOutput] = useState("");
-  const [sampleTagsText, setSampleTagsText] = useState("");
-  const [sampleSlice, setSampleSlice] = useState("");
-  const [sampleSource, setSampleSource] = useState("");
-  const [sampleExportEligible, setSampleExportEligible] = useState(true);
   const [sliceFilter, setSliceFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
@@ -218,31 +164,7 @@ export default function DatasetsWorkspace() {
     setDatasetDescription("");
     setDatasetSource("");
     setDatasetVersion("");
-    setSampleInput("");
-    setExpectedOutput("");
-    setSampleTagsText("");
-    setSampleSlice("");
-    setSampleSource("");
-    setSampleExportEligible(true);
     setFeedback(`${sourceLabel} ${created.name} with ${created.rows.length} sample${created.rows.length === 1 ? "" : "s"}.`);
-  };
-
-  const handleCreateDataset = async () => {
-    try {
-      const normalizedName = normalizeDatasetName(datasetName);
-      const rows = buildManualDatasetRows({
-        datasetName: normalizedName,
-        sampleInput,
-        expectedOutput,
-        sampleTagsText,
-        slice: sampleSlice,
-        rowSource: sampleSource,
-        exportEligible: sampleExportEligible
-      });
-      await completeCreate(rows, normalizedName, "Created dataset");
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Failed to create dataset.");
-    }
   };
 
   const handleDatasetUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -298,7 +220,7 @@ export default function DatasetsWorkspace() {
             <p className="page-info-detail">
               {selectedDatasetRecord
                 ? datasetSummary(selectedDatasetRecord)
-                : "Import JSONL or seed a single sample to create a new experiment asset."}
+                : "Import JSONL to create the next dataset asset for experiments and exports."}
             </p>
           </div>
           <div className="toolbar">
@@ -345,10 +267,10 @@ export default function DatasetsWorkspace() {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">Ingest</p>
-              <h3 className="panel-title">Create a dataset asset</h3>
+              <h3 className="panel-title">Import a dataset asset</h3>
               <p className="muted-note">
-                Capture dataset-level provenance once, then attach row-level slice and source fields for downstream
-                compare and export.
+                Capture dataset-level provenance once, then import the canonical JSONL payload that downstream compare
+                and export flows will use.
               </p>
             </div>
             <DatasetUpload fileInputRef={fileInputRef} onChange={handleDatasetUpload} />
@@ -390,73 +312,10 @@ export default function DatasetsWorkspace() {
                   />
                 </Field>
               </div>
-            </div>
-
-            <div className={styles.sectionBlock}>
-              <div className={styles.sectionHeading}>
-                <h4>Seed a single row</h4>
-                <p className="muted-note">Use one sample to spin up a new asset before a larger import lands.</p>
-              </div>
-              <div className={styles.formGrid}>
-                <Field label="Input" htmlFor="dataset-input" wide>
-                  <textarea
-                    id="dataset-input"
-                    rows={5}
-                    value={sampleInput}
-                    onChange={(event) => setSampleInput(event.target.value)}
-                    placeholder="Summarize the customer conversation and decide whether escalation is required."
-                  />
-                </Field>
-                <Field label="Expected output" htmlFor="dataset-expected" wide>
-                  <textarea
-                    id="dataset-expected"
-                    rows={4}
-                    value={expectedOutput}
-                    onChange={(event) => setExpectedOutput(event.target.value)}
-                    placeholder="Escalate only when refund policy cannot resolve the issue."
-                  />
-                </Field>
-                <Field label="Tags" htmlFor="dataset-tags">
-                  <input
-                    id="dataset-tags"
-                    value={sampleTagsText}
-                    onChange={(event) => setSampleTagsText(event.target.value)}
-                    placeholder="refund, escalation"
-                  />
-                </Field>
-                <Field label="Slice" htmlFor="dataset-slice">
-                  <input
-                    id="dataset-slice"
-                    value={sampleSlice}
-                    onChange={(event) => setSampleSlice(event.target.value)}
-                    placeholder="hard-cases"
-                  />
-                </Field>
-                <Field label="Row source" htmlFor="dataset-row-source">
-                  <input
-                    id="dataset-row-source"
-                    value={sampleSource}
-                    onChange={(event) => setSampleSource(event.target.value)}
-                    placeholder="support_ticket_backfill"
-                  />
-                </Field>
-                <Field label="Export policy" htmlFor="dataset-export-eligible">
-                  <label className="muted-note" htmlFor="dataset-export-eligible">
-                    <input
-                      id="dataset-export-eligible"
-                      type="checkbox"
-                      checked={sampleExportEligible}
-                      onChange={(event) => setSampleExportEligible(event.target.checked)}
-                    />{" "}
-                    Mark the seed row export eligible by default.
-                  </label>
-                </Field>
-              </div>
-              <div className={styles.actionRow}>
-                <Button onClick={handleCreateDataset} disabled={createDatasetMutation.isPending}>
-                  {createDatasetMutation.isPending ? "Creating..." : "Create dataset"}
-                </Button>
-              </div>
+              <Notice>
+                Upload JSONL is the canonical dataset bootstrap path. Atlas derives row-level slices, tags, and export
+                eligibility from the imported file.
+              </Notice>
             </div>
           </div>
         </Panel>

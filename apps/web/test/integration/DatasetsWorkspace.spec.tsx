@@ -123,7 +123,7 @@ describe("Datasets workspace", () => {
     });
   });
 
-  it("loads dataset assets, filters rows, and creates a new dataset with metadata", async () => {
+  it("loads dataset assets, filters rows, and imports a new dataset with metadata", async () => {
     renderWithQueryClient(<DatasetsWorkspace />);
 
     expect(await screen.findByRole("heading", { name: "Datasets" })).toBeInTheDocument();
@@ -143,11 +143,24 @@ describe("Datasets workspace", () => {
     fireEvent.change(screen.getByLabelText("Version"), { target: { value: "2026-03-rl-v1" } });
     fireEvent.change(screen.getByLabelText("Source"), { target: { value: "support_ticket_backfill" } });
     fireEvent.change(screen.getByLabelText("Description"), { target: { value: "High-value failures" } });
-    fireEvent.change(screen.getByLabelText("Input"), { target: { value: "review order return" } });
-    fireEvent.change(screen.getByLabelText("Tags"), { target: { value: "returns" } });
-    fireEvent.change(screen.getByLabelText("Slice"), { target: { value: "hard-cases" } });
-    fireEvent.change(screen.getByLabelText("Row source"), { target: { value: "support_ticket_backfill" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create dataset" }));
+
+    const upload = screen.getByLabelText("Upload dataset JSONL");
+    const file = new File(
+      [
+        JSON.stringify({
+          sample_id: "returns-review-sample-1",
+          input: "review order return",
+          expected: null,
+          tags: ["returns"],
+          slice: "hard-cases",
+          source: "support_ticket_backfill",
+          export_eligible: true
+        })
+      ],
+      "returns-review.jsonl",
+      { type: "application/jsonl" }
+    );
+    fireEvent.change(upload, { target: { files: [file] } });
 
     await waitFor(() =>
       expect(datasetApi.createDataset).toHaveBeenCalledWith({
@@ -170,10 +183,11 @@ describe("Datasets workspace", () => {
       })
     );
 
-    expect(await screen.findByText(/Created dataset returns-review with 1 sample\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Imported dataset returns-review with 1 sample\./)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open imported dataset in experiments" })).toHaveAttribute(
       "href",
       "/experiments?datasetVersion=dataset-version-returns-review"
     );
+    expect(screen.queryByRole("button", { name: "Create dataset" })).not.toBeInTheDocument();
   });
 });

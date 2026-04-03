@@ -88,6 +88,15 @@ test.describe("live product smoke", () => {
     const sampleInput = "Summarize the customer exchange and decide whether escalation is required.";
     const expectedOutput = "Escalate only when the existing policy cannot resolve the request.";
     const sampleId = `${datasetName}-sample-1`;
+    const datasetRows = `${JSON.stringify({
+      sample_id: sampleId,
+      input: sampleInput,
+      expected: expectedOutput,
+      tags: ["support", "escalation"],
+      slice: "validated-live-loop",
+      source: datasetSource,
+      export_eligible: true
+    })}\n`;
 
     await page.goto("/agents");
 
@@ -112,11 +121,13 @@ test.describe("live product smoke", () => {
     await page.getByLabel("Version").fill(datasetVersion);
     await page.getByLabel("Source").fill(datasetSource);
     await page.getByLabel("Description").fill("Playwright live smoke dataset for the validated four-page loop.");
-    await page.getByLabel("Input").fill(sampleInput);
-    await page.getByLabel("Expected output").fill(expectedOutput);
-    await page.getByRole("button", { name: "Create dataset" }).click();
+    await page.getByLabel("Upload dataset JSONL").setInputFiles({
+      name: `${datasetName}.jsonl`,
+      mimeType: "application/x-ndjson",
+      buffer: Buffer.from(datasetRows, "utf8")
+    });
 
-    await expect(page.getByText(`Created dataset ${datasetName} with 1 sample.`)).toBeVisible();
+    await expect(page.getByText(`Imported dataset ${datasetName} with 1 sample.`)).toBeVisible();
     await expect(page.getByRole("link", { name: "Open imported dataset in experiments" })).toBeVisible();
 
     await page.getByRole("link", { name: "Open imported dataset in experiments" }).click();
