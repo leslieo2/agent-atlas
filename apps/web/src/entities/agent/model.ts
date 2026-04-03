@@ -42,7 +42,7 @@ export interface AgentRecord {
   publishedAt?: string;
   sourceFingerprint?: string;
   executionReference?: ExecutionReferenceRecord | null;
-  defaultRuntimeProfile: ExecutorConfig;
+  executionProfile: ExecutorConfig;
   latestValidation?: AgentValidationRunReferenceRecord | null;
   validationEvidence?: AgentValidationEvidenceSummaryRecord | null;
   validationOutcome?: AgentValidationOutcomeSummaryRecord | null;
@@ -62,7 +62,7 @@ export interface DiscoveredAgentRecord extends AgentRecord {
   hasUnpublishedChanges: boolean;
   sourceFingerprint?: string;
   executionReference?: ExecutionReferenceRecord | null;
-  defaultRuntimeProfile: ExecutorConfig;
+  executionProfile: ExecutorConfig;
   latestValidation?: AgentValidationRunReferenceRecord | null;
   validationEvidence?: AgentValidationEvidenceSummaryRecord | null;
   validationOutcome?: AgentValidationOutcomeSummaryRecord | null;

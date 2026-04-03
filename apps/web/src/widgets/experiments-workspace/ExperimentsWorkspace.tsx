@@ -40,7 +40,7 @@ type Props = {
   initialExperimentId?: string;
 };
 
-type ExperimentAgentOption = Pick<AgentRecord, "agentId" | "name" | "defaultRuntimeProfile">;
+type ExperimentAgentOption = Pick<AgentRecord, "agentId" | "name" | "executionProfile">;
 
 function canSelectDiscoveredAgentForExperiment(agent: DiscoveredAgentRecord) {
   const validationLifecycle = getAgentValidationLifecycle(agent);
@@ -188,13 +188,13 @@ export default function ExperimentsWorkspace({
       .map((agent) => ({
         agentId: agent.agentId,
         name: agent.name,
-        defaultRuntimeProfile: agent.defaultRuntimeProfile
+        executionProfile: agent.executionProfile
       }));
     return [
       ...readyDiscovered.map((agent) => ({
         agentId: agent.agentId,
         name: agent.name,
-        defaultRuntimeProfile: agent.defaultRuntimeProfile
+        executionProfile: agent.executionProfile
       })),
       ...publishedOnly
     ];
@@ -403,8 +403,8 @@ export default function ExperimentsWorkspace({
           <p className="page-eyebrow">Experiment control plane</p>
           <h2 className="page-title">Governance to evidence loop</h2>
           <p className="muted-note">
-            Atlas hands governed agent snapshots into the neutral runner seam, collects canonical evidence, and
-            prepares curated rows for export. Phoenix remains a deeplink for deeper trace inspection.
+            Atlas turns governed agent snapshots into runs, evidence, and curated exports without promoting provider,
+            runner, or credential internals into the product center. Phoenix remains a deeplink for deeper trace inspection.
           </p>
         </div>
         <div className={styles.metricGrid}>
@@ -499,8 +499,8 @@ export default function ExperimentsWorkspace({
         </div>
         <p className="muted-note">
           Only ready, published snapshots with no draft drift appear in this selector. Execution profile is inherited
-          from the published snapshot: {executionProfileSummary(selectedAgent?.defaultRuntimeProfile)}. Atlas still
-          tracks the same governance, evidence, and export loop even when the adapter is Claude Code CLI.
+          from the published snapshot: {executionProfileSummary(selectedAgent?.executionProfile)}. Atlas keeps the same
+          run, evidence, and export chain regardless of the underlying execution path.
         </p>
         <div className={styles.actions}>
           <Button onClick={() => void handleCreateExperiment()} disabled={createExperimentMutation.isPending}>

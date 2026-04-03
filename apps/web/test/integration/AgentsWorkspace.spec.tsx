@@ -57,7 +57,7 @@ describe("Agents workspace", () => {
           status: "succeeded",
           reason: "Validation run completed with evidence attached."
         },
-        defaultRuntimeProfile: {
+        executionProfile: {
           backend: "external-runner",
           metadata: {
             claude_code_cli: {
@@ -97,7 +97,7 @@ describe("Agents workspace", () => {
           status: "running",
           reason: "Validation is still collecting evidence."
         },
-        defaultRuntimeProfile: { backend: "k8s-job" }
+        executionProfile: { backend: "k8s-job" }
       },
       {
         agentId: "draft_changes",
@@ -119,7 +119,7 @@ describe("Agents workspace", () => {
         executionReference: {
           artifactRef: "source://draft_changes@draft-changes-fingerprint-123456"
         },
-        defaultRuntimeProfile: { backend: "k8s-job" }
+        executionProfile: { backend: "k8s-job" }
       },
       {
         agentId: "tools",
@@ -138,7 +138,7 @@ describe("Agents workspace", () => {
         hasUnpublishedChanges: false,
         sourceFingerprint: "tools-fingerprint-123456",
         executionReference: null,
-        defaultRuntimeProfile: { backend: "k8s-job" }
+        executionProfile: { backend: "k8s-job" }
       },
       {
         agentId: "unsupported",
@@ -157,7 +157,7 @@ describe("Agents workspace", () => {
         hasUnpublishedChanges: false,
         sourceFingerprint: "unsupported-fingerprint-123456",
         executionReference: null,
-        defaultRuntimeProfile: { backend: "k8s-job" }
+        executionProfile: { backend: "k8s-job" }
       }
     ];
 
@@ -234,7 +234,7 @@ describe("Agents workspace", () => {
     expect(screen.getAllByText("Validating").length).toBeGreaterThan(0);
     expect(await screen.findByText("Unsupported framework plugin.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Framework")).not.toBeInTheDocument();
-    expect(screen.getByText("external-runner · Claude Code CLI adapter")).toBeInTheDocument();
+    expect(screen.getByText("external-runner · Claude Code CLI")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Run validation" })[0]);
     await waitFor(() =>
       expect(agentApi.startValidationRun).toHaveBeenCalledWith(
@@ -286,7 +286,7 @@ describe("Agents workspace", () => {
           status: "succeeded",
           reason: "Published validation passed."
         },
-        defaultRuntimeProfile: {
+        executionProfile: {
           backend: "external-runner"
         }
       }
@@ -341,7 +341,7 @@ describe("Agents workspace", () => {
         status: "succeeded",
         reason: "Starter bootstrap completed with reusable validation evidence."
       },
-      defaultRuntimeProfile: {
+      executionProfile: {
         backend: "external-runner",
         runner_image: "atlas-claude-validation:local",
         metadata: {

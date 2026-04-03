@@ -146,7 +146,7 @@ function shortSourceFingerprint(sourceFingerprint?: string) {
 }
 
 function defaultRuntimeSummary(agent: DiscoveredAgentRecord) {
-  return executionProfileSummary(agent.defaultRuntimeProfile);
+  return executionProfileSummary(agent.executionProfile);
 }
 
 function validationIssuesLabel() {
@@ -219,7 +219,7 @@ function validationPayload(agent: DiscoveredAgentRecord) {
       validation_target: agent.agentId,
       validation_surface: "agents"
     },
-    executor_config: agent.defaultRuntimeProfile
+    executor_config: agent.executionProfile
   };
 }
 

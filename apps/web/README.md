@@ -82,9 +82,11 @@ Residual debug-oriented scaffolding is being removed from the codebase as the ba
 The frontend should evolve in a way that reinforces Atlas as the control plane:
 
 - center the IA on `Agents`, `Datasets`, `Experiments`, and `Exports`
+- treat the canonical product chain as `AgentAsset -> ExecutionProfile -> Run -> Evidence -> Export`
 - show snapshot status, execution-profile, provenance, and evidence state inside Atlas-owned records
 - keep tracing UI limited to evidence summaries, reference fields, evidence association, and Phoenix deep links
 - avoid rebuilding a complete observability product inside the frontend
+- avoid elevating runners, providers, credentials, or vendor consoles into first-class navigation or object centers
 - avoid growing runtime-host, manual-run, or playground surfaces as first-class product workflows
 - preserve explicit snake_case-to-camelCase payload mapping when backend contracts expand
 

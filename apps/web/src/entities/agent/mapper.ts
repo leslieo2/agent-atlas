@@ -94,7 +94,7 @@ export function mapAgent(agent: AgentDescriptorResponse): AgentRecord {
     publishedAt: agent.published_at,
     sourceFingerprint: agent.source_fingerprint ?? undefined,
     executionReference: mapExecutionReference(agent.execution_reference),
-    defaultRuntimeProfile: agent.default_runtime_profile,
+    executionProfile: agent.default_runtime_profile,
     latestValidation: mapValidationRunReference(agent.latest_validation),
     validationEvidence: mapValidationEvidence(agent.validation_evidence),
     validationOutcome: mapValidationOutcome(agent.validation_outcome)
@@ -121,7 +121,7 @@ export function mapDiscoveredAgent(agent: DiscoveredAgentResponse): DiscoveredAg
     hasUnpublishedChanges: agent.has_unpublished_changes,
     sourceFingerprint: agent.source_fingerprint ?? undefined,
     executionReference: mapExecutionReference(agent.execution_reference),
-    defaultRuntimeProfile: agent.default_runtime_profile,
+    executionProfile: agent.default_runtime_profile,
     latestValidation: mapValidationRunReference(agent.latest_validation),
     validationEvidence: mapValidationEvidence(agent.validation_evidence),
     validationOutcome: mapValidationOutcome(agent.validation_outcome)

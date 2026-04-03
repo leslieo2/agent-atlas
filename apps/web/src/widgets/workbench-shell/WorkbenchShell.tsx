@@ -57,8 +57,8 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
           </div>
           <h1>Agent Atlas</h1>
           <p>
-            Coordinate governed agent assets, experiments, and evidence in Atlas. Runner adapters such as Claude Code
-            CLI stay visible but do not become the product center, and deep trace debugging stays in Phoenix.
+            Coordinate governed agent assets, execution profiles, runs, evidence, and exports in Atlas. Execution
+            details can stay visible without becoming the product center, and deep trace debugging stays in Phoenix.
           </p>
         </div>
 
@@ -98,8 +98,8 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
           <div className={styles.boundaryNote}>
             <span className={styles.boundaryLabel}>Product boundary</span>
             <p>
-              Atlas owns asset governance, orchestration, evidence association, curation, and exports. External
-              systems own runner and tracing internals.
+              Atlas owns asset governance, run state, evidence association, curation, and exports. External systems own
+              execution internals and deep tracing.
             </p>
           </div>
         </div>

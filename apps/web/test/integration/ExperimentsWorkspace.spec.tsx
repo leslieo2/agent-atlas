@@ -77,7 +77,7 @@ describe("Experiments workspace", () => {
         hasUnpublishedChanges: false,
         sourceFingerprint: "basic-fingerprint-123456",
         executionReference: { artifactRef: "source://basic@basic-fingerprint-123456" },
-        defaultRuntimeProfile: {
+        executionProfile: {
           backend: "external-runner",
           metadata: {
             claude_code_cli: {
@@ -115,7 +115,7 @@ describe("Experiments workspace", () => {
           status: "running",
           reason: "Validation is still collecting evidence."
         },
-        defaultRuntimeProfile: {
+        executionProfile: {
           backend: "external-runner"
         }
       }
@@ -139,7 +139,7 @@ describe("Experiments workspace", () => {
         hasUnpublishedChanges: false,
         sourceFingerprint: "basic-fingerprint-123456",
         executionReference: { artifactRef: "source://basic@basic-fingerprint-123456" },
-        defaultRuntimeProfile: {
+        executionProfile: {
           backend: "external-runner",
           metadata: {
             claude_code_cli: {
@@ -161,7 +161,7 @@ describe("Experiments workspace", () => {
         publishedAt: "2026-03-24T00:00:00Z",
         sourceFingerprint: "archived-fingerprint-123456",
         executionReference: { artifactRef: "source://archived_basic@archived-fingerprint-123456" },
-        defaultRuntimeProfile: { backend: "k8s-job" }
+        executionProfile: { backend: "k8s-job" }
       },
       {
         agentId: "failed_live",
@@ -187,7 +187,7 @@ describe("Experiments workspace", () => {
           status: "failed",
           reason: "Validation failed."
         },
-        defaultRuntimeProfile: { backend: "k8s-job" }
+        executionProfile: { backend: "k8s-job" }
       }
     ]);
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([
@@ -464,11 +464,11 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(experimentApi.compareExperiments).toHaveBeenCalledWith("exp-001", "exp-002"));
     expect(
       screen.getByText(
-        /Execution profile is inherited from the published snapshot: external-runner · Claude Code CLI adapter\./i
+        /Execution profile is inherited from the published snapshot: external-runner · Claude Code CLI\./i
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Atlas still tracks the same governance, evidence, and export loop/i)
+      screen.getByText(/Atlas keeps the same run, evidence, and export chain regardless of the underlying execution path\./i)
     ).toBeInTheDocument();
 
     expect(screen.getByRole("link", { name: "Open Phoenix deeplink" })).toHaveAttribute(

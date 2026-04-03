@@ -32,7 +32,7 @@ export function formatRunnerAdapterLabel(adapterName: string | null) {
     return CLAUDE_CODE_CLI_ADAPTER_LABEL;
   }
 
-  return `${adapterName} adapter`;
+  return adapterName;
 }
 
 export function executionProfileSummary(runtimeProfile?: ExecutorConfig | null) {
@@ -47,10 +47,6 @@ export function executionProfileSummary(runtimeProfile?: ExecutorConfig | null) 
 
   if (adapterLabel) {
     parts.push(adapterLabel);
-  }
-
-  if (runtimeProfile.runner_image) {
-    parts.push(runtimeProfile.runner_image);
   }
 
   return parts.join(" · ");
