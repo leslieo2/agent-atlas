@@ -162,6 +162,10 @@ describe("Datasets workspace", () => {
     );
     fireEvent.change(upload, { target: { files: [file] } });
 
+    expect(await screen.findByText(/Ready to import 1 sample from returns-review\.jsonl\./)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Import dataset" }));
+
     await waitFor(() =>
       expect(datasetApi.createDataset).toHaveBeenCalledWith({
         name: "returns-review",

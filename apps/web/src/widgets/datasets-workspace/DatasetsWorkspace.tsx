@@ -84,6 +84,11 @@ function datasetVersionLabel(version: string | null | undefined) {
   return version ? `Version ${version}` : "Unversioned";
 }
 
+type PendingUpload = {
+  fileName: string;
+  rows: DatasetRow[];
+};
+
 export default function DatasetsWorkspace() {
   const datasetsQuery = useDatasetsQuery();
   const createDatasetMutation = useCreateDatasetMutation();
@@ -98,6 +103,7 @@ export default function DatasetsWorkspace() {
   const [sourceFilter, setSourceFilter] = useState("");
   const [feedback, setFeedback] = useState("");
   const [latestImportedDatasetVersionId, setLatestImportedDatasetVersionId] = useState("");
+  const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
 
   const datasets = useMemo(() => datasetsQuery.data ?? [], [datasetsQuery.data]);
   const totalSamples = useMemo(() => datasets.reduce((count, dataset) => count + dataset.rows.length, 0), [datasets]);
@@ -164,7 +170,14 @@ export default function DatasetsWorkspace() {
     setDatasetDescription("");
     setDatasetSource("");
     setDatasetVersion("");
+    setPendingUpload(null);
     setFeedback(`${sourceLabel} ${created.name} with ${created.rows.length} sample${created.rows.length === 1 ? "" : "s"}.`);
+  };
+
+  const resetFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleDatasetUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -175,20 +188,46 @@ export default function DatasetsWorkspace() {
 
     try {
       const rows = parseDatasetJsonl(await readFileAsText(file));
-      const nextDatasetName = inferDatasetName(datasetName, file.name);
-      if (!nextDatasetName) {
-        throw new Error("Dataset name is required before uploading JSONL.");
+      const inferredDatasetName = inferDatasetName(datasetName, file.name);
+      if (!datasetName.trim() && inferredDatasetName) {
+        setDatasetName(inferredDatasetName);
       }
-
-      await completeCreate(rows, nextDatasetName, "Imported dataset");
+      setLatestImportedDatasetVersionId("");
+      setPendingUpload({ fileName: file.name, rows });
+      setFeedback(
+        `Ready to import ${rows.length} sample${rows.length === 1 ? "" : "s"} from ${file.name}. Review metadata if needed, then confirm import.`
+      );
     } catch (error) {
+      setPendingUpload(null);
       setFeedback(error instanceof Error ? error.message : "Failed to upload dataset JSONL.");
     } finally {
       event.target.value = "";
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      resetFileInput();
     }
+  };
+
+  const handleImportPendingUpload = async () => {
+    if (!pendingUpload) {
+      return;
+    }
+
+    try {
+      const nextDatasetName = inferDatasetName(datasetName, pendingUpload.fileName);
+      if (!nextDatasetName) {
+        throw new Error("Dataset name is required before import.");
+      }
+
+      await completeCreate(pendingUpload.rows, nextDatasetName, "Imported dataset");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Failed to import dataset JSONL.");
+    }
+  };
+
+  const clearPendingUpload = () => {
+    setPendingUpload(null);
+    setFeedback("");
+    setLatestImportedDatasetVersionId("");
+    resetFileInput();
   };
 
   return (
@@ -269,8 +308,8 @@ export default function DatasetsWorkspace() {
               <p className="surface-kicker">Ingest</p>
               <h3 className="panel-title">Import a dataset asset</h3>
               <p className="muted-note">
-                Capture dataset-level provenance once, then import the canonical JSONL payload that downstream compare
-                and export flows will use.
+                Start with the canonical JSONL. Atlas can infer the dataset name from the file, then you can confirm or
+                refine provenance before import.
               </p>
             </div>
             <DatasetUpload fileInputRef={fileInputRef} onChange={handleDatasetUpload} />
@@ -280,8 +319,18 @@ export default function DatasetsWorkspace() {
             <div className={styles.sectionBlock}>
               <div className={styles.sectionHeading}>
                 <h4>Dataset metadata</h4>
-                <p className="muted-note">Describe the asset that drives future experiments and RL exports.</p>
+                <p className="muted-note">
+                  Upload first, then confirm the asset identity and any optional provenance before import.
+                </p>
               </div>
+              {pendingUpload ? (
+                <Notice>
+                  Selected <strong>{pendingUpload.fileName}</strong> with <strong>{pendingUpload.rows.length}</strong>{" "}
+                  sample{pendingUpload.rows.length === 1 ? "" : "s"}.
+                </Notice>
+              ) : (
+                <Notice>Select a JSONL file to start the ingest flow. Atlas will stage it here before import.</Notice>
+              )}
               <div className={styles.formGrid}>
                 <Field label="Dataset name" htmlFor="dataset-name">
                   <input id="dataset-name" value={datasetName} onChange={(event) => setDatasetName(event.target.value)} />
@@ -312,9 +361,19 @@ export default function DatasetsWorkspace() {
                   />
                 </Field>
               </div>
+              <div className={styles.actionRow}>
+                <Button onClick={handleImportPendingUpload} disabled={!pendingUpload || createDatasetMutation.isPending}>
+                  {createDatasetMutation.isPending ? "Importing..." : "Import dataset"}
+                </Button>
+                {pendingUpload ? (
+                  <Button variant="ghost" onClick={clearPendingUpload} disabled={createDatasetMutation.isPending}>
+                    Choose another file
+                  </Button>
+                ) : null}
+              </div>
               <Notice>
                 Upload JSONL is the canonical dataset bootstrap path. Atlas derives row-level slices, tags, and export
-                eligibility from the imported file.
+                eligibility from the imported file, while dataset-level provenance stays optional at ingest time.
               </Notice>
             </div>
           </div>
