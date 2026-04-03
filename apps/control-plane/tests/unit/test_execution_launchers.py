@@ -814,7 +814,9 @@ def test_claude_code_stream_json_runner_writes_neutral_outputs(tmp_path):
                                 "'env': os.getenv('ANTHROPIC_AUTH_TOKEN')}; "
                                 "assistant = {'type':'assistant', "
                                 "'message':json.dumps(payload)}; "
+                                "tool = {'type':'tool_result', 'text':'lookup complete'}; "
                                 "print(json.dumps(assistant)); "
+                                "print(json.dumps(tool)); "
                                 "print(json.dumps({'type':'result','result':'done'}))"
                             ),
                         ],
@@ -879,7 +881,7 @@ def test_claude_code_stream_json_runner_writes_neutral_outputs(tmp_path):
     assert runtime_result["execution_backend"] == "kubernetes-job"
     assert terminal_result["status"] == "succeeded"
     assert terminal_result["producer"]["version"] == "1.2.3"
-    assert len(events) == 2
+    assert len(events) == 3
     event_payload = json.loads(events[0]["payload"]["output"]["output"])
     assert event_payload["env"] == "token-from-config"
     assert event_payload["argv"][-1] == "Summarize the incident."
@@ -887,6 +889,10 @@ def test_claude_code_stream_json_runner_writes_neutral_outputs(tmp_path):
     assert event_payload["argv"][:2] == ["--print", "--verbose"]
     assert "--profile" in event_payload["argv"]
     assert "--system-prompt" in event_payload["argv"]
+    assert events[0]["parent_event_id"] is None
+    assert events[1]["parent_event_id"] == events[0]["event_id"]
+    assert events[2]["parent_event_id"] == events[1]["event_id"]
+    assert events[1]["event_type"] == "tool.succeeded"
     assert manifest["artifacts"][0]["path"] == "transcripts/claude-stream.jsonl"
 
 

@@ -167,6 +167,7 @@ def _build_event(
     *,
     payload: RunnerRunSpec,
     sequence: int,
+    parent_event_id: str | None,
     raw_event: Mapping[str, Any],
     producer_version: str | None,
 ) -> EventEnvelope:
@@ -179,6 +180,7 @@ def _build_event(
         attempt=payload.attempt,
         attempt_id=payload.attempt_id,
         event_id=f"claude-code-{sequence}",
+        parent_event_id=parent_event_id,
         sequence=sequence,
         event_type=event_type,
         producer=producer_for_runtime(
@@ -399,15 +401,18 @@ def main(argv: list[str] | None = None) -> int:
         if extracted:
             final_output = extracted
 
-    events = [
-        _build_event(
+    events: list[EventEnvelope] = []
+    previous_event_id: str | None = None
+    for index, event in enumerate(raw_events, start=1):
+        envelope = _build_event(
             payload=payload,
             sequence=index,
+            parent_event_id=previous_event_id,
             raw_event=event,
             producer_version=config.version,
         )
-        for index, event in enumerate(raw_events, start=1)
-    ]
+        events.append(envelope)
+        previous_event_id = envelope.event_id
     writer.write_events(events)
 
     artifact_manifest = _terminal_artifacts(
