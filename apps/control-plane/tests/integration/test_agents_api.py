@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import app.modules.agents.domain.starter_assets as starter_assets
 from app.bootstrap.container import get_container
 from app.core.config import RuntimeMode, settings
 from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
@@ -184,6 +185,12 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
 ) -> None:
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     monkeypatch.setattr(settings, "seed_demo", False)
+    provision_calls: list[str] = []
+    monkeypatch.setattr(
+        starter_assets,
+        "provision_claude_code_starter_carrier",
+        lambda: provision_calls.append("called"),
+    )
     get_container.cache_clear()
     from app.main import app
 
@@ -212,6 +219,7 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
             ]
             == "Reply with the user prompt text only. No greeting or explanation."
         )
+        assert provision_calls == ["called"]
 
         published_after_bootstrap = live_client.get("/api/v1/agents/published")
         assert published_after_bootstrap.status_code == 200
@@ -225,6 +233,7 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
         second_bootstrap = live_client.post("/api/v1/agents/bootstrap/claude-code")
         assert second_bootstrap.status_code == 200
         assert second_bootstrap.json()["agent_id"] == "claude-code-starter"
+        assert provision_calls == ["called", "called"]
 
 
 def test_agents_api_live_mode_bootstrap_keeps_starter_reachable_for_publish_and_drift(
@@ -232,6 +241,7 @@ def test_agents_api_live_mode_bootstrap_keeps_starter_reachable_for_publish_and_
 ) -> None:
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     monkeypatch.setattr(settings, "seed_demo", False)
+    monkeypatch.setattr(starter_assets, "provision_claude_code_starter_carrier", lambda: None)
     get_container.cache_clear()
     from app.main import app
 
@@ -284,6 +294,7 @@ def test_agents_api_live_mode_validation_runs_accept_state_backed_starter_drafts
 ) -> None:
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     monkeypatch.setattr(settings, "seed_demo", False)
+    monkeypatch.setattr(starter_assets, "provision_claude_code_starter_carrier", lambda: None)
     get_container.cache_clear()
     from app.main import app
 

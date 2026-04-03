@@ -82,6 +82,11 @@ class AgentLoadFailedError(AppError):
     status_code = 500
 
 
+class AgentBootstrapFailedError(AppError):
+    code = "agent_bootstrap_failed"
+    status_code = 500
+
+
 class AgentFrameworkMismatchError(AgentLoadFailedError, ValueError):
     code = "agent_framework_mismatch"
     status_code = 400

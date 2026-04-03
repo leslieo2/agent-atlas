@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from app.core.config import RuntimeMode, settings
+from app.core.errors import AgentBootstrapFailedError
+from app.modules.agents.domain.starter_assets import (
+    CLAUDE_CODE_STARTER_RUNNER_IMAGE,
+    ensure_claude_code_starter_runtime_ready,
+    provision_claude_code_starter_carrier,
+)
+
+
+def _write_validation_dockerfile(repo_root: Path) -> None:
+    dockerfile = repo_root / "runtimes" / "runner-base" / "validation" / "Dockerfile"
+    dockerfile.parent.mkdir(parents=True, exist_ok=True)
+    dockerfile.write_text("FROM scratch\n", encoding="utf-8")
+
+
+def test_provision_claude_code_starter_carrier_skips_build_when_image_exists(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_validation_dockerfile(tmp_path)
+    commands: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        commands.append(list(cmd))
+        return type("Completed", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+
+    monkeypatch.setattr("app.modules.agents.domain.starter_assets.subprocess.run", fake_run)
+
+    provision_claude_code_starter_carrier(repo_root=tmp_path)
+
+    assert commands == [["docker", "image", "inspect", CLAUDE_CODE_STARTER_RUNNER_IMAGE]]
+
+
+def test_provision_claude_code_starter_carrier_builds_missing_image(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_validation_dockerfile(tmp_path)
+    commands: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        commands.append(list(cmd))
+        returncode = 1 if cmd[:3] == ["docker", "image", "inspect"] else 0
+        return type("Completed", (), {"returncode": returncode, "stderr": "", "stdout": ""})()
+
+    monkeypatch.setattr("app.modules.agents.domain.starter_assets.subprocess.run", fake_run)
+
+    provision_claude_code_starter_carrier(repo_root=tmp_path)
+
+    assert commands == [
+        ["docker", "image", "inspect", CLAUDE_CODE_STARTER_RUNNER_IMAGE],
+        [
+            "docker",
+            "build",
+            "-f",
+            str(tmp_path / "runtimes" / "runner-base" / "validation" / "Dockerfile"),
+            "-t",
+            CLAUDE_CODE_STARTER_RUNNER_IMAGE,
+            ".",
+        ],
+    ]
+
+
+def test_provision_claude_code_starter_carrier_raises_when_build_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_validation_dockerfile(tmp_path)
+
+    def fake_run(cmd, **kwargs):
+        if cmd[:3] == ["docker", "image", "inspect"]:
+            return type("Completed", (), {"returncode": 1, "stderr": "missing", "stdout": ""})()
+        return type("Completed", (), {"returncode": 1, "stderr": "build exploded", "stdout": ""})()
+
+    monkeypatch.setattr("app.modules.agents.domain.starter_assets.subprocess.run", fake_run)
+
+    with pytest.raises(
+        AgentBootstrapFailedError,
+        match="failed to provision starter carrier image",
+    ):
+        provision_claude_code_starter_carrier(repo_root=tmp_path)
+
+
+def test_ensure_claude_code_starter_runtime_ready_only_provisions_in_live_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "app.modules.agents.domain.starter_assets.provision_claude_code_starter_carrier",
+        lambda: calls.append("called"),
+    )
+
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.MOCK)
+    ensure_claude_code_starter_runtime_ready()
+    assert calls == []
+
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    ensure_claude_code_starter_runtime_ready()
+    assert calls == ["called"]

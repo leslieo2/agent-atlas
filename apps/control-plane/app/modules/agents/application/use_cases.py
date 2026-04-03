@@ -32,6 +32,7 @@ from app.modules.agents.domain.starter_assets import (
     CLAUDE_CODE_STARTER_ENTRYPOINT,
     claude_code_starter_manifest,
     claude_code_starter_runtime_profile,
+    ensure_claude_code_starter_runtime_ready,
 )
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -221,6 +222,7 @@ class AgentBootstrapCommands:
         self.live_agent_markers = live_agent_markers
 
     def bootstrap_claude_code(self) -> PublishedAgent:
+        ensure_claude_code_starter_runtime_ready()
         if self.live_agent_markers is not None:
             self.live_agent_markers.save_agent_id(CLAUDE_CODE_STARTER_AGENT_ID)
         existing = self.published_agents.get_agent(CLAUDE_CODE_STARTER_AGENT_ID)
