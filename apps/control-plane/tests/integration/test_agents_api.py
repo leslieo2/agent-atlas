@@ -294,7 +294,12 @@ def test_agents_api_live_mode_validation_runs_accept_state_backed_starter_drafts
 ) -> None:
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     monkeypatch.setattr(settings, "seed_demo", False)
-    monkeypatch.setattr(starter_assets, "provision_claude_code_starter_carrier", lambda: None)
+    provision_calls: list[str] = []
+    monkeypatch.setattr(
+        starter_assets,
+        "provision_claude_code_starter_carrier",
+        lambda: provision_calls.append("called"),
+    )
     get_container.cache_clear()
     from app.main import app
 
@@ -327,6 +332,7 @@ def test_agents_api_live_mode_validation_runs_accept_state_backed_starter_drafts
         assert payload["provenance"]["published_agent_snapshot"]["manifest"]["agent_id"] == (
             CLAUDE_CODE_STARTER_AGENT_ID
         )
+        assert provision_calls == ["called", "called"]
 
 
 def test_agents_api_live_mode_lists_only_formally_governed_published_agents(

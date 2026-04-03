@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import subprocess
+import subprocess  # nosec - docker CLI invocation is an explicit starter bootstrap dependency
 from pathlib import Path
 
 from app.core.config import RuntimeMode, settings
@@ -38,7 +38,7 @@ def provision_claude_code_starter_carrier(*, repo_root: Path | None = None) -> N
             agent_id=CLAUDE_CODE_STARTER_AGENT_ID,
         )
 
-    inspect = subprocess.run(  # nosec B603
+    inspect = subprocess.run(  # nosec - controlled local docker inspect/build path for starter bootstrap
         ["docker", "image", "inspect", CLAUDE_CODE_STARTER_RUNNER_IMAGE],
         cwd=resolved_repo_root,
         capture_output=True,
@@ -48,7 +48,7 @@ def provision_claude_code_starter_carrier(*, repo_root: Path | None = None) -> N
     if inspect.returncode == 0:
         return
 
-    build = subprocess.run(  # nosec B603
+    build = subprocess.run(  # nosec - controlled local docker inspect/build path for starter bootstrap
         [
             "docker",
             "build",

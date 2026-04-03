@@ -263,6 +263,8 @@ class AgentValidationCommands:
 
     def create_run(self, agent_id: str, payload: RunCreateInput) -> RunRecord:
         agent = self._resolve_agent(agent_id)
+        if agent.manifest.agent_id == CLAUDE_CODE_STARTER_AGENT_ID:
+            ensure_claude_code_starter_runtime_ready()
         return self.submission_service.submit(payload, agent)
 
     def _resolve_agent(self, agent_id: str) -> PublishedAgent:

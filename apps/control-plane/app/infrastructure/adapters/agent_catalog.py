@@ -133,17 +133,17 @@ class StatePublishedAgentCatalog:
         for discovered_agent in self.discovery.list_agents():
             if discovered_agent.validation_status != AgentValidationStatus.VALID:
                 continue
-            published_agent = published_by_id.get(discovered_agent.agent_id)
-            if published_agent is None:
+            matched_published_agent = published_by_id.get(discovered_agent.agent_id)
+            if matched_published_agent is None:
                 continue
             try:
-                source_fingerprint = published_agent.source_fingerprint_or_raise()
-                published_agent.execution_reference_or_raise()
+                source_fingerprint = matched_published_agent.source_fingerprint_or_raise()
+                matched_published_agent.execution_reference_or_raise()
             except ValueError:
                 continue
             if discovered_agent.source_fingerprint() != source_fingerprint:
                 continue
-            eligible[published_agent.agent_id] = published_agent
+            eligible[matched_published_agent.agent_id] = matched_published_agent
         return eligible
 
 
