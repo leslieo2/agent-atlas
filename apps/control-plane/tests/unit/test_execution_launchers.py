@@ -54,7 +54,7 @@ def _runner_spec() -> RunnerRunSpec:
             "default_model": "gpt-5.4-mini",
             "tags": [],
         },
-        "entrypoint": "app.agent_plugins.basic:build_agent",
+        "entrypoint": "app.modules.agents.fixtures.basic:build_agent",
     }
     return runner_run_spec_from_run_spec(
         ExecutionRunSpec(
@@ -64,7 +64,7 @@ def _runner_spec() -> RunnerRunSpec:
             dataset="ops",
             agent_id="triage-bot",
             model="gpt-5.4-mini",
-            entrypoint="app.agent_plugins.basic:build_agent",
+            entrypoint="app.modules.agents.fixtures.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             input_summary="check ticket",
             prompt="Summarize the incident.",
@@ -76,7 +76,7 @@ def _runner_spec() -> RunnerRunSpec:
         ),
         artifact=ExecutionArtifact(
             framework=AdapterKind.OPENAI_AGENTS.value,
-            entrypoint="app.agent_plugins.basic:build_agent",
+            entrypoint="app.modules.agents.fixtures.basic:build_agent",
             source_fingerprint="fingerprint",
             artifact_ref="source://triage-bot@fingerprint",
             image_ref=None,

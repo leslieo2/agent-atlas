@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import app.modules.agents.domain.starter_assets as starter_assets
 import pytest
 from app.agent_tracing.exporters.otlp import OtlpTraceExporter
 from app.bootstrap.container import get_container
@@ -13,8 +14,14 @@ from app.execution.application.results import (
     PublishedRunExecutionResult,
     RuntimeExecutionResult,
 )
+from app.modules.agents.fixtures import build_fixture_published_agent
 from app.modules.shared.domain.models import TracePointer
 from tests.support.fake_docker import install_fake_docker_runtime
+
+
+@pytest.fixture(autouse=True)
+def _stub_starter_carrier_build(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(starter_assets, "provision_claude_code_starter_carrier", lambda: None)
 
 
 def _drain_background_work(worker_drain, *, limit: int, rounds: int = 6) -> int:
@@ -268,7 +275,7 @@ def test_experiments_api_supports_compare_and_run_curation(
     assert run_detail.json()["experiment_id"] == candidate_experiment_id
 
 
-def test_experiments_api_rejects_archived_published_snapshot_for_new_runs(client) -> None:
+def test_experiments_api_accepts_archived_valid_published_snapshot_for_new_runs(client) -> None:
     container = get_container()
     published_agent = container.infrastructure.published_agent_repository.get_agent("basic")
     assert published_agent is not None
@@ -320,12 +327,8 @@ def test_experiments_api_rejects_archived_published_snapshot_for_new_runs(client
         },
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == {
-        "code": "agent_not_published",
-        "message": "agent_id 'archived-basic' is not published",
-        "agent_id": "archived-basic",
-    }
+    assert response.status_code == 201
+    assert response.json()["spec"]["published_agent_id"] == "archived-basic"
 
 
 def test_experiments_api_live_mode_starts_with_bootstrapped_starter_agent(
@@ -409,13 +412,8 @@ def test_experiments_api_live_mode_runs_with_state_backed_formal_agent(
     get_container.cache_clear()
 
     container = get_container()
-    discovered = next(
-        agent
-        for agent in container.infrastructure.agent_discovery.list_agents()
-        if agent.agent_id == "basic"
-    )
     container.infrastructure.published_agent_repository.save_agent(
-        discovered.to_published(existing=None)
+        build_fixture_published_agent("basic")
     )
 
     from app.main import app
@@ -565,14 +563,10 @@ def test_experiments_api_live_mode_rejects_corrupt_published_rows_for_new_experi
 
     with TestClient(app) as live_client:
         container = get_container()
-        discovered = next(
-            agent
-            for agent in container.infrastructure.agent_discovery.list_agents()
-            if agent.agent_id == "basic"
-        )
-        corrupt = discovered.to_published(existing=None).model_copy(
+        base_agent = build_fixture_published_agent("basic")
+        corrupt = base_agent.model_copy(
             update={
-                "manifest": discovered.manifest.model_copy(update={"agent_id": "corrupt-basic"}),
+                "manifest": base_agent.manifest.model_copy(update={"agent_id": "corrupt-basic"}),
                 "source_fingerprint": "",
                 "execution_reference": {"artifact_ref": None, "image_ref": None},
             },
@@ -713,12 +707,7 @@ def test_experiments_api_live_mode_rejects_corrupt_published_agent_rows(
     get_container.cache_clear()
 
     container = get_container()
-    discovered = next(
-        agent
-        for agent in container.infrastructure.agent_discovery.list_agents()
-        if agent.agent_id == "basic"
-    )
-    published_agent = discovered.to_published(existing=None)
+    published_agent = build_fixture_published_agent("basic")
     container.infrastructure.published_agent_repository.save_agent(published_agent)
     assert published_agent is not None
     corrupted = published_agent.model_copy(

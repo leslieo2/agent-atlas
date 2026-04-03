@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.bootstrap.container import AppContainer, get_container
 from app.core.errors import AgentValidationFailedError
+from app.modules.agents.fixtures import build_fixture_published_agent
 from app.modules.datasets.domain.models import Dataset, DatasetSample, DatasetVersion
 from app.modules.policies.domain.models import ApprovalPolicyRecord
 from app.modules.runs.domain.models import RunRecord
@@ -23,7 +24,9 @@ def seed_demo_state(container: AppContainer | None = None) -> None:
 
     for agent_id in ("basic", "customer_service", "tools", "fulfillment_ops"):
         with suppress(AgentValidationFailedError):
-            container.agents.agent_publication_commands.publish(agent_id)
+            container.infrastructure.published_agent_repository.save_agent(
+                build_fixture_published_agent(agent_id)
+            )
 
     def _agent_provenance(agent_id: str):
         published = container.infrastructure.published_agent_repository.get_agent(agent_id)

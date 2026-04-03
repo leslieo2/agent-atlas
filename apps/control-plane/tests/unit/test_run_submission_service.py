@@ -112,7 +112,7 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, artifact_ref = _seal_agent(agent)
 
@@ -136,7 +136,7 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert run.executor_backend == "local-runner"
     assert run.executor_submission_id == f"local-{run.run_id}"
     assert task.agent_type == AdapterKind.LANGCHAIN
-    assert task.entrypoint == "app.agent_plugins.triage_bot:build_agent"
+    assert task.entrypoint == "app.modules.agents.fixtures.triage_bot:build_agent"
     assert task.provenance is not None
     assert task.provenance.framework == "langchain"
 
@@ -168,7 +168,7 @@ def test_run_submission_service_rejects_local_runner_in_live_mode(
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, _artifact_ref = _seal_agent(agent)
 
@@ -206,7 +206,7 @@ def test_run_submission_service_requires_explicit_carrier_for_external_runner_in
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, _artifact_ref = _seal_agent(agent)
 
@@ -245,7 +245,7 @@ def test_run_submission_service_deep_merges_nested_runtime_profile_overrides() -
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
         default_runtime_profile=ExecutorConfig(
             backend="k8s-job",
             runner_image="ghcr.io/example/atlas-runner:published",
@@ -291,7 +291,7 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, _artifact_ref = _seal_agent(agent)
 
@@ -332,7 +332,7 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, _artifact_ref = _seal_agent(agent)
 
@@ -373,7 +373,7 @@ def test_run_submission_service_preserves_agent_default_runtime_profile_trace_ba
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
         default_runtime_profile=ExecutorConfig(
             backend="k8s-job",
             runner_image="ghcr.io/example/atlas-runner:published",
@@ -431,7 +431,7 @@ def test_run_submission_service_preserves_requested_model_and_execution_metadata
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, _artifact_ref = _seal_agent(agent)
 
@@ -481,7 +481,7 @@ def test_run_submission_service_ignores_stale_legacy_publication_provenance() ->
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, artifact_ref = _seal_agent(agent)
     run = service.submit(payload, agent)
@@ -520,7 +520,7 @@ def test_run_submission_service_rejects_k8s_job_without_runner_image():
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, _artifact_ref = _seal_agent(agent)
 
@@ -561,7 +561,7 @@ def test_run_submission_service_rejects_k8s_carried_external_runner_without_runn
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, _artifact_ref = _seal_agent(agent)
 
@@ -596,7 +596,7 @@ def test_run_submission_service_rejects_k8s_job_with_only_published_image() -> N
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.agent_plugins.triage_bot:build_agent",
+        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
     )
     agent, artifact_ref = _seal_agent(agent)
     agent.execution_reference = agent.execution_reference.model_copy(

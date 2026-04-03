@@ -4,6 +4,7 @@ import json
 
 from app.bootstrap.container import get_container
 from app.core.config import RuntimeMode, settings
+from app.modules.agents.fixtures import build_fixture_published_agent
 from tests.integration.test_experiments_api import _experiment_payload, _install_runtime
 from tests.support.fake_docker import install_fake_docker_runtime
 from tests.support.fake_k8s import install_fake_k8s_runtime
@@ -427,13 +428,8 @@ def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_wit
     )
 
     container = get_container()
-    discovered = next(
-        agent
-        for agent in container.infrastructure.agent_discovery.list_agents()
-        if agent.agent_id == "basic"
-    )
     container.infrastructure.published_agent_repository.save_agent(
-        discovered.to_published(existing=None)
+        build_fixture_published_agent("basic")
     )
 
     from app.main import app

@@ -4,7 +4,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
-from app.core.config import RuntimeMode, settings
 from app.modules.agents.application.ports import AgentValidationRecordPort
 from app.modules.agents.application.use_cases import (
     AgentBootstrapCommands,
@@ -79,9 +78,7 @@ class AgentModuleBundle:
 
 
 def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
-    live_mode = settings.effective_runtime_mode() == RuntimeMode.LIVE
     validation_records: AgentValidationRecordPort = StateAgentValidationRecords(infra)
-    live_discovery = infra.live_agent_discovery if live_mode else infra.agent_discovery
 
     def agent_exists(agent_id: str) -> bool:
         return infra.published_agent_catalog.get_agent(agent_id) is not None
@@ -91,20 +88,20 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
         validation_records=validation_records,
     )
     agent_discovery_queries = AgentDiscoveryQueries(
-        discovery=live_discovery,
+        discovery=infra.agent_discovery,
         published_agents=infra.published_agent_repository,
         validation_records=validation_records,
     )
     agent_publication_commands = AgentPublicationCommands(
-        discovery=live_discovery,
+        discovery=infra.agent_discovery,
         published_agents=infra.published_agent_repository,
     )
     agent_bootstrap_commands = AgentBootstrapCommands(
         published_agents=infra.published_agent_repository,
-        live_agent_markers=infra.live_agent_marker_repository if live_mode else None,
+        live_agent_markers=infra.live_agent_marker_repository,
     )
     agent_validation_commands = AgentValidationCommands(
-        discovery=live_discovery,
+        discovery=infra.agent_discovery,
         published_agents=infra.published_agent_catalog,
         submission_service=RunSubmissionService(
             run_repository=infra.run_repository,

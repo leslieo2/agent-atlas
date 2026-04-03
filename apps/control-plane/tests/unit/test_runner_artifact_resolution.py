@@ -26,7 +26,7 @@ def test_published_artifact_resolver_accepts_source_backed_handoff() -> None:
             default_model="gpt-5.4-mini",
             tags=["example"],
         ),
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
         source_fingerprint="fingerprint-123",
         execution_reference=ExecutionReference(artifact_ref="source://basic@fingerprint-123"),
     )
@@ -35,7 +35,7 @@ def test_published_artifact_resolver_accepts_source_backed_handoff() -> None:
         dataset=None,
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="resolve handoff",
         prompt="Resolve the artifact handoff.",
@@ -49,7 +49,7 @@ def test_published_artifact_resolver_accepts_source_backed_handoff() -> None:
     resolved = PublishedArtifactResolver().resolve(payload)
 
     assert resolved.framework == AdapterKind.OPENAI_AGENTS.value
-    assert resolved.entrypoint == "app.agent_plugins.basic:build_agent"
+    assert resolved.entrypoint == "app.modules.agents.fixtures.basic:build_agent"
     assert resolved.source_fingerprint == "fingerprint-123"
     assert resolved.artifact_ref == "source://basic@fingerprint-123"
 
@@ -64,14 +64,14 @@ def test_published_artifact_resolver_rejects_legacy_runtime_artifact_snapshot() 
             default_model="gpt-5.4-mini",
             tags=["example"],
         ),
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
     )
     payload = ExecutionRunSpec(
         project="resolver-test",
         dataset=None,
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="resolve handoff",
         prompt="Resolve the artifact handoff.",
@@ -83,7 +83,7 @@ def test_published_artifact_resolver_rejects_legacy_runtime_artifact_snapshot() 
                     "build_status": "ready",
                     "source_fingerprint": "fingerprint-123",
                     "framework": AdapterKind.OPENAI_AGENTS.value,
-                    "entrypoint": "app.agent_plugins.basic:build_agent",
+                    "entrypoint": "app.modules.agents.fixtures.basic:build_agent",
                     "artifact_ref": "source://basic@fingerprint-123",
                     "image_ref": None,
                 },
@@ -102,13 +102,15 @@ def test_published_artifact_resolver_rejects_missing_runtime_handoff() -> None:
         dataset=None,
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="resolve handoff",
         prompt="Resolve the artifact handoff.",
         provenance=ProvenanceMetadata(
             framework=AdapterKind.OPENAI_AGENTS.value,
-            published_agent_snapshot={"entrypoint": "app.agent_plugins.basic:build_agent"},
+            published_agent_snapshot={
+                "entrypoint": "app.modules.agents.fixtures.basic:build_agent"
+            },
         ),
     )
 
@@ -124,7 +126,7 @@ def test_runner_run_spec_builds_from_resolved_artifact() -> None:
         dataset="resolver-dataset",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="resolve handoff",
         prompt="Resolve the artifact handoff.",
@@ -135,7 +137,7 @@ def test_runner_run_spec_builds_from_resolved_artifact() -> None:
 
     artifact = ExecutionArtifact(
         framework=AdapterKind.OPENAI_AGENTS.value,
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
         source_fingerprint="fingerprint-123",
         artifact_ref="source://basic@fingerprint-123",
         image_ref=None,
@@ -148,7 +150,7 @@ def test_runner_run_spec_builds_from_resolved_artifact() -> None:
                 "default_model": "gpt-5.4-mini",
                 "tags": ["example"],
             },
-            "entrypoint": "app.agent_plugins.basic:build_agent",
+            "entrypoint": "app.modules.agents.fixtures.basic:build_agent",
             "published_at": "2026-03-20T09:00:00Z",
             "source_fingerprint": "fingerprint-123",
             "execution_reference": {
@@ -184,7 +186,7 @@ def test_runner_run_spec_rejects_missing_artifact_metadata() -> None:
         dataset="resolver-dataset",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="resolve handoff",
         prompt="Resolve the artifact handoff.",
@@ -224,7 +226,7 @@ def test_local_process_runner_stamps_runner_backend(monkeypatch) -> None:
         attempt_id=uuid4(),
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS.value,
         prompt="Resolve the artifact handoff.",
         framework=AdapterKind.OPENAI_AGENTS.value,
@@ -239,7 +241,7 @@ def test_local_process_runner_stamps_runner_backend(monkeypatch) -> None:
                 "default_model": "gpt-5.4-mini",
                 "tags": [],
             },
-            "entrypoint": "app.agent_plugins.basic:build_agent",
+            "entrypoint": "app.modules.agents.fixtures.basic:build_agent",
             "published_at": "2026-03-20T09:00:00Z",
             "source_fingerprint": "fingerprint-123",
             "execution_reference": {

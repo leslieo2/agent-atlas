@@ -18,6 +18,7 @@ from app.modules.agents.domain.starter_assets import (
     CLAUDE_CODE_STARTER_ENTRYPOINT,
     claude_code_starter_runtime_profile,
 )
+from app.modules.agents.fixtures import build_fixture_published_agent
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
@@ -25,29 +26,32 @@ from app.modules.shared.domain.models import TracePointer
 from fastapi.testclient import TestClient
 
 
-def test_agents_api_supports_discovery_publish_unpublish_and_invalid_publish(
+def test_agents_api_uses_state_backed_starter_discovery_publish_unpublish_and_invalid_publish(
     monkeypatch, client
 ) -> None:
     discovered_response = client.get("/api/v1/agents/discovered")
     assert discovered_response.status_code == 200
-    discovered = {item["agent_id"]: item for item in discovered_response.json()}
+    assert discovered_response.json() == []
 
-    assert "basic" in discovered
-    assert discovered["basic"]["validation_status"] == "valid"
-    assert discovered["basic"]["publish_state"] == "published"
+    bootstrap_response = client.post("/api/v1/agents/bootstrap/claude-code")
+    assert bootstrap_response.status_code == 200
 
-    unpublish_response = client.post("/api/v1/agents/tools/unpublish")
+    discovered = {item["agent_id"]: item for item in client.get("/api/v1/agents/discovered").json()}
+    assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["validation_status"] == "valid"
+    assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["publish_state"] == "published"
+
+    unpublish_response = client.post("/api/v1/agents/claude-code-starter/unpublish")
     assert unpublish_response.status_code == 200
-    assert unpublish_response.json() == {"agent_id": "tools", "published": False}
+    assert unpublish_response.json() == {"agent_id": "claude-code-starter", "published": False}
 
     after_unpublish = client.get("/api/v1/agents/discovered")
     assert after_unpublish.status_code == 200
     discovered_after_unpublish = {item["agent_id"]: item for item in after_unpublish.json()}
-    assert discovered_after_unpublish["tools"]["publish_state"] == "draft"
+    assert discovered_after_unpublish[CLAUDE_CODE_STARTER_AGENT_ID]["publish_state"] == "draft"
 
-    publish_response = client.post("/api/v1/agents/tools/publish")
+    publish_response = client.post("/api/v1/agents/claude-code-starter/publish")
     assert publish_response.status_code == 200
-    assert publish_response.json()["agent_id"] == "tools"
+    assert publish_response.json()["agent_id"] == "claude-code-starter"
 
     invalid_agent = DiscoveredAgent(
         manifest=AgentManifest(
@@ -58,7 +62,7 @@ def test_agents_api_supports_discovery_publish_unpublish_and_invalid_publish(
             default_model="gpt-5.4-mini",
             tags=[],
         ),
-        entrypoint="app.agent_plugins.broken:build_agent",
+        entrypoint="app.modules.agents.fixtures.broken:build_agent",
         validation_status=AgentValidationStatus.INVALID,
         validation_issues=[
             AgentValidationIssue(code="manifest_missing", message="missing AGENT_MANIFEST"),
@@ -94,7 +98,7 @@ def test_agents_api_lists_published_snapshots_even_when_not_discoverable(client)
     assert list_response.status_code == 200
     published = {item["agent_id"]: item for item in list_response.json()}
 
-    assert "archived-basic" not in published
+    assert "archived-basic" in published
 
 
 def test_agents_api_skips_legacy_published_rows_in_list_endpoints(client) -> None:
@@ -119,11 +123,10 @@ def test_agents_api_skips_legacy_published_rows_in_list_endpoints(client) -> Non
 
     discovered_response = client.get("/api/v1/agents/discovered")
     assert discovered_response.status_code == 200
-    discovered = {item["agent_id"]: item for item in discovered_response.json()}
-    assert discovered["basic"]["publish_state"] == "published"
+    assert discovered_response.json() == []
 
 
-def test_agents_api_treats_corrupt_matching_publication_as_unpublished_in_discovery(client) -> None:
+def test_agents_api_excludes_corrupt_publications_from_published_catalog(client) -> None:
     container = get_container()
     published_agent = container.infrastructure.published_agent_repository.get_agent("basic")
     assert published_agent is not None
@@ -137,11 +140,10 @@ def test_agents_api_treats_corrupt_matching_publication_as_unpublished_in_discov
     )
     container.infrastructure.published_agent_repository.save_agent(corrupted)
 
-    discovered_response = client.get("/api/v1/agents/discovered")
-    assert discovered_response.status_code == 200
-    discovered = {item["agent_id"]: item for item in discovered_response.json()}
-    assert discovered["basic"]["publish_state"] == "draft"
-    assert discovered["basic"]["execution_reference"] is None
+    published_response = client.get("/api/v1/agents/published")
+    assert published_response.status_code == 200
+    published = {item["agent_id"]: item for item in published_response.json()}
+    assert "basic" not in published
 
 
 def test_unpublish_returns_404_for_missing_published_agent(client) -> None:
@@ -342,12 +344,7 @@ def test_agents_api_live_mode_lists_only_formally_governed_published_agents(
     get_container.cache_clear()
 
     container = get_container()
-    discovered = next(
-        agent
-        for agent in container.infrastructure.agent_discovery.list_agents()
-        if agent.agent_id == "basic"
-    )
-    published_agent = discovered.to_published(existing=None)
+    published_agent = build_fixture_published_agent("basic")
     container.infrastructure.published_agent_repository.save_agent(published_agent)
     assert published_agent is not None
     corrupted = published_agent.model_copy(
@@ -377,13 +374,8 @@ def test_agents_api_live_mode_validation_runs_accept_state_backed_formal_agents(
     get_container.cache_clear()
 
     container = get_container()
-    discovered = next(
-        agent
-        for agent in container.infrastructure.agent_discovery.list_agents()
-        if agent.agent_id == "basic"
-    )
     container.infrastructure.published_agent_repository.save_agent(
-        discovered.to_published(existing=None)
+        build_fixture_published_agent("basic")
     )
 
     from app.main import app
@@ -440,32 +432,26 @@ def test_agents_api_surfaces_latest_generic_validation_run_summary(client) -> No
     )
     container.infrastructure.run_repository.save(run)
 
-    discovered_response = client.get("/api/v1/agents/discovered")
-    assert discovered_response.status_code == 200
-    discovered = {item["agent_id"]: item for item in discovered_response.json()}
-
-    assert discovered["basic"]["latest_validation"] == {
+    published_response = client.get("/api/v1/agents/published")
+    assert published_response.status_code == 200
+    published = {item["agent_id"]: item for item in published_response.json()}
+    assert published["basic"]["latest_validation"] == {
         "run_id": str(run.run_id),
         "status": "succeeded",
         "created_at": "2026-04-01T16:00:00Z",
         "started_at": "2026-04-01T16:01:00Z",
         "completed_at": "2026-04-01T16:02:00Z",
     }
-    assert discovered["basic"]["validation_evidence"] == {
+    assert published["basic"]["validation_evidence"] == {
         "artifact_ref": "state://artifacts/validation-run",
         "image_ref": "docker://atlas-claude-validation:local",
         "trace_url": "https://phoenix.example/trace/validation",
         "terminal_summary": None,
     }
-    assert discovered["basic"]["validation_outcome"] == {
+    assert published["basic"]["validation_outcome"] == {
         "status": "passed",
         "reason": None,
     }
-
-    published_response = client.get("/api/v1/agents/published")
-    assert published_response.status_code == 200
-    published = {item["agent_id"]: item for item in published_response.json()}
-    assert published["basic"]["latest_validation"]["run_id"] == str(run.run_id)
 
 
 def test_agents_api_ignores_non_validation_runs_in_agent_records(client) -> None:
@@ -487,11 +473,7 @@ def test_agents_api_ignores_non_validation_runs_in_agent_records(client) -> None
 
     discovered_response = client.get("/api/v1/agents/discovered")
     assert discovered_response.status_code == 200
-    discovered = {item["agent_id"]: item for item in discovered_response.json()}
-
-    assert discovered["basic"]["latest_validation"] is None
-    assert discovered["basic"]["validation_evidence"] is None
-    assert discovered["basic"]["validation_outcome"] is None
+    assert discovered_response.json() == []
 
 
 def test_agents_api_starts_generic_validation_runs_via_agent_entrypoint(client) -> None:
@@ -533,14 +515,11 @@ def test_agents_api_live_mode_rejects_validation_for_corrupt_published_rows(
 
     with TestClient(app) as live_client:
         container = get_container()
-        discovered = next(
-            agent
-            for agent in container.infrastructure.agent_discovery.list_agents()
-            if agent.agent_id == "basic"
-        )
-        corrupt = discovered.to_published(existing=None).model_copy(
+        corrupt = build_fixture_published_agent("basic").model_copy(
             update={
-                "manifest": discovered.manifest.model_copy(update={"agent_id": "corrupt-basic"}),
+                "manifest": build_fixture_published_agent("basic").manifest.model_copy(
+                    update={"agent_id": "corrupt-basic"}
+                ),
                 "source_fingerprint": "",
                 "execution_reference": {"artifact_ref": None, "image_ref": None},
             },

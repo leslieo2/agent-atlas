@@ -33,10 +33,7 @@ from app.execution.application.ports import (
     RunnerPort,
 )
 from app.infrastructure.adapters.agent_catalog import (
-    FilesystemAgentDiscovery,
-    FilesystemAgentSourceCatalog,
-    StateLiveAgentDiscovery,
-    StateLivePublishedAgentCatalog,
+    StateBootstrapAgentDiscovery,
     StatePublishedAgentCatalog,
 )
 from app.infrastructure.adapters.framework_registry import (
@@ -103,11 +100,9 @@ class InfrastructureBundle:
     live_agent_marker_repository: StateLiveAgentMarkerRepository
     approval_policy_repository: StateApprovalPolicyRepository
     system_status: StateSystemStatus
-    agent_source_catalog: FilesystemAgentSourceCatalog
     framework_registry: FrameworkRegistryPort
     published_execution_dispatcher: PublishedAgentExecutionPort
-    agent_discovery: FilesystemAgentDiscovery
-    live_agent_discovery: StateLiveAgentDiscovery
+    agent_discovery: StateBootstrapAgentDiscovery
     published_agent_catalog: PublishedAgentCatalogPort
     tracing: TracingInfrastructure
     execution: ExecutionInfrastructure
@@ -139,27 +134,18 @@ def build_infrastructure() -> InfrastructureBundle:
     live_agent_marker_repository = StateLiveAgentMarkerRepository()
     approval_policy_repository = StateApprovalPolicyRepository()
     system_status = StateSystemStatus()
-    agent_source_catalog = FilesystemAgentSourceCatalog()
     framework_plugins = discover_framework_plugins()
     framework_registry = FrameworkRegistry(plugins=framework_plugins)
     published_execution_dispatcher = PublishedAgentExecutionDispatcher(plugins=framework_plugins)
-    agent_discovery = FilesystemAgentDiscovery(
-        source_catalog=agent_source_catalog,
-        validator=framework_registry,
+    agent_discovery = StateBootstrapAgentDiscovery(
+        markers=live_agent_marker_repository,
+        published_agents=published_agent_repository,
     )
-    live_agent_discovery = StateLiveAgentDiscovery(markers=live_agent_marker_repository)
     task_queue = StateTaskQueue()
     effective_runtime_mode = settings.effective_runtime_mode()
-    published_agent_catalog: PublishedAgentCatalogPort
-    if effective_runtime_mode == RuntimeMode.LIVE:
-        published_agent_catalog = StateLivePublishedAgentCatalog(
-            published_agents=published_agent_repository,
-        )
-    else:
-        published_agent_catalog = StatePublishedAgentCatalog(
-            published_agents=published_agent_repository,
-            discovery=agent_discovery,
-        )
+    published_agent_catalog: PublishedAgentCatalogPort = StatePublishedAgentCatalog(
+        published_agents=published_agent_repository,
+    )
     model_runtime = ModelRuntimeService(
         published_execution_dispatcher=published_execution_dispatcher,
     )
@@ -277,11 +263,9 @@ def build_infrastructure() -> InfrastructureBundle:
         live_agent_marker_repository=live_agent_marker_repository,
         approval_policy_repository=approval_policy_repository,
         system_status=system_status,
-        agent_source_catalog=agent_source_catalog,
         framework_registry=framework_registry,
         published_execution_dispatcher=published_execution_dispatcher,
         agent_discovery=agent_discovery,
-        live_agent_discovery=live_agent_discovery,
         published_agent_catalog=published_agent_catalog,
         tracing=tracing,
         execution=execution,

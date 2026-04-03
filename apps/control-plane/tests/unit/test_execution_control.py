@@ -54,7 +54,7 @@ def _spec() -> ExecutionRunSpec:
         dataset="dataset-v1",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.agent_plugins.basic:build_agent",
+        entrypoint="app.modules.agents.fixtures.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="run input",
         prompt="Summarize this run.",
@@ -139,7 +139,7 @@ def test_retry_run_resubmits_same_run_as_new_attempt() -> None:
                         "default_model": "gpt-5.4-mini",
                         "tags": ["example"],
                     },
-                    "entrypoint": "app.agent_plugins.basic:build_agent",
+                    "entrypoint": "app.modules.agents.fixtures.basic:build_agent",
                     "source_fingerprint": "fingerprint-123",
                     "execution_reference": {
                         "artifact_ref": "source://basic@fingerprint-123",
@@ -193,7 +193,7 @@ def test_retry_run_rebuilds_spec_with_external_runner_default_when_legacy_backen
                         "default_model": "gpt-5.4-mini",
                         "tags": ["example"],
                     },
-                    "entrypoint": "app.agent_plugins.basic:build_agent",
+                    "entrypoint": "app.modules.agents.fixtures.basic:build_agent",
                     "source_fingerprint": "fingerprint-123",
                     "execution_reference": {
                         "artifact_ref": "source://basic@fingerprint-123",
@@ -232,12 +232,12 @@ def test_retry_run_rejects_legacy_publication_snapshot() -> None:
                         "default_model": "gpt-5.4-mini",
                         "tags": ["example"],
                     },
-                    "entrypoint": "app.agent_plugins.basic:build_agent",
+                    "entrypoint": "app.modules.agents.fixtures.basic:build_agent",
                     "runtime_artifact": {
                         "build_status": "ready",
                         "source_fingerprint": "fingerprint-123",
                         "framework": AdapterKind.OPENAI_AGENTS.value,
-                        "entrypoint": "app.agent_plugins.basic:build_agent",
+                        "entrypoint": "app.modules.agents.fixtures.basic:build_agent",
                         "artifact_ref": "source://basic@fingerprint-123",
                     },
                 }

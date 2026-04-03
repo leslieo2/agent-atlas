@@ -4,7 +4,8 @@ from uuid import UUID
 
 import pytest
 from agents import Agent
-from app.agent_plugins.fulfillment_ops import (
+from app.modules.agents.domain.models import AgentBuildContext
+from app.modules.agents.fixtures.fulfillment_ops import (
     ToolBackendError,
     build_agent,
     resolve_escalation_policy,
@@ -12,7 +13,6 @@ from app.agent_plugins.fulfillment_ops import (
     resolve_order_status,
     resolve_shipping_window,
 )
-from app.modules.agents.domain.models import AgentBuildContext
 
 
 def test_fulfillment_ops_build_agent_returns_openai_agent() -> None:
