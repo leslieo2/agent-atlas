@@ -159,7 +159,7 @@ Important settings currently wired in code:
 - `AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL`: control-plane state database location
 - `AGENT_ATLAS_DATA_PLANE_DATABASE_URL`: data-plane state database location
 - `AGENT_ATLAS_SEED_DEMO`: whether to seed demo data on startup
-- `AGENT_ATLAS_OPENAI_API_KEY`: credentials for live mode
+- `AGENT_ATLAS_OPENAI_API_KEY`: credentials for OpenAI-backed run paths when those paths are selected
 - `AGENT_ATLAS_WORKER_NAME`: optional worker name override
 - `AGENT_ATLAS_WORKER_POLL_INTERVAL_SECONDS`: worker polling interval
 - `AGENT_ATLAS_WORKER_TASK_LEASE_SECONDS`: worker task lease duration
@@ -179,9 +179,10 @@ Tracing settings:
 Runtime mode notes:
 
 - `AGENT_ATLAS_RUNTIME_MODE=mock`: always simulate execution
-- `AGENT_ATLAS_RUNTIME_MODE=auto`: use live execution when an API key is configured, otherwise
-  fallback to mock
-- `AGENT_ATLAS_RUNTIME_MODE=live`: require a real API key and disable implicit demo behavior
+- `AGENT_ATLAS_RUNTIME_MODE=auto`: keep Atlas on mock defaults until live mode is explicitly
+  selected
+- `AGENT_ATLAS_RUNTIME_MODE=live`: enable live control-plane behavior; provider credentials are
+  enforced by the selected provider or runner path rather than as a platform-global OpenAI gate
 
 ## Developer Commands
 

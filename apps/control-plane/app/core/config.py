@@ -25,7 +25,8 @@ class Settings(BaseSettings):
     runtime_mode: RuntimeMode = Field(
         default=RuntimeMode.AUTO,
         description=(
-            "Execution mode: auto|live|mock. " "auto falls back to mock when OPENAI key missing."
+            "Execution mode: auto|live|mock. "
+            "auto keeps Atlas on mock defaults until live mode is explicitly selected."
         ),
     )
     openai_api_key: SecretStr | None = Field(
@@ -114,13 +115,12 @@ class Settings(BaseSettings):
         description="Optional Phoenix API key used for OTLP export and deeplink resolution.",
     )
 
-    def effective_runtime_mode(self, api_key: SecretStr | None = None) -> RuntimeMode:
-        resolved_api_key = api_key if api_key is not None else self.openai_api_key
+    def effective_runtime_mode(self) -> RuntimeMode:
         if self.runtime_mode == RuntimeMode.MOCK:
             return RuntimeMode.MOCK
         if self.runtime_mode == RuntimeMode.LIVE:
             return RuntimeMode.LIVE
-        return RuntimeMode.LIVE if resolved_api_key else RuntimeMode.MOCK
+        return RuntimeMode.MOCK
 
     def should_seed_demo(self) -> bool:
         if self.seed_demo is not None:

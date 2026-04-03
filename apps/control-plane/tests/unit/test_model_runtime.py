@@ -365,17 +365,55 @@ def test_model_runtime_service_auto_mode_without_key_uses_mock():
     assert "Simulated openai-agents-sdk execution" in result.output
 
 
-def test_model_runtime_service_live_mode_without_key_raises():
+def test_model_runtime_service_auto_mode_with_key_still_uses_mock():
     service = ModelRuntimeService(adapters={})
+    service.api_key = SecretStr("sk-test")
+    service.runtime_mode = RuntimeMode.AUTO
+
+    result = service.execute(
+        AdapterKind.OPENAI_AGENTS,
+        model="gpt-5.4-mini",
+        prompt="Summarize the ticket.",
+    )
+
+    assert result.provider == "mock"
+    assert "Simulated openai-agents-sdk execution" in result.output
+
+
+def test_model_runtime_service_live_mode_without_platform_key_defers_to_provider_adapter():
+    class StubAdapter:
+        def __init__(self) -> None:
+            self.api_keys: list[SecretStr | None] = []
+
+        def execute(
+            self,
+            *,
+            api_key: SecretStr | None,
+            model: str,
+            prompt: str,
+        ) -> RuntimeExecutionResult:
+            self.api_keys.append(api_key)
+            return RuntimeExecutionResult(
+                output=f"provider:{prompt}",
+                latency_ms=5,
+                token_usage=1,
+                provider="stub-provider",
+                resolved_model=model,
+            )
+
+    adapter = StubAdapter()
+    service = ModelRuntimeService(adapters={AdapterKind.LANGCHAIN: adapter})
     service.api_key = None
     service.runtime_mode = RuntimeMode.LIVE
 
-    with pytest.raises(RuntimeError, match="AGENT_ATLAS_OPENAI_API_KEY is not set"):
-        service.execute(
-            AdapterKind.OPENAI_AGENTS,
-            model="gpt-5.4-mini",
-            prompt="Summarize the ticket.",
-        )
+    result = service.execute(
+        AdapterKind.LANGCHAIN,
+        model="gpt-5.4-mini",
+        prompt="Summarize the ticket.",
+    )
+
+    assert adapter.api_keys == [None]
+    assert result.provider == "stub-provider"
 
 
 def test_model_runtime_service_dispatches_published_runs_through_execution_dispatcher():
@@ -395,7 +433,7 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
 
     class LangChainRuntime:
         def __init__(self) -> None:
-            self.calls: list[str] = []
+            self.calls: list[tuple[str, SecretStr | None]] = []
 
         def execute_published(
             self,
@@ -404,8 +442,7 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
             payload: RunnerRunSpec,
             context: AgentBuildContext,
         ) -> PublishedRunExecutionResult:
-            assert api_key is not None
-            self.calls.append(payload.agent_id)
+            self.calls.append((payload.agent_id, api_key))
             assert context.project == payload.project
             return PublishedRunExecutionResult(
                 runtime_result=RuntimeExecutionResult(
@@ -430,7 +467,7 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
         }
     )
     service = ModelRuntimeService(adapters={}, published_execution_dispatcher=dispatcher)
-    service.api_key = SecretStr("sk-test")
+    service.api_key = None
     service.runtime_mode = RuntimeMode.LIVE
     published_agent = PublishedAgent(
         manifest=AgentManifest(
@@ -469,7 +506,7 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
         ),
     )
 
-    assert runtime.calls == ["graph-bot"]
+    assert runtime.calls == [("graph-bot", None)]
     assert result.runtime_result.execution_backend == "langgraph"
     assert result.runtime_result.provider == "langchain"
 

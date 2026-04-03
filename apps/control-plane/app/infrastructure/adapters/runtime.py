@@ -230,7 +230,7 @@ class ModelRuntimeService:
             return RuntimeMode.MOCK
         if self.runtime_mode == RuntimeMode.LIVE:
             return RuntimeMode.LIVE
-        return RuntimeMode.LIVE if self.api_key else RuntimeMode.MOCK
+        return RuntimeMode.MOCK
 
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
         effective_mode = self._effective_runtime_mode()
@@ -238,8 +238,6 @@ class ModelRuntimeService:
             return self._simulate_output(agent_type, model, prompt)
 
         try:
-            if not self.api_key:
-                raise RuntimeError("AGENT_ATLAS_OPENAI_API_KEY is not set")
             adapter = self.adapters.get(agent_type)
             if adapter is None:
                 raise UnsupportedAdapterError(
@@ -269,8 +267,6 @@ class ModelRuntimeService:
             )
 
         try:
-            if not self.api_key:
-                raise RuntimeError("AGENT_ATLAS_OPENAI_API_KEY is not set")
             context = AgentBuildContext(
                 run_id=run_id,
                 project=payload.project,

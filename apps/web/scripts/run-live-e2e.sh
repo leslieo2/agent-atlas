@@ -35,11 +35,6 @@ ALLOWED_ORIGINS=$(printf '["%s","%s"]' "$WEB_BASE_URL" "http://localhost:${WEB_P
 NO_PROXY_VALUE=$(append_no_proxy "${NO_PROXY:-}" "127.0.0.1")
 NO_PROXY_VALUE=$(append_no_proxy "$NO_PROXY_VALUE" "localhost")
 
-if [ -z "${AGENT_ATLAS_OPENAI_API_KEY:-}" ]; then
-  echo "AGENT_ATLAS_OPENAI_API_KEY is required for live e2e." >&2
-  exit 1
-fi
-
 cleanup() {
   kill "${FRONTEND_PID:-}" "${WORKER_PID:-}" "${API_PID:-}" 2>/dev/null || true
   rm -rf "$RUN_DIR"
