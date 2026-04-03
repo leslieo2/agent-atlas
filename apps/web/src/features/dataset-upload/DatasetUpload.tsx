@@ -17,8 +17,12 @@ export function DatasetUpload({
     }
 
     if (typeof input.showPicker === "function") {
-      input.showPicker();
-      return;
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        // Browsers can expose showPicker while still rejecting it for this input state.
+      }
     }
 
     input.click();
