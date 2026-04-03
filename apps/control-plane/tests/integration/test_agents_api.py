@@ -318,6 +318,80 @@ def test_agents_api_live_mode_validation_runs_accept_state_backed_starter_drafts
         )
 
 
+def test_agents_api_live_mode_lists_only_formally_governed_published_agents(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    get_container.cache_clear()
+
+    container = get_container()
+    discovered = next(
+        agent for agent in container.infrastructure.agent_discovery.list_agents() if agent.agent_id == "basic"
+    )
+    published_agent = discovered.to_published(existing=None)
+    container.infrastructure.published_agent_repository.save_agent(published_agent)
+    assert published_agent is not None
+    corrupted = published_agent.model_copy(
+        update={
+            "manifest": published_agent.manifest.model_copy(update={"agent_id": "corrupt-basic"}),
+            "source_fingerprint": "",
+            "execution_reference": {"artifact_ref": None, "image_ref": None},
+        },
+        deep=True,
+    )
+    container.infrastructure.published_agent_repository.save_agent(corrupted)
+
+    from app.main import app
+
+    with TestClient(app) as live_client:
+        response = live_client.get("/api/v1/agents/published")
+        assert response.status_code == 200
+        published = {item["agent_id"]: item for item in response.json()}
+        assert "basic" in published
+        assert "corrupt-basic" not in published
+
+
+def test_agents_api_live_mode_validation_runs_accept_state_backed_formal_agents(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    get_container.cache_clear()
+
+    container = get_container()
+    discovered = next(
+        agent for agent in container.infrastructure.agent_discovery.list_agents() if agent.agent_id == "basic"
+    )
+    container.infrastructure.published_agent_repository.save_agent(discovered.to_published(existing=None))
+
+    from app.main import app
+
+    with TestClient(app) as live_client:
+        response = live_client.post(
+            "/api/v1/agents/basic/validation-runs",
+            json={
+                "project": "atlas-validation",
+                "dataset": "controlled-validation",
+                "input_summary": "Validate a published formal agent from state only",
+                "prompt": "alpha",
+                "tags": ["formal-agent"],
+                "project_metadata": {"validation_surface": "live-formal"},
+                "executor_config": {
+                    "backend": "external-runner",
+                    "runner_image": "atlas-claude-validation:local",
+                    "metadata": {"runner_backend": "k8s-container"},
+                },
+            },
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["agent_id"] == "basic"
+        assert payload["status"] == "queued"
+        assert set(payload["tags"]) >= {"validation", "formal-agent"}
+        assert payload["executor_backend"] == "external-runner"
+        assert payload["provenance"]["published_agent_snapshot"]["manifest"]["agent_id"] == "basic"
+
+
 def test_agents_api_surfaces_latest_generic_validation_run_summary(client) -> None:
     container = get_container()
     run = RunRecord(
@@ -424,3 +498,47 @@ def test_agents_api_starts_generic_validation_runs_via_agent_entrypoint(client) 
     assert payload["tags"] == ["validation", "project-in-container"]
     assert payload["executor_backend"] == "external-runner"
     assert payload["provenance"]["executor"]["metadata"]["runner_backend"] == "k8s-container"
+
+
+def test_agents_api_live_mode_rejects_validation_for_corrupt_published_rows(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", False)
+    get_container.cache_clear()
+    from app.main import app
+
+    with TestClient(app) as live_client:
+        container = get_container()
+        discovered = next(
+            agent for agent in container.infrastructure.agent_discovery.list_agents() if agent.agent_id == "basic"
+        )
+        corrupt = discovered.to_published(existing=None).model_copy(
+            update={
+                "manifest": discovered.manifest.model_copy(update={"agent_id": "corrupt-basic"}),
+                "source_fingerprint": "",
+                "execution_reference": {"artifact_ref": None, "image_ref": None},
+            },
+            deep=True,
+        )
+        container.infrastructure.published_agent_repository.save_agent(corrupt)
+
+        response = live_client.post(
+            "/api/v1/agents/corrupt-basic/validation-runs",
+            json={
+                "project": "atlas-validation",
+                "dataset": "controlled-validation",
+                "input_summary": "Validate a corrupt live row",
+                "prompt": "alpha",
+                "tags": ["agents-surface"],
+                "project_metadata": {"validation_surface": "agents"},
+                "executor_config": claude_code_starter_runtime_profile().model_dump(mode="json"),
+            },
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "code": "published_agent_not_found",
+            "message": "published agent 'corrupt-basic' was not found",
+            "agent_id": "corrupt-basic",
+        }

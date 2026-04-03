@@ -36,6 +36,7 @@ from app.infrastructure.adapters.agent_catalog import (
     FilesystemAgentDiscovery,
     FilesystemAgentSourceCatalog,
     StateLiveAgentDiscovery,
+    StateLivePublishedAgentCatalog,
     StatePublishedAgentCatalog,
 )
 from app.infrastructure.adapters.framework_registry import (
@@ -151,7 +152,9 @@ def build_infrastructure() -> InfrastructureBundle:
     effective_runtime_mode = settings.effective_runtime_mode()
     published_agent_catalog: PublishedAgentCatalogPort
     if effective_runtime_mode == RuntimeMode.LIVE:
-        published_agent_catalog = published_agent_repository
+        published_agent_catalog = StateLivePublishedAgentCatalog(
+            published_agents=published_agent_repository,
+        )
     else:
         published_agent_catalog = StatePublishedAgentCatalog(
             published_agents=published_agent_repository,

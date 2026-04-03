@@ -63,6 +63,7 @@ class ExperimentRecord(BaseModel):
     status: ExperimentStatus = ExperimentStatus.DRAFT
     tags: list[str] = Field(default_factory=list)
     spec: ExperimentSpec
+    published_agent_snapshot: dict[str, Any] | None = None
     sample_count: int = 0
     completed_count: int = 0
     passed_count: int = 0

@@ -39,7 +39,7 @@ def build_experiment_module(
         approval_policy_repository=infra.approval_policy_repository,
         execution_control=infra.execution.execution_control,
         task_queue=infra.execution.task_queue,
-        agent_exists=agents.agent_exists,
+        agent_catalog=infra.published_agent_catalog,
     )
     experiment_orchestrator = ExperimentOrchestrator(
         experiment_repository=infra.experiment_repository,

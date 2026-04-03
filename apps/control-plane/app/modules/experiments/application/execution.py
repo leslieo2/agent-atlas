@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from pydantic import ValidationError
+
 from app.modules.agents.application.ports import PublishedAgentCatalogPort
+from app.modules.agents.domain.models import PublishedAgent
 from app.modules.datasets.application.ports import DatasetRepository
 from app.modules.experiments.application.ports import (
     ExperimentRepository,
@@ -11,7 +14,7 @@ from app.modules.experiments.application.ports import (
     RunSubmissionPort,
     TrajectoryRepository,
 )
-from app.modules.experiments.domain.models import ExperimentStatus
+from app.modules.experiments.domain.models import ExperimentRecord, ExperimentStatus
 from app.modules.experiments.domain.policies import ExperimentAggregate
 from app.modules.experiments.domain.scoring import evaluate_run
 from app.modules.runs.domain.models import RunCreateInput
@@ -48,7 +51,7 @@ class ExperimentOrchestrator:
             )
             self.experiment_repository.save(failed)
             return
-        agent = self.agent_catalog.get_agent(experiment.published_agent_id)
+        agent = self._resolve_agent(experiment)
         if agent is None:
             failed = ExperimentAggregate.load(experiment).mark_failed(
                 error_code="runner_bootstrap",
@@ -102,6 +105,14 @@ class ExperimentOrchestrator:
                 payload={"experiment_id": str(experiment.experiment_id)},
             )
         )
+
+    def _resolve_agent(self, experiment: ExperimentRecord) -> PublishedAgent | None:
+        if experiment.published_agent_snapshot is not None:
+            try:
+                return PublishedAgent.model_validate(experiment.published_agent_snapshot)
+            except ValidationError:
+                return None
+        return self.agent_catalog.get_agent(experiment.published_agent_id)
 
 
 class ExperimentAggregationService:

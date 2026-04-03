@@ -84,14 +84,10 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     live_discovery = infra.live_agent_discovery if live_mode else infra.agent_discovery
 
     def agent_exists(agent_id: str) -> bool:
-        if live_mode:
-            return infra.published_agent_repository.get_agent(agent_id) is not None
         return infra.published_agent_catalog.get_agent(agent_id) is not None
 
     published_agent_catalog_queries = PublishedAgentCatalogQueries(
-        published_agents=(
-            infra.published_agent_repository if live_mode else infra.published_agent_catalog
-        ),
+        published_agents=infra.published_agent_catalog,
         validation_records=validation_records,
     )
     agent_discovery_queries = AgentDiscoveryQueries(
@@ -109,7 +105,7 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     )
     agent_validation_commands = AgentValidationCommands(
         discovery=live_discovery,
-        published_agents=infra.published_agent_repository,
+        published_agents=infra.published_agent_catalog,
         submission_service=RunSubmissionService(
             run_repository=infra.run_repository,
             execution_control=infra.execution.execution_control,

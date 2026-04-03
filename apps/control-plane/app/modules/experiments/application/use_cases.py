@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import builtins
 from collections import Counter
-from collections.abc import Callable
 from uuid import UUID
 
 from app.core.errors import AgentNotPublishedError, AppError, DatasetNotFoundError
 from app.execution.application.ports import ExecutionControlPort
 from app.execution.contracts import CancelRequest
+from app.modules.agents.application.ports import PublishedAgentCatalogPort
 from app.modules.datasets.application.ports import DatasetRepository
 from app.modules.experiments.application.ports import (
     ExperimentRepository,
@@ -263,7 +263,7 @@ class ExperimentCommands:
         approval_policy_repository: ApprovalPolicyRepository,
         execution_control: ExecutionControlPort,
         task_queue: TaskQueuePort,
-        agent_exists: Callable[[str], bool],
+        agent_catalog: PublishedAgentCatalogPort,
     ) -> None:
         self.experiment_repository = experiment_repository
         self.run_evaluation_repository = run_evaluation_repository
@@ -272,13 +272,14 @@ class ExperimentCommands:
         self.approval_policy_repository = approval_policy_repository
         self.execution_control = execution_control
         self.task_queue = task_queue
-        self.agent_exists = agent_exists
+        self.agent_catalog = agent_catalog
 
     def create(self, payload: ExperimentCreateInput) -> ExperimentRecord:
         dataset_version = self.dataset_repository.get_version(payload.spec.dataset_version_id)
         if dataset_version is None:
             raise DatasetNotFoundError(str(payload.spec.dataset_version_id))
-        if not self.agent_exists(payload.spec.published_agent_id):
+        agent = self.agent_catalog.get_agent(payload.spec.published_agent_id)
+        if agent is None:
             raise AgentNotPublishedError(payload.spec.published_agent_id)
         if payload.spec.approval_policy_id is not None:
             policy = self.approval_policy_repository.get(payload.spec.approval_policy_id)
@@ -306,6 +307,7 @@ class ExperimentCommands:
             payload,
             dataset_name=dataset_version.dataset_name,
             sample_count=len(dataset_version.rows),
+            published_agent_snapshot=agent.to_snapshot(),
         )
         self.experiment_repository.save(experiment)
         return experiment

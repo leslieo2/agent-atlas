@@ -252,7 +252,7 @@ class AgentValidationCommands:
     def __init__(
         self,
         discovery: AgentSourceDiscoveryPort | None,
-        published_agents: PublishedAgentRepositoryPort,
+        published_agents: PublishedAgentCatalogPort,
         submission_service: RunSubmissionService,
     ) -> None:
         self.discovery = discovery

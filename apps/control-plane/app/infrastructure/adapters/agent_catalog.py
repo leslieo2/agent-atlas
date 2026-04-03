@@ -98,7 +98,7 @@ class StatePublishedAgentCatalog:
     def __init__(
         self,
         published_agents: PublishedAgentRepositoryPort,
-        discovery: AgentSourceDiscoveryPort,
+        discovery: AgentSourceDiscoveryPort | None = None,
     ) -> None:
         self.published_agents = published_agents
         self.discovery = discovery
@@ -120,6 +120,16 @@ class StatePublishedAgentCatalog:
     def _eligible_published_by_id(self) -> dict[str, PublishedAgent]:
         eligible: dict[str, PublishedAgent] = {}
         published_by_id = {agent.agent_id: agent for agent in self.published_agents.list_agents()}
+        if self.discovery is None:
+            for published_agent in published_by_id.values():
+                try:
+                    published_agent.source_fingerprint_or_raise()
+                    published_agent.execution_reference_or_raise()
+                except ValueError:
+                    continue
+                eligible[published_agent.agent_id] = published_agent
+            return eligible
+
         for discovered_agent in self.discovery.list_agents():
             if discovered_agent.validation_status != AgentValidationStatus.VALID:
                 continue
@@ -156,3 +166,36 @@ class StateLiveAgentDiscovery:
                 )
             )
         return sorted(discovered, key=lambda agent: agent.agent_id)
+
+
+class StateLivePublishedAgentCatalog:
+    def __init__(
+        self,
+        published_agents: PublishedAgentRepositoryPort,
+    ) -> None:
+        self.published_agents = published_agents
+
+    def list_agents(self) -> list[PublishedAgent]:
+        eligible_by_id = self._eligible_published_by_id()
+        return sorted(
+            [
+                agent
+                for agent in self.published_agents.list_agents()
+                if agent.agent_id in eligible_by_id
+            ],
+            key=lambda agent: agent.agent_id,
+        )
+
+    def get_agent(self, agent_id: str) -> PublishedAgent | None:
+        return self._eligible_published_by_id().get(agent_id)
+
+    def _eligible_published_by_id(self) -> dict[str, PublishedAgent]:
+        eligible: dict[str, PublishedAgent] = {}
+        for published_agent in self.published_agents.list_agents():
+            try:
+                published_agent.source_fingerprint_or_raise()
+                published_agent.execution_reference_or_raise()
+            except ValueError:
+                continue
+            eligible[published_agent.agent_id] = published_agent
+        return eligible

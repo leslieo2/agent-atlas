@@ -17,7 +17,12 @@ class ExperimentAggregate:
 
     @classmethod
     def create(
-        cls, payload: ExperimentCreateInput, *, dataset_name: str, sample_count: int
+        cls,
+        payload: ExperimentCreateInput,
+        *,
+        dataset_name: str,
+        sample_count: int,
+        published_agent_snapshot: dict[str, object],
     ) -> ExperimentRecord:
         return ExperimentRecord(
             name=payload.name,
@@ -27,6 +32,7 @@ class ExperimentAggregate:
             status=ExperimentStatus.DRAFT,
             tags=list(payload.spec.tags),
             spec=payload.spec.model_copy(deep=True),
+            published_agent_snapshot=dict(published_agent_snapshot),
             sample_count=sample_count,
         )
 
