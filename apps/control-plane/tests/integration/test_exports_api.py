@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 
+from app.bootstrap.container import get_container
+from app.core.config import RuntimeMode, settings
 from tests.integration.test_experiments_api import _experiment_payload, _install_runtime
+from tests.support.fake_docker import install_fake_docker_runtime
 from tests.support.fake_k8s import install_fake_k8s_runtime
 
 
@@ -408,3 +411,139 @@ def test_claude_code_cli_experiment_loop_runs_on_external_runner_k8s_carrier(
     assert len(rows) == 1
     assert rows[0]["dataset_sample_id"] == "sample-pass"
     assert rows[0]["executor_backend"] == "external-runner"
+
+
+def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_without_bootstrap(
+    monkeypatch,
+    worker_drain,
+    wait_until,
+) -> None:
+    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    monkeypatch.setattr(settings, "seed_demo", False)
+    get_container.cache_clear()
+    install_fake_docker_runtime(
+        monkeypatch,
+        outputs={"alpha": "alpha"},
+    )
+
+    container = get_container()
+    discovered = next(
+        agent for agent in container.infrastructure.agent_discovery.list_agents() if agent.agent_id == "basic"
+    )
+    container.infrastructure.published_agent_repository.save_agent(discovered.to_published(existing=None))
+
+    from app.main import app
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as live_client:
+        validation_response = live_client.post(
+            "/api/v1/agents/basic/validation-runs",
+            json={
+                "project": "atlas-validation",
+                "dataset": "controlled-validation",
+                "input_summary": "Validate a formal live asset",
+                "prompt": "alpha",
+                "tags": ["formal-agent", "gate"],
+                "project_metadata": {"validation_surface": "live-formal-gate"},
+                "executor_config": {
+                    "backend": "external-runner",
+                    "runner_image": "atlas-claude-validation:local",
+                    "metadata": {"runner_backend": "docker-container"},
+                },
+            },
+        )
+        assert validation_response.status_code == 200
+        assert _drain_background_work(worker_drain, limit=40) >= 1
+
+        wait_until(
+            lambda: (
+                live_client.get("/api/v1/agents/published").json()[0]["latest_validation"]["status"]
+                == "succeeded"
+            )
+        )
+
+        published_response = live_client.get("/api/v1/agents/published")
+        assert published_response.status_code == 200
+        published = {item["agent_id"]: item for item in published_response.json()}
+        assert published["basic"]["latest_validation"]["status"] == "succeeded"
+        assert published["basic"]["validation_outcome"]["status"] == "passed"
+        assert published["basic"]["validation_evidence"]["trace_url"] is not None
+        assert published["basic"]["validation_evidence"]["trace_url"].startswith(
+            "http://phoenix.test:6006/projects/"
+        )
+
+        dataset_response = live_client.post(
+            "/api/v1/datasets",
+            json={
+                "name": "live-formal-export-dataset",
+                "description": "Dataset for the formal asset live export gate",
+                "source": "crm",
+                "version": "2026-04",
+                "rows": [{"sample_id": "sample-1", "input": "alpha", "expected": "alpha"}],
+            },
+        )
+        assert dataset_response.status_code == 200
+        dataset_version_id = dataset_response.json()["current_version_id"]
+
+        create_response = live_client.post(
+            "/api/v1/experiments",
+            json={
+                "name": "live-formal-export-experiment",
+                "spec": {
+                    "dataset_version_id": dataset_version_id,
+                    "published_agent_id": "basic",
+                    "model_settings": {"model": "gpt-5.4-mini", "temperature": 0},
+                    "prompt_config": {"prompt_version": "2026-04"},
+                    "toolset_config": {"tools": [], "metadata": {}},
+                    "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
+                    "executor_config": {
+                        "backend": "external-runner",
+                        "runner_image": "atlas-claude-validation:local",
+                        "metadata": {"runner_backend": "docker-container"},
+                    },
+                    "tags": ["live-formal-agent", "gate"],
+                },
+            },
+        )
+        assert create_response.status_code == 201
+        experiment_id = create_response.json()["experiment_id"]
+
+        start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
+        assert start_response.status_code == 200
+        assert _drain_background_work(worker_drain, limit=40) >= 1
+        wait_until(
+            lambda: live_client.get(f"/api/v1/experiments/{experiment_id}").json()["status"]
+            == "completed"
+        )
+
+        runs_response = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
+        assert runs_response.status_code == 200
+        runs = runs_response.json()
+        assert len(runs) == 1
+        assert runs[0]["trace_url"] is not None
+        assert runs[0]["trace_url"].startswith("http://phoenix.test:6006/projects/")
+
+        run_detail_response = live_client.get(f"/api/v1/runs/{runs[0]['run_id']}")
+        assert run_detail_response.status_code == 200
+        run_detail = run_detail_response.json()
+        assert run_detail["trace_pointer"]["trace_url"] == runs[0]["trace_url"]
+
+        export_response = live_client.post(
+            "/api/v1/exports",
+            json={
+                "candidate_experiment_id": experiment_id,
+                "judgements": ["passed"],
+                "format": "jsonl",
+            },
+        )
+        assert export_response.status_code == 200
+        assert export_response.json()["row_count"] == 1
+
+        download_response = live_client.get(f"/api/v1/exports/{export_response.json()['export_id']}")
+        assert download_response.status_code == 200
+        rows = [json.loads(line) for line in download_response.text.splitlines()]
+        assert len(rows) == 1
+        assert rows[0]["dataset_sample_id"] == "sample-1"
+        assert rows[0]["executor_backend"] == "external-runner"
+        assert rows[0]["trace_url"] == runs[0]["trace_url"]
+        assert rows[0]["published_agent_snapshot"]["manifest"]["agent_id"] == "basic"
