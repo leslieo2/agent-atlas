@@ -8,7 +8,7 @@ from app.execution.adapters.control import (
     K8sJobExecutionAdapter as K8sJobExecutionAdapter,
 )
 from app.execution.adapters.control import (
-    LocalWorkerExecutionAdapter as LocalWorkerExecutionAdapter,
+    LocalRunnerExecutionAdapter as LocalRunnerExecutionAdapter,
 )
 from app.execution.adapters.k8s_runner import (
     K8sContainerRunner as K8sContainerRunner,

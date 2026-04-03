@@ -26,14 +26,13 @@ from app.modules.experiments.domain.models import (
 )
 from app.modules.experiments.domain.policies import ExperimentAggregate
 from app.modules.policies.application.ports import ApprovalPolicyRepository
-from app.modules.shared.application.ports import TaskQueuePort
+from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.enums import (
     CompareOutcome,
     CurationStatus,
     RunStatus,
     SampleJudgement,
 )
-from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
 
 class ExperimentNotFoundError(AppError, ValueError):
@@ -262,7 +261,7 @@ class ExperimentCommands:
         run_repository: RunRepository,
         approval_policy_repository: ApprovalPolicyRepository,
         execution_control: ExecutionControlPort,
-        task_queue: TaskQueuePort,
+        job_queue: ExecutionJobPort,
         agent_catalog: PublishedAgentCatalogPort,
     ) -> None:
         self.experiment_repository = experiment_repository
@@ -271,7 +270,7 @@ class ExperimentCommands:
         self.run_repository = run_repository
         self.approval_policy_repository = approval_policy_repository
         self.execution_control = execution_control
-        self.task_queue = task_queue
+        self.job_queue = job_queue
         self.agent_catalog = agent_catalog
 
     def create(self, payload: ExperimentCreateInput) -> ExperimentRecord:
@@ -318,13 +317,7 @@ class ExperimentCommands:
             raise ExperimentNotFoundError(experiment_id)
         experiment = ExperimentAggregate.load(experiment).queue()
         self.experiment_repository.save(experiment)
-        self.task_queue.enqueue(
-            QueuedTask(
-                task_type=TaskType.EXPERIMENT_EXECUTION,
-                target_id=experiment.experiment_id,
-                payload={"experiment_id": str(experiment.experiment_id)},
-            )
-        )
+        self.job_queue.enqueue_experiment_execution(experiment.experiment_id)
         return experiment
 
     def cancel(self, experiment_id: str) -> ExperimentRecord:

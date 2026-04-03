@@ -99,9 +99,9 @@ Local defaults:
 Current runtime model:
 
 - API requests create run records immediately and submit them through `ExecutionControlPort`
-- the current in-repo adapters map that contract to queued worker tasks
+- the current in-repo adapters map that contract to Arq-backed execution jobs
 - `app/execution/` owns the control-plane to runner handoff and launcher-side orchestration
-- `app.worker` is a separate process that claims queued jobs and executes them
+- `app.worker` is a separate Arq worker process that consumes execution jobs
 - run both `make run-api` and `make run-worker` during development if you want runs to advance past
   `queued`
 
@@ -160,9 +160,9 @@ Important settings currently wired in code:
 - `AGENT_ATLAS_DATA_PLANE_DATABASE_URL`: data-plane state database location
 - `AGENT_ATLAS_SEED_DEMO`: whether to seed demo data on startup
 - `AGENT_ATLAS_OPENAI_API_KEY`: credentials for OpenAI-backed run paths when those paths are selected
-- `AGENT_ATLAS_WORKER_NAME`: optional worker name override
-- `AGENT_ATLAS_WORKER_POLL_INTERVAL_SECONDS`: worker polling interval
-- `AGENT_ATLAS_WORKER_TASK_LEASE_SECONDS`: worker task lease duration
+- `AGENT_ATLAS_EXECUTION_JOB_BACKEND`: background execution backend (`arq` in product code, `inline` only for tests)
+- `AGENT_ATLAS_EXECUTION_JOB_QUEUE_URL`: Redis DSN used by the Arq execution queue
+- `AGENT_ATLAS_EXECUTION_JOB_QUEUE_NAME`: Arq queue name used for execution jobs
 
 Planned settings such as runner backend selection or artifact build controls should not be treated
 as live product behavior until they are backed by code.

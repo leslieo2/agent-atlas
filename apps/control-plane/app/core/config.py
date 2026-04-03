@@ -12,6 +12,11 @@ class RuntimeMode(StrEnum):
     MOCK = "mock"
 
 
+class ExecutionJobBackend(StrEnum):
+    ARQ = "arq"
+    INLINE = "inline"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="AGENT_ATLAS_",
@@ -57,17 +62,17 @@ class Settings(BaseSettings):
         default="data_plane",
         description="Schema name used for data-plane tables when PostgreSQL is configured.",
     )
-    worker_name: str | None = Field(
-        default=None,
-        description="Optional worker name override for task consumers.",
+    execution_job_backend: ExecutionJobBackend = Field(
+        default=ExecutionJobBackend.ARQ,
+        description="Background execution job backend. Use inline only for deterministic tests.",
     )
-    worker_poll_interval_seconds: float = Field(
-        default=1.0,
-        description="Sleep interval between worker queue polls.",
+    execution_job_queue_url: str = Field(
+        default="redis://127.0.0.1:6379/0",
+        description="Redis DSN used by the Arq execution job queue.",
     )
-    worker_task_lease_seconds: int = Field(
-        default=30,
-        description="Lease duration before a running task can be reclaimed by another worker.",
+    execution_job_queue_name: str = Field(
+        default="agent-atlas:execution-jobs",
+        description="Arq queue name used for control-plane background execution jobs.",
     )
     k8s_namespace: str = Field(
         default="agent-atlas-runs",

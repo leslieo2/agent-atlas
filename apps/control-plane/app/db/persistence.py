@@ -5,7 +5,7 @@ import re
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any, Literal
@@ -19,7 +19,6 @@ from app.modules.exports.domain.models import ArtifactMetadata
 from app.modules.policies.domain.models import ApprovalPolicyRecord
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.models import TrajectoryStepRecord
-from app.modules.shared.domain.tasks import QueuedTask, TaskStatus, TaskType
 from app.modules.shared.domain.traces import TraceSpan
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -182,132 +181,6 @@ class _PlaneStore:
             self.conn.close()
             self.conn = None
 
-    def claim_next_task(self, worker_name: str, lease_seconds: int) -> dict[str, Any] | None:
-        tasks_table = self.table("tasks")
-        now = datetime.now(UTC)
-        now_iso = now.isoformat()
-        stale_before = (now - timedelta(seconds=max(1, lease_seconds))).isoformat()
-        pending = TaskStatus.PENDING.value
-        running = TaskStatus.RUNNING.value
-
-        if self.backend == "postgres":
-            with self._lock:
-                with self.conn.transaction():
-                    cursor = self.conn.cursor()
-                    cursor.execute(  # nosec B608
-                        f"""
-                        SELECT *
-                        FROM {tasks_table}
-                        WHERE status = {self.placeholder}
-                           OR (
-                               status = {self.placeholder}
-                               AND claimed_at IS NOT NULL
-                               AND claimed_at <= {self.placeholder}
-                           )
-                        ORDER BY created_at ASC
-                        LIMIT 1
-                        FOR UPDATE SKIP LOCKED
-                        """,
-                        (pending, running, stale_before),
-                    )
-                    row = cursor.fetchone()
-                    if row is None:
-                        return None
-
-                    row_dict = self._row_to_dict(row)
-                    if row_dict is None:
-                        return None
-                    cursor.execute(  # nosec B608
-                        f"""
-                        UPDATE {tasks_table}
-                        SET status = {self.placeholder},
-                            attempts = attempts + 1,
-                            error = NULL,
-                            claimed_by = {self.placeholder},
-                            claimed_at = {self.placeholder},
-                            updated_at = {self.placeholder}
-                        WHERE task_id = {self.placeholder}
-                        """,
-                        (
-                            TaskStatus.RUNNING.value,
-                            worker_name,
-                            now_iso,
-                            now_iso,
-                            row_dict["task_id"],
-                        ),
-                    )
-                return {
-                    **row_dict,
-                    "status": TaskStatus.RUNNING.value,
-                    "attempts": int(row_dict["attempts"]) + 1,
-                    "error": None,
-                    "claimed_by": worker_name,
-                    "claimed_at": now_iso,
-                    "updated_at": now_iso,
-                }
-
-        with self._lock:
-            self.conn.execute("BEGIN IMMEDIATE")
-            try:
-                cursor = self.conn.cursor()
-                cursor.execute(  # nosec B608
-                    f"""
-                    SELECT *
-                    FROM {tasks_table}
-                    WHERE status = {self.placeholder}
-                       OR (
-                           status = {self.placeholder}
-                           AND claimed_at IS NOT NULL
-                           AND claimed_at <= {self.placeholder}
-                       )
-                    ORDER BY created_at ASC
-                    LIMIT 1
-                    """,
-                    (pending, running, stale_before),
-                )
-                row = cursor.fetchone()
-                if row is None:
-                    self.conn.commit()
-                    return None
-
-                row_dict = self._row_to_dict(row)
-                if row_dict is None:
-                    self.conn.commit()
-                    return None
-                cursor.execute(  # nosec B608
-                    f"""
-                    UPDATE {tasks_table}
-                    SET status = {self.placeholder},
-                        attempts = attempts + 1,
-                        error = NULL,
-                        claimed_by = {self.placeholder},
-                        claimed_at = {self.placeholder},
-                        updated_at = {self.placeholder}
-                    WHERE task_id = {self.placeholder}
-                    """,
-                    (
-                        TaskStatus.RUNNING.value,
-                        worker_name,
-                        now_iso,
-                        now_iso,
-                        row_dict["task_id"],
-                    ),
-                )
-                self.conn.commit()
-            except Exception:
-                self.conn.rollback()
-                raise
-
-        return {
-            **row_dict,
-            "status": TaskStatus.RUNNING.value,
-            "attempts": int(row_dict["attempts"]) + 1,
-            "error": None,
-            "claimed_by": worker_name,
-            "claimed_at": now_iso,
-            "updated_at": now_iso,
-        }
-
     @staticmethod
     def _row_to_dict(row: Any) -> dict[str, Any] | None:
         if row is None:
@@ -363,8 +236,6 @@ class StatePersistence:
         tool_policies = self._control.table("tool_policies")
         published_agents = self._control.table("published_agents")
         live_agent_markers = self._control.table("live_agent_markers")
-        tasks = self._control.table("tasks")
-
         statements = [
             f"""
             CREATE TABLE IF NOT EXISTS {runs} (
@@ -421,21 +292,6 @@ class StatePersistence:
             f"""
             CREATE TABLE IF NOT EXISTS {live_agent_markers} (
                 agent_id TEXT PRIMARY KEY,
-                updated_at TEXT NOT NULL
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {tasks} (
-                task_id TEXT PRIMARY KEY,
-                task_type TEXT NOT NULL,
-                target_id TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                status TEXT NOT NULL,
-                attempts INTEGER NOT NULL DEFAULT 0,
-                error TEXT,
-                claimed_by TEXT,
-                claimed_at TEXT,
-                created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
             """,
@@ -1019,112 +875,8 @@ class StatePersistence:
         )
         return [ArtifactMetadata.model_validate(json.loads(payload)) for payload in payloads]
 
-    def enqueue_task(self, task: QueuedTask) -> None:
-        if task.task_type == TaskType.EXPERIMENT_AGGREGATION:
-            existing = self._control.fetchone(
-                f"""
-                SELECT 1
-                FROM {self._control.table('tasks')}
-                WHERE task_type = {self._control.placeholder}
-                  AND target_id = {self._control.placeholder}
-                  AND status IN ({self._control.placeholder}, {self._control.placeholder})
-                LIMIT 1
-                """,
-                (
-                    task.task_type.value,
-                    str(task.target_id),
-                    TaskStatus.PENDING.value,
-                    TaskStatus.RUNNING.value,
-                ),
-            )
-            if existing is not None:
-                return
-
-        placeholder = self._control.placeholder
-        self._control.execute(  # nosec B608
-            f"""
-            INSERT INTO {self._control.table('tasks')} (
-                task_id, task_type, target_id, payload, status, attempts, error,
-                claimed_by, claimed_at, created_at, updated_at
-            )
-            VALUES (
-                {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                {placeholder}
-            )
-            """,
-            (
-                str(task.task_id),
-                task.task_type.value,
-                str(task.target_id),
-                json.dumps(task.payload, ensure_ascii=False),
-                task.status.value,
-                task.attempts,
-                task.error,
-                task.claimed_by,
-                task.claimed_at.isoformat() if task.claimed_at else None,
-                task.created_at.isoformat(),
-                task.updated_at.isoformat(),
-            ),
-            commit=True,
-        )
-
-    def claim_next_task(self, worker_name: str, lease_seconds: int) -> QueuedTask | None:
-        row = self._control.claim_next_task(worker_name, lease_seconds)
-        if row is None:
-            return None
-        return self._task_from_row(row)
-
-    def mark_task_done(self, task_id: UUID | str) -> None:
-        self._update_task_status(task_id, TaskStatus.SUCCEEDED)
-
-    def mark_task_failed(self, task_id: UUID | str, error: str) -> None:
-        self._update_task_status(task_id, TaskStatus.FAILED, error=error)
-
     def reset(self) -> None:
         self.reset_all()
-
-    def _update_task_status(
-        self,
-        task_id: UUID | str,
-        status: TaskStatus,
-        *,
-        error: str | None = None,
-    ) -> None:
-        self._control.execute(  # nosec B608
-            f"""
-            UPDATE {self._control.table('tasks')}
-            SET status = {self._control.placeholder},
-                error = {self._control.placeholder},
-                updated_at = {self._control.placeholder}
-            WHERE task_id = {self._control.placeholder}
-            """,
-            (
-                status.value,
-                error,
-                datetime.now(UTC).isoformat(),
-                str(to_uuid(task_id)),
-            ),
-            commit=True,
-        )
-
-    @staticmethod
-    def _task_from_row(row: dict[str, Any]) -> QueuedTask:
-        return QueuedTask.model_validate(
-            {
-                "task_id": row["task_id"],
-                "task_type": row["task_type"],
-                "target_id": row["target_id"],
-                "payload": json.loads(row["payload"]),
-                "status": row["status"],
-                "attempts": row["attempts"],
-                "error": row["error"],
-                "claimed_by": row["claimed_by"],
-                "claimed_at": row["claimed_at"],
-                "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
-            }
-        )
 
     def load_state(self) -> dict[str, Any]:
         runs = {to_uuid(run.run_id): run for run in self.list_runs()}
@@ -1165,7 +917,6 @@ class StatePersistence:
                 "approval_policies",
                 "published_agents",
                 "runs",
-                "tasks",
             ]
         )
 

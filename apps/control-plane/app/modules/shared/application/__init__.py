@@ -1,3 +1,3 @@
-from app.modules.shared.application.ports import TaskQueuePort
+from app.modules.shared.application.ports import ExecutionJobPort
 
-__all__ = ["TaskQueuePort"]
+__all__ = ["ExecutionJobPort"]

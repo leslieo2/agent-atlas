@@ -4,16 +4,13 @@ from uuid import uuid4
 
 import pytest
 from app.core.errors import UnsupportedOperationError
-from app.execution.adapters import (
-    K8sJobExecutionAdapter,
-    LocalWorkerExecutionAdapter,
-)
+from app.execution.adapters import K8sJobExecutionAdapter, LocalRunnerExecutionAdapter
 from app.execution.contracts import CancelRequest, ExecutionRunSpec
 from app.modules.runs.domain.models import RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
+from app.modules.shared.domain.jobs import EnqueuedExecutionJob
 from app.modules.shared.domain.models import ProvenanceMetadata
-from app.modules.shared.domain.tasks import QueuedTask
 
 
 class StubRunRepository:
@@ -30,21 +27,24 @@ class StubRunRepository:
         self.saved[run.run_id] = run
 
 
-class StubTaskQueue:
+class StubJobQueue:
     def __init__(self) -> None:
-        self.enqueued: list[QueuedTask] = []
+        self.enqueued: list[EnqueuedExecutionJob] = []
 
-    def enqueue(self, task: QueuedTask) -> None:
-        self.enqueued.append(task)
+    def enqueue_run_execution(self, run_spec: ExecutionRunSpec, *, job_id: str) -> None:
+        self.enqueued.append(
+            EnqueuedExecutionJob(
+                job_id=f"run-execution:{job_id}",
+                kind="run_execution_job",
+                kwargs={"run_spec": run_spec.model_dump(mode="json")},
+            )
+        )
 
-    def claim_next(self, worker_name: str, lease_seconds: int) -> QueuedTask | None:
-        return None
+    def enqueue_experiment_execution(self, experiment_id) -> None:
+        raise AssertionError("not expected")
 
-    def mark_done(self, task_id) -> None:
-        return None
-
-    def mark_failed(self, task_id, error: str) -> None:
-        return None
+    def enqueue_experiment_aggregation(self, experiment_id) -> None:
+        raise AssertionError("not expected")
 
 
 def _spec() -> ExecutionRunSpec:
@@ -63,8 +63,8 @@ def _spec() -> ExecutionRunSpec:
 
 def test_submit_run_returns_opaque_handle_and_is_idempotent_for_active_run() -> None:
     repository = StubRunRepository()
-    queue = StubTaskQueue()
-    adapter = LocalWorkerExecutionAdapter(task_queue=queue, run_repository=repository)
+    queue = StubJobQueue()
+    adapter = LocalRunnerExecutionAdapter(job_queue=queue, run_repository=repository)
     spec = _spec()
     run = RunAggregate.create(spec)
     repository.save(run)
@@ -90,8 +90,8 @@ def test_submit_run_returns_opaque_handle_and_is_idempotent_for_active_run() -> 
 
 def test_cancel_run_only_updates_control_plane_status_and_hides_backend_details() -> None:
     repository = StubRunRepository()
-    queue = StubTaskQueue()
-    adapter = LocalWorkerExecutionAdapter(task_queue=queue, run_repository=repository)
+    queue = StubJobQueue()
+    adapter = LocalRunnerExecutionAdapter(job_queue=queue, run_repository=repository)
     spec = _spec()
     run = RunAggregate.create(spec).model_copy(
         update={
@@ -121,8 +121,8 @@ def test_cancel_run_only_updates_control_plane_status_and_hides_backend_details(
 
 def test_retry_run_resubmits_same_run_as_new_attempt() -> None:
     repository = StubRunRepository()
-    queue = StubTaskQueue()
-    adapter = LocalWorkerExecutionAdapter(task_queue=queue, run_repository=repository)
+    queue = StubJobQueue()
+    adapter = LocalRunnerExecutionAdapter(job_queue=queue, run_repository=repository)
     spec = _spec()
     run = RunAggregate.create(spec).model_copy(
         update={
@@ -175,8 +175,8 @@ def test_retry_run_resubmits_same_run_as_new_attempt() -> None:
 
 def test_retry_run_rebuilds_spec_with_external_runner_default_when_legacy_backend_missing() -> None:
     repository = StubRunRepository()
-    queue = StubTaskQueue()
-    adapter = LocalWorkerExecutionAdapter(task_queue=queue, run_repository=repository)
+    queue = StubJobQueue()
+    adapter = LocalRunnerExecutionAdapter(job_queue=queue, run_repository=repository)
     spec = _spec()
     run = RunAggregate.create(spec).model_copy(
         update={
@@ -209,13 +209,13 @@ def test_retry_run_rebuilds_spec_with_external_runner_default_when_legacy_backen
     handle = adapter.retry_run(run.run_id)
 
     assert handle is not None
-    assert queue.enqueued[0].payload["executor_config"]["backend"] == "external-runner"
+    assert queue.enqueued[0].kwargs["run_spec"]["executor_config"]["backend"] == "external-runner"
 
 
 def test_retry_run_rejects_legacy_publication_snapshot() -> None:
     repository = StubRunRepository()
-    queue = StubTaskQueue()
-    adapter = LocalWorkerExecutionAdapter(task_queue=queue, run_repository=repository)
+    queue = StubJobQueue()
+    adapter = LocalRunnerExecutionAdapter(job_queue=queue, run_repository=repository)
     spec = _spec()
     run = RunAggregate.create(spec).model_copy(
         update={
@@ -257,8 +257,8 @@ def test_retry_run_rejects_legacy_publication_snapshot() -> None:
 
 def test_retry_run_rejects_missing_publication_provenance() -> None:
     repository = StubRunRepository()
-    queue = StubTaskQueue()
-    adapter = LocalWorkerExecutionAdapter(task_queue=queue, run_repository=repository)
+    queue = StubJobQueue()
+    adapter = LocalRunnerExecutionAdapter(job_queue=queue, run_repository=repository)
     spec = _spec()
     run = RunAggregate.create(spec).model_copy(
         update={
@@ -281,7 +281,7 @@ def test_retry_run_rejects_missing_publication_provenance() -> None:
 
 def test_k8s_execution_adapter_uses_launcher_job_name_for_executor_ref() -> None:
     repository = StubRunRepository()
-    queue = StubTaskQueue()
+    queue = StubJobQueue()
     spec = _spec()
     spec = spec.model_copy(
         update={"executor_config": spec.executor_config.model_copy(update={"backend": "k8s-job"})}
@@ -298,7 +298,7 @@ def test_k8s_execution_adapter_uses_launcher_job_name_for_executor_ref() -> None
 
     launcher = StubK8sLauncher()
     adapter = K8sJobExecutionAdapter(
-        task_queue=queue,
+        job_queue=queue,
         run_repository=repository,
         launcher=launcher,
     )

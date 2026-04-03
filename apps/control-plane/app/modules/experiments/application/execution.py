@@ -16,10 +16,9 @@ from app.modules.experiments.domain.models import ExperimentRecord, ExperimentSt
 from app.modules.experiments.domain.policies import ExperimentAggregate
 from app.modules.experiments.domain.scoring import evaluate_run
 from app.modules.runs.domain.models import RunCreateInput
-from app.modules.shared.application.ports import TaskQueuePort
+from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.shared.domain.models import ApprovalPolicySnapshot
-from app.modules.shared.domain.tasks import QueuedTask, TaskType
 from pydantic import ValidationError
 
 
@@ -30,13 +29,13 @@ class ExperimentOrchestrator:
         dataset_repository: DatasetRepository,
         agent_catalog: PublishedAgentCatalogPort,
         run_submission: RunSubmissionPort,
-        task_queue: TaskQueuePort,
+        job_queue: ExecutionJobPort,
     ) -> None:
         self.experiment_repository = experiment_repository
         self.dataset_repository = dataset_repository
         self.agent_catalog = agent_catalog
         self.run_submission = run_submission
-        self.task_queue = task_queue
+        self.job_queue = job_queue
 
     def execute_experiment(self, experiment_id: UUID) -> None:
         experiment = self.experiment_repository.get(experiment_id)
@@ -97,13 +96,7 @@ class ExperimentOrchestrator:
                 )
             self.run_submission.submit(run_input, agent)
 
-        self.task_queue.enqueue(
-            QueuedTask(
-                task_type=TaskType.EXPERIMENT_AGGREGATION,
-                target_id=experiment.experiment_id,
-                payload={"experiment_id": str(experiment.experiment_id)},
-            )
-        )
+        self.job_queue.enqueue_experiment_aggregation(experiment.experiment_id)
 
     def _resolve_agent(self, experiment: ExperimentRecord) -> PublishedAgent | None:
         if experiment.published_agent_snapshot is not None:
@@ -122,14 +115,14 @@ class ExperimentAggregationService:
         dataset_repository: DatasetRepository,
         run_repository: RunRepository,
         trajectory_repository: TrajectoryRepository,
-        task_queue: TaskQueuePort,
+        job_queue: ExecutionJobPort,
     ) -> None:
         self.experiment_repository = experiment_repository
         self.run_evaluation_repository = run_evaluation_repository
         self.dataset_repository = dataset_repository
         self.run_repository = run_repository
         self.trajectory_repository = trajectory_repository
-        self.task_queue = task_queue
+        self.job_queue = job_queue
 
     def refresh_experiment(self, experiment_id: UUID) -> None:
         experiment = self.experiment_repository.get(experiment_id)
@@ -160,13 +153,7 @@ class ExperimentAggregationService:
             }
             for run in runs
         ):
-            self.task_queue.enqueue(
-                QueuedTask(
-                    task_type=TaskType.EXPERIMENT_AGGREGATION,
-                    target_id=experiment.experiment_id,
-                    payload={"experiment_id": str(experiment.experiment_id)},
-                )
-            )
+            self.job_queue.enqueue_experiment_aggregation(experiment.experiment_id)
             return
 
         self.run_evaluation_repository.delete_for_experiment(experiment_id)

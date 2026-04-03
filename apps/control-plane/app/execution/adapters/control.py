@@ -18,11 +18,10 @@ from app.execution.contracts import (
 )
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
-from app.modules.shared.application.ports import TaskQueuePort
+from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.shared.domain.models import utc_now
-from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
 
 class _ExecutionBackendAdapter(Protocol):
@@ -37,17 +36,17 @@ class _ExecutionBackendAdapter(Protocol):
     def capability(self) -> ExecutionCapability: ...
 
 
-class _QueuedExecutionBackendAdapter:
+class _JobExecutionBackendAdapter:
     def __init__(
         self,
         *,
         backend: str,
-        task_queue: TaskQueuePort,
+        job_queue: ExecutionJobPort,
         run_repository: RunRepository,
         production_ready: bool,
     ) -> None:
         self.backend = backend
-        self.task_queue = task_queue
+        self.job_queue = job_queue
         self.run_repository = run_repository
         self.production_ready = production_ready
 
@@ -95,13 +94,7 @@ class _QueuedExecutionBackendAdapter:
                     }
                 )
             )
-        self.task_queue.enqueue(
-            QueuedTask(
-                task_type=TaskType.RUN_EXECUTION,
-                target_id=run_spec.run_id,
-                payload=run_spec.model_dump(mode="json"),
-            )
-        )
+        self.job_queue.enqueue_run_execution(run_spec, job_id=handle.executor_ref)
         return handle
 
     def cancel_run(self, request: CancelRequest) -> bool:
@@ -183,13 +176,7 @@ class _QueuedExecutionBackendAdapter:
             }
         )
         self.run_repository.save(updated)
-        self.task_queue.enqueue(
-            QueuedTask(
-                task_type=TaskType.RUN_EXECUTION,
-                target_id=retry_spec.run_id,
-                payload=retry_spec.model_dump(mode="json"),
-            )
-        )
+        self.job_queue.enqueue_run_execution(retry_spec, job_id=retry_handle.executor_ref)
         return retry_handle
 
     def get_status(self, run_id: str | UUID) -> RunStatusSnapshot | None:
@@ -289,21 +276,21 @@ def _ensure_retryable_publication_snapshot(run_spec: ExecutionRunSpec) -> None:
         ) from exc
 
 
-class LocalWorkerExecutionAdapter(_QueuedExecutionBackendAdapter):
-    def __init__(self, *, task_queue: TaskQueuePort, run_repository: RunRepository) -> None:
+class LocalRunnerExecutionAdapter(_JobExecutionBackendAdapter):
+    def __init__(self, *, job_queue: ExecutionJobPort, run_repository: RunRepository) -> None:
         super().__init__(
             backend="local-runner",
-            task_queue=task_queue,
+            job_queue=job_queue,
             run_repository=run_repository,
             production_ready=False,
         )
 
 
-class ExternalRunnerExecutionAdapter(_QueuedExecutionBackendAdapter):
-    def __init__(self, *, task_queue: TaskQueuePort, run_repository: RunRepository) -> None:
+class ExternalRunnerExecutionAdapter(_JobExecutionBackendAdapter):
+    def __init__(self, *, job_queue: ExecutionJobPort, run_repository: RunRepository) -> None:
         super().__init__(
             backend=EXTERNAL_RUNNER_EXECUTION_BACKEND,
-            task_queue=task_queue,
+            job_queue=job_queue,
             run_repository=run_repository,
             production_ready=True,
         )
@@ -319,17 +306,17 @@ class ExternalRunnerExecutionAdapter(_QueuedExecutionBackendAdapter):
         return f"external-{run_spec.run_id}"
 
 
-class K8sJobExecutionAdapter(_QueuedExecutionBackendAdapter):
+class K8sJobExecutionAdapter(_JobExecutionBackendAdapter):
     def __init__(
         self,
         *,
-        task_queue: TaskQueuePort,
+        job_queue: ExecutionJobPort,
         run_repository: RunRepository,
         launcher: K8sLauncher | None = None,
     ) -> None:
         super().__init__(
             backend="k8s-job",
-            task_queue=task_queue,
+            job_queue=job_queue,
             run_repository=run_repository,
             production_ready=False,
         )
@@ -406,5 +393,5 @@ __all__ = [
     "ExecutionControlRegistry",
     "ExternalRunnerExecutionAdapter",
     "K8sJobExecutionAdapter",
-    "LocalWorkerExecutionAdapter",
+    "LocalRunnerExecutionAdapter",
 ]

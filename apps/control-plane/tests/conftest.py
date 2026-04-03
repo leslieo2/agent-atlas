@@ -8,7 +8,8 @@ from tempfile import TemporaryDirectory
 import pytest
 from app.bootstrap.container import get_container
 from app.bootstrap.wiring import infrastructure as infrastructure_wiring
-from app.core.config import RuntimeMode, settings
+from app.core.config import ExecutionJobBackend, RuntimeMode, settings
+from app.infrastructure.adapters.execution_jobs import InlineExecutionJobQueue
 from app.infrastructure.repositories import reset_state
 from fastapi.testclient import TestClient
 from tests.support.fake_phoenix import FakeOtlpTraceExporter
@@ -28,6 +29,7 @@ def reset_in_memory_state(monkeypatch) -> None:
     settings.seed_demo = True
     settings.control_plane_database_url = f"sqlite:///{state_root / 'control-plane-state.db'}"
     settings.data_plane_database_url = f"sqlite:///{state_root / 'data-plane-state.db'}"
+    settings.execution_job_backend = ExecutionJobBackend.INLINE
     settings.phoenix_base_url = "http://phoenix.test:6006"
     settings.tracing_otlp_endpoint = "http://phoenix.test:6006/v1/traces"
     settings.tracing_headers = {}
@@ -68,13 +70,11 @@ def wait_until() -> Callable[[Callable[[], bool], float, float], None]:
 @pytest.fixture
 def worker_drain() -> Callable[[int], int]:
     def _worker_drain(limit: int = 10) -> int:
-        worker = get_container().worker.app_worker
-        processed = 0
-        for _ in range(limit):
-            if not worker.run_once("test-worker", lease_seconds=30):
-                break
-            processed += 1
-        return processed
+        container = get_container()
+        job_queue = container.infrastructure.execution.job_queue
+        if not isinstance(job_queue, InlineExecutionJobQueue):
+            raise AssertionError("tests require InlineExecutionJobQueue")
+        return job_queue.drain(handlers=container.jobs.handlers, limit=limit)
 
     return _worker_drain
 

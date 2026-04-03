@@ -21,7 +21,7 @@ from app.execution.adapters import (
     KubectlK8sClient,
     LocalLauncher,
     LocalProcessRunner,
-    LocalWorkerExecutionAdapter,
+    LocalRunnerExecutionAdapter,
     PublishedArtifactResolver,
     RunnerRegistry,
 )
@@ -36,13 +36,13 @@ from app.infrastructure.adapters.agent_catalog import (
     StateBootstrapAgentDiscovery,
     StatePublishedAgentCatalog,
 )
+from app.infrastructure.adapters.execution_jobs import ArqExecutionJobQueue, InlineExecutionJobQueue
 from app.infrastructure.adapters.framework_registry import (
     FrameworkRegistry,
     PublishedAgentExecutionDispatcher,
     discover_framework_plugins,
 )
 from app.infrastructure.adapters.runtime import ModelRuntimeService
-from app.infrastructure.adapters.task_queue import StateTaskQueue
 from app.infrastructure.repositories import (
     StateApprovalPolicyRepository,
     StateLiveAgentMarkerRepository,
@@ -66,7 +66,9 @@ from app.modules.runs.adapters.outbound.persistence.state import (
     StateTrajectoryRepository,
 )
 from app.modules.runs.application.ports import TraceBackendPort, TraceExporterPort
+from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
+from arq.connections import RedisSettings
 
 
 @dataclass(frozen=True)
@@ -81,7 +83,7 @@ class TracingInfrastructure:
 
 @dataclass(frozen=True)
 class ExecutionInfrastructure:
-    task_queue: StateTaskQueue
+    job_queue: ExecutionJobPort
     model_runtime: ModelRuntimeService
     artifact_resolver: ArtifactResolverPort
     runner: RunnerPort
@@ -141,7 +143,14 @@ def build_infrastructure() -> InfrastructureBundle:
         markers=live_agent_marker_repository,
         published_agents=published_agent_repository,
     )
-    task_queue = StateTaskQueue()
+    job_queue: ExecutionJobPort
+    if settings.execution_job_backend == "inline":
+        job_queue = InlineExecutionJobQueue()
+    else:
+        job_queue = ArqExecutionJobQueue(
+            redis_settings=RedisSettings.from_dsn(settings.execution_job_queue_url),
+            queue_name=settings.execution_job_queue_name,
+        )
     effective_runtime_mode = settings.effective_runtime_mode()
     published_agent_catalog: PublishedAgentCatalogPort = StatePublishedAgentCatalog(
         published_agents=published_agent_repository,
@@ -168,11 +177,11 @@ def build_infrastructure() -> InfrastructureBundle:
     }
     execution_backends: dict[str, _ExecutionBackendAdapter] = {
         EXTERNAL_RUNNER_EXECUTION_BACKEND: ExternalRunnerExecutionAdapter(
-            task_queue=task_queue,
+            job_queue=job_queue,
             run_repository=run_repository,
         ),
         "k8s-job": K8sJobExecutionAdapter(
-            task_queue=task_queue,
+            job_queue=job_queue,
             run_repository=run_repository,
             launcher=k8s_launcher,
         ),
@@ -184,8 +193,8 @@ def build_infrastructure() -> InfrastructureBundle:
             launcher=LocalLauncher(),
         )
         runners[local_process_runner.backend_name()] = local_process_runner
-        execution_backends["local-runner"] = LocalWorkerExecutionAdapter(
-            task_queue=task_queue,
+        execution_backends["local-runner"] = LocalRunnerExecutionAdapter(
+            job_queue=job_queue,
             run_repository=run_repository,
         )
         default_runner_backend = local_process_runner.backend_name()
@@ -245,7 +254,7 @@ def build_infrastructure() -> InfrastructureBundle:
         trajectory_step_projector=trajectory_step_projector,
     )
     execution = ExecutionInfrastructure(
-        task_queue=task_queue,
+        job_queue=job_queue,
         model_runtime=model_runtime,
         artifact_resolver=artifact_resolver,
         runner=runner,

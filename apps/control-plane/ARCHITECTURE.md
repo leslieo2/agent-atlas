@@ -435,8 +435,8 @@ Owns only truly cross-feature primitives and protocols.
 Current examples:
 
 - shared enums in `shared/domain/`
-- queued task models in `shared/domain/tasks.py`
-- task queue protocol in `shared/application/`
+- execution job models in `shared/domain/jobs.py`
+- execution job protocol in `shared/application/`
 
 Do not turn `shared` into a generic dumping ground.
 
@@ -454,7 +454,7 @@ Examples:
 - `TrajectoryStepProjectorPort` belongs to `runs`, because trajectory is a run-owned read model
 - `ExportPort` belongs to `exports`, because export is an exports use case
 - `EvalRunGatewayPort` belongs to `evals`, because eval execution needs to fan out runs
-- `TaskQueuePort` lives in `shared`, because it is a real cross-feature system protocol
+- `ExecutionJobPort` lives in `shared`, because it is a real cross-feature orchestration protocol
 
 For upcoming work:
 
@@ -534,8 +534,8 @@ POST /runs
   -> RunSubmissionService.submit
   -> RunRepository.save
   -> ExecutionControlPort.submit_run
-  -> current backend: TaskQueuePort.enqueue(RUN_EXECUTION)
-  -> AppWorker.run_once
+  -> current backend: ExecutionJobPort.enqueue_run_execution(...)
+  -> Arq worker / inline test queue dispatch
   -> RunExecutionService.execute_run
   -> PublishedRunRuntimePort.execute_published(...)
   -> RunTelemetryIngestionService.ingest(...)
@@ -546,23 +546,21 @@ POST /runs
   -> RunRepository.save(updated status/metrics)
 ```
 
-### Current eval flow
+### Current experiment flow
 
 ```text
-POST /eval-jobs
-  -> EvalJobCommands.create_job
-  -> EvalJobRepository.save
-  -> TaskQueuePort.enqueue(EVAL_EXECUTION)
-  -> AppWorker.run_once
-  -> EvalExecutionService.execute_job
-  -> EvalRunGatewayPort.create_eval_run(...)
-  -> RunSubmissionService.submit
-  -> TaskQueuePort.enqueue(EVAL_AGGREGATION)
-  -> AppWorker.run_once
-  -> EvalAggregationService.refresh_job
-  -> EvalRunGatewayPort.list_eval_runs(...)
-  -> EvalSampleResultRepository.save
-  -> EvalJobRepository.save(completed job)
+POST /experiments/{id}/start
+  -> ExperimentCommands.start
+  -> ExperimentRepository.save(queued)
+  -> ExecutionJobPort.enqueue_experiment_execution(...)
+  -> Arq worker / inline test queue dispatch
+  -> ExperimentOrchestrator.execute_experiment
+  -> RunSubmissionService.submit(...)
+  -> ExecutionJobPort.enqueue_experiment_aggregation(...)
+  -> Arq worker / inline test queue dispatch
+  -> ExperimentAggregationService.refresh_experiment
+  -> RunEvaluationRepository.save(...)
+  -> ExperimentRepository.save(completed experiment)
 ```
 
 ### Target direction for execution and observability

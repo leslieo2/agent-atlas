@@ -12,6 +12,7 @@ from app.modules.datasets.domain.models import DatasetSample, DatasetVersion
 from app.modules.experiments.application.execution import ExperimentOrchestrator
 from app.modules.experiments.domain.models import ExperimentRecord, ExperimentSpec, ExperimentStatus
 from app.modules.shared.domain.enums import AdapterKind
+from app.modules.shared.domain.jobs import EnqueuedExecutionJob
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
@@ -21,7 +22,6 @@ from app.modules.shared.domain.models import (
     ToolsetConfig,
     build_source_execution_reference,
 )
-from app.modules.shared.domain.tasks import QueuedTask, TaskType
 
 
 class StubExperimentRepository:
@@ -68,12 +68,24 @@ class StubRunSubmission:
         return None
 
 
-class StubTaskQueue:
+class StubJobQueue:
     def __init__(self) -> None:
-        self.enqueued: list[QueuedTask] = []
+        self.enqueued: list[EnqueuedExecutionJob] = []
 
-    def enqueue(self, task: QueuedTask) -> None:
-        self.enqueued.append(task)
+    def enqueue_run_execution(self, run_spec, *, job_id: str) -> None:
+        raise AssertionError("not expected")
+
+    def enqueue_experiment_execution(self, experiment_id) -> None:
+        raise AssertionError("not expected")
+
+    def enqueue_experiment_aggregation(self, experiment_id) -> None:
+        self.enqueued.append(
+            EnqueuedExecutionJob(
+                job_id=f"experiment-aggregation:{experiment_id}",
+                kind="refresh_experiment_job",
+                kwargs={"experiment_id": str(experiment_id)},
+            )
+        )
 
 
 def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> None:
@@ -129,13 +141,13 @@ def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> No
 
     experiment_repository = StubExperimentRepository(experiment)
     run_submission = StubRunSubmission()
-    task_queue = StubTaskQueue()
+    job_queue = StubJobQueue()
     orchestrator = ExperimentOrchestrator(
         experiment_repository=experiment_repository,
         dataset_repository=StubDatasetRepository(dataset_version),
         agent_catalog=StubAgentCatalog(agent),
         run_submission=run_submission,
-        task_queue=task_queue,
+        job_queue=job_queue,
     )
 
     orchestrator.execute_experiment(experiment.experiment_id)
@@ -163,11 +175,11 @@ def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> No
     assert second_payload.dataset_sample_id == "sample-2"
     assert second_payload.tags == ["candidate", "returns"]
 
-    assert len(task_queue.enqueued) == 1
-    queued_task = task_queue.enqueued[0]
-    assert queued_task.task_type == TaskType.EXPERIMENT_AGGREGATION
-    assert queued_task.target_id == experiment.experiment_id
-    assert queued_task.payload == {"experiment_id": str(experiment.experiment_id)}
+    assert len(job_queue.enqueued) == 1
+    queued_job = job_queue.enqueued[0]
+    assert queued_job.kind == "refresh_experiment_job"
+    assert queued_job.job_id == f"experiment-aggregation:{experiment.experiment_id}"
+    assert queued_job.kwargs == {"experiment_id": str(experiment.experiment_id)}
 
 
 def test_experiment_orchestrator_inherits_published_runtime_profile_when_no_override() -> None:
@@ -220,13 +232,13 @@ def test_experiment_orchestrator_inherits_published_runtime_profile_when_no_over
 
     experiment_repository = StubExperimentRepository(experiment)
     run_submission = StubRunSubmission()
-    task_queue = StubTaskQueue()
+    job_queue = StubJobQueue()
     orchestrator = ExperimentOrchestrator(
         experiment_repository=experiment_repository,
         dataset_repository=StubDatasetRepository(dataset_version),
         agent_catalog=StubAgentCatalog(agent),
         run_submission=run_submission,
-        task_queue=task_queue,
+        job_queue=job_queue,
     )
 
     orchestrator.execute_experiment(experiment.experiment_id)
@@ -292,13 +304,13 @@ def test_experiment_orchestrator_uses_stored_agent_snapshot_when_catalog_changes
 
     experiment_repository = StubExperimentRepository(experiment)
     run_submission = StubRunSubmission()
-    task_queue = StubTaskQueue()
+    job_queue = StubJobQueue()
     orchestrator = ExperimentOrchestrator(
         experiment_repository=experiment_repository,
         dataset_repository=StubDatasetRepository(dataset_version),
         agent_catalog=MissingAgentCatalog(),
         run_submission=run_submission,
-        task_queue=task_queue,
+        job_queue=job_queue,
     )
 
     orchestrator.execute_experiment(experiment.experiment_id)

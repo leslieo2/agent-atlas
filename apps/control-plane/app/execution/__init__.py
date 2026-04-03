@@ -29,7 +29,7 @@ from app.execution.adapters import (
     LocalProcessRunner as LocalProcessRunner,
 )
 from app.execution.adapters import (
-    LocalWorkerExecutionAdapter as LocalWorkerExecutionAdapter,
+    LocalRunnerExecutionAdapter as LocalRunnerExecutionAdapter,
 )
 from app.execution.adapters import (
     PublishedArtifactResolver as PublishedArtifactResolver,
