@@ -392,7 +392,7 @@ describe("Experiments workspace", () => {
       />
     );
 
-    expect(await screen.findByRole("heading", { name: "Experiment to evidence loop" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Governance to evidence loop" })).toBeInTheDocument();
     await waitFor(() => expect(agentApi.listDiscoveredAgents).toHaveBeenCalled());
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
     expect(screen.getByRole("combobox", { name: "Published agent" })).toHaveValue("basic");
@@ -407,7 +407,7 @@ describe("Experiments workspace", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Atlas still tracks the same neutral runner status, evidence, and export loop/i)
+      screen.getByText(/Atlas still tracks the same governance, evidence, and export loop/i)
     ).toBeInTheDocument();
 
     expect(screen.getByRole("link", { name: "Open Phoenix deeplink" })).toHaveAttribute(

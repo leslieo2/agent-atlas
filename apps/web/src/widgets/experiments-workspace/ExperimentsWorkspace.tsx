@@ -132,7 +132,7 @@ function experimentLabel(record: ExperimentRecord) {
 
 function experimentNextStep(record: ExperimentRecord | null) {
   if (!record) {
-    return "Create an experiment from a ready snapshot to start collecting evidence.";
+    return "Create an experiment from a governed snapshot to start collecting evidence.";
   }
   if (record.status === "completed") {
     return "Review the evidence summary, compare against a baseline if needed, then curate runs for export.";
@@ -389,10 +389,10 @@ export default function ExperimentsWorkspace({
       <div className={styles.hero}>
         <div>
           <p className="page-eyebrow">Experiment control plane</p>
-          <h2 className="page-title">Experiment to evidence loop</h2>
+          <h2 className="page-title">Governance to evidence loop</h2>
           <p className="muted-note">
-            Atlas submits experiments through the neutral runner seam, collects canonical evidence, and prepares
-            curated rows for export. Phoenix remains a deeplink for deeper trace inspection.
+            Atlas hands governed agent snapshots into the neutral runner seam, collects canonical evidence, and
+            prepares curated rows for export. Phoenix remains a deeplink for deeper trace inspection.
           </p>
         </div>
         <div className={styles.metricGrid}>
@@ -406,9 +406,9 @@ export default function ExperimentsWorkspace({
         <div className={styles.sectionHeader}>
           <div>
             <p className="surface-kicker">Create experiment</p>
-            <h3 className="panel-title">Bind snapshot, dataset version, and policy</h3>
+            <h3 className="panel-title">Bind governed snapshot, dataset version, and policy</h3>
             <p className="muted-note">
-              Start with one ready published snapshot, pair it with a dataset version, then let Atlas create the
+              Start with one ready governed snapshot, pair it with a dataset version, then let Atlas create the
               evidence loop you will compare and curate.
             </p>
           </div>
@@ -416,7 +416,7 @@ export default function ExperimentsWorkspace({
         {isAgentsLoading ? <Notice>Loading agents...</Notice> : null}
         {!isAgentsLoading && !agents.length ? (
           <Notice>
-            No published agents are available yet. Bootstrap or publish a live snapshot before creating an experiment.
+            No published agents are available yet. Bootstrap or publish a governed snapshot before creating an experiment.
           </Notice>
         ) : null}
         <div className={styles.filtersGrid}>
@@ -488,7 +488,7 @@ export default function ExperimentsWorkspace({
         <p className="muted-note">
           Only ready, published snapshots with no draft drift appear in this selector. Execution profile is inherited
           from the published snapshot: {executionProfileSummary(selectedAgent?.defaultRuntimeProfile)}. Atlas still
-          tracks the same neutral runner status, evidence, and export loop even when the adapter is Claude Code CLI.
+          tracks the same governance, evidence, and export loop even when the adapter is Claude Code CLI.
         </p>
         <div className={styles.actions}>
           <Button onClick={() => void handleCreateExperiment()} disabled={createExperimentMutation.isPending}>

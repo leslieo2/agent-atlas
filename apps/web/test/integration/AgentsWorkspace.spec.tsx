@@ -189,7 +189,7 @@ describe("Agents workspace", () => {
     expect(screen.getByText("run-validation-001")).toBeInTheDocument();
     expect(screen.getByText("bundle://basic-validation-001")).toBeInTheDocument();
     expect(screen.getAllByText("Validation run completed with evidence attached.")).toHaveLength(2);
-    expect(screen.getByText("Use this ready snapshot to create the next experiment.")).toBeInTheDocument();
+    expect(screen.getByText("Hand this ready snapshot into the next experiment.")).toBeInTheDocument();
     expect(screen.getByText("Edited sample project and captured changed files.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open validation evidence" })).toHaveAttribute(
       "href",
@@ -262,7 +262,7 @@ describe("Agents workspace", () => {
 
     expect(await screen.findByText("Published snapshot from the live catalog.")).toBeInTheDocument();
     expect(screen.getByText("Live Agent")).toBeInTheDocument();
-    expect(screen.getByText("Use this ready snapshot to create the next experiment.")).toBeInTheDocument();
+    expect(screen.getByText("Hand this ready snapshot into the next experiment.")).toBeInTheDocument();
     expect(screen.getByText("bundle://live-agent-validation")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open validation evidence" })).toHaveAttribute(
       "href",
@@ -271,7 +271,7 @@ describe("Agents workspace", () => {
     expect(screen.queryByText("No agent records are available yet.")).not.toBeInTheDocument();
   });
 
-  it("creates the first starter agent from the empty state bootstrap action", async () => {
+  it("bootstraps the first governed agent asset from the empty state action", async () => {
     let publishedAgents: AgentRecord[] = [];
     let discoveredAgents: DiscoveredAgentRecord[] = [];
     const starterAgent: AgentRecord = {
@@ -342,15 +342,15 @@ describe("Agents workspace", () => {
 
     renderWithQueryClient(<AgentsWorkspace />);
 
-    expect(await screen.findByText("Start the first live starter agent")).toBeInTheDocument();
+    expect(await screen.findByText("Bootstrap the first governed Claude Code asset")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Claude Code starter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Bootstrap Claude Code asset" }));
 
     await waitFor(() => expect(agentApi.bootstrapClaudeCodeAgent).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Published starter snapshot created from the formal live bootstrap route.")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Created Claude Code Starter. Atlas can now validate it, unpublish it back to draft, or hand the ready snapshot into experiments from this surface."
+        "Created Claude Code Starter. Atlas can now validate it, return it to draft, or hand the governed snapshot into experiments from this surface."
       )
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Create experiment/i })).toHaveAttribute(

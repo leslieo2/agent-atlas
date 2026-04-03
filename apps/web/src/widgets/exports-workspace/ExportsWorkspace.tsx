@@ -311,8 +311,8 @@ export default function ExportsWorkspace({
           <p className="page-eyebrow">Offline handoff</p>
           <h2 className="section-title">Exports</h2>
           <p className="kicker">
-            Convert experiment runs into RL-ready offline files. Export only the rows that survive compare, curation,
-            and lineage filters.
+            Convert evidence-backed experiment runs into RL-ready offline files. Export only the rows that survive
+            compare, curation, and lineage filters.
           </p>
           <div className="page-tag-list">
             <span className="page-tag">
@@ -361,8 +361,8 @@ export default function ExportsWorkspace({
               <p className="surface-kicker">Create export</p>
               <h3 className="panel-title">Filter evidence-backed sample outcomes into a training file</h3>
               <p className="muted-note">
-                This is the Atlas export handoff surface. First confirm the source, then narrow the preview rows, then
-                create the offline file that leaves the platform.
+                This is the Atlas export handoff surface. First confirm the governed source, then narrow the preview
+                rows, then create the offline file that leaves the platform.
               </p>
             </div>
           </div>

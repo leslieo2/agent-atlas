@@ -179,18 +179,18 @@ function hasBlockingValidationOutcome(agent: DiscoveredAgentRecord) {
 function nextStepLabel(agent: DiscoveredAgentRecord) {
   const readiness = getAgentReadiness(agent);
   if (readiness === "invalid") {
-    return "Resolve readiness issues before Atlas can publish or run this agent.";
+    return "Resolve readiness issues before Atlas can seal, validate, or hand off this asset.";
   }
   if (readiness === "published_with_drift") {
-    return "Re-publish this agent so new experiments use the latest sealed snapshot.";
+    return "Re-publish this asset so new experiments use the latest governed snapshot.";
   }
   if (readiness === "draft") {
-    return "Publish this validated draft when you want it available for experiments.";
+    return "Publish this validated draft when you want Atlas to hand it into experiments.";
   }
   if (hasBlockingValidationOutcome(agent)) {
-    return "Review the latest validation evidence before using this snapshot in a new experiment.";
+    return "Review the latest validation evidence before handing this snapshot into a new experiment.";
   }
-  return "Use this ready snapshot to create the next experiment.";
+  return "Hand this ready snapshot into the next experiment.";
 }
 
 function validationPayload(agent: DiscoveredAgentRecord) {
@@ -249,7 +249,7 @@ function AgentCard({
 
       {hasDraftChanges ? (
         <p className={styles.driftNotice}>
-          Re-publish this agent before creating new experiments so Atlas orchestration points at the latest sealed snapshot.
+          Re-publish this asset before creating new experiments so Atlas orchestration points at the latest governed snapshot.
         </p>
       ) : null}
 
@@ -401,22 +401,22 @@ export default function AgentsWorkspace() {
     () => [
       {
         title: "Ready",
-        description: "Valid published agents ready to generate RL evaluation data.",
+        description: "Governed published assets ready to generate RL evaluation data.",
         items: agents.filter((agent) => getAgentReadiness(agent) === "ready")
       },
       {
         title: "Published with draft changes",
-        description: "Current repository code differs from the published snapshot.",
+        description: "Current repository code differs from the governed published snapshot.",
         items: agents.filter((agent) => getAgentReadiness(agent) === "published_with_drift")
       },
       {
         title: "Draft",
-        description: "Valid agent definitions that are not yet sealed as Atlas snapshots.",
+        description: "Valid agent definitions that are not yet sealed as governed Atlas snapshots.",
         items: agents.filter((agent) => getAgentReadiness(agent) === "draft")
       },
       {
         title: "Invalid",
-        description: "Agent definitions that currently fail readiness or snapshot checks.",
+        description: "Agent definitions that currently fail governance, readiness, or snapshot checks.",
         items: agents.filter((agent) => getAgentReadiness(agent) === "invalid")
       }
     ],
@@ -438,7 +438,7 @@ export default function AgentsWorkspace() {
     try {
       const agent = await bootstrapMutation.mutateAsync();
       setActionMessage(
-        `Created ${agent.name}. Atlas can now validate it, unpublish it back to draft, or hand the ready snapshot into experiments from this surface.`
+        `Created ${agent.name}. Atlas can now validate it, return it to draft, or hand the governed snapshot into experiments from this surface.`
       );
     } catch {
       // Error state is surfaced through the shared notice area.
@@ -452,7 +452,7 @@ export default function AgentsWorkspace() {
         payload: validationPayload(agent)
       });
       setActionMessage(
-        `Started validation run ${run.run_id} for ${agent.name}. Atlas will attach the latest validation evidence here once the run settles.`
+        `Started validation run ${run.run_id} for ${agent.name}. Atlas will attach the latest validation evidence here so the asset handoff stays explicit.`
       );
     } catch {
       // Error state is surfaced through the shared notice area.
@@ -466,7 +466,7 @@ export default function AgentsWorkspace() {
           <p className="page-eyebrow">Agent control plane</p>
           <h2 className="section-title">Agents</h2>
           <p className="kicker">
-            Keep agent snapshots ready to run, review the latest validation evidence, and hand the right snapshot into
+            Govern formal agent assets, review the latest validation evidence, and hand the right snapshot into
             experiment orchestration.
           </p>
           <div className="page-tag-list">
@@ -489,8 +489,8 @@ export default function AgentsWorkspace() {
               {groups[3].items.length} invalid
             </span>
             <p className="page-info-detail">
-              Start with ready snapshots, re-publish drifted ones, and use the latest validation summary to decide what
-              to run next.
+              Start with governed snapshots, re-publish drifted ones, and use the latest validation summary to decide
+              what to hand off next.
             </p>
           </div>
         </div>
@@ -511,19 +511,20 @@ export default function AgentsWorkspace() {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">No agents yet</p>
-              <h3 className="panel-title">Start the first live starter agent</h3>
+              <h3 className="panel-title">Bootstrap the first governed Claude Code asset</h3>
               <p className="muted-note">
-                Published snapshots appear here once Atlas creates the first live starter asset from the formal bootstrap
-                path.
+                Governed snapshots appear here once Atlas creates the first Claude Code starter asset from the existing
+                bootstrap path.
               </p>
             </div>
           </div>
           <div className={styles.actions}>
             <Button onClick={() => void handleBootstrap()} disabled={bootstrapMutation.isPending}>
-              {bootstrapMutation.isPending ? "Creating starter agent..." : "Create Claude Code starter"}
+              {bootstrapMutation.isPending ? "Bootstrapping Claude asset..." : "Bootstrap Claude Code asset"}
             </Button>
             <Notice>
-              This uses the existing live bootstrap route and keeps the result on the current Agents surface.
+              This keeps the existing Claude Code bootstrap route, but lands the governed result back on the current
+              Agents surface.
             </Notice>
           </div>
         </Panel>

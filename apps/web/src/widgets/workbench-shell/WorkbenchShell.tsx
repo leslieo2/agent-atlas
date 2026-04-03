@@ -11,7 +11,7 @@ const navItems = [
   {
     href: "/agents",
     label: "Agents",
-    description: "Govern agent snapshots, provenance, and execution readiness before experiments.",
+    description: "Govern formal agent assets, validation evidence, and execution readiness before experiments.",
     icon: Shapes,
     match: (pathname: string) => pathname.startsWith("/agents")
   },
@@ -25,7 +25,7 @@ const navItems = [
   {
     href: "/experiments",
     label: "Experiments",
-    description: "Create batch runs, compare baselines, and curate export-ready trajectory rows.",
+    description: "Hand governed agent assets into batch runs, compare evidence, and curate export-ready rows.",
     icon: Radar,
     match: (pathname: string) => pathname.startsWith("/experiments")
   },
@@ -57,8 +57,8 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
           </div>
           <h1>Agent Atlas</h1>
           <p>
-            Coordinate experiments and evidence in Atlas. Runner adapters such as Claude Code CLI stay visible but do
-            not become the product center, and deep trace debugging stays in Phoenix.
+            Coordinate governed agent assets, experiments, and evidence in Atlas. Runner adapters such as Claude Code
+            CLI stay visible but do not become the product center, and deep trace debugging stays in Phoenix.
           </p>
         </div>
 
@@ -98,8 +98,8 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
           <div className={styles.boundaryNote}>
             <span className={styles.boundaryLabel}>Product boundary</span>
             <p>
-              Atlas owns orchestration, evidence association, curation, and exports. External systems own runner and
-              tracing internals.
+              Atlas owns asset governance, orchestration, evidence association, curation, and exports. External
+              systems own runner and tracing internals.
             </p>
           </div>
         </div>
