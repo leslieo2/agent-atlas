@@ -10,6 +10,7 @@ import {
   useStartValidationRunMutation,
   useUnpublishAgentMutation
 } from "@/src/entities/agent/query";
+import { getAgentValidationLifecycle } from "@/src/entities/agent/lifecycle";
 import type {
   AgentRecord,
   AgentValidationEvidenceSummaryRecord,
@@ -32,7 +33,7 @@ type AgentGroup = {
   items: AgentWorkspaceRecord[];
 };
 
-type AgentReadiness = "ready" | "published_with_drift" | "draft" | "invalid";
+type AgentReadiness = "ready" | "validating" | "needs_review" | "published_with_drift" | "draft" | "invalid";
 
 type AgentWorkspaceRecord = DiscoveredAgentRecord & {
   dataSource: "discovered" | "published";
@@ -49,8 +50,8 @@ function fallbackValidationTimestamp(agent: AgentRecord) {
 }
 
 function inferValidationStatus(agent: AgentRecord) {
-  const status = (agent.validationOutcome?.status ?? agent.latestValidation?.status ?? "").trim().toLowerCase();
-  if (status === "failed" || status === "runtime_error" || status === "invalid") {
+  const validationLifecycle = getAgentValidationLifecycle(agent);
+  if (validationLifecycle.status === "failed" || validationLifecycle.status === "cancelled" || validationLifecycle.status === "lost") {
     return "invalid" as const;
   }
   return "valid" as const;
@@ -69,8 +70,15 @@ function mapPublishedAgent(agent: AgentRecord): AgentWorkspaceRecord {
 }
 
 function getAgentReadiness(agent: DiscoveredAgentRecord): AgentReadiness {
+  const validationLifecycle = getAgentValidationLifecycle(agent);
   if (agent.validationStatus === "invalid") {
     return "invalid";
+  }
+  if (validationLifecycle.isActive) {
+    return "validating";
+  }
+  if (validationLifecycle.isBlocking) {
+    return "needs_review";
   }
   if (agent.publishState === "published" && agent.hasUnpublishedChanges) {
     return "published_with_drift";
@@ -82,6 +90,12 @@ function getAgentReadiness(agent: DiscoveredAgentRecord): AgentReadiness {
 }
 
 function readinessLabel(state: AgentReadiness) {
+  if (state === "validating") {
+    return "Validating";
+  }
+  if (state === "needs_review") {
+    return "Needs review";
+  }
   if (state === "published_with_drift") {
     return "Draft changes";
   }
@@ -95,7 +109,7 @@ function readinessLabel(state: AgentReadiness) {
 }
 
 function validationTone(agent: DiscoveredAgentRecord) {
-  return agent.validationStatus === "valid" ? "success" : "error";
+  return getAgentValidationLifecycle(agent).tone;
 }
 
 function publishTone(agent: DiscoveredAgentRecord) {
@@ -104,14 +118,10 @@ function publishTone(agent: DiscoveredAgentRecord) {
 }
 
 function validationRunTone(status?: string | null) {
-  const normalized = status?.trim().toLowerCase() ?? "";
-  if (normalized === "succeeded" || normalized === "passed" || normalized === "valid") {
-    return "success";
-  }
-  if (normalized === "failed" || normalized === "runtime_error" || normalized === "invalid") {
-    return "error";
-  }
-  return "warn";
+  return getAgentValidationLifecycle({
+    latestValidation: status ? ({ status } as AgentValidationRunReferenceRecord) : null,
+    validationOutcome: null
+  }).tone;
 }
 
 function executionReferenceSummary(executionReference?: ExecutionReferenceRecord | null) {
@@ -155,7 +165,7 @@ function validationSummaryStatus(
   validationRun?: AgentValidationRunReferenceRecord | null,
   validationOutcome?: AgentValidationOutcomeSummaryRecord | null
 ) {
-  return validationOutcome?.status ?? validationRun?.status ?? "unknown";
+  return validationRun?.status ?? validationOutcome?.status ?? "unknown";
 }
 
 function validationEvidenceLabel(validationEvidence?: AgentValidationEvidenceSummaryRecord | null) {
@@ -172,14 +182,19 @@ function validationEvidenceLabel(validationEvidence?: AgentValidationEvidenceSum
 }
 
 function hasBlockingValidationOutcome(agent: DiscoveredAgentRecord) {
-  const status = validationSummaryStatus(agent.latestValidation, agent.validationOutcome).trim().toLowerCase();
-  return status === "failed" || status === "runtime_error" || status === "invalid";
+  return getAgentValidationLifecycle(agent).isBlocking;
 }
 
 function nextStepLabel(agent: DiscoveredAgentRecord) {
   const readiness = getAgentReadiness(agent);
   if (readiness === "invalid") {
     return "Resolve readiness issues before Atlas can seal, validate, or hand off this asset.";
+  }
+  if (readiness === "validating") {
+    return "Atlas is still running the latest validation. Wait for the active run to finish before handing this snapshot into experiments.";
+  }
+  if (readiness === "needs_review") {
+    return "Review the latest validation run and evidence before handing this snapshot into a new experiment.";
   }
   if (readiness === "published_with_drift") {
     return "Re-publish this asset so new experiments use the latest governed snapshot.";
@@ -225,10 +240,11 @@ function AgentCard({
   isUnpublishing: boolean;
   isValidating: boolean;
 }) {
+  const validationLifecycle = getAgentValidationLifecycle(agent);
   const isValid = agent.validationStatus === "valid";
   const isPublished = agent.publishState === "published";
   const readiness = getAgentReadiness(agent);
-  const isRunnableSnapshot = readiness === "ready";
+  const isRunnableSnapshot = readiness === "ready" && !validationLifecycle.isBlocking && !validationLifecycle.isActive;
   const hasDraftChanges = readiness === "published_with_drift";
 
   return (
@@ -243,13 +259,18 @@ function AgentCard({
         </div>
         <div className="toolbar">
           <StatusPill tone={publishTone(agent)}>{readinessLabel(readiness)}</StatusPill>
-          <StatusPill tone={validationTone(agent)}>{agent.validationStatus}</StatusPill>
+          <StatusPill tone={validationTone(agent)}>{validationLifecycle.status}</StatusPill>
         </div>
       </div>
 
       {hasDraftChanges ? (
         <p className={styles.driftNotice}>
           Re-publish this asset before creating new experiments so Atlas orchestration points at the latest governed snapshot.
+        </p>
+      ) : null}
+      {readiness === "validating" ? (
+        <p className={styles.driftNotice}>
+          Atlas is projecting this asset from the active validation run. The experiment handoff stays blocked until that run resolves.
         </p>
       ) : null}
 
@@ -405,6 +426,16 @@ export default function AgentsWorkspace() {
         items: agents.filter((agent) => getAgentReadiness(agent) === "ready")
       },
       {
+        title: "Validating",
+        description: "Assets with an active validation run that still owns the current lifecycle state.",
+        items: agents.filter((agent) => getAgentReadiness(agent) === "validating")
+      },
+      {
+        title: "Needs review",
+        description: "Assets whose latest validation run ended in a blocking state and need evidence review before handoff.",
+        items: agents.filter((agent) => getAgentReadiness(agent) === "needs_review")
+      },
+      {
         title: "Published with draft changes",
         description: "Current repository code differs from the governed published snapshot.",
         items: agents.filter((agent) => getAgentReadiness(agent) === "published_with_drift")
@@ -477,7 +508,7 @@ export default function AgentsWorkspace() {
               Ready to run <strong>{groups[0].items.length}</strong>
             </span>
             <span className="page-tag">
-              Needs review <strong>{groups[1].items.length + groups[3].items.length}</strong>
+              Needs review <strong>{groups[2].items.length + groups[3].items.length + groups[5].items.length}</strong>
             </span>
           </div>
         </div>
@@ -485,8 +516,8 @@ export default function AgentsWorkspace() {
           <div className="page-info-item">
             <span className="page-info-label">Publishing status</span>
             <span className="page-info-value">
-              {groups[0].items.length} ready / {groups[1].items.length} drifted / {groups[2].items.length} staged /{" "}
-              {groups[3].items.length} invalid
+              {groups[0].items.length} ready / {groups[1].items.length} validating / {groups[2].items.length} review /{" "}
+              {groups[3].items.length} drifted / {groups[4].items.length} staged / {groups[5].items.length} invalid
             </span>
             <p className="page-info-detail">
               Start with governed snapshots, re-publish drifted ones, and use the latest validation summary to decide
@@ -498,9 +529,11 @@ export default function AgentsWorkspace() {
 
       <div className="summary-strip">
         <MetricCard label="Ready" value={groups[0].items.length} />
-        <MetricCard label="Draft changes" value={groups[1].items.length} />
-        <MetricCard label="Draft" value={groups[2].items.length} />
-        <MetricCard label="Invalid" value={groups[3].items.length} />
+        <MetricCard label="Validating" value={groups[1].items.length} />
+        <MetricCard label="Needs review" value={groups[2].items.length} />
+        <MetricCard label="Draft changes" value={groups[3].items.length} />
+        <MetricCard label="Draft" value={groups[4].items.length} />
+        <MetricCard label="Invalid" value={groups[5].items.length} />
       </div>
 
       {actionMessage ? <Notice>{actionMessage}</Notice> : null}

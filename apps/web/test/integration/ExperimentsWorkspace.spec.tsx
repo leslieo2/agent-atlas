@@ -85,6 +85,39 @@ describe("Experiments workspace", () => {
             }
           }
         }
+      },
+      {
+        agentId: "validating_agent",
+        name: "Validating Agent",
+        description: "Published agent still running validation.",
+        framework: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
+        entrypoint: "app.agent_plugins.validating_agent:build_agent",
+        defaultModel: "gpt-5.4-mini",
+        tags: ["validation"],
+        capabilities: ["submit", "cancel"],
+        publishedAt: "2026-03-20T09:00:00Z",
+        publishState: "published",
+        validationStatus: "valid",
+        validationIssues: [],
+        lastValidatedAt: "2026-03-20T09:00:00Z",
+        hasUnpublishedChanges: false,
+        sourceFingerprint: "validating-fingerprint-123456",
+        executionReference: { artifactRef: "source://validating_agent@validating-fingerprint-123456" },
+        latestValidation: {
+          runId: "run-validating-agent",
+          status: "running",
+          createdAt: "2026-03-20T09:10:00Z",
+          startedAt: "2026-03-20T09:11:00Z",
+          completedAt: null
+        },
+        validationOutcome: {
+          status: "running",
+          reason: "Validation is still collecting evidence."
+        },
+        defaultRuntimeProfile: {
+          backend: "external-runner"
+        }
       }
     ]);
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockResolvedValue([
@@ -128,6 +161,32 @@ describe("Experiments workspace", () => {
         publishedAt: "2026-03-24T00:00:00Z",
         sourceFingerprint: "archived-fingerprint-123456",
         executionReference: { artifactRef: "source://archived_basic@archived-fingerprint-123456" },
+        defaultRuntimeProfile: { backend: "k8s-job" }
+      },
+      {
+        agentId: "failed_live",
+        name: "Failed Live",
+        description: "Published snapshot whose latest validation failed.",
+        framework: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
+        entrypoint: "app.agent_plugins.failed_live:build_agent",
+        defaultModel: "gpt-5.4-mini",
+        tags: ["archived"],
+        capabilities: ["submit"],
+        publishedAt: "2026-03-24T00:00:00Z",
+        sourceFingerprint: "failed-fingerprint-123456",
+        executionReference: { artifactRef: "source://failed_live@failed-fingerprint-123456" },
+        latestValidation: {
+          runId: "run-failed-live",
+          status: "failed",
+          createdAt: "2026-03-24T00:00:00Z",
+          startedAt: "2026-03-24T00:01:00Z",
+          completedAt: "2026-03-24T00:02:00Z"
+        },
+        validationOutcome: {
+          status: "failed",
+          reason: "Validation failed."
+        },
         defaultRuntimeProfile: { backend: "k8s-job" }
       }
     ]);
@@ -397,6 +456,8 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
     expect(screen.getByRole("combobox", { name: "Published agent" })).toHaveValue("basic");
     expect(screen.getByRole("option", { name: "Archived Basic" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Validating Agent" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Failed Live" })).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: "crm-v2 · Version 2026-03" })).toBeInTheDocument();
     await waitFor(() => expect(experimentApi.listExperiments).toHaveBeenCalled());
     await waitFor(() => expect(experimentApi.listExperimentRuns).toHaveBeenCalledWith("exp-002"));

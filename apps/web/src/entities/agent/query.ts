@@ -7,6 +7,7 @@ import {
   startValidationRun,
   unpublishAgent
 } from "./api";
+import { hasActiveAgentValidationLifecycle } from "./lifecycle";
 
 export const discoveredAgentsQueryRoot = ["agents", "discovered"] as const;
 export const publishedAgentsQueryRoot = ["agents", "published"] as const;
@@ -14,14 +15,18 @@ export const publishedAgentsQueryRoot = ["agents", "published"] as const;
 export function discoveredAgentsQueryOptions() {
   return {
     queryKey: discoveredAgentsQueryRoot,
-    queryFn: listDiscoveredAgents
+    queryFn: listDiscoveredAgents,
+    refetchInterval: (query: { state: { data?: Awaited<ReturnType<typeof listDiscoveredAgents>> } }) =>
+      query.state.data?.some(hasActiveAgentValidationLifecycle) ? 2000 : false
   };
 }
 
 export function publishedAgentsQueryOptions() {
   return {
     queryKey: publishedAgentsQueryRoot,
-    queryFn: listPublishedAgents
+    queryFn: listPublishedAgents,
+    refetchInterval: (query: { state: { data?: Awaited<ReturnType<typeof listPublishedAgents>> } }) =>
+      query.state.data?.some(hasActiveAgentValidationLifecycle) ? 2000 : false
   };
 }
 

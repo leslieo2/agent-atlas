@@ -69,7 +69,7 @@ describe("Agents workspace", () => {
       {
         agentId: "customer_service",
         name: "Customer Service",
-        description: "Published agent with local changes.",
+        description: "Published agent with an active validation run.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
         entrypoint: "app.agent_plugins.customer_service:build_agent",
@@ -81,10 +81,43 @@ describe("Agents workspace", () => {
         validationIssues: [],
         publishedAt: "2026-03-18T08:30:00Z",
         lastValidatedAt: "2026-03-26T09:00:00Z",
-        hasUnpublishedChanges: true,
+        hasUnpublishedChanges: false,
         sourceFingerprint: "customer-fingerprint-123456",
         executionReference: {
           artifactRef: "source://customer_service@customer-fingerprint-123456"
+        },
+        latestValidation: {
+          runId: "run-validation-002",
+          status: "running",
+          createdAt: "2026-03-26T09:05:00Z",
+          startedAt: "2026-03-26T09:06:00Z",
+          completedAt: null
+        },
+        validationOutcome: {
+          status: "running",
+          reason: "Validation is still collecting evidence."
+        },
+        defaultRuntimeProfile: { backend: "k8s-job" }
+      },
+      {
+        agentId: "draft_changes",
+        name: "Draft Changes",
+        description: "Published agent with local changes.",
+        framework: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
+        entrypoint: "app.agent_plugins.draft_changes:build_agent",
+        defaultModel: "gpt-5.4-mini",
+        tags: ["support", "ops"],
+        capabilities: ["submit", "cancel"],
+        publishState: "published",
+        validationStatus: "valid",
+        validationIssues: [],
+        publishedAt: "2026-03-18T08:30:00Z",
+        lastValidatedAt: "2026-03-26T09:00:00Z",
+        hasUnpublishedChanges: true,
+        sourceFingerprint: "draft-changes-fingerprint-123456",
+        executionReference: {
+          artifactRef: "source://draft_changes@draft-changes-fingerprint-123456"
         },
         defaultRuntimeProfile: { backend: "k8s-job" }
       },
@@ -164,6 +197,7 @@ describe("Agents workspace", () => {
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalledTimes(1));
 
     expect(await screen.findByText("Ready OpenAI smoke agent.")).toBeInTheDocument();
+    expect(screen.getByText("Published agent with an active validation run.")).toBeInTheDocument();
     expect(screen.getByText("Published agent with local changes.")).toBeInTheDocument();
     expect(screen.getByText("framework 'mcp' is not supported for discovery")).toBeInTheDocument();
     expect(
@@ -180,11 +214,13 @@ describe("Agents workspace", () => {
         .getAllByRole("link", { name: /Create experiment/i })
         .map((link) => link.getAttribute("href"))
     ).not.toEqual(expect.arrayContaining(["/experiments?agent=customer_service"]));
+    expect(screen.getByText("Atlas is still running the latest validation. Wait for the active run to finish before handing this snapshot into experiments.")).toBeInTheDocument();
+    expect(screen.getAllByText("running").length).toBeGreaterThan(0);
     expect(
       screen
         .getAllByRole("link", { name: /Create experiment/i })
         .map((link) => link.getAttribute("href"))
-    ).not.toEqual(expect.arrayContaining(["/experiments?agent=archived_basic"]));
+    ).not.toEqual(expect.arrayContaining(["/experiments?agent=draft_changes"]));
     expect(screen.getByText("source://basic@basic-fingerprint-123456")).toBeInTheDocument();
     expect(screen.getByText("run-validation-001")).toBeInTheDocument();
     expect(screen.getByText("bundle://basic-validation-001")).toBeInTheDocument();
@@ -195,6 +231,7 @@ describe("Agents workspace", () => {
       "href",
       "http://phoenix.local/trace/validation-001"
     );
+    expect(screen.getAllByText("Validating").length).toBeGreaterThan(0);
     expect(await screen.findByText("Unsupported framework plugin.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Framework")).not.toBeInTheDocument();
     expect(screen.getByText("external-runner · Claude Code CLI adapter")).toBeInTheDocument();
