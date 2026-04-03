@@ -121,13 +121,13 @@ class StatePublishedAgentCatalog:
         eligible: dict[str, PublishedAgent] = {}
         published_by_id = {agent.agent_id: agent for agent in self.published_agents.list_agents()}
         if self.discovery is None:
-            for published_agent in published_by_id.values():
+            for persisted_agent in published_by_id.values():
                 try:
-                    published_agent.source_fingerprint_or_raise()
-                    published_agent.execution_reference_or_raise()
+                    persisted_agent.source_fingerprint_or_raise()
+                    persisted_agent.execution_reference_or_raise()
                 except ValueError:
                     continue
-                eligible[published_agent.agent_id] = published_agent
+                eligible[persisted_agent.agent_id] = persisted_agent
             return eligible
 
         for discovered_agent in self.discovery.list_agents():

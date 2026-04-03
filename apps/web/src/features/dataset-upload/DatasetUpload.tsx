@@ -10,6 +10,20 @@ export function DatasetUpload({
   fileInputRef: MutableRefObject<HTMLInputElement | null>;
   onChange: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
 }) {
+  const openFilePicker = () => {
+    const input = fileInputRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
+    if (!input) {
+      return;
+    }
+
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+
+    input.click();
+  };
+
   return (
     <>
       <input
@@ -30,7 +44,7 @@ export function DatasetUpload({
         }}
         onChange={onChange}
       />
-      <Button onClick={() => fileInputRef.current?.click()}>Upload JSONL</Button>
+      <Button onClick={openFilePicker}>Upload JSONL</Button>
     </>
   );
 }

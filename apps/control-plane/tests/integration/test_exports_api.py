@@ -428,9 +428,13 @@ def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_wit
 
     container = get_container()
     discovered = next(
-        agent for agent in container.infrastructure.agent_discovery.list_agents() if agent.agent_id == "basic"
+        agent
+        for agent in container.infrastructure.agent_discovery.list_agents()
+        if agent.agent_id == "basic"
     )
-    container.infrastructure.published_agent_repository.save_agent(discovered.to_published(existing=None))
+    container.infrastructure.published_agent_repository.save_agent(
+        discovered.to_published(existing=None)
+    )
 
     from app.main import app
     from fastapi.testclient import TestClient
@@ -539,7 +543,9 @@ def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_wit
         assert export_response.status_code == 200
         assert export_response.json()["row_count"] == 1
 
-        download_response = live_client.get(f"/api/v1/exports/{export_response.json()['export_id']}")
+        download_response = live_client.get(
+            f"/api/v1/exports/{export_response.json()['export_id']}"
+        )
         assert download_response.status_code == 200
         rows = [json.loads(line) for line in download_response.text.splitlines()]
         assert len(rows) == 1

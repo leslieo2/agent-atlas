@@ -410,9 +410,13 @@ def test_experiments_api_live_mode_runs_with_state_backed_formal_agent(
 
     container = get_container()
     discovered = next(
-        agent for agent in container.infrastructure.agent_discovery.list_agents() if agent.agent_id == "basic"
+        agent
+        for agent in container.infrastructure.agent_discovery.list_agents()
+        if agent.agent_id == "basic"
     )
-    container.infrastructure.published_agent_repository.save_agent(discovered.to_published(existing=None))
+    container.infrastructure.published_agent_repository.save_agent(
+        discovered.to_published(existing=None)
+    )
 
     from app.main import app
     from fastapi.testclient import TestClient
@@ -562,7 +566,9 @@ def test_experiments_api_live_mode_rejects_corrupt_published_rows_for_new_experi
     with TestClient(app) as live_client:
         container = get_container()
         discovered = next(
-            agent for agent in container.infrastructure.agent_discovery.list_agents() if agent.agent_id == "basic"
+            agent
+            for agent in container.infrastructure.agent_discovery.list_agents()
+            if agent.agent_id == "basic"
         )
         corrupt = discovered.to_published(existing=None).model_copy(
             update={
@@ -708,7 +714,9 @@ def test_experiments_api_live_mode_rejects_corrupt_published_agent_rows(
 
     container = get_container()
     discovered = next(
-        agent for agent in container.infrastructure.agent_discovery.list_agents() if agent.agent_id == "basic"
+        agent
+        for agent in container.infrastructure.agent_discovery.list_agents()
+        if agent.agent_id == "basic"
     )
     published_agent = discovered.to_published(existing=None)
     container.infrastructure.published_agent_repository.save_agent(published_agent)
