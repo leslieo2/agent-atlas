@@ -1,4 +1,4 @@
-import type { ExecutorConfig } from "@/src/shared/api/contract";
+import type { ExecutionProfile_Output } from "@/src/shared/api/contract";
 
 export type AgentPublishState = "draft" | "published";
 export type AgentValidationStatus = "valid" | "invalid";
@@ -42,7 +42,7 @@ export interface AgentRecord {
   publishedAt?: string;
   sourceFingerprint?: string;
   executionReference?: ExecutionReferenceRecord | null;
-  executionProfile: ExecutorConfig;
+  executionProfile: ExecutionProfile_Output;
   latestValidation?: AgentValidationRunReferenceRecord | null;
   validationEvidence?: AgentValidationEvidenceSummaryRecord | null;
   validationOutcome?: AgentValidationOutcomeSummaryRecord | null;
@@ -62,7 +62,7 @@ export interface DiscoveredAgentRecord extends AgentRecord {
   hasUnpublishedChanges: boolean;
   sourceFingerprint?: string;
   executionReference?: ExecutionReferenceRecord | null;
-  executionProfile: ExecutorConfig;
+  executionProfile: ExecutionProfile_Output;
   latestValidation?: AgentValidationRunReferenceRecord | null;
   validationEvidence?: AgentValidationEvidenceSummaryRecord | null;
   validationOutcome?: AgentValidationOutcomeSummaryRecord | null;

@@ -39,7 +39,57 @@ class ExperimentSpecRequest(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
     def to_domain(self) -> ExperimentSpec:
-        return ExperimentSpec.model_validate(self.model_dump())
+        return ExperimentSpec(
+            dataset_version_id=self.dataset_version_id,
+            published_agent_id=self.published_agent_id,
+            model_settings=self.model_settings.model_copy(deep=True),
+            prompt_config=self.prompt_config.model_copy(deep=True),
+            toolset_config=self.toolset_config.model_copy(deep=True),
+            evaluator_config=self.evaluator_config.model_copy(deep=True),
+            executor_config=(
+                self.executor_config.model_copy(deep=True)
+                if self.executor_config is not None
+                else None
+            ),
+            execution_binding=(
+                self.executor_config.execution_binding.model_copy(deep=True)
+                if self.executor_config is not None
+                and self.executor_config.execution_binding is not None
+                else None
+            ),
+            approval_policy_id=self.approval_policy_id,
+            tags=list(self.tags),
+        )
+
+
+class ExperimentSpecResponse(BaseModel):
+    dataset_version_id: UUID
+    published_agent_id: str
+    model_settings: ModelConfig
+    prompt_config: PromptConfig = Field(default_factory=PromptConfig)
+    toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
+    evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
+    executor_config: ExecutorConfig | None = None
+    approval_policy_id: UUID | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @classmethod
+    def from_domain(cls, spec: ExperimentSpec) -> ExperimentSpecResponse:
+        return cls(
+            dataset_version_id=spec.dataset_version_id,
+            published_agent_id=spec.published_agent_id,
+            model_settings=spec.model_settings.model_copy(deep=True),
+            prompt_config=spec.prompt_config.model_copy(deep=True),
+            toolset_config=spec.toolset_config.model_copy(deep=True),
+            evaluator_config=spec.evaluator_config.model_copy(deep=True),
+            executor_config=(
+                spec.executor_config.model_copy(deep=True)
+                if spec.executor_config is not None
+                else None
+            ),
+            approval_policy_id=spec.approval_policy_id,
+            tags=list(spec.tags),
+        )
 
 
 class ExperimentCreateRequest(BaseModel):
@@ -58,7 +108,7 @@ class ExperimentResponse(BaseModel):
     published_agent_id: str
     status: ExperimentStatus
     tags: list[str]
-    spec: ExperimentSpec
+    spec: ExperimentSpecResponse
     sample_count: int
     completed_count: int
     passed_count: int
@@ -74,7 +124,11 @@ class ExperimentResponse(BaseModel):
 
     @classmethod
     def from_domain(cls, experiment: ExperimentRecord) -> ExperimentResponse:
-        return cls.model_validate(experiment.model_dump(mode="json"))
+        payload = experiment.model_dump(mode="json")
+        payload["spec"] = ExperimentSpecResponse.from_domain(experiment.spec).model_dump(
+            mode="json"
+        )
+        return cls.model_validate(payload)
 
 
 class RunEvaluationPatchRequest(BaseModel):

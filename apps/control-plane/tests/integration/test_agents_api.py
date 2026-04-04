@@ -214,12 +214,7 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
             bootstrap_response.json()["default_runtime_profile"]["backend"]
             == EXTERNAL_RUNNER_EXECUTION_BACKEND
         )
-        assert (
-            bootstrap_response.json()["default_runtime_profile"]["metadata"]["claude_code_cli"][
-                "system_prompt"
-            ]
-            == "Reply with the user prompt text only. No greeting or explanation."
-        )
+        assert "binding" not in bootstrap_response.json()["default_runtime_profile"]
         assert provision_calls == ["called"]
 
         published_after_bootstrap = live_client.get("/api/v1/agents/published")
@@ -262,9 +257,10 @@ def test_agents_api_live_mode_bootstrap_keeps_starter_reachable_for_publish_and_
         discovered = {item["agent_id"]: item for item in discovered_after_unpublish.json()}
         assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["publish_state"] == "draft"
         assert (
-            discovered[CLAUDE_CODE_STARTER_AGENT_ID]["default_runtime_profile"]["runner_image"]
-            == "atlas-claude-validation:local"
+            discovered[CLAUDE_CODE_STARTER_AGENT_ID]["default_runtime_profile"]["backend"]
+            == EXTERNAL_RUNNER_EXECUTION_BACKEND
         )
+        assert "binding" not in discovered[CLAUDE_CODE_STARTER_AGENT_ID]["default_runtime_profile"]
 
         republish_response = live_client.post("/api/v1/agents/claude-code-starter/publish")
         assert republish_response.status_code == 200
@@ -507,7 +503,8 @@ def test_agents_api_starts_generic_validation_runs_via_agent_entrypoint(client) 
     assert payload["status"] == "queued"
     assert payload["tags"] == ["validation", "project-in-container"]
     assert payload["executor_backend"] == "external-runner"
-    assert payload["provenance"]["executor"]["metadata"]["runner_backend"] == "k8s-container"
+    assert payload["provenance"]["executor"]["backend"] == "external-runner"
+    assert "binding" not in payload["provenance"]["executor"]
 
 
 def test_agents_api_live_mode_rejects_validation_for_corrupt_published_rows(

@@ -9,6 +9,7 @@ from app.modules.experiments.domain.models import (
     RunEvaluationRecord,
 )
 from app.modules.shared.domain.enums import SampleJudgement
+from app.modules.shared.domain.models import ExecutionBinding
 
 
 class ExperimentAggregate:
@@ -23,6 +24,7 @@ class ExperimentAggregate:
         dataset_name: str,
         sample_count: int,
         published_agent_snapshot: dict[str, object],
+        published_agent_execution_binding: ExecutionBinding | None = None,
     ) -> ExperimentRecord:
         return ExperimentRecord(
             name=payload.name,
@@ -33,6 +35,11 @@ class ExperimentAggregate:
             tags=list(payload.spec.tags),
             spec=payload.spec.model_copy(deep=True),
             published_agent_snapshot=dict(published_agent_snapshot),
+            published_agent_execution_binding=(
+                published_agent_execution_binding.model_copy(deep=True)
+                if published_agent_execution_binding is not None
+                else None
+            ),
             sample_count=sample_count,
         )
 

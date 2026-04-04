@@ -632,14 +632,8 @@ def test_experiments_api_live_mode_bootstrapped_starter_uses_default_runtime_pro
     with TestClient(app) as live_client:
         bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
         assert bootstrap_response.status_code == 200
-        assert (
-            bootstrap_response.json()["default_runtime_profile"]["runner_image"]
-            == "atlas-claude-validation:local"
-        )
-        assert (
-            bootstrap_response.json()["default_runtime_profile"]["metadata"]["runner_backend"]
-            == "docker-container"
-        )
+        assert bootstrap_response.json()["default_runtime_profile"]["backend"] == "external-runner"
+        assert "binding" not in bootstrap_response.json()["default_runtime_profile"]
 
         dataset_response = live_client.post(
             "/api/v1/datasets",

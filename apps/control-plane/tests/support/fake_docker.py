@@ -6,6 +6,7 @@ from app.execution.application.results import (
     RunnerExecutionResult,
     RuntimeExecutionResult,
 )
+from app.execution.metadata import runner_image
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.traces import TraceIngestEvent
 
@@ -13,7 +14,7 @@ from app.modules.shared.domain.traces import TraceIngestEvent
 def install_fake_docker_runtime(monkeypatch, *, outputs: dict[str, str]) -> None:
     def execute(payload):
         output = outputs.get(payload.prompt, payload.prompt)
-        image = payload.executor_config.get("runner_image")
+        image = runner_image(payload.executor_config)
         return RunnerExecutionResult(
             runner_backend="docker-container",
             artifact_ref=payload.artifact_ref,
@@ -25,7 +26,7 @@ def install_fake_docker_runtime(monkeypatch, *, outputs: dict[str, str]) -> None
                     token_usage=21,
                     provider="claude-code-cli",
                     execution_backend="external-runner",
-                    container_image=image if isinstance(image, str) else None,
+                    container_image=image,
                     resolved_model=payload.model,
                 ),
                 trace_events=[

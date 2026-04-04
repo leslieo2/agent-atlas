@@ -37,6 +37,11 @@ class RunAggregate:
             image_ref=spec.provenance.image_ref if spec.provenance else None,
             executor_backend=spec.executor_config.backend,
             runner_backend=spec.provenance.runner_backend if spec.provenance else None,
+            execution_binding=(
+                spec.execution_binding.model_copy(deep=True)
+                if spec.execution_binding is not None
+                else None
+            ),
             provenance=spec.provenance.model_copy(deep=True) if spec.provenance else None,
             lineage=RunLineage(
                 experiment_id=spec.experiment_id,

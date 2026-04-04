@@ -14,6 +14,7 @@ from app.modules.shared.domain.enums import (
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
+    ExecutionBinding,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -44,6 +45,7 @@ class ExperimentSpec(BaseModel):
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
     executor_config: ExecutorConfig | None = None
+    execution_binding: ExecutionBinding | None = None
     approval_policy_id: UUID | None = None
     approval_policy: ApprovalPolicySnapshot | None = None
     tags: list[str] = Field(default_factory=list)
@@ -64,6 +66,7 @@ class ExperimentRecord(BaseModel):
     tags: list[str] = Field(default_factory=list)
     spec: ExperimentSpec
     published_agent_snapshot: dict[str, Any] | None = None
+    published_agent_execution_binding: ExecutionBinding | None = None
     sample_count: int = 0
     completed_count: int = 0
     passed_count: int = 0

@@ -16,6 +16,7 @@ from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
+    ExecutionBinding,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -217,11 +218,13 @@ def test_run_submission_service_deep_merges_nested_runtime_profile_overrides() -
 
     assert run.provenance is not None
     executor = execution_control.submitted[0].executor_config
+    execution_binding = execution_control.submitted[0].execution_binding
     assert executor.backend == "local-runner"
-    assert executor.runner_image == "ghcr.io/example/atlas-runner:published"
-    assert executor.resources.cpu == "2000m"
-    assert executor.resources.memory == "2Gi"
-    assert executor.metadata == {"team": "evals", "region": "us-east-1"}
+    assert execution_binding is not None
+    assert execution_binding.runner_image == "ghcr.io/example/atlas-runner:published"
+    assert execution_binding.config["resources"] == {"cpu": "2000m", "memory": "2Gi"}
+    assert execution_binding.config["team"] == "evals"
+    assert execution_binding.config["region"] == "us-east-1"
 
 
 def test_run_submission_service_uses_injected_default_trace_backend_when_executor_config_missing():
@@ -504,11 +507,9 @@ def test_run_submission_service_rejects_k8s_carried_external_runner_without_runn
         prompt="Inspect the latest run.",
         executor_config=ExecutorConfig(
             backend="external-runner",
-            metadata={
-                "runner_backend": "k8s-container",
-                "claude_code_cli": {"command": "claude"},
-            },
+            metadata={"claude_code_cli": {"command": "claude"}},
         ),
+        execution_binding=ExecutionBinding(runner_backend="k8s-container"),
     )
     agent = PublishedAgent(
         manifest=AgentManifest(

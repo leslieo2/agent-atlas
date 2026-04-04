@@ -429,10 +429,19 @@ class RunExecutionService:
 
     def _runner_backend(self, payload: ExecutionRunSpec) -> str:
         execution_backend = payload.executor_config.backend.strip().lower()
+        execution_view: object
+        if payload.execution_binding is None:
+            execution_view = payload.executor_config
+        else:
+            execution_view = {
+                "backend": payload.executor_config.backend,
+                "tracing_backend": payload.executor_config.tracing_backend,
+                "execution_binding": payload.execution_binding,
+            }
         if execution_backend == EXTERNAL_RUNNER_EXECUTION_BACKEND:
-            if uses_k8s_runner_backend(payload.executor_config):
+            if uses_k8s_runner_backend(execution_view):
                 return "k8s-container"
-            configured_runner_backend = requested_runner_backend(payload.executor_config)
+            configured_runner_backend = requested_runner_backend(execution_view)
             if configured_runner_backend is not None:
                 return configured_runner_backend
             return self.default_runner_backend

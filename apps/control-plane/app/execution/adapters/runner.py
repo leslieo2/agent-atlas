@@ -38,6 +38,7 @@ from app.execution.adapters.launchers import LocalLauncher
 from app.execution.application.ports import PublishedRunRuntimePort
 from app.execution.application.results import RunnerExecutionResult
 from app.execution.contracts import ExecutionRunSpec
+from app.execution.metadata import execution_binding, execution_plane_config, runner_image
 from app.modules.agents.domain.models import PublishedAgent
 
 CLAUDE_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_")
@@ -196,10 +197,8 @@ class LocalProcessRunner:
     def _use_in_process_runtime(executor_config: Mapping[str, object]) -> bool:
         mode = executor_config.get("runner_mode")
         if not isinstance(mode, str):
-            metadata = executor_config.get("metadata")
-            if isinstance(metadata, Mapping):
-                metadata_mode = metadata.get("runner_mode")
-                mode = metadata_mode if isinstance(metadata_mode, str) else None
+            metadata_mode = execution_plane_config(executor_config).get("runner_mode")
+            mode = metadata_mode if isinstance(metadata_mode, str) else None
         return isinstance(mode, str) and mode.strip().lower() == "in-process"
 
 
@@ -219,9 +218,9 @@ class DockerContainerRunner:
 
     def execute(self, payload: RunnerRunSpec) -> RunnerExecutionResult:
         session = self.launcher.prepare(_with_local_claude_cli_env(payload))
-        runner_image = payload.executor_config.get("runner_image")
-        if not isinstance(runner_image, str) or not runner_image.strip():
-            raise RuntimeError("docker-container runner requires executor_config.runner_image")
+        configured_runner_image = runner_image(payload.executor_config)
+        if configured_runner_image is None:
+            raise RuntimeError("docker-container runner requires execution binding runner_image")
 
         prefix = f"agent-atlas-docker-{str(payload.run_id)[:8]}-"
         with tempfile.TemporaryDirectory(prefix=prefix) as temp_dir:
@@ -248,7 +247,7 @@ class DockerContainerRunner:
                     "-v",
                     f"{output_dir}:/workspace/output",
                     *overlay_mounts,
-                    runner_image,
+                    configured_runner_image,
                     "python",
                     "-m",
                     "agent_atlas_runner_base.claude_code",
@@ -274,7 +273,9 @@ class DockerContainerRunner:
         execution = PublishedRunExecutionResult(
             runtime_result=execution.runtime_result.model_copy(
                 update={
-                    "container_image": execution.runtime_result.container_image or runner_image,
+                    "container_image": (
+                        execution.runtime_result.container_image or configured_runner_image
+                    ),
                 }
             ),
             event_envelopes=list(execution.event_envelopes),
@@ -349,10 +350,9 @@ def _runner_source_overlay_args() -> tuple[list[str], str]:
 
 
 def _with_local_claude_cli_env(payload: RunnerRunSpec) -> RunnerRunSpec:
-    metadata = payload.executor_config.get("metadata")
-    if not isinstance(metadata, Mapping):
-        return payload
-    raw_cli = metadata.get("claude_code_cli")
+    binding = dict(execution_binding(payload.executor_config))
+    config = dict(execution_plane_config(payload.executor_config))
+    raw_cli = config.get("claude_code_cli")
     if not isinstance(raw_cli, Mapping):
         return payload
 
@@ -371,10 +371,10 @@ def _with_local_claude_cli_env(payload: RunnerRunSpec) -> RunnerRunSpec:
 
     updated_cli = dict(raw_cli)
     updated_cli["env"] = merged_env
-    updated_metadata = dict(metadata)
-    updated_metadata["claude_code_cli"] = updated_cli
+    config["claude_code_cli"] = updated_cli
+    binding["config"] = config
     updated_executor_config = dict(payload.executor_config)
-    updated_executor_config["metadata"] = updated_metadata
+    updated_executor_config["binding"] = binding
     return payload.model_copy(update={"executor_config": updated_executor_config})
 
 

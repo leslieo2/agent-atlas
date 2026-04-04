@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import shutil
 import tarfile
 import zipfile
@@ -11,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_atlas_runner_base.constants import CANONICAL_MOUNT_PATH, WORKSPACE_PROJECT_MOUNT_PATH
+from agent_atlas_runner_base.execution_profile import execution_plane_config
 
 
 def _string_value(value: object) -> str | None:
@@ -30,10 +30,7 @@ class ProjectMaterializationConfig:
 def project_materialization_from_executor_config(
     executor_config: Mapping[str, Any],
 ) -> ProjectMaterializationConfig | None:
-    metadata = executor_config.get("metadata")
-    if not isinstance(metadata, Mapping):
-        return None
-    raw_config = metadata.get("project_materialization")
+    raw_config = execution_plane_config(executor_config).get("project_materialization")
     if not isinstance(raw_config, Mapping):
         return None
 
@@ -157,14 +154,3 @@ def _flatten_single_root_directory(target: Path) -> None:
         shutil.move(str(child), temp_dir / child.name)
     shutil.rmtree(target)
     temp_dir.rename(target)
-
-
-__all__ = [
-    "CANONICAL_MOUNT_PATH",
-    "ProjectMaterializationConfig",
-    "WORKSPACE_PROJECT_MOUNT_PATH",
-    "changed_files_manifest",
-    "materialize_project_bundle",
-    "project_materialization_from_executor_config",
-    "snapshot_tree",
-]

@@ -11,7 +11,7 @@ from app.modules.agents.domain.constants import (
 from app.modules.agents.domain.models import AgentManifest
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AgentFamily
-from app.modules.shared.domain.models import ExecutorConfig
+from app.modules.shared.domain.models import ExecutionBinding, ExecutorConfig
 
 CLAUDE_CODE_STARTER_AGENT_ID = "claude-code-starter"
 CLAUDE_CODE_STARTER_ENTRYPOINT = (
@@ -89,11 +89,14 @@ def build_claude_code_starter() -> AgentManifest:
 
 
 def claude_code_starter_runtime_profile() -> ExecutorConfig:
-    return ExecutorConfig(
-        backend=EXTERNAL_RUNNER_EXECUTION_BACKEND,
+    return ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
+
+
+def claude_code_starter_execution_binding() -> ExecutionBinding:
+    return ExecutionBinding(
+        runner_backend="docker-container",
         runner_image=CLAUDE_CODE_STARTER_RUNNER_IMAGE,
-        metadata={
-            "runner_backend": "docker-container",
+        config={
             "claude_code_cli": {
                 "command": "claude",
                 "args": ["--dangerously-skip-permissions"],
@@ -105,8 +108,7 @@ def claude_code_starter_runtime_profile() -> ExecutorConfig:
 
 
 def ensure_claude_code_starter_runtime_ready() -> None:
-    runtime_profile = claude_code_starter_runtime_profile()
-    runner_backend = str(runtime_profile.metadata.get("runner_backend", "")).strip().lower()
+    runner_backend = str(claude_code_starter_execution_binding().runner_backend).strip().lower()
     if runner_backend != "docker-container":
         return
     provision_claude_code_starter_carrier()

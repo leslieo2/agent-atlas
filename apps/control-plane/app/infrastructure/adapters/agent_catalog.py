@@ -17,6 +17,7 @@ from app.modules.agents.domain.models import (
 from app.modules.agents.domain.starter_assets import (
     CLAUDE_CODE_STARTER_AGENT_ID,
     CLAUDE_CODE_STARTER_ENTRYPOINT,
+    claude_code_starter_execution_binding,
     claude_code_starter_manifest,
     claude_code_starter_runtime_profile,
 )
@@ -141,6 +142,11 @@ class StateBootstrapAgentDiscovery:
                         default_runtime_profile=published.default_runtime_profile.model_copy(
                             deep=True
                         ),
+                        execution_binding=(
+                            published.execution_binding.model_copy(deep=True)
+                            if published.execution_binding is not None
+                            else None
+                        ),
                     )
                 ]
         return [
@@ -150,5 +156,6 @@ class StateBootstrapAgentDiscovery:
                 validation_status=AgentValidationStatus.VALID,
                 validation_issues=[],
                 default_runtime_profile=claude_code_starter_runtime_profile(),
+                execution_binding=claude_code_starter_execution_binding(),
             )
         ]

@@ -30,6 +30,7 @@ from app.modules.agents.domain.models import (
 from app.modules.agents.domain.starter_assets import (
     CLAUDE_CODE_STARTER_AGENT_ID,
     CLAUDE_CODE_STARTER_ENTRYPOINT,
+    claude_code_starter_execution_binding,
     claude_code_starter_manifest,
     claude_code_starter_runtime_profile,
     ensure_claude_code_starter_runtime_ready,
@@ -245,6 +246,7 @@ class AgentBootstrapCommands:
                 ).model_dump(mode="json")
             ),
             default_runtime_profile=claude_code_starter_runtime_profile(),
+            execution_binding=claude_code_starter_execution_binding(),
         )
         self.published_agents.save_agent(published)
         return published

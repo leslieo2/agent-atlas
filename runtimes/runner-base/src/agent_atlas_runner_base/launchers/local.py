@@ -6,6 +6,8 @@ from pathlib import Path
 
 from agent_atlas_contracts.execution import RunnerBootstrapPaths, RunnerRunSpec
 
+from agent_atlas_runner_base.execution_profile import artifact_path
+
 
 @dataclass(frozen=True)
 class LocalLaunchSession:
@@ -39,15 +41,13 @@ class LocalLauncher:
         )
 
     def _resolve_work_dir(self, payload: RunnerRunSpec) -> Path:
-        configured_root = payload.executor_config.get("artifact_path")
-        if isinstance(configured_root, str) and configured_root.strip():
+        configured_root = artifact_path(payload.executor_config)
+        if configured_root:
             base_dir = Path(configured_root).expanduser()
         elif self.workspace_root is not None:
             base_dir = self.workspace_root
         else:
-            base_dir = Path(
-                tempfile.mkdtemp(prefix=f"agent-atlas-run-{str(payload.run_id)[:8]}-")
-            )
+            base_dir = Path(tempfile.mkdtemp(prefix=f"agent-atlas-run-{str(payload.run_id)[:8]}-"))
 
         attempt_suffix = str(payload.attempt_id or payload.attempt)
         return base_dir / str(payload.run_id) / attempt_suffix
@@ -58,9 +58,7 @@ class LocalLauncher:
         work_dir: Path,
     ) -> RunnerBootstrapPaths:
         return RunnerBootstrapPaths(
-            run_spec_path=str(
-                LocalLauncher._local_path(work_dir, bootstrap.run_spec_path)
-            ),
+            run_spec_path=str(LocalLauncher._local_path(work_dir, bootstrap.run_spec_path)),
             events_path=str(LocalLauncher._local_path(work_dir, bootstrap.events_path)),
             runtime_result_path=str(
                 LocalLauncher._local_path(work_dir, bootstrap.runtime_result_path)
@@ -71,9 +69,7 @@ class LocalLauncher:
             artifact_manifest_path=str(
                 LocalLauncher._local_path(work_dir, bootstrap.artifact_manifest_path)
             ),
-            artifact_dir=str(
-                LocalLauncher._local_path(work_dir, bootstrap.artifact_dir)
-            ),
+            artifact_dir=str(LocalLauncher._local_path(work_dir, bootstrap.artifact_dir)),
         )
 
     @staticmethod

@@ -19,6 +19,7 @@ from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
+    ExecutionBinding,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -115,6 +116,7 @@ class ExecutionRunSpec(BaseModel):
     executor_config: ExecutorConfig = Field(
         default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
+    execution_binding: ExecutionBinding | None = None
     approval_policy: ApprovalPolicySnapshot | None = None
     provenance: ProvenanceMetadata | None = None
 
@@ -151,6 +153,10 @@ def runner_run_spec_from_run_spec(
         raise ValueError("resolved execution artifact is missing entrypoint")
     if not artifact.published_agent_snapshot:
         raise ValueError("resolved execution artifact is missing published agent snapshot")
+    executor_config = payload.executor_config.model_dump(mode="json")
+    execution_binding = payload.execution_binding or payload.executor_config.execution_binding
+    if execution_binding is not None:
+        executor_config["binding"] = execution_binding.model_dump(mode="json", exclude_none=True)
     return RunnerRunSpec(
         run_id=payload.run_id,
         runner_backend=normalized_runner_backend,
@@ -168,7 +174,7 @@ def runner_run_spec_from_run_spec(
         prompt=payload.prompt,
         tags=list(payload.tags),
         project_metadata=dict(payload.project_metadata),
-        executor_config=payload.executor_config.model_dump(mode="json"),
+        executor_config=executor_config,
         agent_family=provenance.agent_family if provenance is not None else None,
         framework=artifact.framework,
         framework_type=provenance.agent_family if provenance is not None else None,

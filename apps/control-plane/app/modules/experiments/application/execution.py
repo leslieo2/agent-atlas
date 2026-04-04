@@ -91,7 +91,12 @@ class ExperimentOrchestrator:
             if experiment.spec.executor_config is not None:
                 run_input = run_input.model_copy(
                     update={
-                        "executor_config": experiment.spec.executor_config.model_copy(deep=True)
+                        "executor_config": experiment.spec.executor_config.model_copy(deep=True),
+                        "execution_binding": (
+                            experiment.spec.execution_binding.model_copy(deep=True)
+                            if experiment.spec.execution_binding is not None
+                            else None
+                        ),
                     }
                 )
             self.run_submission.submit(run_input, agent)
@@ -101,7 +106,19 @@ class ExperimentOrchestrator:
     def _resolve_agent(self, experiment: ExperimentRecord) -> PublishedAgent | None:
         if experiment.published_agent_snapshot is not None:
             try:
-                return PublishedAgent.model_validate(experiment.published_agent_snapshot)
+                agent = PublishedAgent.model_validate(experiment.published_agent_snapshot)
+                if (
+                    experiment.published_agent_execution_binding is not None
+                    and agent.execution_binding is None
+                ):
+                    return agent.model_copy(
+                        update={
+                            "execution_binding": (
+                                experiment.published_agent_execution_binding.model_copy(deep=True)
+                            )
+                        }
+                    )
+                return agent
             except ValidationError:
                 return None
         return self.agent_catalog.get_agent(experiment.published_agent_id)

@@ -13,6 +13,7 @@ from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
+    ExecutionBinding,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -44,6 +45,7 @@ class RunCreateInput(BaseModel):
     executor_config: ExecutorConfig = Field(
         default_factory=lambda: ExecutorConfig(backend=DEFAULT_EXECUTION_BACKEND)
     )
+    execution_binding: ExecutionBinding | None = None
     model_settings: ModelConfig | None = None
     prompt_config: PromptConfig | None = None
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
@@ -90,6 +92,7 @@ class RunRecord(BaseModel):
     runner_backend: str | None = None
     execution_backend: str | None = None
     container_image: str | None = None
+    execution_binding: ExecutionBinding | None = None
     provenance: ProvenanceMetadata | None = None
     tracing: TracingMetadata | None = None
     trace_pointer: TracePointer | None = None
@@ -116,6 +119,9 @@ class RunRecord(BaseModel):
         toolset_config = ToolsetConfig()
         evaluator_config = EvaluatorConfig()
         executor_config = ExecutorConfig(backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND)
+        execution_binding = (
+            self.execution_binding.model_copy(deep=True) if self.execution_binding else None
+        )
         approval_policy = None
         if provenance is not None:
             model_settings = ModelConfig(model=self.resolved_model or self.model)
@@ -137,6 +143,9 @@ class RunRecord(BaseModel):
                 provenance.executor.model_copy(deep=True)
                 if provenance.executor is not None
                 else ExecutorConfig(backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND)
+            )
+            execution_binding = (
+                self.execution_binding.model_copy(deep=True) if self.execution_binding else None
             )
             approval_policy = (
                 provenance.approval_policy.model_copy(deep=True)
@@ -171,6 +180,7 @@ class RunRecord(BaseModel):
             toolset_config=toolset_config,
             evaluator_config=evaluator_config,
             executor_config=executor_config,
+            execution_binding=execution_binding,
             approval_policy=approval_policy,
             provenance=provenance,
         )

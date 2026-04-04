@@ -307,6 +307,15 @@ class ExperimentCommands:
             dataset_name=dataset_version.dataset_name,
             sample_count=len(dataset_version.rows),
             published_agent_snapshot=agent.to_snapshot(),
+            published_agent_execution_binding=(
+                agent.execution_binding.model_copy(deep=True)
+                if agent.execution_binding is not None
+                else (
+                    agent.default_runtime_profile.execution_binding.model_copy(deep=True)
+                    if agent.default_runtime_profile.execution_binding is not None
+                    else None
+                )
+            ),
         )
         self.experiment_repository.save(experiment)
         return experiment

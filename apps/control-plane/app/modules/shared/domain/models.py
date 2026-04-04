@@ -10,7 +10,7 @@ from agent_atlas_contracts.runtime import (
 from agent_atlas_contracts.runtime import (
     TraceTelemetryMetadata as ContractTraceTelemetryMetadata,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.modules.shared.domain.enums import PolicyEffect, ScoringMode, StepType
 
@@ -107,16 +107,128 @@ class ExecutorResources(BaseModel):
     memory: str | None = None
 
 
-class ExecutorConfig(BaseModel):
-    backend: str
+class ExecutionBinding(BaseModel):
+    runner_backend: str | None = None
     runner_image: str | None = None
-    timeout_seconds: int = 600
-    max_steps: int = 32
-    concurrency: int = 1
-    resources: ExecutorResources = Field(default_factory=ExecutorResources)
-    tracing_backend: str = "state"
     artifact_path: str | None = None
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExecutionProfile(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    backend: str
+    tracing_backend: str = "state"
+    execution_binding: ExecutionBinding | None = Field(default=None, exclude=True, repr=False)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_executor_shape(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+
+        payload = dict(value)
+        binding_payload = payload.get("execution_binding") or payload.get("binding")
+        binding = dict(binding_payload) if isinstance(binding_payload, dict) else {}
+        binding_config = binding.get("config")
+        config = dict(binding_config) if isinstance(binding_config, dict) else {}
+
+        legacy_runner_backend = None
+        metadata = payload.get("metadata")
+        if isinstance(metadata, dict):
+            for key, item in metadata.items():
+                config.setdefault(key, item)
+            raw_runner_backend = metadata.get("runner_backend")
+            if isinstance(raw_runner_backend, str) and raw_runner_backend.strip():
+                legacy_runner_backend = raw_runner_backend
+
+        if legacy_runner_backend is not None and "runner_backend" not in binding:
+            binding["runner_backend"] = legacy_runner_backend
+
+        for key in ("runner_image", "artifact_path"):
+            if key in payload and key not in binding:
+                binding[key] = payload[key]
+
+        for key in ("timeout_seconds", "max_steps", "concurrency", "resources"):
+            if key in payload and key not in config:
+                config[key] = payload[key]
+
+        if config:
+            binding["config"] = config
+
+        if binding:
+            payload["execution_binding"] = binding
+
+        for legacy_key in (
+            "binding",
+            "runner_image",
+            "timeout_seconds",
+            "max_steps",
+            "concurrency",
+            "resources",
+            "artifact_path",
+            "metadata",
+        ):
+            payload.pop(legacy_key, None)
+
+        return payload
+
+    @property
+    def runner_image(self) -> str | None:
+        return self.execution_binding.runner_image if self.execution_binding is not None else None
+
+    @property
+    def artifact_path(self) -> str | None:
+        return self.execution_binding.artifact_path if self.execution_binding is not None else None
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        if self.execution_binding is None:
+            return {}
+        return {
+            key: value
+            for key, value in self.execution_binding.config.items()
+            if key not in {"timeout_seconds", "max_steps", "concurrency", "resources"}
+        }
+
+    @property
+    def timeout_seconds(self) -> int:
+        value = (
+            self.execution_binding.config.get("timeout_seconds")
+            if self.execution_binding is not None
+            else None
+        )
+        return value if isinstance(value, int) else 600
+
+    @property
+    def max_steps(self) -> int:
+        value = (
+            self.execution_binding.config.get("max_steps")
+            if self.execution_binding is not None
+            else None
+        )
+        return value if isinstance(value, int) else 32
+
+    @property
+    def concurrency(self) -> int:
+        value = (
+            self.execution_binding.config.get("concurrency")
+            if self.execution_binding is not None
+            else None
+        )
+        return value if isinstance(value, int) else 1
+
+    @property
+    def resources(self) -> ExecutorResources:
+        raw_resources = (
+            self.execution_binding.config.get("resources")
+            if self.execution_binding is not None
+            else None
+        )
+        return ExecutorResources.model_validate(raw_resources or {})
+
+
+ExecutorConfig = ExecutionProfile
 
 
 class TracePointer(BaseModel):

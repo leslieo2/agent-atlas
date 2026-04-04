@@ -8,13 +8,13 @@ from app.core.errors import (
 )
 from app.execution.application.ports import ExecutionControlPort
 from app.execution.contracts import ExecutionRunSpec
-from app.execution.metadata import requested_runner_backend, uses_k8s_runner_backend
+from app.execution.metadata import requested_runner_backend, runner_image, uses_k8s_runner_backend
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
-from app.modules.shared.domain.models import ExecutorConfig, ProvenanceMetadata
+from app.modules.shared.domain.models import ExecutionBinding, ExecutorConfig, ProvenanceMetadata
 
 
 def _deep_merge_values(base: object, override: object) -> object:
@@ -76,16 +76,49 @@ def _resolved_submission_provenance(
 def _resolve_executor_config(
     payload: RunCreateInput,
     *,
+    default_execution_binding: ExecutionBinding | None,
     default_runtime_profile: ExecutorConfig,
     default_trace_backend: str,
-) -> tuple[ExecutorConfig, str]:
+) -> tuple[ExecutorConfig, ExecutionBinding | None, str]:
     executor_config = default_runtime_profile.model_copy(deep=True)
+    execution_binding = (
+        default_execution_binding.model_copy(deep=True)
+        if default_execution_binding is not None
+        else (
+            default_runtime_profile.execution_binding.model_copy(deep=True)
+            if default_runtime_profile.execution_binding is not None
+            else None
+        )
+    )
     if "executor_config" in payload.model_fields_set:
         merged_config = _deep_merge_values(
             executor_config.model_dump(mode="python"),
             payload.executor_config.model_dump(mode="python", exclude_unset=True),
         )
         executor_config = ExecutorConfig.model_validate(merged_config)
+        if payload.executor_config.execution_binding is not None:
+            base_binding = (
+                execution_binding.model_dump(mode="python", exclude_none=True)
+                if execution_binding is not None
+                else {}
+            )
+            override_binding = payload.executor_config.execution_binding.model_dump(
+                mode="python",
+                exclude_none=True,
+            )
+            execution_binding = ExecutionBinding.model_validate(
+                _deep_merge_values(base_binding, override_binding)
+            )
+    if payload.execution_binding is not None:
+        base_binding = (
+            execution_binding.model_dump(mode="python", exclude_none=True)
+            if execution_binding is not None
+            else {}
+        )
+        override_binding = payload.execution_binding.model_dump(mode="python", exclude_none=True)
+        execution_binding = ExecutionBinding.model_validate(
+            _deep_merge_values(base_binding, override_binding)
+        )
     explicit_tracing_backend = (
         payload.executor_config.tracing_backend
         if (
@@ -104,19 +137,29 @@ def _resolve_executor_config(
         update={"tracing_backend": trace_backend},
         deep=True,
     )
-    return resolved_executor_config, trace_backend
+    return resolved_executor_config, execution_binding, trace_backend
 
 
 def _validate_execution_backend(
     *,
     executor_config: ExecutorConfig,
+    execution_binding: ExecutionBinding | None,
     agent_id: str,
 ) -> None:
     normalized_backend = executor_config.backend.strip().lower()
+    execution_view: ExecutorConfig | Mapping[str, object]
+    if execution_binding is None:
+        execution_view = executor_config
+    else:
+        execution_view = {
+            "backend": executor_config.backend,
+            "tracing_backend": executor_config.tracing_backend,
+            "execution_binding": execution_binding,
+        }
     if (
         normalized_backend == EXTERNAL_RUNNER_EXECUTION_BACKEND
-        and not uses_k8s_runner_backend(executor_config)
-        and requested_runner_backend(executor_config) is None
+        and not uses_k8s_runner_backend(execution_view)
+        and requested_runner_backend(execution_view) is None
     ):
         raise UnsupportedOperationError(
             "external-runner execution requires explicit carrier metadata",
@@ -125,21 +168,17 @@ def _validate_execution_backend(
         )
     requires_runner_image = normalized_backend == "k8s-job" or (
         normalized_backend == EXTERNAL_RUNNER_EXECUTION_BACKEND
-        and uses_k8s_runner_backend(executor_config)
+        and uses_k8s_runner_backend(execution_view)
     )
     if not requires_runner_image:
         return
 
-    runner_image = (
-        executor_config.runner_image.strip()
-        if isinstance(executor_config.runner_image, str)
-        else ""
-    )
-    if runner_image:
+    configured_runner_image = runner_image(execution_view) or ""
+    if configured_runner_image:
         return
 
     raise UnsupportedOperationError(
-        "k8s-carried execution requires executor_config.runner_image",
+        "k8s-carried execution requires execution binding runner_image",
         agent_id=agent_id,
         executor_backend=executor_config.backend,
     )
@@ -158,8 +197,9 @@ class RunSubmissionService:
 
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
         effective_agent = _resolve_submission_agent(agent)
-        executor_config, trace_backend = _resolve_executor_config(
+        executor_config, execution_binding, trace_backend = _resolve_executor_config(
             payload,
+            default_execution_binding=effective_agent.execution_binding,
             default_runtime_profile=effective_agent.default_runtime_profile,
             default_trace_backend=self.default_trace_backend,
         )
@@ -169,6 +209,7 @@ class RunSubmissionService:
         )
         _validate_execution_backend(
             executor_config=executor_config,
+            execution_binding=execution_binding,
             agent_id=payload.agent_id,
         )
         provenance.executor_backend = executor_config.backend
@@ -200,6 +241,7 @@ class RunSubmissionService:
             tags=list(payload.tags),
             project_metadata=dict(payload.project_metadata),
             executor_config=executor_config,
+            execution_binding=execution_binding,
             model_settings=payload.model_settings,
             prompt_config=payload.prompt_config,
             toolset_config=payload.toolset_config,

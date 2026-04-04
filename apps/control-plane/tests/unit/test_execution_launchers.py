@@ -318,7 +318,9 @@ def test_docker_container_runner_executes_runner_image_with_local_launcher(
             input_dir.joinpath("run_spec.json").read_text(encoding="utf-8")
         )
         assert (
-            run_spec.executor_config["metadata"]["claude_code_cli"]["env"]["ANTHROPIC_AUTH_TOKEN"]
+            run_spec.executor_config["binding"]["config"]["claude_code_cli"]["env"][
+                "ANTHROPIC_AUTH_TOKEN"
+            ]
             == "token-from-host"
         )
         runtime_result = RuntimeExecutionResult(

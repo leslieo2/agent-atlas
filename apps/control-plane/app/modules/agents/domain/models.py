@@ -26,11 +26,12 @@ from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
 from app.modules.shared.domain.models import (
-    ExecutionReferenceMetadata as SharedExecutionReferenceMetadata,
-)
-from app.modules.shared.domain.models import (
+    ExecutionBinding,
     ExecutorConfig,
     build_source_execution_reference,
+)
+from app.modules.shared.domain.models import (
+    ExecutionReferenceMetadata as SharedExecutionReferenceMetadata,
 )
 
 
@@ -153,6 +154,7 @@ class PublishedAgent(ContractPublishedAgent):
     default_runtime_profile: ExecutorConfig = Field(  # type: ignore[assignment]
         default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
+    execution_binding: ExecutionBinding | None = None
     latest_validation: AgentValidationRunReference | None = None
     validation_evidence: AgentValidationEvidenceSummary | None = None
     validation_outcome: AgentValidationOutcomeSummary | None = None
@@ -238,7 +240,11 @@ class PublishedAgent(ContractPublishedAgent):
             },
             deep=True,
         )
-        return snapshot.model_dump(mode="json", exclude_none=True)
+        return snapshot.model_dump(
+            mode="json",
+            exclude={"execution_binding"},
+            exclude_none=True,
+        )
 
 
 class DiscoveredAgent(BaseModel):
@@ -254,6 +260,7 @@ class DiscoveredAgent(BaseModel):
     default_runtime_profile: ExecutorConfig = Field(
         default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
+    execution_binding: ExecutionBinding | None = None
     latest_validation: AgentValidationRunReference | None = None
     validation_evidence: AgentValidationEvidenceSummary | None = None
     validation_outcome: AgentValidationOutcomeSummary | None = None
@@ -329,6 +336,17 @@ class DiscoveredAgent(BaseModel):
                 "default_runtime_profile": published_agent.default_runtime_profile.model_copy(
                     deep=True
                 ),
+                "execution_binding": (
+                    published_agent.execution_binding.model_copy(deep=True)
+                    if published_agent.execution_binding is not None
+                    else (
+                        published_agent.default_runtime_profile.execution_binding.model_copy(
+                            deep=True
+                        )
+                        if published_agent.default_runtime_profile.execution_binding is not None
+                        else None
+                    )
+                ),
             }
         )
 
@@ -338,6 +356,19 @@ class DiscoveredAgent(BaseModel):
             existing.default_runtime_profile.model_copy(deep=True)
             if existing is not None
             else self.default_runtime_profile.model_copy(deep=True)
+        )
+        execution_binding = (
+            existing.execution_binding.model_copy(deep=True)
+            if existing is not None and existing.execution_binding is not None
+            else (
+                self.execution_binding.model_copy(deep=True)
+                if self.execution_binding is not None
+                else (
+                    self.default_runtime_profile.execution_binding.model_copy(deep=True)
+                    if self.default_runtime_profile.execution_binding is not None
+                    else None
+                )
+            )
         )
         return PublishedAgent(
             manifest=self.manifest.model_copy(deep=True),
@@ -350,4 +381,5 @@ class DiscoveredAgent(BaseModel):
                 ).model_dump(mode="json")
             ),
             default_runtime_profile=default_runtime_profile,
+            execution_binding=execution_binding,
         )

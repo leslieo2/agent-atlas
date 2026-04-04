@@ -12,6 +12,11 @@ from agent_atlas_contracts.execution import (
 from pydantic import BaseModel, Field
 
 from agent_atlas_runner_base.claude_code import claude_code_k8s_command
+from agent_atlas_runner_base.execution_profile import (
+    execution_plane_config,
+    execution_plane_value,
+    runner_image,
+)
 
 
 class K8sJobLaunchRequest(BaseModel):
@@ -108,7 +113,7 @@ class K8sLauncher:
                 },
             },
         }
-        timeout_seconds = payload.executor_config.get("timeout_seconds")
+        timeout_seconds = execution_plane_value(payload.executor_config, "timeout_seconds")
         if isinstance(timeout_seconds, int) and timeout_seconds > 0:
             job_manifest["spec"]["activeDeadlineSeconds"] = timeout_seconds
 
@@ -171,26 +176,24 @@ class K8sLauncher:
 
     @staticmethod
     def _image_for_payload(payload: RunnerRunSpec) -> str:
-        runner_image = payload.executor_config.get("runner_image")
-        if isinstance(runner_image, str) and runner_image.strip():
-            return runner_image
-        raise ValueError("kubernetes runner requires executor_config.runner_image")
+        configured_runner_image = runner_image(payload.executor_config)
+        if configured_runner_image is not None:
+            return configured_runner_image
+        raise ValueError("kubernetes runner requires execution binding runner_image")
 
     @staticmethod
     def _command(payload: RunnerRunSpec) -> list[str]:
         claude_code_command = claude_code_k8s_command(payload.executor_config)
         if claude_code_command is not None:
             return claude_code_command
-        metadata = payload.executor_config.get("metadata", {})
-        if isinstance(metadata, dict):
-            raw_command = metadata.get("command")
-            if isinstance(raw_command, list) and all(isinstance(item, str) for item in raw_command):
-                return raw_command
+        raw_command = execution_plane_config(payload.executor_config).get("command")
+        if isinstance(raw_command, list) and all(isinstance(item, str) for item in raw_command):
+            return raw_command
         return []
 
     @staticmethod
     def _resources(payload: RunnerRunSpec) -> dict[str, Any] | None:
-        resources = payload.executor_config.get("resources")
+        resources = execution_plane_value(payload.executor_config, "resources")
         if not isinstance(resources, dict):
             return None
 

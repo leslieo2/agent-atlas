@@ -21,13 +21,14 @@ from agent_atlas_contracts.execution import (
 from agent_atlas_contracts.runtime import RuntimeExecutionResult, producer_for_runtime
 
 from agent_atlas_runner_base.constants import CLAUDE_CODE_CLI_RUNTIME
-from agent_atlas_runner_base.outputs import RunnerOutputWriter
+from agent_atlas_runner_base.execution_profile import execution_plane_config
 from agent_atlas_runner_base.materialization import (
     changed_files_manifest,
     materialize_project_bundle,
     project_materialization_from_executor_config,
     snapshot_tree,
 )
+from agent_atlas_runner_base.outputs import RunnerOutputWriter
 
 
 def _string_value(value: object) -> str | None:
@@ -61,10 +62,7 @@ class ClaudeCodeCliConfig:
 def claude_code_cli_config_from_executor_config(
     executor_config: Mapping[str, Any],
 ) -> ClaudeCodeCliConfig | None:
-    metadata = executor_config.get("metadata")
-    if not isinstance(metadata, Mapping):
-        return None
-    raw_config = metadata.get("claude_code_cli")
+    raw_config = execution_plane_config(executor_config).get("claude_code_cli")
     if not isinstance(raw_config, Mapping):
         return None
 
@@ -206,7 +204,7 @@ def _build_event(
 def _command_for_payload(payload: RunnerRunSpec) -> tuple[list[str], ClaudeCodeCliConfig]:
     config = claude_code_cli_config_from_executor_config(payload.executor_config)
     if config is None:
-        raise RuntimeError("executor_config.metadata.claude_code_cli is required")
+        raise RuntimeError("execution binding config claude_code_cli is required")
 
     command = [
         *config.command,
@@ -371,11 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     started_at = time.time()
     completed = subprocess.run(  # nosec B603
         command,
-        cwd=(
-            str(workspace_root)
-            if workspace_root is not None
-            else config.cwd or os.getcwd()
-        ),
+        cwd=(str(workspace_root) if workspace_root is not None else config.cwd or os.getcwd()),
         env={**os.environ, **config.env},
         capture_output=True,
         text=True,
@@ -430,7 +424,10 @@ def main(argv: list[str] | None = None) -> int:
                 "workspace/changed-files.json",
                 json.dumps(changed_manifest, indent=2, ensure_ascii=False),
                 media_type="application/json",
-                metadata={"runner_family": CLAUDE_CODE_CLI_RUNTIME, "kind": "changed_files_manifest"},
+                metadata={
+                    "runner_family": CLAUDE_CODE_CLI_RUNTIME,
+                    "kind": "changed_files_manifest",
+                },
             )
         )
     writer.write_artifact_manifest(artifact_manifest)

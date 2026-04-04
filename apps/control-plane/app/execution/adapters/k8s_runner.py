@@ -31,6 +31,7 @@ from agent_atlas_runner_base.launchers import K8sLauncher
 
 from app.core.errors import AppError, ProviderTimeoutError
 from app.execution.application.results import ExecutionCancelled, RunnerExecutionResult
+from app.execution.metadata import artifact_path, execution_plane_value
 from app.modules.runs.application.ports import RunRepository
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.shared.domain.models import utc_now
@@ -406,7 +407,7 @@ class K8sContainerRunner:
 
                 if snapshot.phase in {"succeeded", "failed"}:
                     break
-                timeout_seconds = payload.executor_config.get("timeout_seconds")
+                timeout_seconds = execution_plane_value(payload.executor_config, "timeout_seconds")
                 if not isinstance(timeout_seconds, int | float) or timeout_seconds <= 0:
                     timeout_seconds = 1.0
                 if now - started > float(timeout_seconds):
@@ -655,16 +656,13 @@ class K8sContainerRunner:
 
     @staticmethod
     def _keep_resources(payload: RunnerRunSpec) -> bool:
-        metadata = payload.executor_config.get("metadata")
-        if not isinstance(metadata, dict):
-            return False
-        keep_resources = metadata.get("keep_k8s_resources")
+        keep_resources = execution_plane_value(payload.executor_config, "keep_k8s_resources")
         return bool(keep_resources)
 
     @staticmethod
     def _local_artifact_dir(payload: RunnerRunSpec) -> Path:
-        configured_root = payload.executor_config.get("artifact_path")
-        if isinstance(configured_root, str) and configured_root.strip():
+        configured_root = artifact_path(payload.executor_config)
+        if configured_root:
             base_dir = Path(configured_root).expanduser()
         else:
             base_dir = Path(
