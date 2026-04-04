@@ -11,7 +11,6 @@ from pydantic import SecretStr
 
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.execution.application.results import PublishedRunExecutionResult
-from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.agents.domain.models import (
     AgentBuildContext,
     AgentManifest,
@@ -23,9 +22,6 @@ from app.modules.agents.domain.models import (
     adapter_kind_for_agent_family,
 )
 from app.modules.shared.domain.enums import AdapterKind
-
-# Compatibility alias for callers that still import the framework literal here.
-CLAUDE_CODE_FRAMEWORK = CLAUDE_CODE_CLI_FRAMEWORK
 
 
 class FrameworkDiscoveryValidator(Protocol):
@@ -148,6 +144,7 @@ class FrameworkRegistry:
 
 FRAMEWORK_PLUGIN_ENTRY_POINT_GROUP = "agent_atlas.framework_plugins"
 BUILTIN_FRAMEWORK_PLUGIN_MODULES = (
+    "app.infrastructure.adapters.claude_code",
     "app.infrastructure.adapters.openai_agents",
     "app.infrastructure.adapters.langchain",
 )
@@ -180,8 +177,6 @@ def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
         if plugin is None:
             continue
         plugins[plugin.framework.strip().lower()] = plugin
-        if plugin.framework.strip().lower() == AdapterKind.OPENAI_AGENTS.value:
-            plugins.setdefault(CLAUDE_CODE_CLI_FRAMEWORK, plugin)
 
     for module_name in BUILTIN_FRAMEWORK_PLUGIN_MODULES:
         module = FrameworkRegistry._safe_import(module_name)
@@ -194,8 +189,6 @@ def discover_framework_plugins() -> dict[str, FrameworkPlugin]:
         if plugin is None:
             continue
         plugins.setdefault(plugin.framework.strip().lower(), plugin)
-        if plugin.framework.strip().lower() == AdapterKind.OPENAI_AGENTS.value:
-            plugins.setdefault(CLAUDE_CODE_CLI_FRAMEWORK, plugin)
 
     return plugins
 

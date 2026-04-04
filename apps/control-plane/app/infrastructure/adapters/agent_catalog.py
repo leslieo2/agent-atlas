@@ -8,6 +8,7 @@ from app.modules.agents.application.ports import (
 )
 from app.modules.agents.domain.models import (
     AgentModuleSource,
+    AgentPublishState,
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,
@@ -19,6 +20,7 @@ from app.modules.agents.domain.starter_assets import (
     claude_code_starter_manifest,
     claude_code_starter_runtime_profile,
 )
+from app.modules.shared.domain.models import ExecutionReferenceMetadata
 
 
 class AgentSourceCatalog(Protocol):
@@ -111,12 +113,36 @@ class StateBootstrapAgentDiscovery:
         self.published_agents = published_agents
 
     def list_agents(self) -> list[DiscoveredAgent]:
+        published = self.published_agents.get_agent(CLAUDE_CODE_STARTER_AGENT_ID)
         should_surface = (
             CLAUDE_CODE_STARTER_AGENT_ID in set(self.markers.list_agent_ids())
-            or self.published_agents.get_agent(CLAUDE_CODE_STARTER_AGENT_ID) is not None
+            or published is not None
         )
         if not should_surface:
             return []
+        if published is not None:
+            try:
+                published.execution_reference_or_raise()
+                published.source_fingerprint_or_raise()
+            except ValueError:
+                pass
+            else:
+                return [
+                    DiscoveredAgent(
+                        manifest=published.manifest.model_copy(deep=True),
+                        entrypoint=published.entrypoint,
+                        publish_state=AgentPublishState.PUBLISHED,
+                        validation_status=AgentValidationStatus.VALID,
+                        validation_issues=[],
+                        published_at=published.published_at,
+                        execution_reference=ExecutionReferenceMetadata.model_validate(
+                            published.execution_reference.model_dump(mode="json")
+                        ),
+                        default_runtime_profile=published.default_runtime_profile.model_copy(
+                            deep=True
+                        ),
+                    )
+                ]
         return [
             DiscoveredAgent(
                 manifest=claude_code_starter_manifest(),

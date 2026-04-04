@@ -286,6 +286,9 @@ def test_agents_api_live_mode_bootstrap_keeps_starter_reachable_for_publish_and_
         discovered = {item["agent_id"]: item for item in discovered_after_drift.json()}
         assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["publish_state"] == "published"
         assert discovered[CLAUDE_CODE_STARTER_AGENT_ID]["has_unpublished_changes"] is True
+        assert discovered[CLAUDE_CODE_STARTER_AGENT_ID][
+            "default_runtime_profile"
+        ] == stale.default_runtime_profile.model_dump(mode="json")
 
 
 def test_agents_api_live_mode_validation_runs_accept_state_backed_starter_drafts(

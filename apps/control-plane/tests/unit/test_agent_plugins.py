@@ -17,7 +17,6 @@ from app.infrastructure.adapters.agent_catalog import (
     StaticAgentDiscovery,
 )
 from app.infrastructure.adapters.framework_registry import (
-    CLAUDE_CODE_FRAMEWORK,
     FrameworkPlugin,
     FrameworkRegistry,
     PublishedAgentExecutionDispatcher,
@@ -415,6 +414,12 @@ def test_framework_plugin_discovery_loads_package_manifests(monkeypatch) -> None
 
 
 def test_framework_plugin_discovery_falls_back_to_builtin_modules(monkeypatch) -> None:
+    claude_plugin = FrameworkPlugin(
+        framework="claude-code-cli",
+        validator=SimpleNamespace(),
+        loader=SimpleNamespace(),
+        runtime=SimpleNamespace(),
+    )
     openai_plugin = FrameworkPlugin(
         framework=AdapterKind.OPENAI_AGENTS.value,
         validator=SimpleNamespace(),
@@ -428,6 +433,9 @@ def test_framework_plugin_discovery_falls_back_to_builtin_modules(monkeypatch) -
         runtime=SimpleNamespace(),
     )
     modules = {
+        "app.infrastructure.adapters.claude_code": SimpleNamespace(
+            build_framework_plugin=lambda: claude_plugin
+        ),
         "app.infrastructure.adapters.openai_agents": SimpleNamespace(
             build_framework_plugin=lambda: openai_plugin
         ),
@@ -448,7 +456,7 @@ def test_framework_plugin_discovery_falls_back_to_builtin_modules(monkeypatch) -
     discovered = discover_framework_plugins()
 
     assert discovered == {
-        CLAUDE_CODE_FRAMEWORK: openai_plugin,
+        "claude-code-cli": claude_plugin,
         AdapterKind.OPENAI_AGENTS.value: openai_plugin,
         AdapterKind.LANGCHAIN.value: langchain_plugin,
     }
@@ -472,6 +480,7 @@ def test_framework_plugin_discovery_loads_builtin_modules(
 
     assert discovered == {}
     assert imported_modules == [
+        "app.infrastructure.adapters.claude_code",
         "app.infrastructure.adapters.openai_agents",
         "app.infrastructure.adapters.langchain",
     ]
