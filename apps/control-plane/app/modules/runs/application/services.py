@@ -97,7 +97,6 @@ def _execution_target_from_binding(
         raw_artifact_ref = materialization.get("artifact_ref")
         if isinstance(raw_artifact_ref, str) and raw_artifact_ref.strip():
             target_ref = raw_artifact_ref
-        metadata["project_materialization"] = materialization
 
     if isinstance(raw_cli, Mapping):
         cli_metadata = dict(raw_cli)

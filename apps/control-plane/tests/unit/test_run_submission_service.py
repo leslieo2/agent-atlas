@@ -314,7 +314,7 @@ def test_run_submission_service_backfills_execution_target_from_workspace_bindin
     assert run.execution_target.kind == "workspace_project"
     assert run.execution_target.display_name == "migration-check"
     assert run.execution_target.target_ref == "file:///tmp/migration-check.tar.gz"
-    assert run.execution_target.metadata["cwd"] == "/workspace/project/repo"
+    assert run.execution_target.metadata == {"cwd": "/workspace/project/repo"}
     assert run.provenance is not None
     assert run.provenance.execution_target == run.execution_target
     assert execution_control.submitted[0].execution_target == run.execution_target
