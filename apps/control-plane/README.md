@@ -88,11 +88,17 @@ cd /Users/leslie/PycharmProjects/agent-atlas/apps/control-plane
 make run-worker
 ```
 
+The worker requires Redis at `AGENT_ATLAS_EXECUTION_JOB_QUEUE_URL` and will fail fast if nothing is
+listening there. The repository root [`Makefile`](/Users/leslie/PycharmProjects/agent-atlas/Makefile)
+`make dev` target now starts a local Redis container automatically unless something is already
+listening on `127.0.0.1:6379`.
+
 Local defaults:
 
 - API base URL: `http://127.0.0.1:8000`
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - local database: `sqlite:///./.agent-atlas-local.db`
+- execution job queue: `redis://127.0.0.1:6379/0`
 
 ## Runtime Model
 

@@ -9,10 +9,14 @@ FRONTEND_HOST ?= 127.0.0.1
 FRONTEND_PORT ?= 3000
 PHOENIX_HOST ?= 127.0.0.1
 PHOENIX_PORT ?= 6006
+REDIS_HOST ?= 127.0.0.1
+REDIS_PORT ?= 6379
 PHOENIX_WORKING_DIR ?= $(CURDIR)/.phoenix
 PHOENIX_PROJECT_NAME ?= agent-atlas-local
 PHOENIX_CONTAINER_NAME ?= agent-atlas-phoenix-dev
 PHOENIX_IMAGE ?= arizephoenix/phoenix:latest
+REDIS_CONTAINER_NAME ?= agent-atlas-redis-dev
+REDIS_IMAGE ?= redis:7-alpine
 
 help:
 	@printf '%s\n' \
@@ -20,7 +24,7 @@ help:
 		'  make install         Install backend and frontend dependencies' \
 		'  make backend-install Install backend dependencies' \
 		'  make frontend-install Install frontend dependencies' \
-		'  make dev             Start Phoenix, backend API, backend worker, and frontend dev server' \
+		'  make dev             Start Redis/Phoenix, backend API, backend worker, and frontend dev server' \
 		'  make lint            Run backend and frontend lint checks' \
 		'  make typecheck       Run backend and frontend type checks' \
 		'  make test            Run backend and frontend tests' \
@@ -41,12 +45,19 @@ frontend-install:
 dev:
 	@set -e; \
 	phoenix_container_id=''; \
+	redis_container_id=''; \
 	api_pid=''; \
 	worker_pid=''; \
 	frontend_pid=''; \
 	phoenix_base_url='http://$(PHOENIX_HOST):$(PHOENIX_PORT)'; \
 	phoenix_otlp_endpoint="$$phoenix_base_url/v1/traces"; \
 	allowed_origins='["http://localhost:3000","http://127.0.0.1:3000"]'; \
+	wait_for_container_removal() { \
+		container_name="$$1"; \
+		while docker ps -a --format '{{.Names}}' | grep -Fx "$$container_name" >/dev/null 2>&1; do \
+			sleep 1; \
+		done; \
+	}; \
 	cleanup() { \
 		status=$$?; \
 		for pid in "$$api_pid" "$$worker_pid" "$$frontend_pid"; do \
@@ -56,6 +67,9 @@ dev:
 		done; \
 		if [ -n "$$phoenix_container_id" ]; then \
 			docker rm -f "$$phoenix_container_id" >/dev/null 2>&1 || true; \
+		fi; \
+		if [ -n "$$redis_container_id" ]; then \
+			docker rm -f "$$redis_container_id" >/dev/null 2>&1 || true; \
 		fi; \
 		for pid in "$$api_pid" "$$worker_pid" "$$frontend_pid"; do \
 			if [ -n "$$pid" ]; then \
@@ -70,7 +84,28 @@ dev:
 		printf '%s\n' 'Docker is required for `make dev` because Phoenix runs as a local container.'; \
 		exit 1; \
 	fi; \
+	docker rm -f '$(REDIS_CONTAINER_NAME)' >/dev/null 2>&1 || true; \
 	docker rm -f '$(PHOENIX_CONTAINER_NAME)' >/dev/null 2>&1 || true; \
+	wait_for_container_removal '$(REDIS_CONTAINER_NAME)'; \
+	wait_for_container_removal '$(PHOENIX_CONTAINER_NAME)'; \
+	if python3 -c "import socket, sys; s = socket.socket(); s.settimeout(1); code = s.connect_ex(('$(REDIS_HOST)', $(REDIS_PORT))); s.close(); sys.exit(0 if code == 0 else 1)" >/dev/null 2>&1; then \
+		printf '%s\n' "Using existing Redis on redis://$(REDIS_HOST):$(REDIS_PORT)/0"; \
+	else \
+		printf '%s\n' "Starting Redis on redis://$(REDIS_HOST):$(REDIS_PORT)/0"; \
+		docker rm -f '$(REDIS_CONTAINER_NAME)' >/dev/null 2>&1 || true; \
+		wait_for_container_removal '$(REDIS_CONTAINER_NAME)'; \
+		redis_container_id=$$(docker run --rm -d \
+			--name '$(REDIS_CONTAINER_NAME)' \
+			-p $(REDIS_HOST):$(REDIS_PORT):6379 \
+			'$(REDIS_IMAGE)'); \
+		until python3 -c "import socket, sys; s = socket.socket(); s.settimeout(1); code = s.connect_ex(('$(REDIS_HOST)', $(REDIS_PORT))); s.close(); sys.exit(0 if code == 0 else 1)" >/dev/null 2>&1; do \
+			if [ -z "$$(docker ps -q -f id=$$redis_container_id)" ]; then \
+				docker logs "$$redis_container_id" 2>/dev/null || true; \
+				exit 1; \
+			fi; \
+			sleep 1; \
+		done; \
+	fi; \
 	printf '%s\n' \
 		"Starting Phoenix on $$phoenix_base_url" \
 		'Starting backend API on http://$(API_HOST):$(API_PORT)' \

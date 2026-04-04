@@ -1,4 +1,4 @@
-import type { ExecutionProfile_Output } from "@/src/shared/api/contract";
+import type { ExecutionProfile, ExecutionProfileRequest } from "@/src/shared/api/contract";
 
 export type AgentPublishState = "draft" | "published";
 export type AgentValidationStatus = "valid" | "invalid";
@@ -28,6 +28,18 @@ export interface AgentValidationOutcomeSummaryRecord {
   reason?: string | null;
 }
 
+export type ExecutionProfileRecord = ExecutionProfileRequest & {
+  metadata?: Record<string, unknown>;
+  runner_image?: string;
+  artifact_path?: string;
+  binding?: Record<string, unknown>;
+  execution_binding?: Record<string, unknown>;
+  timeout_seconds?: number;
+  max_steps?: number;
+  concurrency?: number;
+  resources?: Record<string, unknown>;
+};
+
 export interface AgentRecord {
   agentId: string;
   name: string;
@@ -42,7 +54,7 @@ export interface AgentRecord {
   publishedAt?: string;
   sourceFingerprint?: string;
   executionReference?: ExecutionReferenceRecord | null;
-  executionProfile: ExecutionProfile_Output;
+  executionProfile: ExecutionProfileRecord;
   latestValidation?: AgentValidationRunReferenceRecord | null;
   validationEvidence?: AgentValidationEvidenceSummaryRecord | null;
   validationOutcome?: AgentValidationOutcomeSummaryRecord | null;
@@ -62,7 +74,7 @@ export interface DiscoveredAgentRecord extends AgentRecord {
   hasUnpublishedChanges: boolean;
   sourceFingerprint?: string;
   executionReference?: ExecutionReferenceRecord | null;
-  executionProfile: ExecutionProfile_Output;
+  executionProfile: ExecutionProfileRecord;
   latestValidation?: AgentValidationRunReferenceRecord | null;
   validationEvidence?: AgentValidationEvidenceSummaryRecord | null;
   validationOutcome?: AgentValidationOutcomeSummaryRecord | null;
