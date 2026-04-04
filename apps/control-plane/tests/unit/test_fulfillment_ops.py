@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 from agents import Agent
 from app.modules.agents.domain.models import AgentBuildContext
-from app.modules.agents.fixtures.fulfillment_ops import (
+from tests.fixtures.agents.fulfillment_ops import (
     ToolBackendError,
     build_agent,
     resolve_escalation_policy,

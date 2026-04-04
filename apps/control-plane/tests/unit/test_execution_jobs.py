@@ -39,7 +39,7 @@ def test_arq_execution_job_queue_enqueues_run_execution_with_stable_job_id() -> 
         dataset="dataset-v1",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="run input",
         prompt="Summarize this run.",

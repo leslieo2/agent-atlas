@@ -2,12 +2,20 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from app.bootstrap.container import get_container
 from app.core.config import RuntimeMode, settings
-from app.modules.agents.fixtures import build_fixture_published_agent
+from tests.fixtures.agents import build_fixture_published_agent
 from tests.integration.test_experiments_api import _experiment_payload, _install_runtime
 from tests.support.fake_docker import install_fake_docker_runtime
 from tests.support.fake_k8s import install_fake_k8s_runtime
+
+
+@pytest.fixture(autouse=True)
+def _seed_basic_published_agent() -> None:
+    get_container().infrastructure.published_agent_repository.save_agent(
+        build_fixture_published_agent("basic")
+    )
 
 
 def _drain_background_work(worker_drain, *, limit: int, rounds: int = 5) -> int:
@@ -420,7 +428,6 @@ def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_wit
     wait_until,
 ) -> None:
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
-    monkeypatch.setattr(settings, "seed_demo", False)
     get_container.cache_clear()
     install_fake_docker_runtime(
         monkeypatch,

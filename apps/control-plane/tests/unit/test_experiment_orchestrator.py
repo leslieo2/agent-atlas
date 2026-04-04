@@ -127,7 +127,7 @@ def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> No
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
+        entrypoint="tests.fixtures.agents.triage_bot:build_agent",
     )
     source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
     execution_reference = ExecutionReference.model_validate(
@@ -217,7 +217,7 @@ def test_experiment_orchestrator_inherits_published_runtime_profile_when_no_over
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
+        entrypoint="tests.fixtures.agents.triage_bot:build_agent",
         default_runtime_profile=ExecutorConfig(backend="local-runner", tracing_backend="phoenix"),
     )
     source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
@@ -262,7 +262,7 @@ def test_experiment_orchestrator_uses_stored_agent_snapshot_when_catalog_changes
             default_model="gpt-5.4-mini",
             tags=["ops"],
         ),
-        entrypoint="app.modules.agents.fixtures.triage_bot:build_agent",
+        entrypoint="tests.fixtures.agents.triage_bot:build_agent",
         default_runtime_profile=ExecutorConfig(backend="local-runner", tracing_backend="phoenix"),
     )
     source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)

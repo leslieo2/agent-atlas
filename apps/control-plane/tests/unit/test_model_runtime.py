@@ -478,7 +478,7 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
             default_model="gpt-5.4-mini",
             tags=[],
         ),
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
     )
     published_agent = _seal_agent(published_agent)
     payload = ExecutionRunSpec(
@@ -486,7 +486,7 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
         dataset="framework-ds",
         agent_id="graph-bot",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
         agent_type=AdapterKind.LANGCHAIN,
         input_summary="framework coverage",
         prompt="Inspect the latest run.",
@@ -540,7 +540,7 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
             default_model="gpt-5.4-mini",
             tags=[],
         ),
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
     )
     published_agent = _seal_agent(published_agent)
     adapter = PublishedLangChainAgentAdapter(agent_loader=StubLoader())
@@ -549,7 +549,7 @@ def test_published_langchain_agent_adapter_executes_invoke_graph():
         dataset="framework-ds",
         agent_id="graph-bot",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
         agent_type=AdapterKind.LANGCHAIN,
         input_summary="framework coverage",
         prompt="Inspect the latest run.",
@@ -636,7 +636,7 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
             default_model="gpt-5.4-mini",
             tags=[],
         ),
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
     )
     published_agent = _seal_agent(published_agent)
     payload = ExecutionRunSpec(
@@ -644,7 +644,7 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
         dataset="framework-ds",
         agent_id="graph-bot",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="framework coverage",
         prompt="Inspect the latest run.",

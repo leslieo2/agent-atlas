@@ -42,7 +42,7 @@ def test_runner_run_spec_can_be_built_from_execution_run_spec():
         dataset="ops",
         agent_id="triage-bot",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="check ticket",
         prompt="Summarize the incident.",
@@ -57,7 +57,7 @@ def test_runner_run_spec_can_be_built_from_execution_run_spec():
                     "default_model": "gpt-5.4-mini",
                     "tags": [],
                 },
-                "entrypoint": "app.modules.agents.fixtures.basic:build_agent",
+                "entrypoint": "tests.fixtures.agents.basic:build_agent",
                 "source_fingerprint": "fingerprint",
                 "execution_reference": {
                     "artifact_ref": "source://triage-bot@fingerprint",
@@ -73,7 +73,7 @@ def test_runner_run_spec_can_be_built_from_execution_run_spec():
         payload,
         artifact=ExecutionArtifact(
             framework=AdapterKind.OPENAI_AGENTS.value,
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             source_fingerprint="fingerprint",
             artifact_ref="source://triage-bot@fingerprint",
             image_ref=None,

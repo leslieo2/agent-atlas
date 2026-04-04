@@ -158,7 +158,6 @@ Important settings currently wired in code:
 - `AGENT_ATLAS_RUNTIME_MODE`: provider execution behavior (`auto`, `live`, `mock`)
 - `AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL`: control-plane state database location
 - `AGENT_ATLAS_DATA_PLANE_DATABASE_URL`: data-plane state database location
-- `AGENT_ATLAS_SEED_DEMO`: whether to seed demo data on startup
 - `AGENT_ATLAS_OPENAI_API_KEY`: credentials for OpenAI-backed run paths when those paths are selected
 - `AGENT_ATLAS_EXECUTION_JOB_BACKEND`: background execution backend (`arq` in product code, `inline` only for tests)
 - `AGENT_ATLAS_EXECUTION_JOB_QUEUE_URL`: Redis DSN used by the Arq execution queue

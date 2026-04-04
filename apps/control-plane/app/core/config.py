@@ -39,13 +39,6 @@ class Settings(BaseSettings):
         repr=False,
         description="OpenAI API key used for live execution.",
     )
-    seed_demo: bool | None = Field(
-        default=None,
-        description=(
-            "Whether demo runs/datasets should be seeded on startup. "
-            "Defaults to disabled in live mode and enabled otherwise."
-        ),
-    )
     control_plane_database_url: str | None = Field(
         default=None,
         description=("Control plane database URL. Supports sqlite:///path and postgresql:// URLs."),
@@ -126,11 +119,6 @@ class Settings(BaseSettings):
         if self.runtime_mode == RuntimeMode.LIVE:
             return RuntimeMode.LIVE
         return RuntimeMode.MOCK
-
-    def should_seed_demo(self) -> bool:
-        if self.seed_demo is not None:
-            return self.seed_demo
-        return self.runtime_mode != RuntimeMode.LIVE
 
 
 settings = Settings()

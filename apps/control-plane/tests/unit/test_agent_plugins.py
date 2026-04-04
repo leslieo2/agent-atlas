@@ -37,12 +37,12 @@ from app.modules.agents.domain.models import (
     PublishedAgent,
     compute_source_fingerprint,
 )
-from app.modules.agents.fixtures import fixture_agent_source_catalog
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import (
     ProvenanceMetadata,
     build_source_execution_reference,
 )
+from tests.fixtures.agents import fixture_agent_source_catalog
 
 
 def _artifact_for_agent(agent: PublishedAgent) -> ExecutionArtifact:
@@ -75,10 +75,10 @@ def test_fixture_agent_sources_cover_demo_agents() -> None:
     sources = fixture_agent_source_catalog()
 
     assert {source.module_name for source in sources} >= {
-        "app.modules.agents.fixtures.basic",
-        "app.modules.agents.fixtures.customer_service",
-        "app.modules.agents.fixtures.fulfillment_ops",
-        "app.modules.agents.fixtures.tools",
+        "tests.fixtures.agents.basic",
+        "tests.fixtures.agents.customer_service",
+        "tests.fixtures.agents.fulfillment_ops",
+        "tests.fixtures.agents.tools",
     }
 
 
@@ -89,7 +89,7 @@ def test_validator_reports_missing_manifest(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.infrastructure.adapters.openai_agents.catalog.import_module",
         lambda module_name: (
-            module if module_name == "app.modules.agents.fixtures.fake_missing_manifest" else None
+            module if module_name == "tests.fixtures.agents.fake_missing_manifest" else None
         ),
     )
     monkeypatch.setattr(
@@ -100,8 +100,8 @@ def test_validator_reports_missing_manifest(monkeypatch) -> None:
 
     discovered = validator.discover(
         AgentModuleSource(
-            module_name="app.modules.agents.fixtures.fake_missing_manifest",
-            entrypoint="app.modules.agents.fixtures.fake_missing_manifest:build_agent",
+            module_name="tests.fixtures.agents.fake_missing_manifest",
+            entrypoint="tests.fixtures.agents.fake_missing_manifest:build_agent",
         )
     )
 
@@ -126,14 +126,14 @@ def test_validator_reports_missing_build_agent(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.infrastructure.adapters.openai_agents.catalog.import_module",
         lambda module_name: (
-            module if module_name == "app.modules.agents.fixtures.fake_missing_build" else None
+            module if module_name == "tests.fixtures.agents.fake_missing_build" else None
         ),
     )
 
     discovered = validator.discover(
         AgentModuleSource(
-            module_name="app.modules.agents.fixtures.fake_missing_build",
-            entrypoint="app.modules.agents.fixtures.fake_missing_build:build_agent",
+            module_name="tests.fixtures.agents.fake_missing_build",
+            entrypoint="tests.fixtures.agents.fake_missing_build:build_agent",
         )
     )
 
@@ -146,12 +146,12 @@ def test_discovery_marks_duplicate_agent_ids_invalid() -> None:
         def list_sources(self) -> list[AgentModuleSource]:
             return [
                 AgentModuleSource(
-                    "app.modules.agents.fixtures.first",
-                    "app.modules.agents.fixtures.first:build_agent",
+                    "tests.fixtures.agents.first",
+                    "tests.fixtures.agents.first:build_agent",
                 ),
                 AgentModuleSource(
-                    "app.modules.agents.fixtures.second",
-                    "app.modules.agents.fixtures.second:build_agent",
+                    "tests.fixtures.agents.second",
+                    "tests.fixtures.agents.second:build_agent",
                 ),
             ]
 
@@ -197,7 +197,7 @@ def test_state_published_agent_catalog_uses_valid_published_rows_as_source_autho
                 default_model="gpt-5.4-mini",
                 tags=[],
             ),
-            entrypoint="app.modules.agents.fixtures.alpha:build_agent",
+            entrypoint="tests.fixtures.agents.alpha:build_agent",
         )
     )
     published_ready = _seal_agent(
@@ -210,7 +210,7 @@ def test_state_published_agent_catalog_uses_valid_published_rows_as_source_autho
                 default_model="gpt-5.4-mini",
                 tags=[],
             ),
-            entrypoint="app.modules.agents.fixtures.ready:build_agent",
+            entrypoint="tests.fixtures.agents.ready:build_agent",
         )
     )
     published_drifted = _seal_agent(
@@ -223,7 +223,7 @@ def test_state_published_agent_catalog_uses_valid_published_rows_as_source_autho
                 default_model="gpt-5.4-mini",
                 tags=[],
             ),
-            entrypoint="app.modules.agents.fixtures.drifted:build_agent",
+            entrypoint="tests.fixtures.agents.drifted:build_agent",
         )
     )
     published_only = _seal_agent(
@@ -236,7 +236,7 @@ def test_state_published_agent_catalog_uses_valid_published_rows_as_source_autho
                 default_model="gpt-5.4-mini",
                 tags=[],
             ),
-            entrypoint="app.modules.agents.fixtures.published_only:build_agent",
+            entrypoint="tests.fixtures.agents.published_only:build_agent",
         )
     )
 
@@ -273,7 +273,7 @@ def test_published_agent_rejects_blank_execution_reference_metadata() -> None:
             default_model="gpt-5.4-mini",
             tags=[],
         ),
-        entrypoint="app.modules.agents.fixtures.blank_ref:build_agent",
+        entrypoint="tests.fixtures.agents.blank_ref:build_agent",
         execution_reference=ExecutionReference(artifact_ref="   ", image_ref=""),
     )
 
@@ -294,9 +294,7 @@ def test_framework_registry_dispatches_discovery_by_manifest_framework(monkeypat
     )
     monkeypatch.setattr(
         "app.infrastructure.adapters.framework_registry.import_module",
-        lambda module_name: (
-            module if module_name == "app.modules.agents.fixtures.graph_bot" else None
-        ),
+        lambda module_name: (module if module_name == "tests.fixtures.agents.graph_bot" else None),
     )
 
     class OpenAIValidator:
@@ -369,13 +367,13 @@ def test_framework_registry_dispatches_discovery_by_manifest_framework(monkeypat
 
     discovered = registry.discover(
         AgentModuleSource(
-            module_name="app.modules.agents.fixtures.graph_bot",
-            entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+            module_name="tests.fixtures.agents.graph_bot",
+            entrypoint="tests.fixtures.agents.graph_bot:build_agent",
         )
     )
 
     assert openai_validator.calls == 0
-    assert langchain_validator.calls == ["app.modules.agents.fixtures.graph_bot"]
+    assert langchain_validator.calls == ["tests.fixtures.agents.graph_bot"]
     assert discovered.framework == AdapterKind.LANGCHAIN.value
 
 
@@ -534,15 +532,13 @@ def test_langchain_validator_accepts_invoke_based_runnable(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "app.infrastructure.adapters.langchain.catalog.import_module",
-        lambda module_name: (
-            module if module_name == "app.modules.agents.fixtures.graph_bot" else None
-        ),
+        lambda module_name: (module if module_name == "tests.fixtures.agents.graph_bot" else None),
     )
 
     discovered = validator.discover(
         AgentModuleSource(
-            module_name="app.modules.agents.fixtures.graph_bot",
-            entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+            module_name="tests.fixtures.agents.graph_bot",
+            entrypoint="tests.fixtures.agents.graph_bot:build_agent",
         )
     )
 
@@ -591,7 +587,7 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
             default_model="gpt-5.4-mini",
             tags=[],
         ),
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
     )
     published_agent = _seal_agent(published_agent)
     payload = ExecutionRunSpec(
@@ -599,7 +595,7 @@ def test_framework_registry_rejects_published_payload_framework_mismatch() -> No
         dataset="framework-ds",
         agent_id="graph-bot",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="framework coverage",
         prompt="Inspect the latest run.",
@@ -676,7 +672,7 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
             default_model="gpt-5.4-mini",
             tags=[],
         ),
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
     )
     published_agent = _seal_agent(published_agent)
     payload = ExecutionRunSpec(
@@ -684,7 +680,7 @@ def test_framework_registry_rejects_unsupported_published_framework() -> None:
         dataset="framework-ds",
         agent_id="graph-bot",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.graph_bot:build_agent",
+        entrypoint="tests.fixtures.agents.graph_bot:build_agent",
         agent_type=AdapterKind.MCP,
         input_summary="framework coverage",
         prompt="Inspect the latest run.",

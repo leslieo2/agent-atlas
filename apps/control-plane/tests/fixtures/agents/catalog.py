@@ -11,7 +11,7 @@ from app.modules.agents.domain.models import (
 from app.modules.shared.domain.enums import AgentFamily
 from app.modules.shared.domain.models import build_source_execution_reference
 
-FIXTURE_AGENT_MODULE_PREFIX = "app.modules.agents.fixtures"
+FIXTURE_AGENT_MODULE_PREFIX = "tests.fixtures.agents"
 
 
 @dataclass(frozen=True)

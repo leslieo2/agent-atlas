@@ -304,7 +304,6 @@ Key settings currently wired in the backend:
 - `AGENT_ATLAS_RUNTIME_MODE`: provider execution behavior (`auto`, `live`, `mock`)
 - `AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL`: control-plane state database location
 - `AGENT_ATLAS_DATA_PLANE_DATABASE_URL`: data-plane state database location
-- `AGENT_ATLAS_SEED_DEMO`: whether demo data is seeded on startup
 - `AGENT_ATLAS_OPENAI_API_KEY`: OpenAI credentials for OpenAI-backed run paths when selected
 
 Planned infrastructure settings such as runner backend selection should not be treated as shipped

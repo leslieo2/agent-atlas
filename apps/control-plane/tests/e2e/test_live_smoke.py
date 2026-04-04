@@ -47,7 +47,6 @@ def test_live_starter_governed_loop_is_hermetic_and_export_ready(
         raise AssertionError(f"Unexpected provisioning command: {cmd}")
 
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
-    monkeypatch.setattr(settings, "seed_demo", False)
     monkeypatch.setattr(starter_assets.subprocess, "run", fake_docker_run)
     get_container.cache_clear()
     install_fake_docker_runtime(monkeypatch, outputs={"alpha": "alpha"})

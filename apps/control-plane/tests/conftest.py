@@ -26,7 +26,6 @@ def reset_in_memory_state(monkeypatch) -> None:
     state_root = Path(state_dir.name)
     settings.runtime_mode = RuntimeMode.AUTO
     settings.openai_api_key = None
-    settings.seed_demo = True
     settings.control_plane_database_url = f"sqlite:///{state_root / 'control-plane-state.db'}"
     settings.data_plane_database_url = f"sqlite:///{state_root / 'data-plane-state.db'}"
     settings.execution_job_backend = ExecutionJobBackend.INLINE

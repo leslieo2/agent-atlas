@@ -73,7 +73,7 @@ def _build_telemetry_ingestor(
 
 class _FixedArtifactResolver:
     def resolve(self, payload: ExecutionRunSpec) -> ExecutionArtifact:
-        entrypoint = payload.entrypoint or "app.modules.agents.fixtures.basic:build_agent"
+        entrypoint = payload.entrypoint or "tests.fixtures.agents.basic:build_agent"
         return ExecutionArtifact(
             framework=payload.agent_type.value,
             entrypoint=entrypoint,
@@ -400,7 +400,7 @@ def test_run_execution_service_records_structured_failure_details():
             dataset="crm-v2",
             agent_id="basic",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -430,7 +430,7 @@ def test_run_execution_service_records_structured_failure_details():
         dataset="crm-v2",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="record failure",
         prompt="Trigger a failure.",
@@ -444,7 +444,7 @@ def test_run_execution_service_records_structured_failure_details():
 
     assert run is not None
     assert run.status == RunStatus.FAILED
-    assert run.entrypoint == "app.modules.agents.fixtures.basic:build_agent"
+    assert run.entrypoint == "tests.fixtures.agents.basic:build_agent"
     assert run.runner_backend == "local-process"
     assert run.artifact_ref == "source://basic@fingerprint-test"
     assert run.error_code == "provider_call"
@@ -468,7 +468,7 @@ def test_run_execution_service_normalizes_framework_mismatch_as_agent_load():
             dataset="crm-v2",
             agent_id="basic",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -503,7 +503,7 @@ def test_run_execution_service_normalizes_framework_mismatch_as_agent_load():
         dataset="crm-v2",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="framework mismatch",
         prompt="Trigger a framework mismatch.",
@@ -534,7 +534,7 @@ def test_run_execution_service_normalizes_payload_run_id_to_target_run_id():
             dataset="crm-v2",
             agent_id="basic",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -590,7 +590,7 @@ def test_run_execution_service_normalizes_payload_run_id_to_target_run_id():
         dataset="crm-v2",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="normalize run id",
         prompt="Keep correlation stable.",
@@ -625,7 +625,7 @@ def test_run_execution_service_enriches_projector_context_with_runner_submission
             dataset="crm-v2",
             agent_id="basic",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -680,7 +680,7 @@ def test_run_execution_service_enriches_projector_context_with_runner_submission
         dataset="crm-v2",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="projector metadata context",
         prompt="Keep metadata stable.",
@@ -710,7 +710,7 @@ def test_run_execution_service_uses_k8s_runner_backend_for_k8s_executor():
             dataset="crm-v2",
             agent_id="basic",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -757,7 +757,7 @@ def test_run_execution_service_uses_k8s_runner_backend_for_k8s_executor():
         dataset="crm-v2",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="k8s backend selection",
         prompt="Launch on k8s.",
@@ -784,7 +784,7 @@ def test_run_execution_service_uses_configured_runner_backend_for_external_runne
             dataset="crm-v2",
             agent_id="basic",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -831,7 +831,7 @@ def test_run_execution_service_uses_configured_runner_backend_for_external_runne
         dataset="crm-v2",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="external runner carrier selection",
         prompt="Launch Claude Code via K8s carrier.",
@@ -868,7 +868,7 @@ def test_run_execution_service_respects_non_k8s_runner_backend_override_for_exte
             dataset="crm-v2",
             agent_id="basic",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -915,7 +915,7 @@ def test_run_execution_service_respects_non_k8s_runner_backend_override_for_exte
         dataset="crm-v2",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="external runner docker carrier selection",
         prompt="Launch Claude Code via local docker carrier.",
@@ -952,7 +952,7 @@ def test_run_execution_service_keeps_local_runner_explicitly_local():
             dataset="crm-v2",
             agent_id="basic",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -999,7 +999,7 @@ def test_run_execution_service_keeps_local_runner_explicitly_local():
         dataset="crm-v2",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="local backend selection",
         prompt="Stay local.",
@@ -1026,7 +1026,7 @@ def test_run_execution_service_marks_execution_cancelled_without_failure_record(
             dataset="crm-v2",
             agent_id="basic",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.basic:build_agent",
+            entrypoint="tests.fixtures.agents.basic:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -1059,7 +1059,7 @@ def test_run_execution_service_marks_execution_cancelled_without_failure_record(
         dataset="crm-v2",
         agent_id="basic",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.basic:build_agent",
+        entrypoint="tests.fixtures.agents.basic:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="cancelled during execution",
         prompt="Cancel this run.",
@@ -1092,7 +1092,7 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
             dataset="fulfillment-eval-v1",
             agent_id="fulfillment_ops",
             model="gpt-5.4-mini",
-            entrypoint="app.modules.agents.fixtures.fulfillment_ops:build_agent",
+            entrypoint="tests.fixtures.agents.fulfillment_ops:build_agent",
             agent_type=AdapterKind.OPENAI_AGENTS,
             status=RunStatus.QUEUED,
         )
@@ -1195,7 +1195,7 @@ def test_run_execution_service_marks_failed_runs_from_failed_trace_events():
         dataset="fulfillment-eval-v1",
         agent_id="fulfillment_ops",
         model="gpt-5.4-mini",
-        entrypoint="app.modules.agents.fixtures.fulfillment_ops:build_agent",
+        entrypoint="tests.fixtures.agents.fulfillment_ops:build_agent",
         agent_type=AdapterKind.OPENAI_AGENTS,
         input_summary="record tool failure trace",
         prompt="Order ORD-ERR-100 is delayed. Check status and decide the next action.",

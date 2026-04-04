@@ -18,12 +18,12 @@ from app.modules.agents.domain.starter_assets import (
     CLAUDE_CODE_STARTER_ENTRYPOINT,
     claude_code_starter_runtime_profile,
 )
-from app.modules.agents.fixtures import build_fixture_published_agent
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
 from app.modules.shared.domain.models import TracePointer
 from fastapi.testclient import TestClient
+from tests.fixtures.agents import build_fixture_published_agent
 
 
 def test_agents_api_uses_state_backed_starter_discovery_publish_unpublish_and_invalid_publish(
@@ -62,7 +62,7 @@ def test_agents_api_uses_state_backed_starter_discovery_publish_unpublish_and_in
             default_model="gpt-5.4-mini",
             tags=[],
         ),
-        entrypoint="app.modules.agents.fixtures.broken:build_agent",
+        entrypoint="tests.fixtures.agents.broken:build_agent",
         validation_status=AgentValidationStatus.INVALID,
         validation_issues=[
             AgentValidationIssue(code="manifest_missing", message="missing AGENT_MANIFEST"),
@@ -83,8 +83,8 @@ def test_agents_api_uses_state_backed_starter_discovery_publish_unpublish_and_in
 
 def test_agents_api_lists_published_snapshots_even_when_not_discoverable(client) -> None:
     container = get_container()
-    published_agent = container.infrastructure.published_agent_repository.get_agent("basic")
-    assert published_agent is not None
+    published_agent = build_fixture_published_agent("basic")
+    container.infrastructure.published_agent_repository.save_agent(published_agent)
 
     published_only = published_agent.model_copy(
         update={
@@ -103,8 +103,8 @@ def test_agents_api_lists_published_snapshots_even_when_not_discoverable(client)
 
 def test_agents_api_skips_legacy_published_rows_in_list_endpoints(client) -> None:
     container = get_container()
-    published_agent = container.infrastructure.published_agent_repository.get_agent("basic")
-    assert published_agent is not None
+    published_agent = build_fixture_published_agent("basic")
+    container.infrastructure.published_agent_repository.save_agent(published_agent)
 
     legacy = published_agent.model_copy(
         update={
@@ -128,8 +128,8 @@ def test_agents_api_skips_legacy_published_rows_in_list_endpoints(client) -> Non
 
 def test_agents_api_excludes_corrupt_publications_from_published_catalog(client) -> None:
     container = get_container()
-    published_agent = container.infrastructure.published_agent_repository.get_agent("basic")
-    assert published_agent is not None
+    published_agent = build_fixture_published_agent("basic")
+    container.infrastructure.published_agent_repository.save_agent(published_agent)
 
     corrupted = published_agent.model_copy(
         update={
@@ -161,6 +161,9 @@ def test_agents_api_live_mode_uses_published_snapshots_without_repo_local_discov
     monkeypatch,
     client,
 ) -> None:
+    get_container().infrastructure.published_agent_repository.save_agent(
+        build_fixture_published_agent("basic")
+    )
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
 
@@ -186,7 +189,6 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
-    monkeypatch.setattr(settings, "seed_demo", False)
     provision_calls: list[str] = []
     monkeypatch.setattr(
         starter_assets,
@@ -242,7 +244,6 @@ def test_agents_api_live_mode_bootstrap_keeps_starter_reachable_for_publish_and_
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
-    monkeypatch.setattr(settings, "seed_demo", False)
     monkeypatch.setattr(starter_assets, "provision_claude_code_starter_carrier", lambda: None)
     get_container.cache_clear()
     from app.main import app
@@ -295,7 +296,6 @@ def test_agents_api_live_mode_validation_runs_accept_state_backed_starter_drafts
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
-    monkeypatch.setattr(settings, "seed_demo", False)
     provision_calls: list[str] = []
     monkeypatch.setattr(
         starter_assets,
@@ -409,6 +409,9 @@ def test_agents_api_live_mode_validation_runs_accept_state_backed_formal_agents(
 
 def test_agents_api_surfaces_latest_generic_validation_run_summary(client) -> None:
     container = get_container()
+    container.infrastructure.published_agent_repository.save_agent(
+        build_fixture_published_agent("basic")
+    )
     run = RunRecord(
         run_id=uuid4(),
         attempt_id=uuid4(),
@@ -456,6 +459,9 @@ def test_agents_api_surfaces_latest_generic_validation_run_summary(client) -> No
 
 def test_agents_api_ignores_non_validation_runs_in_agent_records(client) -> None:
     container = get_container()
+    container.infrastructure.published_agent_repository.save_agent(
+        build_fixture_published_agent("basic")
+    )
     run = RunRecord(
         run_id=uuid4(),
         attempt_id=uuid4(),
@@ -477,6 +483,9 @@ def test_agents_api_ignores_non_validation_runs_in_agent_records(client) -> None
 
 
 def test_agents_api_starts_generic_validation_runs_via_agent_entrypoint(client) -> None:
+    get_container().infrastructure.published_agent_repository.save_agent(
+        build_fixture_published_agent("basic")
+    )
     response = client.post(
         "/api/v1/agents/basic/validation-runs",
         json={
@@ -509,7 +518,6 @@ def test_agents_api_live_mode_rejects_validation_for_corrupt_published_rows(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
-    monkeypatch.setattr(settings, "seed_demo", False)
     get_container.cache_clear()
     from app.main import app
 

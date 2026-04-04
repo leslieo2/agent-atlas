@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from agents import Agent, RunContextWrapper, function_tool
-
 from app.modules.agents.domain.models import AgentBuildContext
 
 
