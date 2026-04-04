@@ -375,6 +375,62 @@ def test_framework_registry_dispatches_discovery_by_manifest_framework(monkeypat
     assert discovered.framework == AdapterKind.LANGCHAIN.value
 
 
+def test_framework_registry_marks_unresolved_framework_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.infrastructure.adapters.framework_registry.import_module",
+        lambda module_name: (_ for _ in ()).throw(ImportError(module_name)),
+    )
+
+    class StubValidator:
+        def discover(self, source: AgentModuleSource) -> DiscoveredAgent:
+            raise AssertionError(f"unexpected discovery dispatch for {source.module_name}")
+
+    class StubLoader:
+        def build_agent(
+            self,
+            *,
+            published_agent: PublishedAgent,
+            context: AgentBuildContext,
+        ) -> object:
+            del published_agent, context
+            return object()
+
+    class StubRuntime:
+        def execute_published(
+            self,
+            *,
+            api_key,
+            payload: ExecutionRunSpec,
+            context: AgentBuildContext,
+        ) -> PublishedRunExecutionResult:
+            del api_key, payload, context
+            raise AssertionError("unexpected runtime dispatch")
+
+    registry = FrameworkRegistry(
+        plugins={
+            AdapterKind.OPENAI_AGENTS.value: FrameworkPlugin(
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                validator=StubValidator(),
+                loader=StubLoader(),
+                runtime=StubRuntime(),
+            )
+        }
+    )
+
+    discovered = registry.discover(
+        AgentModuleSource(
+            module_name="tests.fixtures.agents.missing_framework",
+            entrypoint="tests.fixtures.agents.missing_framework:build_agent",
+        )
+    )
+
+    assert discovered.validation_status == AgentValidationStatus.INVALID
+    assert discovered.framework == ""
+    assert [issue.code for issue in discovered.validation_issues] == ["framework_unresolved"]
+
+
 def test_framework_plugin_discovery_loads_package_manifests(monkeypatch) -> None:
     class StubEntryPoint:
         def __init__(self, builder) -> None:

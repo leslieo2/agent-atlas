@@ -21,7 +21,6 @@ from app.modules.agents.domain.models import (
     PublishedAgent,
     adapter_kind_for_agent_family,
 )
-from app.modules.shared.domain.enums import AdapterKind
 
 
 class FrameworkDiscoveryValidator(Protocol):
@@ -64,6 +63,8 @@ class FrameworkRegistry:
 
     def discover(self, source: AgentModuleSource) -> DiscoveredAgent:
         framework = self._framework_for_source(source)
+        if framework is None:
+            return self._unresolved_framework(source)
         plugin = self.plugins.get(framework)
         if plugin is None:
             return self._unsupported_framework(source=source, framework=framework)
@@ -95,21 +96,22 @@ class FrameworkRegistry:
         return plugin
 
     @staticmethod
-    def _framework_for_source(source: AgentModuleSource) -> str:
+    def _framework_for_source(source: AgentModuleSource) -> str | None:
         module = FrameworkRegistry._safe_import(source.module_name)
         if module is None:
-            return AdapterKind.OPENAI_AGENTS.value
+            return None
 
         raw_manifest = getattr(module, "AGENT_MANIFEST", None)
         if isinstance(raw_manifest, AgentManifest):
-            return raw_manifest.framework.strip().lower()
+            framework = raw_manifest.framework.strip().lower()
+            return framework or None
 
         if isinstance(raw_manifest, dict):
-            framework = raw_manifest.get("framework")
-            if isinstance(framework, str) and framework.strip():
-                return framework.strip().lower()
+            raw_framework = raw_manifest.get("framework")
+            if isinstance(raw_framework, str) and raw_framework.strip():
+                return raw_framework.strip().lower()
 
-        return AdapterKind.OPENAI_AGENTS.value
+        return None
 
     @staticmethod
     def _safe_import(module_name: str) -> Any | None:
@@ -137,6 +139,31 @@ class FrameworkRegistry:
                 AgentValidationIssue(
                     code="framework_unsupported",
                     message=f"framework '{framework}' is not supported for discovery",
+                )
+            ],
+        )
+
+    @staticmethod
+    def _unresolved_framework(source: AgentModuleSource) -> DiscoveredAgent:
+        module_leaf = source.module_name.rsplit(".", 1)[-1]
+        return DiscoveredAgent(
+            manifest=AgentManifest(
+                agent_id=module_leaf,
+                name=module_leaf.replace("_", " ").title(),
+                description="Agent framework metadata is missing or unreadable",
+                framework="",
+                default_model="",
+                tags=[],
+            ),
+            entrypoint=source.entrypoint,
+            validation_status=AgentValidationStatus.INVALID,
+            validation_issues=[
+                AgentValidationIssue(
+                    code="framework_unresolved",
+                    message=(
+                        "agent framework could not be resolved from AGENT_MANIFEST; "
+                        "Atlas no longer infers a builtin fallback framework"
+                    ),
                 )
             ],
         )
