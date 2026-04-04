@@ -14,6 +14,7 @@ from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
     ExecutionBinding,
+    ExecutionTarget,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -41,6 +42,7 @@ class RunCreateInput(BaseModel):
     prompt: str
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
+    execution_target: ExecutionTarget | None = None
     dataset_sample_id: str | None = None
     executor_config: ExecutorConfig = Field(
         default_factory=lambda: ExecutorConfig(backend=DEFAULT_EXECUTION_BACKEND)
@@ -84,6 +86,7 @@ class RunRecord(BaseModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     project_metadata: dict[str, Any] = Field(default_factory=dict)
+    execution_target: ExecutionTarget | None = None
     artifact_ref: str | None = None
     image_ref: str | None = None
     executor_backend: str | None = None
@@ -174,6 +177,11 @@ class RunRecord(BaseModel):
             prompt=prompt,
             tags=list(self.tags),
             project_metadata=project_metadata,
+            execution_target=(
+                self.execution_target.model_copy(deep=True)
+                if self.execution_target is not None
+                else None
+            ),
             dataset_sample_id=self.dataset_sample_id,
             model_settings=model_settings,
             prompt_config=prompt_config,

@@ -169,6 +169,13 @@ class TracingConfig(BaseModel):
     export: TracingExportConfig | None = None
 
 
+class ExecutionTarget(BaseModel):
+    kind: str
+    display_name: str | None = None
+    target_ref: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class RunSpec(BaseModel):
     schema_version: Literal["run-spec.v1"] = "run-spec.v1"
     run_id: UUID
@@ -187,6 +194,7 @@ class RunSpec(BaseModel):
     prompt: str
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
+    execution_target: ExecutionTarget | None = None
     model_settings: dict[str, Any] | None = None
     prompt_config: dict[str, Any] | None = None
     toolset_config: dict[str, Any] = Field(default_factory=dict)
@@ -272,6 +280,7 @@ class RunnerRunSpec(BaseModel):
     prompt: str
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
+    execution_target: ExecutionTarget | None = None
     executor_config: dict[str, Any] = Field(default_factory=dict)
     agent_family: str | None = None
     framework: str | None = None
@@ -300,6 +309,7 @@ __all__ = sorted(
     "EvalResult",
     "EventEnvelope",
     "ExecutionArtifact",
+    "ExecutionTarget",
     "ExportManifest",
     "ExportShard",
     "ProducerInfo",

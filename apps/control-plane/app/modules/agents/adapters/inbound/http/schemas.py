@@ -15,6 +15,7 @@ from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEN
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     ExecutionProfileRequest,
+    ExecutionTarget,
     ExecutorConfig,
     ToolsetConfig,
 )
@@ -131,6 +132,7 @@ class AgentValidationRunStartRequest(BaseModel):
     prompt: str
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, object] = Field(default_factory=dict)
+    execution_target: ExecutionTarget | None = None
     dataset_sample_id: str | None = None
     executor_config: ExecutionProfileRequest = Field(
         default_factory=lambda: ExecutionProfileRequest(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
@@ -149,6 +151,11 @@ class AgentValidationRunStartRequest(BaseModel):
             prompt=self.prompt,
             tags=tags,
             project_metadata=dict(self.project_metadata),
+            execution_target=(
+                self.execution_target.model_copy(deep=True)
+                if self.execution_target is not None
+                else None
+            ),
             dataset_sample_id=self.dataset_sample_id,
             executor_config=executor_config,
             execution_binding=execution_binding,

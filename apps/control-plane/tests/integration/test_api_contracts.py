@@ -41,6 +41,7 @@ def test_openapi_exposes_rl_data_control_plane_only(client) -> None:
     assert "ExperimentCompareResponse" in schemas
     assert "ExperimentRunResponse" in schemas
     assert "ApprovalPolicyResponse" in schemas
+    assert "ExecutionTarget" in schemas
     assert "ExportCreateRequest" in schemas
     assert "ExportMetadataResponse" in schemas
     assert "RunResponse" in schemas

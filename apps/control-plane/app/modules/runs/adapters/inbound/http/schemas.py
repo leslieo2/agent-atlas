@@ -11,6 +11,7 @@ from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     ExecutionProfileRequest,
+    ExecutionTarget,
     ProvenanceMetadata,
     RunLineage,
     ToolsetConfig,
@@ -31,6 +32,7 @@ class RunCreateRequest(BaseModel):
     prompt: str
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, object] = Field(default_factory=dict)
+    execution_target: ExecutionTarget | None = None
     dataset_sample_id: str | None = None
     executor_config: ExecutionProfileRequest = Field(
         default_factory=lambda: ExecutionProfileRequest(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
@@ -68,6 +70,7 @@ class RunResponse(BaseModel):
     tags: list[str]
     created_at: datetime
     project_metadata: dict[str, object]
+    execution_target: ExecutionTarget | None = None
     artifact_ref: str | None = None
     image_ref: str | None = None
     executor_backend: str | None = None

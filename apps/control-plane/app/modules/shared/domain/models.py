@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from agent_atlas_contracts.execution import ExecutionTarget as ContractExecutionTarget
 from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ContractExecutionReferenceMetadata,
 )
@@ -44,6 +45,7 @@ class ProvenanceMetadata(BaseModel):
     framework: str | None = None
     framework_version: str | None = None
     published_agent_snapshot: dict[str, Any] | None = None
+    execution_target: ExecutionTarget | None = None
     artifact_ref: str | None = None
     image_ref: str | None = None
     runner_backend: str | None = None
@@ -63,6 +65,10 @@ class TracingMetadata(BaseModel):
     trace_id: str | None = None
     trace_url: str | None = None
     project_url: str | None = None
+
+
+class ExecutionTarget(ContractExecutionTarget):
+    pass
 
 
 class TraceTelemetryMetadata(ContractTraceTelemetryMetadata):

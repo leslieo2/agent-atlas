@@ -45,6 +45,7 @@ export interface AgentValidationRunStartRequest {
   "prompt": string;
   "tags"?: Array<string>;
   "project_metadata"?: Record<string, unknown>;
+  "execution_target"?: ExecutionTarget | null;
   "dataset_sample_id"?: string | null;
   "executor_config"?: ExecutionProfileRequest;
   "toolset_config"?: ToolsetConfig;
@@ -136,6 +137,12 @@ export interface ExecutionReference {
   "artifact_ref"?: string | null;
   "image_ref"?: string | null;
 }
+export interface ExecutionTarget {
+  "kind": string;
+  "display_name"?: string | null;
+  "target_ref"?: string | null;
+  "metadata"?: Record<string, unknown>;
+}
 export interface ExperimentCompareResponse {
   "baseline_experiment_id": string;
   "candidate_experiment_id": string;
@@ -213,6 +220,7 @@ export interface ExperimentSpecRequest {
   "prompt_config"?: PromptConfig;
   "toolset_config"?: ToolsetConfig;
   "evaluator_config"?: EvaluatorConfig;
+  "execution_target"?: ExecutionTarget | null;
   "executor_config"?: ExecutionProfileRequest | null;
   "approval_policy_id"?: string | null;
   "tags"?: Array<string>;
@@ -224,6 +232,7 @@ export interface ExperimentSpecResponse {
   "prompt_config"?: PromptConfig;
   "toolset_config"?: ToolsetConfig;
   "evaluator_config"?: EvaluatorConfig;
+  "execution_target"?: ExecutionTarget | null;
   "executor_config"?: ExecutionProfile | null;
   "approval_policy_id"?: string | null;
   "tags"?: Array<string>;
@@ -274,6 +283,7 @@ export interface ProvenanceMetadata {
   "framework"?: string | null;
   "framework_version"?: string | null;
   "published_agent_snapshot"?: Record<string, unknown> | null;
+  "execution_target"?: ExecutionTarget | null;
   "artifact_ref"?: string | null;
   "image_ref"?: string | null;
   "runner_backend"?: string | null;
@@ -319,6 +329,7 @@ export interface RunResponse {
   "tags": Array<string>;
   "created_at": string;
   "project_metadata": Record<string, unknown>;
+  "execution_target"?: ExecutionTarget | null;
   "artifact_ref"?: string | null;
   "image_ref"?: string | null;
   "executor_backend"?: string | null;

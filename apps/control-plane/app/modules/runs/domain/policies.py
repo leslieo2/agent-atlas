@@ -33,6 +33,11 @@ class RunAggregate:
                 **spec.project_metadata,
                 "prompt": spec.prompt,
             },
+            execution_target=(
+                spec.execution_target.model_copy(deep=True)
+                if spec.execution_target is not None
+                else None
+            ),
             artifact_ref=spec.provenance.artifact_ref if spec.provenance else None,
             image_ref=spec.provenance.image_ref if spec.provenance else None,
             executor_backend=spec.executor_config.backend,

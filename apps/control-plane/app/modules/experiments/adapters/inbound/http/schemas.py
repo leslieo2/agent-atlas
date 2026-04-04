@@ -20,6 +20,7 @@ from app.modules.shared.domain.enums import CompareOutcome, CurationStatus, Samp
 from app.modules.shared.domain.models import (
     EvaluatorConfig,
     ExecutionProfileRequest,
+    ExecutionTarget,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -35,6 +36,7 @@ class ExperimentSpecRequest(BaseModel):
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
+    execution_target: ExecutionTarget | None = None
     executor_config: ExecutionProfileRequest | None = None
     approval_policy_id: UUID | None = None
     tags: list[str] = Field(default_factory=list)
@@ -51,6 +53,11 @@ class ExperimentSpecRequest(BaseModel):
             prompt_config=self.prompt_config.model_copy(deep=True),
             toolset_config=self.toolset_config.model_copy(deep=True),
             evaluator_config=self.evaluator_config.model_copy(deep=True),
+            execution_target=(
+                self.execution_target.model_copy(deep=True)
+                if self.execution_target is not None
+                else None
+            ),
             executor_config=executor_config,
             execution_binding=execution_binding,
             approval_policy_id=self.approval_policy_id,
@@ -65,6 +72,7 @@ class ExperimentSpecResponse(BaseModel):
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
+    execution_target: ExecutionTarget | None = None
     executor_config: ExecutorConfig | None = None
     approval_policy_id: UUID | None = None
     tags: list[str] = Field(default_factory=list)
@@ -78,6 +86,11 @@ class ExperimentSpecResponse(BaseModel):
             prompt_config=spec.prompt_config.model_copy(deep=True),
             toolset_config=spec.toolset_config.model_copy(deep=True),
             evaluator_config=spec.evaluator_config.model_copy(deep=True),
+            execution_target=(
+                spec.execution_target.model_copy(deep=True)
+                if spec.execution_target is not None
+                else None
+            ),
             executor_config=(
                 spec.executor_config.model_copy(deep=True)
                 if spec.executor_config is not None

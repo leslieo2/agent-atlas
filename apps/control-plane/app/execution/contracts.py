@@ -20,6 +20,7 @@ from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
     ExecutionBinding,
+    ExecutionTarget,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -108,6 +109,7 @@ class ExecutionRunSpec(BaseModel):
     prompt: str
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, Any] = Field(default_factory=dict)
+    execution_target: ExecutionTarget | None = None
     dataset_sample_id: str | None = None
     model_settings: ModelConfig | None = None
     prompt_config: PromptConfig | None = None
@@ -174,6 +176,11 @@ def runner_run_spec_from_run_spec(
         prompt=payload.prompt,
         tags=list(payload.tags),
         project_metadata=dict(payload.project_metadata),
+        execution_target=(
+            payload.execution_target.model_copy(deep=True)
+            if payload.execution_target is not None
+            else None
+        ),
         executor_config=executor_config,
         agent_family=provenance.agent_family if provenance is not None else None,
         framework=artifact.framework,

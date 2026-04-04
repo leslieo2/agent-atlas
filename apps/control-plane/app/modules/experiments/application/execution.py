@@ -81,6 +81,11 @@ class ExperimentOrchestrator:
                     "prompt_version": prompt_config.prompt_version or "v1",
                     "system_prompt": prompt_config.system_prompt,
                 },
+                execution_target=(
+                    experiment.spec.execution_target.model_copy(deep=True)
+                    if experiment.spec.execution_target is not None
+                    else None
+                ),
                 dataset_sample_id=sample.sample_id,
                 model_settings=model_settings.model_copy(deep=True),
                 prompt_config=prompt_config.model_copy(deep=True),

@@ -7,6 +7,7 @@ from app.modules.shared.domain.enums import (
 )
 from app.modules.shared.domain.models import (
     ExecutionReferenceMetadata,
+    ExecutionTarget,
     ProvenanceMetadata,
     TraceTelemetryMetadata,
     TracingMetadata,
@@ -22,6 +23,7 @@ __all__ = [
     "AgentFamily",
     "ArtifactFormat",
     "ExecutionReferenceMetadata",
+    "ExecutionTarget",
     "ProvenanceMetadata",
     "RunStatus",
     "StepType",

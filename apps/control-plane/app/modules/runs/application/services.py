@@ -14,7 +14,12 @@ from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
-from app.modules.shared.domain.models import ExecutionBinding, ExecutorConfig, ProvenanceMetadata
+from app.modules.shared.domain.models import (
+    ExecutionBinding,
+    ExecutionTarget,
+    ExecutorConfig,
+    ProvenanceMetadata,
+)
 
 
 def _deep_merge_values(base: object, override: object) -> object:
@@ -71,6 +76,44 @@ def _resolved_submission_provenance(
     provenance.image_ref = execution_reference.image_ref
     provenance.trace_backend = trace_backend
     return provenance
+
+
+def _execution_target_from_binding(
+    *,
+    project: str,
+    execution_binding: ExecutionBinding | None,
+) -> ExecutionTarget | None:
+    if execution_binding is None:
+        return None
+    config = execution_binding.config
+    raw_materialization = config.get("project_materialization")
+    raw_cli = config.get("claude_code_cli")
+
+    metadata: dict[str, object] = {}
+    target_ref: str | None = None
+
+    if isinstance(raw_materialization, Mapping):
+        materialization = dict(raw_materialization)
+        raw_artifact_ref = materialization.get("artifact_ref")
+        if isinstance(raw_artifact_ref, str) and raw_artifact_ref.strip():
+            target_ref = raw_artifact_ref
+        metadata["project_materialization"] = materialization
+
+    if isinstance(raw_cli, Mapping):
+        cli_metadata = dict(raw_cli)
+        raw_cwd = cli_metadata.get("cwd")
+        if isinstance(raw_cwd, str) and raw_cwd.strip():
+            metadata["cwd"] = raw_cwd
+
+    if not metadata and target_ref is None:
+        return None
+
+    return ExecutionTarget(
+        kind="workspace_project",
+        display_name=project,
+        target_ref=target_ref,
+        metadata=metadata,
+    )
 
 
 def _resolve_executor_config(
@@ -216,6 +259,14 @@ class RunSubmissionService:
         provenance.experiment_id = payload.experiment_id
         provenance.dataset_version_id = payload.dataset_version_id
         provenance.dataset_sample_id = payload.dataset_sample_id
+        provenance.execution_target = (
+            payload.execution_target.model_copy(deep=True)
+            if payload.execution_target is not None
+            else _execution_target_from_binding(
+                project=payload.project,
+                execution_binding=execution_binding,
+            )
+        )
         provenance.approval_policy = (
             payload.approval_policy.model_copy(deep=True) if payload.approval_policy else None
         )
@@ -240,6 +291,15 @@ class RunSubmissionService:
             prompt=payload.prompt,
             tags=list(payload.tags),
             project_metadata=dict(payload.project_metadata),
+            execution_target=(
+                payload.execution_target.model_copy(deep=True)
+                if payload.execution_target is not None
+                else (
+                    provenance.execution_target.model_copy(deep=True)
+                    if provenance.execution_target is not None
+                    else None
+                )
+            ),
             executor_config=executor_config,
             execution_binding=execution_binding,
             model_settings=payload.model_settings,

@@ -15,6 +15,7 @@ from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
     ExecutionBinding,
+    ExecutionTarget,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -44,6 +45,7 @@ class ExperimentSpec(BaseModel):
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
+    execution_target: ExecutionTarget | None = None
     executor_config: ExecutorConfig | None = None
     execution_binding: ExecutionBinding | None = None
     approval_policy_id: UUID | None = None

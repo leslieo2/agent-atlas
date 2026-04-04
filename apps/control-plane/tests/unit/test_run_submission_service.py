@@ -17,6 +17,7 @@ from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
     ExecutionBinding,
+    ExecutionTarget,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -139,6 +140,7 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
     assert task.entrypoint == "tests.fixtures.agents.triage_bot:build_agent"
     assert task.provenance is not None
     assert task.provenance.framework == "langchain"
+    assert task.execution_target is None
 
 
 def test_run_submission_service_requires_explicit_carrier_for_external_runner() -> None:
@@ -225,6 +227,7 @@ def test_run_submission_service_deep_merges_nested_runtime_profile_overrides() -
     assert execution_binding.config["resources"] == {"cpu": "2000m", "memory": "2Gi"}
     assert execution_binding.config["team"] == "evals"
     assert execution_binding.config["region"] == "us-east-1"
+    assert run.execution_target is None
 
 
 def test_run_submission_service_uses_injected_default_trace_backend_when_executor_config_missing():
@@ -263,6 +266,100 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
     assert run.provenance.executor is not None
     assert run.provenance.executor.tracing_backend == "phoenix"
     assert execution_control.submitted[0].executor_config.tracing_backend == "phoenix"
+
+
+def test_run_submission_service_backfills_execution_target_from_workspace_binding() -> None:
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(backend="external-runner"),
+        execution_binding=ExecutionBinding(
+            runner_backend="k8s-container",
+            runner_image="ghcr.io/example/claude-runner:latest",
+            config={
+                "project_materialization": {
+                    "mode": "artifact_bundle",
+                    "artifact_ref": "file:///tmp/migration-check.tar.gz",
+                    "mount_path": "/workspace/project",
+                },
+                "claude_code_cli": {"cwd": "/workspace/project/repo"},
+            },
+        ),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="tests.fixtures.agents.triage_bot:build_agent",
+    )
+    agent, _artifact_ref = _seal_agent(agent)
+
+    run = service.submit(payload, agent)
+
+    assert run.execution_target is not None
+    assert run.execution_target.kind == "workspace_project"
+    assert run.execution_target.display_name == "migration-check"
+    assert run.execution_target.target_ref == "file:///tmp/migration-check.tar.gz"
+    assert run.execution_target.metadata["cwd"] == "/workspace/project/repo"
+    assert run.provenance is not None
+    assert run.provenance.execution_target == run.execution_target
+    assert execution_control.submitted[0].execution_target == run.execution_target
+
+
+def test_run_submission_service_preserves_explicit_execution_target() -> None:
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
+    execution_target = ExecutionTarget(
+        kind="endpoint",
+        display_name="staging",
+        target_ref="endpoint://staging",
+        metadata={"base_url": "https://staging.example.com"},
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(backend="local-runner"),
+        execution_target=execution_target,
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="tests.fixtures.agents.triage_bot:build_agent",
+    )
+    agent, _artifact_ref = _seal_agent(agent)
+
+    run = service.submit(payload, agent)
+
+    assert run.execution_target == execution_target
+    assert run.provenance is not None
+    assert run.provenance.execution_target == execution_target
 
 
 def test_run_submission_service_uses_injected_default_trace_backend_when_executor_config_omits_it():
