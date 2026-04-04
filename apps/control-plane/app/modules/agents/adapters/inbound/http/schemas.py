@@ -3,13 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.modules.agents.domain.models import (
-    AgentPublishState,
     AgentValidationEvidenceSummary,
     AgentValidationIssue,
     AgentValidationOutcomeSummary,
     AgentValidationRunReference,
-    AgentValidationStatus,
-    DiscoveredAgent,
     ExecutionReference,
     PublishedAgent,
 )
@@ -123,81 +120,6 @@ class AgentValidationOutcomeSummaryResponse(BaseModel):
         cls, summary: AgentValidationOutcomeSummary
     ) -> AgentValidationOutcomeSummaryResponse:
         return cls.model_validate(summary.model_dump(mode="json"))
-
-
-class DiscoveredAgentResponse(BaseModel):
-    agent_id: str
-    name: str
-    description: str
-    agent_family: str
-    framework: str
-    framework_version: str
-    entrypoint: str
-    default_model: str
-    tags: list[str]
-    capabilities: list[str]
-    publish_state: AgentPublishState
-    validation_status: AgentValidationStatus
-    validation_issues: list[AgentValidationIssueResponse]
-    published_at: datetime | None = None
-    last_validated_at: datetime
-    has_unpublished_changes: bool
-    source_fingerprint: str
-    execution_reference: ExecutionReference | None = None
-    default_runtime_profile: ExecutorConfig
-    latest_validation: AgentValidationRunReferenceResponse | None = None
-    validation_evidence: AgentValidationEvidenceSummaryResponse | None = None
-    validation_outcome: AgentValidationOutcomeSummaryResponse | None = None
-
-    @classmethod
-    def from_domain(cls, agent: DiscoveredAgent) -> DiscoveredAgentResponse:
-        return cls(
-            agent_id=agent.agent_id,
-            name=agent.name,
-            description=agent.description,
-            agent_family=agent.agent_family,
-            framework=agent.framework,
-            framework_version=agent.framework_version,
-            entrypoint=agent.entrypoint,
-            default_model=agent.default_model,
-            tags=agent.tags,
-            capabilities=agent.capabilities,
-            publish_state=agent.publish_state,
-            validation_status=agent.validation_status,
-            validation_issues=[
-                AgentValidationIssueResponse.from_domain(issue) for issue in agent.validation_issues
-            ],
-            published_at=agent.published_at,
-            last_validated_at=agent.last_validated_at,
-            has_unpublished_changes=agent.has_unpublished_changes,
-            source_fingerprint=agent.source_fingerprint(),
-            execution_reference=(
-                ExecutionReference.model_validate(agent.execution_reference.model_dump(mode="json"))
-                if agent.execution_reference is not None
-                else None
-            ),
-            default_runtime_profile=agent.default_runtime_profile.model_copy(deep=True),
-            latest_validation=(
-                AgentValidationRunReferenceResponse.from_domain(agent.latest_validation)
-                if agent.latest_validation is not None
-                else None
-            ),
-            validation_evidence=(
-                AgentValidationEvidenceSummaryResponse.from_domain(agent.validation_evidence)
-                if agent.validation_evidence is not None
-                else None
-            ),
-            validation_outcome=(
-                AgentValidationOutcomeSummaryResponse.from_domain(agent.validation_outcome)
-                if agent.validation_outcome is not None
-                else None
-            ),
-        )
-
-
-class AgentPublicationResponse(BaseModel):
-    agent_id: str
-    published: bool
 
 
 class AgentValidationRunStartRequest(BaseModel):

@@ -17,10 +17,6 @@ if TYPE_CHECKING:
     from app.execution.application.results import PublishedRunExecutionResult
 
 
-class AgentSourceDiscoveryPort(Protocol):
-    def list_agents(self) -> list[DiscoveredAgent]: ...
-
-
 class PublishedAgentRepositoryPort(Protocol):
     def list_agents(self) -> list[PublishedAgent]: ...
 

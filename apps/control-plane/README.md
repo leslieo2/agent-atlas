@@ -1,9 +1,8 @@
 # Agent Atlas Control Plane
 
 The backend is the control plane for Agent Atlas. It provides the HTTP API, persists Atlas-owned
-state, submits run intent through a neutral execution-control contract, manages transitional
-repository-local agent publication, coordinates datasets and experiment batches, and produces
-export artifacts.
+state, submits run intent through a neutral execution-control contract, manages governed runnable
+assets, coordinates datasets and experiment batches, and produces export artifacts.
 
 Strategically, the backend is moving toward a split where:
 
@@ -22,7 +21,7 @@ working directly on the backend service.
 
 Today:
 
-- repository-local agent discovery and publication as a transitional control-plane workflow
+- governed asset catalog and transitional first-asset bootstrap
 - run creation, lifecycle tracking, and execution dispatch as supporting infrastructure
 - background job processing through the worker
 - trajectory and trace ingestion and normalization behind backend-owned ports
@@ -113,8 +112,8 @@ Current runtime model:
 
 Planned runtime direction:
 
-- governed assets stay managed by Atlas while artifact/image handoff replaces repo-local runtime
-  assumptions
+- governed assets stay managed by Atlas while artifact/image handoff replaces control-plane-local
+  runtime assumptions
 - execution resolves from published snapshot toward immutable artifact or image references
 - runner orchestration is added behind infrastructure ports
 - local and Kubernetes execution stay as carrier adapters rather than the product default story

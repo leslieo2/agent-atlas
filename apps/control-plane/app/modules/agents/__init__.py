@@ -1,1 +1,1 @@
-"""Agent discovery and publication module."""
+"""Governed agent catalog, bootstrap, and validation module."""

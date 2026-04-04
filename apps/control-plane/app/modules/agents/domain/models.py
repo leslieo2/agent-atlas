@@ -25,14 +25,7 @@ from pydantic import BaseModel, Field
 from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
-from app.modules.shared.domain.models import (
-    ExecutionBinding,
-    ExecutorConfig,
-    build_source_execution_reference,
-)
-from app.modules.shared.domain.models import (
-    ExecutionReferenceMetadata as SharedExecutionReferenceMetadata,
-)
+from app.modules.shared.domain.models import ExecutionBinding, ExecutorConfig
 
 
 @dataclass(frozen=True)
@@ -97,11 +90,6 @@ class ExecutionReference(ContractExecutionReferenceMetadata):
 class AgentValidationStatus(str, Enum):
     VALID = "valid"
     INVALID = "invalid"
-
-
-class AgentPublishState(str, Enum):
-    DRAFT = "draft"
-    PUBLISHED = "published"
 
 
 class AgentValidationIssue(BaseModel):
@@ -250,13 +238,9 @@ class PublishedAgent(ContractPublishedAgent):
 class DiscoveredAgent(BaseModel):
     manifest: AgentManifest
     entrypoint: str
-    publish_state: AgentPublishState = AgentPublishState.DRAFT
     validation_status: AgentValidationStatus
     validation_issues: list[AgentValidationIssue] = Field(default_factory=list)
-    published_at: datetime | None = None
     last_validated_at: datetime = Field(default_factory=utc_now)
-    has_unpublished_changes: bool = False
-    execution_reference: SharedExecutionReferenceMetadata | None = None
     default_runtime_profile: ExecutorConfig = Field(
         default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
@@ -309,77 +293,5 @@ class DiscoveredAgent(BaseModel):
     def adapter_kind(self) -> AdapterKind:
         return adapter_kind_for_agent_family(self.agent_family)
 
-    def with_publish_state(self, publish_state: AgentPublishState) -> DiscoveredAgent:
-        return self.model_copy(update={"publish_state": publish_state})
-
     def source_fingerprint(self) -> str:
         return compute_source_fingerprint(self.manifest, self.entrypoint)
-
-    def with_publication(self, published_agent: PublishedAgent | None) -> DiscoveredAgent:
-        if published_agent is None:
-            return self.model_copy(
-                update={
-                    "publish_state": AgentPublishState.DRAFT,
-                    "published_at": None,
-                    "has_unpublished_changes": False,
-                    "execution_reference": None,
-                }
-            )
-        return self.model_copy(
-            update={
-                "publish_state": AgentPublishState.PUBLISHED,
-                "published_at": published_agent.published_at,
-                "has_unpublished_changes": (
-                    self.source_fingerprint() != published_agent.source_fingerprint_or_raise()
-                ),
-                "execution_reference": published_agent.execution_reference_or_raise(),
-                "default_runtime_profile": published_agent.default_runtime_profile.model_copy(
-                    deep=True
-                ),
-                "execution_binding": (
-                    published_agent.execution_binding.model_copy(deep=True)
-                    if published_agent.execution_binding is not None
-                    else (
-                        published_agent.default_runtime_profile.execution_binding.model_copy(
-                            deep=True
-                        )
-                        if published_agent.default_runtime_profile.execution_binding is not None
-                        else None
-                    )
-                ),
-            }
-        )
-
-    def to_published(self, existing: PublishedAgent | None = None) -> PublishedAgent:
-        source_fingerprint = self.source_fingerprint()
-        default_runtime_profile = (
-            existing.default_runtime_profile.model_copy(deep=True)
-            if existing is not None
-            else self.default_runtime_profile.model_copy(deep=True)
-        )
-        execution_binding = (
-            existing.execution_binding.model_copy(deep=True)
-            if existing is not None and existing.execution_binding is not None
-            else (
-                self.execution_binding.model_copy(deep=True)
-                if self.execution_binding is not None
-                else (
-                    self.default_runtime_profile.execution_binding.model_copy(deep=True)
-                    if self.default_runtime_profile.execution_binding is not None
-                    else None
-                )
-            )
-        )
-        return PublishedAgent(
-            manifest=self.manifest.model_copy(deep=True),
-            entrypoint=self.entrypoint,
-            source_fingerprint=source_fingerprint,
-            execution_reference=ExecutionReference.model_validate(
-                build_source_execution_reference(
-                    agent_id=self.agent_id,
-                    source_fingerprint=source_fingerprint,
-                ).model_dump(mode="json")
-            ),
-            default_runtime_profile=default_runtime_profile,
-            execution_binding=execution_binding,
-        )

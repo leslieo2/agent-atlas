@@ -277,7 +277,7 @@ Observability rule:
 - trajectory projection in feature-owned outbound adapters
 - eval gateway and agent lookup adapters in `evals/`
 - artifact export adapter in `artifacts.py`
-- filesystem agent discovery and runnable catalog assembly in `agent_catalog.py`
+- framework-plugin source validation and governed agent catalog filtering in `agent_catalog.py`
 
 Future external integrations should follow the same pattern:
 
