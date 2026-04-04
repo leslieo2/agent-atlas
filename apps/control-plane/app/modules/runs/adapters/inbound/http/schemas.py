@@ -10,7 +10,7 @@ from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEN
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
-    ExecutorConfig,
+    ExecutionProfileRequest,
     ProvenanceMetadata,
     RunLineage,
     ToolsetConfig,
@@ -32,14 +32,20 @@ class RunCreateRequest(BaseModel):
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, object] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
-    executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
+    executor_config: ExecutionProfileRequest = Field(
+        default_factory=lambda: ExecutionProfileRequest(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     approval_policy: ApprovalPolicySnapshot | None = None
 
     def to_domain(self) -> RunCreateInput:
-        return RunCreateInput.model_validate(self.model_dump())
+        executor_config, execution_binding = self.executor_config.to_domain()
+        payload = self.model_dump()
+        payload["executor_config"] = executor_config.model_dump(mode="python")
+        payload["execution_binding"] = (
+            execution_binding.model_dump(mode="python") if execution_binding is not None else None
+        )
+        return RunCreateInput.model_validate(payload)
 
 
 class RunResponse(BaseModel):

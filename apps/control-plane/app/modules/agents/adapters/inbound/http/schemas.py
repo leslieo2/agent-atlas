@@ -15,7 +15,12 @@ from app.modules.agents.domain.models import (
 )
 from app.modules.runs.domain.models import RunCreateInput
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
-from app.modules.shared.domain.models import ApprovalPolicySnapshot, ExecutorConfig, ToolsetConfig
+from app.modules.shared.domain.models import (
+    ApprovalPolicySnapshot,
+    ExecutionProfileRequest,
+    ExecutorConfig,
+    ToolsetConfig,
+)
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -205,14 +210,15 @@ class AgentValidationRunStartRequest(BaseModel):
     tags: list[str] = Field(default_factory=list)
     project_metadata: dict[str, object] = Field(default_factory=dict)
     dataset_sample_id: str | None = None
-    executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
+    executor_config: ExecutionProfileRequest = Field(
+        default_factory=lambda: ExecutionProfileRequest(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     approval_policy: ApprovalPolicySnapshot | None = None
 
     def to_domain(self, *, agent_id: str) -> RunCreateInput:
         tags = list(dict.fromkeys(["validation", *self.tags]))
+        executor_config, execution_binding = self.executor_config.to_domain()
         return RunCreateInput(
             project=self.project,
             dataset=self.dataset,
@@ -222,7 +228,8 @@ class AgentValidationRunStartRequest(BaseModel):
             tags=tags,
             project_metadata=dict(self.project_metadata),
             dataset_sample_id=self.dataset_sample_id,
-            executor_config=self.executor_config.model_copy(deep=True),
+            executor_config=executor_config,
+            execution_binding=execution_binding,
             toolset_config=self.toolset_config.model_copy(deep=True),
             approval_policy=(
                 self.approval_policy.model_copy(deep=True)

@@ -16,7 +16,7 @@ export interface AgentDescriptorResponse {
   "published_at": string;
   "source_fingerprint": string;
   "execution_reference": ExecutionReference;
-  "default_runtime_profile": ExecutionProfile_Output;
+  "default_runtime_profile": ExecutionProfile;
   "latest_validation"?: AgentValidationRunReferenceResponse | null;
   "validation_evidence"?: AgentValidationEvidenceSummaryResponse | null;
   "validation_outcome"?: AgentValidationOutcomeSummaryResponse | null;
@@ -55,7 +55,7 @@ export interface AgentValidationRunStartRequest {
   "tags"?: Array<string>;
   "project_metadata"?: Record<string, unknown>;
   "dataset_sample_id"?: string | null;
-  "executor_config"?: ExecutionProfile_Input;
+  "executor_config"?: ExecutionProfileRequest;
   "toolset_config"?: ToolsetConfig;
   "approval_policy"?: ApprovalPolicySnapshot_Input | null;
 }
@@ -149,7 +149,7 @@ export interface DiscoveredAgentResponse {
   "has_unpublished_changes": boolean;
   "source_fingerprint": string;
   "execution_reference"?: ExecutionReference | null;
-  "default_runtime_profile": ExecutionProfile_Output;
+  "default_runtime_profile": ExecutionProfile;
   "latest_validation"?: AgentValidationRunReferenceResponse | null;
   "validation_evidence"?: AgentValidationEvidenceSummaryResponse | null;
   "validation_outcome"?: AgentValidationOutcomeSummaryResponse | null;
@@ -158,18 +158,11 @@ export interface EvaluatorConfig {
   "scoring_mode"?: ScoringMode;
   "metadata"?: Record<string, unknown>;
 }
-export interface ExecutionBinding {
-  "runner_backend"?: string | null;
-  "runner_image"?: string | null;
-  "artifact_path"?: string | null;
-  "config"?: Record<string, unknown>;
-}
-export interface ExecutionProfile_Input {
+export interface ExecutionProfile {
   "backend": string;
   "tracing_backend"?: string;
-  "execution_binding"?: ExecutionBinding | null;
 }
-export interface ExecutionProfile_Output {
+export interface ExecutionProfileRequest {
   "backend": string;
   "tracing_backend"?: string;
 }
@@ -254,7 +247,7 @@ export interface ExperimentSpecRequest {
   "prompt_config"?: PromptConfig;
   "toolset_config"?: ToolsetConfig;
   "evaluator_config"?: EvaluatorConfig;
-  "executor_config"?: ExecutionProfile_Input | null;
+  "executor_config"?: ExecutionProfileRequest | null;
   "approval_policy_id"?: string | null;
   "tags"?: Array<string>;
 }
@@ -265,7 +258,7 @@ export interface ExperimentSpecResponse {
   "prompt_config"?: PromptConfig;
   "toolset_config"?: ToolsetConfig;
   "evaluator_config"?: EvaluatorConfig;
-  "executor_config"?: ExecutionProfile_Output | null;
+  "executor_config"?: ExecutionProfile | null;
   "approval_policy_id"?: string | null;
   "tags"?: Array<string>;
 }
@@ -326,7 +319,7 @@ export interface ProvenanceMetadata {
   "approval_policy"?: ApprovalPolicySnapshot_Output | null;
   "toolset"?: ToolsetConfig | null;
   "evaluator"?: EvaluatorConfig | null;
-  "executor"?: ExecutionProfile_Output | null;
+  "executor"?: ExecutionProfile | null;
 }
 export interface RunEvaluationPatchRequest {
   "curation_status"?: CurationStatus | null;

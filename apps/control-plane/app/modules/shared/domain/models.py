@@ -11,6 +11,7 @@ from agent_atlas_contracts.runtime import (
     TraceTelemetryMetadata as ContractTraceTelemetryMetadata,
 )
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from app.modules.shared.domain.enums import PolicyEffect, ScoringMode, StepType
 
@@ -119,7 +120,11 @@ class ExecutionProfile(BaseModel):
 
     backend: str
     tracing_backend: str = "state"
-    execution_binding: ExecutionBinding | None = Field(default=None, exclude=True, repr=False)
+    execution_binding: SkipJsonSchema[ExecutionBinding | None] = Field(
+        default=None,
+        exclude=True,
+        repr=False,
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -229,6 +234,29 @@ class ExecutionProfile(BaseModel):
 
 
 ExecutorConfig = ExecutionProfile
+
+
+class ExecutionProfileRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    backend: str
+    tracing_backend: str = "state"
+
+    def to_domain(self) -> tuple[ExecutorConfig, ExecutionBinding | None]:
+        payload = self.model_dump(mode="python")
+        payload.pop("binding", None)
+        payload.pop("execution_binding", None)
+        executor_config = ExecutorConfig.model_validate(payload)
+        execution_binding = (
+            executor_config.execution_binding.model_copy(deep=True)
+            if executor_config.execution_binding is not None
+            else None
+        )
+        public_profile = ExecutorConfig(
+            backend=executor_config.backend,
+            tracing_backend=executor_config.tracing_backend,
+        )
+        return public_profile, execution_binding
 
 
 class TracePointer(BaseModel):

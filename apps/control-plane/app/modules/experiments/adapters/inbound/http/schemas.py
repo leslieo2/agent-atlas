@@ -19,6 +19,7 @@ from app.modules.experiments.domain.models import (
 from app.modules.shared.domain.enums import CompareOutcome, CurationStatus, SampleJudgement
 from app.modules.shared.domain.models import (
     EvaluatorConfig,
+    ExecutionProfileRequest,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
@@ -34,11 +35,15 @@ class ExperimentSpecRequest(BaseModel):
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
-    executor_config: ExecutorConfig | None = None
+    executor_config: ExecutionProfileRequest | None = None
     approval_policy_id: UUID | None = None
     tags: list[str] = Field(default_factory=list)
 
     def to_domain(self) -> ExperimentSpec:
+        executor_config = None
+        execution_binding = None
+        if self.executor_config is not None:
+            executor_config, execution_binding = self.executor_config.to_domain()
         return ExperimentSpec(
             dataset_version_id=self.dataset_version_id,
             published_agent_id=self.published_agent_id,
@@ -46,17 +51,8 @@ class ExperimentSpecRequest(BaseModel):
             prompt_config=self.prompt_config.model_copy(deep=True),
             toolset_config=self.toolset_config.model_copy(deep=True),
             evaluator_config=self.evaluator_config.model_copy(deep=True),
-            executor_config=(
-                self.executor_config.model_copy(deep=True)
-                if self.executor_config is not None
-                else None
-            ),
-            execution_binding=(
-                self.executor_config.execution_binding.model_copy(deep=True)
-                if self.executor_config is not None
-                and self.executor_config.execution_binding is not None
-                else None
-            ),
+            executor_config=executor_config,
+            execution_binding=execution_binding,
             approval_policy_id=self.approval_policy_id,
             tags=list(self.tags),
         )
