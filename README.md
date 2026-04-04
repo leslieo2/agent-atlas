@@ -5,7 +5,7 @@ RL-ready execution data.
 
 It gives teams one product surface for:
 
-- governing agent publication and readiness
+- governing runnable agent assets and readiness
 - defining datasets, slices, provenance, and export eligibility
 - running and comparing experiments over published agents
 - exporting curated offline files for downstream RL or post-training workflows
@@ -18,7 +18,7 @@ they do not become the product itself.
 
 Agent Atlas is organized around four first-class product surfaces:
 
-- `Agents`: govern agent snapshots, readiness, publication state, and validation follow-through
+- `Agents`: govern runnable agent assets, readiness, and validation follow-through
 - `Datasets`: define dataset identity, slices, provenance, and export eligibility
 - `Experiments`: batch runs, compare baselines, review outcomes, and curate export-ready rows
 - `Exports`: package curated evidence into offline RL handoff files
@@ -31,9 +31,9 @@ through the system.
 The default local product loop is:
 
 1. start the local stack with `make dev`
-2. open `Agents` and create the starter agent
+2. open `Agents` and create the first governed asset
 3. open `Datasets` and create or import a dataset
-4. open `Experiments` and run the dataset against the published agent
+4. open `Experiments` and run the dataset against the governed asset
 5. open `Exports` and create an offline file from the resulting evidence
 
 If this loop works, Atlas is behaving like a product instead of a loose collection of subsystems.
@@ -79,8 +79,8 @@ cover current capability, boundary rules, and contributor-facing architecture co
 
 What exists today:
 
-- repository-local agent discovery and publish / unpublish workflow as a transitional control-plane
-  utility
+- governed asset intake with a narrow transitional bootstrap bridge for creating the first managed
+  asset
 - worker-backed execution behind a neutral run-control contract
 - dataset management and dataset-driven eval jobs
 - artifact export for downstream analysis
@@ -126,7 +126,7 @@ The target first-class Atlas surfaces are:
 
 This means the long-term shape is:
 
-- governed publication with discovery and validation still hosted in-repo during the transition
+- governed asset intake, validation evidence, and sealed runnable handoff
 - governed publication with artifact, image, and runner provenance
 - dataset and sample identity for RL data production
 - eval-driven batch execution and comparison

@@ -535,9 +535,6 @@ def test_experiments_api_live_mode_pins_published_snapshot_across_unpublish(
         assert create_response.status_code == 201
         experiment_id = create_response.json()["experiment_id"]
 
-        unpublish_response = live_client.post("/api/v1/agents/claude-code-starter/unpublish")
-        assert unpublish_response.status_code == 200
-
         start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
         assert start_response.status_code == 200
         assert _drain_background_work(worker_drain, limit=40) >= 1

@@ -2,9 +2,9 @@
 
 import { ArrowUpRight, Download, Radar, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { AgentRecord, DiscoveredAgentRecord } from "@/src/entities/agent/model";
+import type { AgentRecord } from "@/src/entities/agent/model";
 import { getAgentValidationLifecycle } from "@/src/entities/agent/lifecycle";
-import { useDiscoveredAgentsQuery, usePublishedAgentsQuery } from "@/src/entities/agent/query";
+import { usePublishedAgentsQuery } from "@/src/entities/agent/query";
 import { useDatasetsQuery } from "@/src/entities/dataset/query";
 import { getExportDownloadUrl } from "@/src/entities/export/api";
 import { useCreateExportMutation } from "@/src/entities/export/query";
@@ -41,17 +41,6 @@ type Props = {
 };
 
 type ExperimentAgentOption = Pick<AgentRecord, "agentId" | "name" | "executionProfile">;
-
-function canSelectDiscoveredAgentForExperiment(agent: DiscoveredAgentRecord) {
-  const validationLifecycle = getAgentValidationLifecycle(agent);
-  return (
-    agent.publishState === "published" &&
-    agent.validationStatus === "valid" &&
-    !agent.hasUnpublishedChanges &&
-    !validationLifecycle.isActive &&
-    !validationLifecycle.isBlocking
-  );
-}
 
 function canSelectPublishedAgentForExperiment(agent: AgentRecord) {
   const validationLifecycle = getAgentValidationLifecycle(agent);
@@ -169,7 +158,6 @@ export default function ExperimentsWorkspace({
   initialDatasetVersionId = "",
   initialExperimentId = ""
 }: Props) {
-  const discoveredAgentsQuery = useDiscoveredAgentsQuery();
   const publishedAgentsQuery = usePublishedAgentsQuery();
   const datasetsQuery = useDatasetsQuery();
   const policiesQuery = usePoliciesQuery();
@@ -178,27 +166,17 @@ export default function ExperimentsWorkspace({
   const startExperimentMutation = useStartExperimentMutation();
   const cancelExperimentMutation = useCancelExperimentMutation();
   const createExportMutation = useCreateExportMutation();
-  const isAgentsLoading = discoveredAgentsQuery.isPending || publishedAgentsQuery.isPending;
+  const isAgentsLoading = publishedAgentsQuery.isPending;
 
   const agents = useMemo<ExperimentAgentOption[]>(() => {
-    const readyDiscovered = (discoveredAgentsQuery.data ?? []).filter(canSelectDiscoveredAgentForExperiment);
-    const readyIds = new Set(readyDiscovered.map((agent) => agent.agentId));
-    const publishedOnly = (publishedAgentsQuery.data ?? [])
-      .filter((agent) => !readyIds.has(agent.agentId) && canSelectPublishedAgentForExperiment(agent))
+    return (publishedAgentsQuery.data ?? [])
+      .filter((agent) => canSelectPublishedAgentForExperiment(agent))
       .map((agent) => ({
         agentId: agent.agentId,
         name: agent.name,
         executionProfile: agent.executionProfile
       }));
-    return [
-      ...readyDiscovered.map((agent) => ({
-        agentId: agent.agentId,
-        name: agent.name,
-        executionProfile: agent.executionProfile
-      })),
-      ...publishedOnly
-    ];
-  }, [discoveredAgentsQuery.data, publishedAgentsQuery.data]);
+  }, [publishedAgentsQuery.data]);
   const datasets = useMemo(() => datasetsQuery.data ?? [], [datasetsQuery.data]);
   const policies = useMemo(() => policiesQuery.data ?? [], [policiesQuery.data]);
   const experiments = useMemo(() => experimentsQuery.data ?? [], [experimentsQuery.data]);
@@ -498,9 +476,9 @@ export default function ExperimentsWorkspace({
           </Field>
         </div>
         <p className="muted-note">
-          Only ready, published snapshots with no draft drift appear in this selector. Execution profile is inherited
-          from the published snapshot: {executionProfileSummary(selectedAgent?.executionProfile)}. Atlas keeps the same
-          run, evidence, and export chain regardless of the underlying execution path.
+          Only ready, governed snapshots appear in this selector. Execution profile is inherited from the published
+          snapshot: {executionProfileSummary(selectedAgent?.executionProfile)}. Atlas keeps the same run, evidence, and
+          export chain regardless of the underlying execution path.
         </p>
         <div className={styles.actions}>
           <Button onClick={() => void handleCreateExperiment()} disabled={createExperimentMutation.isPending}>

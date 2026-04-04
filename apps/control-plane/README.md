@@ -7,7 +7,7 @@ export artifacts.
 
 Strategically, the backend is moving toward a split where:
 
-- Atlas remains the source of truth for published agents, datasets, experiments, provenance, and
+- Atlas remains the source of truth for governed runnable assets, datasets, experiments, provenance, and
   exports
 - Phoenix is an optional trace inspection backend for experiment-heavy debugging workflows
 - immutable artifacts or images and runner orchestration become the execution handoff
@@ -34,7 +34,7 @@ Today:
 Directionally, the backend will also own:
 
 - stronger dataset and sample identity for RL data workflows
-- artifact or image provenance attached to published agents and exports
+- artifact or image provenance attached to governed assets and exports
 - runner backend selection and execution control behind a run contract
 - Phoenix-backed trace integration behind backend-owned ports and deep links
 - RL-ready export contracts and curation-oriented filtering
@@ -113,7 +113,7 @@ Current runtime model:
 
 Planned runtime direction:
 
-- published agents stay governed by Atlas while artifact/image handoff replaces repo-local runtime
+- governed assets stay managed by Atlas while artifact/image handoff replaces repo-local runtime
   assumptions
 - execution resolves from published snapshot toward immutable artifact or image references
 - runner orchestration is added behind infrastructure ports
@@ -224,9 +224,8 @@ Current backend endpoints include:
 - Health: `GET /health`
 - Agents:
   - `GET /api/v1/agents/published`
-  - `GET /api/v1/agents/discovered`
-  - `POST /api/v1/agents/{agent_id}/publish`
-  - `POST /api/v1/agents/{agent_id}/unpublish`
+  - `POST /api/v1/agents/bootstrap/claude-code`
+  - `POST /api/v1/agents/{agent_id}/validation-runs`
 - Runs:
   - `GET /api/v1/runs`
   - `POST /api/v1/runs`

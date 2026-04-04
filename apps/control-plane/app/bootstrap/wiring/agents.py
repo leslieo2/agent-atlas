@@ -7,8 +7,6 @@ from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.modules.agents.application.ports import AgentValidationRecordPort
 from app.modules.agents.application.use_cases import (
     AgentBootstrapCommands,
-    AgentDiscoveryQueries,
-    AgentPublicationCommands,
     AgentValidationCommands,
     PublishedAgentCatalogQueries,
 )
@@ -71,8 +69,6 @@ class StateAgentValidationRecords:
 class AgentModuleBundle:
     agent_exists: Callable[[str], bool]
     published_agent_catalog_queries: PublishedAgentCatalogQueries
-    agent_discovery_queries: AgentDiscoveryQueries
-    agent_publication_commands: AgentPublicationCommands
     agent_bootstrap_commands: AgentBootstrapCommands
     agent_validation_commands: AgentValidationCommands
 
@@ -87,21 +83,11 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
         published_agents=infra.published_agent_catalog,
         validation_records=validation_records,
     )
-    agent_discovery_queries = AgentDiscoveryQueries(
-        discovery=infra.agent_discovery,
-        published_agents=infra.published_agent_repository,
-        validation_records=validation_records,
-    )
-    agent_publication_commands = AgentPublicationCommands(
-        discovery=infra.agent_discovery,
-        published_agents=infra.published_agent_repository,
-    )
     agent_bootstrap_commands = AgentBootstrapCommands(
         published_agents=infra.published_agent_repository,
         live_agent_markers=infra.live_agent_marker_repository,
     )
     agent_validation_commands = AgentValidationCommands(
-        discovery=infra.agent_discovery,
         published_agents=infra.published_agent_catalog,
         submission_service=RunSubmissionService(
             run_repository=infra.run_repository,
@@ -113,8 +99,6 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     return AgentModuleBundle(
         agent_exists=agent_exists,
         published_agent_catalog_queries=published_agent_catalog_queries,
-        agent_discovery_queries=agent_discovery_queries,
-        agent_publication_commands=agent_publication_commands,
         agent_bootstrap_commands=agent_bootstrap_commands,
         agent_validation_commands=agent_validation_commands,
     )

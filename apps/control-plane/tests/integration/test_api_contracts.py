@@ -8,6 +8,7 @@ def test_openapi_exposes_rl_data_control_plane_only(client) -> None:
 
     paths = payload["paths"]
     assert "/api/v1/agents/published" in paths
+    assert "/api/v1/agents/bootstrap/claude-code" in paths
     assert "/api/v1/agents/{agent_id}/validation-runs" in paths
     assert "/api/v1/datasets" in paths
     assert "/api/v1/datasets/{dataset_name}" in paths
@@ -25,6 +26,9 @@ def test_openapi_exposes_rl_data_control_plane_only(client) -> None:
     assert "/api/v1/runs/{run_id}" in paths
 
     assert "/api/v1/runs" not in paths
+    assert "/api/v1/agents/discovered" not in paths
+    assert "/api/v1/agents/{agent_id}/publish" not in paths
+    assert "/api/v1/agents/{agent_id}/unpublish" not in paths
     assert "/api/v1/eval-jobs" not in paths
     assert "/api/v1/traces/ingest" not in paths
     assert "/api/v1/artifacts" not in paths

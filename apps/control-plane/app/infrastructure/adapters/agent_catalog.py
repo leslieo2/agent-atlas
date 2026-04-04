@@ -2,26 +2,14 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.modules.agents.application.ports import (
-    LiveAgentMarkerRepositoryPort,
-    PublishedAgentRepositoryPort,
-)
+from app.modules.agents.application.ports import PublishedAgentRepositoryPort
 from app.modules.agents.domain.models import (
     AgentModuleSource,
-    AgentPublishState,
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,
     PublishedAgent,
 )
-from app.modules.agents.domain.starter_assets import (
-    CLAUDE_CODE_STARTER_AGENT_ID,
-    CLAUDE_CODE_STARTER_ENTRYPOINT,
-    claude_code_starter_execution_binding,
-    claude_code_starter_manifest,
-    claude_code_starter_runtime_profile,
-)
-from app.modules.shared.domain.models import ExecutionReferenceMetadata
 
 
 class AgentSourceCatalog(Protocol):
@@ -102,60 +90,3 @@ class StatePublishedAgentCatalog:
                 continue
             eligible[persisted_agent.agent_id] = persisted_agent
         return eligible
-
-
-class StateBootstrapAgentDiscovery:
-    def __init__(
-        self,
-        markers: LiveAgentMarkerRepositoryPort,
-        published_agents: PublishedAgentRepositoryPort,
-    ) -> None:
-        self.markers = markers
-        self.published_agents = published_agents
-
-    def list_agents(self) -> list[DiscoveredAgent]:
-        published = self.published_agents.get_agent(CLAUDE_CODE_STARTER_AGENT_ID)
-        should_surface = (
-            CLAUDE_CODE_STARTER_AGENT_ID in set(self.markers.list_agent_ids())
-            or published is not None
-        )
-        if not should_surface:
-            return []
-        if published is not None:
-            try:
-                published.execution_reference_or_raise()
-                published.source_fingerprint_or_raise()
-            except ValueError:
-                pass
-            else:
-                return [
-                    DiscoveredAgent(
-                        manifest=published.manifest.model_copy(deep=True),
-                        entrypoint=published.entrypoint,
-                        publish_state=AgentPublishState.PUBLISHED,
-                        validation_status=AgentValidationStatus.VALID,
-                        validation_issues=[],
-                        published_at=published.published_at,
-                        execution_reference=ExecutionReferenceMetadata.model_validate(
-                            published.execution_reference.model_dump(mode="json")
-                        ),
-                        default_runtime_profile=published.default_runtime_profile.model_copy(
-                            deep=True
-                        ),
-                        execution_binding=(
-                            published.execution_binding.model_copy(deep=True)
-                            if published.execution_binding is not None
-                            else None
-                        ),
-                    )
-                ]
-        return [
-            DiscoveredAgent(
-                manifest=claude_code_starter_manifest(),
-                entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
-                validation_status=AgentValidationStatus.VALID,
-                validation_issues=[],
-                default_runtime_profile=claude_code_starter_runtime_profile(),
-                execution_binding=claude_code_starter_execution_binding(),
-            )
-        ]

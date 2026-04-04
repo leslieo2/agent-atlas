@@ -21,20 +21,11 @@ export interface AgentDescriptorResponse {
   "validation_evidence"?: AgentValidationEvidenceSummaryResponse | null;
   "validation_outcome"?: AgentValidationOutcomeSummaryResponse | null;
 }
-export interface AgentPublicationResponse {
-  "agent_id": string;
-  "published": boolean;
-}
-export type AgentPublishState = "draft" | "published";
 export interface AgentValidationEvidenceSummaryResponse {
   "artifact_ref"?: string | null;
   "image_ref"?: string | null;
   "trace_url"?: string | null;
   "terminal_summary"?: string | null;
-}
-export interface AgentValidationIssueResponse {
-  "code": string;
-  "message": string;
 }
 export interface AgentValidationOutcomeSummaryResponse {
   "status": string;
@@ -59,7 +50,6 @@ export interface AgentValidationRunStartRequest {
   "toolset_config"?: ToolsetConfig;
   "approval_policy"?: ApprovalPolicySnapshot_Input | null;
 }
-export type AgentValidationStatus = "valid" | "invalid";
 export interface ApprovalPolicyCreateRequest {
   "name": string;
   "description"?: string | null;
@@ -129,30 +119,6 @@ export interface DatasetVersionResponse {
   "created_at": string;
   "row_count": number;
   "rows": Array<DatasetSample>;
-}
-export interface DiscoveredAgentResponse {
-  "agent_id": string;
-  "name": string;
-  "description": string;
-  "agent_family": string;
-  "framework": string;
-  "framework_version": string;
-  "entrypoint": string;
-  "default_model": string;
-  "tags": Array<string>;
-  "capabilities": Array<string>;
-  "publish_state": AgentPublishState;
-  "validation_status": AgentValidationStatus;
-  "validation_issues": Array<AgentValidationIssueResponse>;
-  "published_at"?: string | null;
-  "last_validated_at": string;
-  "has_unpublished_changes": boolean;
-  "source_fingerprint": string;
-  "execution_reference"?: ExecutionReference | null;
-  "default_runtime_profile": ExecutionProfile;
-  "latest_validation"?: AgentValidationRunReferenceResponse | null;
-  "validation_evidence"?: AgentValidationEvidenceSummaryResponse | null;
-  "validation_outcome"?: AgentValidationOutcomeSummaryResponse | null;
 }
 export interface EvaluatorConfig {
   "scoring_mode"?: ScoringMode;

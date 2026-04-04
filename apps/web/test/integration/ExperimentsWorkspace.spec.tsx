@@ -10,10 +10,7 @@ import { renderWithQueryClient } from "@/test/setup";
 import ExperimentsWorkspace from "@/src/widgets/experiments-workspace/ExperimentsWorkspace";
 
 vi.mock("@/src/entities/agent/api", () => ({
-  listDiscoveredAgents: vi.fn(),
-  listPublishedAgents: vi.fn(),
-  publishAgent: vi.fn(),
-  unpublishAgent: vi.fn()
+  listPublishedAgents: vi.fn()
 }));
 
 vi.mock("@/src/entities/dataset/api", () => ({
@@ -44,7 +41,6 @@ type MockedApiFn = ReturnType<typeof vi.fn>;
 
 describe("Experiments workspace", () => {
   beforeEach(() => {
-    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockReset();
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockReset();
     (datasetApi.listDatasets as unknown as MockedApiFn).mockReset();
     (experimentApi.listExperiments as unknown as MockedApiFn).mockReset();
@@ -58,68 +54,6 @@ describe("Experiments workspace", () => {
     (exportApi.createExport as unknown as MockedApiFn).mockReset();
     (exportApi.listExports as unknown as MockedApiFn).mockReset();
 
-    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockResolvedValue([
-      {
-        agentId: "basic",
-        name: "Basic",
-        description: "Minimal smoke agent.",
-        framework: "openai-agents-sdk",
-        frameworkVersion: "0.1.0",
-        entrypoint: "app.agent_plugins.basic:build_agent",
-        defaultModel: "gpt-5.4-mini",
-        tags: ["example", "smoke"],
-        capabilities: ["submit", "cancel"],
-        publishedAt: "2026-03-20T09:00:00Z",
-        publishState: "published",
-        validationStatus: "valid",
-        validationIssues: [],
-        lastValidatedAt: "2026-03-20T09:00:00Z",
-        hasUnpublishedChanges: false,
-        sourceFingerprint: "basic-fingerprint-123456",
-        executionReference: { artifactRef: "source://basic@basic-fingerprint-123456" },
-        executionProfile: {
-          backend: "external-runner",
-          metadata: {
-            claude_code_cli: {
-              profile: "default"
-            }
-          }
-        }
-      },
-      {
-        agentId: "validating_agent",
-        name: "Validating Agent",
-        description: "Published agent still running validation.",
-        framework: "openai-agents-sdk",
-        frameworkVersion: "0.1.0",
-        entrypoint: "app.agent_plugins.validating_agent:build_agent",
-        defaultModel: "gpt-5.4-mini",
-        tags: ["validation"],
-        capabilities: ["submit", "cancel"],
-        publishedAt: "2026-03-20T09:00:00Z",
-        publishState: "published",
-        validationStatus: "valid",
-        validationIssues: [],
-        lastValidatedAt: "2026-03-20T09:00:00Z",
-        hasUnpublishedChanges: false,
-        sourceFingerprint: "validating-fingerprint-123456",
-        executionReference: { artifactRef: "source://validating_agent@validating-fingerprint-123456" },
-        latestValidation: {
-          runId: "run-validating-agent",
-          status: "running",
-          createdAt: "2026-03-20T09:10:00Z",
-          startedAt: "2026-03-20T09:11:00Z",
-          completedAt: null
-        },
-        validationOutcome: {
-          status: "running",
-          reason: "Validation is still collecting evidence."
-        },
-        executionProfile: {
-          backend: "external-runner"
-        }
-      }
-    ]);
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockResolvedValue([
       {
         agentId: "basic",
@@ -127,16 +61,11 @@ describe("Experiments workspace", () => {
         description: "Minimal smoke agent.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
-        entrypoint: "app.agent_plugins.basic:build_agent",
+        entrypoint: "snapshots/basic:run",
         defaultModel: "gpt-5.4-mini",
         tags: ["example", "smoke"],
         capabilities: ["submit", "cancel"],
         publishedAt: "2026-03-20T09:00:00Z",
-        publishState: "published",
-        validationStatus: "valid",
-        validationIssues: [],
-        lastValidatedAt: "2026-03-20T09:00:00Z",
-        hasUnpublishedChanges: false,
         sourceFingerprint: "basic-fingerprint-123456",
         executionReference: { artifactRef: "source://basic@basic-fingerprint-123456" },
         executionProfile: {
@@ -154,7 +83,7 @@ describe("Experiments workspace", () => {
         description: "Published snapshot no longer discoverable locally.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
-        entrypoint: "app.agent_plugins.archived_basic:build_agent",
+        entrypoint: "snapshots/archived-basic:run",
         defaultModel: "gpt-5.4-mini",
         tags: ["archived"],
         capabilities: ["submit"],
@@ -169,7 +98,7 @@ describe("Experiments workspace", () => {
         description: "Published snapshot whose latest validation failed.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
-        entrypoint: "app.agent_plugins.failed_live:build_agent",
+        entrypoint: "snapshots/failed-live:run",
         defaultModel: "gpt-5.4-mini",
         tags: ["archived"],
         capabilities: ["submit"],
@@ -188,6 +117,34 @@ describe("Experiments workspace", () => {
           reason: "Validation failed."
         },
         executionProfile: { backend: "k8s-job" }
+      },
+      {
+        agentId: "validating_agent",
+        name: "Validating Agent",
+        description: "Published agent still running validation.",
+        framework: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
+        entrypoint: "snapshots/validating-agent:run",
+        defaultModel: "gpt-5.4-mini",
+        tags: ["validation"],
+        capabilities: ["submit", "cancel"],
+        publishedAt: "2026-03-20T09:00:00Z",
+        sourceFingerprint: "validating-fingerprint-123456",
+        executionReference: { artifactRef: "source://validating_agent@validating-fingerprint-123456" },
+        latestValidation: {
+          runId: "run-validating-agent",
+          status: "running",
+          createdAt: "2026-03-20T09:10:00Z",
+          startedAt: "2026-03-20T09:11:00Z",
+          completedAt: null
+        },
+        validationOutcome: {
+          status: "running",
+          reason: "Validation is still collecting evidence."
+        },
+        executionProfile: {
+          backend: "external-runner"
+        }
       }
     ]);
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([
@@ -452,7 +409,6 @@ describe("Experiments workspace", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Governance to evidence loop" })).toBeInTheDocument();
-    await waitFor(() => expect(agentApi.listDiscoveredAgents).toHaveBeenCalled());
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
     expect(screen.getByRole("combobox", { name: "Published agent" })).toHaveValue("basic");
     expect(screen.getByRole("option", { name: "Archived Basic" })).toBeInTheDocument();
@@ -464,7 +420,7 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(experimentApi.compareExperiments).toHaveBeenCalledWith("exp-001", "exp-002"));
     expect(
       screen.getByText(
-        /Execution profile is inherited from the published snapshot: external-runner · Claude Code CLI\./i
+        /Execution profile is inherited from the published snapshot: external-runner\./i
       )
     ).toBeInTheDocument();
     expect(
@@ -528,14 +484,11 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(experimentApi.startExperiment).toHaveBeenCalledWith("exp-003"));
   });
 
-  it("keeps a published-only live agent selectable when discovery is empty", async () => {
-    (agentApi.listDiscoveredAgents as unknown as MockedApiFn).mockResolvedValue([]);
-
+  it("keeps a published-only live agent selectable when the catalog has no local intake records", async () => {
     renderWithQueryClient(<ExperimentsWorkspace initialAgentId="archived_basic" initialDatasetVersionId="dataset-v2" />);
 
     const agentSelect = await screen.findByRole("combobox", { name: "Published agent" });
 
-    await waitFor(() => expect(agentApi.listDiscoveredAgents).toHaveBeenCalled());
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
     expect(agentSelect).toHaveValue("archived_basic");
     expect(agentSelect).toHaveTextContent("Archived Basic");

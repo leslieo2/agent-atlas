@@ -173,7 +173,7 @@ Examples in the current codebase:
 - `RunCommands`, `RunQueries`, `RunExecutionService`, `RunSubmissionService`
 - `TraceCommands`, `RunTelemetryIngestionService`
 - `EvalJobCommands`, `EvalExecutionService`, `EvalAggregationService`
-- `AgentDiscoveryQueries`, `AgentPublicationCommands`
+- `PublishedAgentCatalogQueries`, `AgentValidationCommands`
 
 Planned additions should follow the same rule:
 
@@ -373,16 +373,15 @@ first-class trace product on top of them. Phoenix clients remain in infrastructu
 
 Owns:
 
-- agent discovery and publication workflows
-- published agent metadata
+- governed agent metadata
 - runnable agent catalog contracts
 - agent framework metadata used by run submission
 - future artifact or image metadata attached to publication
 
 Examples:
 
-- `AgentDiscoveryQueries`
-- `AgentPublicationCommands`
+- `PublishedAgentCatalogQueries`
+- `AgentValidationCommands`
 - `RunnableAgentCatalogPort`
 - `PublishedAgent`
 

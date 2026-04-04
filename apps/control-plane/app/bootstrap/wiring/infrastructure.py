@@ -33,7 +33,6 @@ from app.execution.application.ports import (
     RunnerPort,
 )
 from app.infrastructure.adapters.agent_catalog import (
-    StateBootstrapAgentDiscovery,
     StatePublishedAgentCatalog,
 )
 from app.infrastructure.adapters.execution_jobs import ArqExecutionJobQueue, InlineExecutionJobQueue
@@ -104,7 +103,6 @@ class InfrastructureBundle:
     system_status: StateSystemStatus
     framework_registry: FrameworkRegistryPort
     published_execution_dispatcher: PublishedAgentExecutionPort
-    agent_discovery: StateBootstrapAgentDiscovery
     published_agent_catalog: PublishedAgentCatalogPort
     tracing: TracingInfrastructure
     execution: ExecutionInfrastructure
@@ -139,10 +137,6 @@ def build_infrastructure() -> InfrastructureBundle:
     framework_plugins = discover_framework_plugins()
     framework_registry = FrameworkRegistry(plugins=framework_plugins)
     published_execution_dispatcher = PublishedAgentExecutionDispatcher(plugins=framework_plugins)
-    agent_discovery = StateBootstrapAgentDiscovery(
-        markers=live_agent_marker_repository,
-        published_agents=published_agent_repository,
-    )
     job_queue: ExecutionJobPort
     if settings.execution_job_backend == "inline":
         job_queue = InlineExecutionJobQueue()
@@ -271,7 +265,6 @@ def build_infrastructure() -> InfrastructureBundle:
         system_status=system_status,
         framework_registry=framework_registry,
         published_execution_dispatcher=published_execution_dispatcher,
-        agent_discovery=agent_discovery,
         published_agent_catalog=published_agent_catalog,
         tracing=tracing,
         execution=execution,

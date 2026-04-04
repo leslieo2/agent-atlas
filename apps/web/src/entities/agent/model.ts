@@ -1,8 +1,5 @@
 import type { ExecutionProfile, ExecutionProfileRequest } from "@/src/shared/api/contract";
 
-export type AgentPublishState = "draft" | "published";
-export type AgentValidationStatus = "valid" | "invalid";
-
 export interface ExecutionReferenceRecord {
   artifactRef?: string | null;
   imageRef?: string | null;
@@ -63,19 +60,4 @@ export interface AgentRecord {
 export interface AgentValidationIssueRecord {
   code: string;
   message: string;
-}
-
-export interface DiscoveredAgentRecord extends AgentRecord {
-  publishState: AgentPublishState;
-  validationStatus: AgentValidationStatus;
-  validationIssues: AgentValidationIssueRecord[];
-  publishedAt?: string;
-  lastValidatedAt: string;
-  hasUnpublishedChanges: boolean;
-  sourceFingerprint?: string;
-  executionReference?: ExecutionReferenceRecord | null;
-  executionProfile: ExecutionProfileRecord;
-  latestValidation?: AgentValidationRunReferenceRecord | null;
-  validationEvidence?: AgentValidationEvidenceSummaryRecord | null;
-  validationOutcome?: AgentValidationOutcomeSummaryRecord | null;
 }

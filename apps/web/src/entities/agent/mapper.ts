@@ -1,8 +1,6 @@
 import type {
   AgentDescriptorResponse,
   AgentValidationEvidenceSummaryResponse,
-  DiscoveredAgentResponse,
-  AgentValidationIssueResponse,
   AgentValidationOutcomeSummaryResponse,
   AgentValidationRunReferenceResponse,
   ExecutionReference
@@ -10,19 +8,10 @@ import type {
 import type {
   AgentRecord,
   AgentValidationEvidenceSummaryRecord,
-  AgentValidationIssueRecord,
   AgentValidationOutcomeSummaryRecord,
   AgentValidationRunReferenceRecord,
-  DiscoveredAgentRecord,
   ExecutionReferenceRecord
 } from "./model";
-
-function mapAgentIssue(issue: AgentValidationIssueResponse): AgentValidationIssueRecord {
-  return {
-    code: issue.code,
-    message: issue.message
-  };
-}
 
 function mapExecutionReference(executionReference?: ExecutionReference | null): ExecutionReferenceRecord | null {
   if (!executionReference) {
@@ -92,33 +81,6 @@ export function mapAgent(agent: AgentDescriptorResponse): AgentRecord {
     tags: agent.tags,
     capabilities: agent.capabilities,
     publishedAt: agent.published_at,
-    sourceFingerprint: agent.source_fingerprint ?? undefined,
-    executionReference: mapExecutionReference(agent.execution_reference),
-    executionProfile: agent.default_runtime_profile,
-    latestValidation: mapValidationRunReference(agent.latest_validation),
-    validationEvidence: mapValidationEvidence(agent.validation_evidence),
-    validationOutcome: mapValidationOutcome(agent.validation_outcome)
-  };
-}
-
-export function mapDiscoveredAgent(agent: DiscoveredAgentResponse): DiscoveredAgentRecord {
-  return {
-    agentId: agent.agent_id,
-    name: agent.name,
-    description: agent.description,
-    agentFamily: agent.agent_family ?? undefined,
-    framework: agent.framework,
-    frameworkVersion: agent.framework_version,
-    entrypoint: agent.entrypoint,
-    defaultModel: agent.default_model,
-    tags: agent.tags,
-    capabilities: agent.capabilities,
-    publishState: agent.publish_state,
-    validationStatus: agent.validation_status,
-    validationIssues: agent.validation_issues.map(mapAgentIssue),
-    publishedAt: agent.published_at ?? undefined,
-    lastValidatedAt: agent.last_validated_at,
-    hasUnpublishedChanges: agent.has_unpublished_changes,
     sourceFingerprint: agent.source_fingerprint ?? undefined,
     executionReference: mapExecutionReference(agent.execution_reference),
     executionProfile: agent.default_runtime_profile,

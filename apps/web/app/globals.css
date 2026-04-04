@@ -129,7 +129,7 @@ code {
 .page-header {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
   align-items: end;
   gap: 24px;
   padding: 28px 30px;
@@ -171,6 +171,11 @@ code {
 .page-header > * {
   position: relative;
   z-index: 1;
+  min-width: 0;
+}
+
+.page-header > :first-child {
+  width: 100%;
 }
 
 .topbar {
@@ -236,6 +241,8 @@ code {
   display: grid;
   gap: 12px;
   min-width: min(320px, 100%);
+  width: min(360px, 100%);
+  justify-self: end;
 }
 
 .page-info-item {

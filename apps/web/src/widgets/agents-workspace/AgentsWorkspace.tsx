@@ -4,11 +4,8 @@ import { ArrowUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   useBootstrapClaudeCodeAgentMutation,
-  useDiscoveredAgentsQuery,
   usePublishedAgentsQuery,
-  usePublishAgentMutation,
-  useStartValidationRunMutation,
-  useUnpublishAgentMutation
+  useStartValidationRunMutation
 } from "@/src/entities/agent/query";
 import { getAgentValidationLifecycle } from "@/src/entities/agent/lifecycle";
 import type {
@@ -16,7 +13,6 @@ import type {
   AgentValidationEvidenceSummaryRecord,
   AgentValidationOutcomeSummaryRecord,
   AgentValidationRunReferenceRecord,
-  DiscoveredAgentRecord,
   ExecutionReferenceRecord
 } from "@/src/entities/agent/model";
 import { executionProfileSummary } from "@/src/shared/runtime/identity";
@@ -30,14 +26,10 @@ import styles from "./AgentsWorkspace.module.css";
 type AgentGroup = {
   title: string;
   description: string;
-  items: AgentWorkspaceRecord[];
+  items: AgentRecord[];
 };
 
-type AgentReadiness = "ready" | "validating" | "needs_review" | "published_with_drift" | "draft" | "invalid";
-
-type AgentWorkspaceRecord = DiscoveredAgentRecord & {
-  dataSource: "discovered" | "published";
-};
+type AgentReadiness = "ready" | "validating" | "needs_review";
 
 function fallbackValidationTimestamp(agent: AgentRecord) {
   return (
@@ -49,44 +41,15 @@ function fallbackValidationTimestamp(agent: AgentRecord) {
   );
 }
 
-function inferValidationStatus(agent: AgentRecord) {
+function getAgentReadiness(agent: AgentRecord): AgentReadiness {
   const validationLifecycle = getAgentValidationLifecycle(agent);
-  if (validationLifecycle.status === "failed" || validationLifecycle.status === "cancelled" || validationLifecycle.status === "lost") {
-    return "invalid" as const;
-  }
-  return "valid" as const;
-}
-
-function mapPublishedAgent(agent: AgentRecord): AgentWorkspaceRecord {
-  return {
-    ...agent,
-    publishState: "published",
-    validationStatus: inferValidationStatus(agent),
-    validationIssues: [],
-    lastValidatedAt: fallbackValidationTimestamp(agent),
-    hasUnpublishedChanges: false,
-    dataSource: "published"
-  };
-}
-
-function getAgentReadiness(agent: DiscoveredAgentRecord): AgentReadiness {
-  const validationLifecycle = getAgentValidationLifecycle(agent);
-  if (agent.validationStatus === "invalid") {
-    return "invalid";
-  }
   if (validationLifecycle.isActive) {
     return "validating";
   }
   if (validationLifecycle.isBlocking) {
     return "needs_review";
   }
-  if (agent.publishState === "published" && agent.hasUnpublishedChanges) {
-    return "published_with_drift";
-  }
-  if (agent.publishState === "published") {
-    return "ready";
-  }
-  return "draft";
+  return "ready";
 }
 
 function readinessLabel(state: AgentReadiness) {
@@ -96,25 +59,11 @@ function readinessLabel(state: AgentReadiness) {
   if (state === "needs_review") {
     return "Needs review";
   }
-  if (state === "published_with_drift") {
-    return "Draft changes";
-  }
-  if (state === "ready") {
-    return "Ready";
-  }
-  if (state === "draft") {
-    return "Draft";
-  }
-  return "Invalid";
+  return "Ready";
 }
 
-function validationTone(agent: DiscoveredAgentRecord) {
+function validationTone(agent: AgentRecord) {
   return getAgentValidationLifecycle(agent).tone;
-}
-
-function publishTone(agent: DiscoveredAgentRecord) {
-  const readiness = getAgentReadiness(agent);
-  return readiness === "ready" ? "success" : "warn";
 }
 
 function validationRunTone(status?: string | null) {
@@ -145,12 +94,8 @@ function shortSourceFingerprint(sourceFingerprint?: string) {
   return fingerprint.slice(0, 12);
 }
 
-function defaultRuntimeSummary(agent: DiscoveredAgentRecord) {
+function defaultRuntimeSummary(agent: AgentRecord) {
   return executionProfileSummary(agent.executionProfile);
-}
-
-function validationIssuesLabel() {
-  return "Readiness issues";
 }
 
 function formatValidationTimestamp(validationRun?: AgentValidationRunReferenceRecord | null) {
@@ -181,26 +126,17 @@ function validationEvidenceLabel(validationEvidence?: AgentValidationEvidenceSum
   return "-";
 }
 
-function hasBlockingValidationOutcome(agent: DiscoveredAgentRecord) {
+function hasBlockingValidationOutcome(agent: AgentRecord) {
   return getAgentValidationLifecycle(agent).isBlocking;
 }
 
-function nextStepLabel(agent: DiscoveredAgentRecord) {
+function nextStepLabel(agent: AgentRecord) {
   const readiness = getAgentReadiness(agent);
-  if (readiness === "invalid") {
-    return "Resolve readiness issues before Atlas can seal, validate, or hand off this asset.";
-  }
   if (readiness === "validating") {
     return "Atlas is still running the latest validation. Wait for the active run to finish before handing this snapshot into experiments.";
   }
   if (readiness === "needs_review") {
     return "Review the latest validation run and evidence before handing this snapshot into a new experiment.";
-  }
-  if (readiness === "published_with_drift") {
-    return "Re-publish this asset so new experiments use the latest governed snapshot.";
-  }
-  if (readiness === "draft") {
-    return "Publish this validated draft when you want Atlas to hand it into experiments.";
   }
   if (hasBlockingValidationOutcome(agent)) {
     return "Review the latest validation evidence before handing this snapshot into a new experiment.";
@@ -208,7 +144,7 @@ function nextStepLabel(agent: DiscoveredAgentRecord) {
   return "Hand this ready snapshot into the next experiment.";
 }
 
-function validationPayload(agent: DiscoveredAgentRecord) {
+function validationPayload(agent: AgentRecord) {
   return {
     project: "atlas-validation",
     dataset: "controlled-validation",
@@ -225,27 +161,16 @@ function validationPayload(agent: DiscoveredAgentRecord) {
 
 function AgentCard({
   agent,
-  onPublish,
-  onUnpublish,
   onValidate,
-  isPublishing,
-  isUnpublishing,
   isValidating
 }: {
-  agent: DiscoveredAgentRecord;
-  onPublish: (agentId: string) => void;
-  onUnpublish: (agentId: string) => void;
-  onValidate: (agent: DiscoveredAgentRecord) => void;
-  isPublishing: boolean;
-  isUnpublishing: boolean;
+  agent: AgentRecord;
+  onValidate: (agent: AgentRecord) => void;
   isValidating: boolean;
 }) {
   const validationLifecycle = getAgentValidationLifecycle(agent);
-  const isValid = agent.validationStatus === "valid";
-  const isPublished = agent.publishState === "published";
   const readiness = getAgentReadiness(agent);
   const isRunnableSnapshot = readiness === "ready" && !validationLifecycle.isBlocking && !validationLifecycle.isActive;
-  const hasDraftChanges = readiness === "published_with_drift";
 
   return (
     <article className={styles.card}>
@@ -258,16 +183,11 @@ function AgentCard({
           <p className="muted-note">{agent.description}</p>
         </div>
         <div className="toolbar">
-          <StatusPill tone={publishTone(agent)}>{readinessLabel(readiness)}</StatusPill>
+          <StatusPill tone={readiness === "ready" ? "success" : "warn"}>{readinessLabel(readiness)}</StatusPill>
           <StatusPill tone={validationTone(agent)}>{validationLifecycle.status}</StatusPill>
         </div>
       </div>
 
-      {hasDraftChanges ? (
-        <p className={styles.driftNotice}>
-          Re-publish this asset before creating new experiments so Atlas orchestration points at the latest governed snapshot.
-        </p>
-      ) : null}
       {readiness === "validating" ? (
         <p className={styles.driftNotice}>
           Atlas is projecting this asset from the active validation run. The experiment handoff stays blocked until that run resolves.
@@ -326,7 +246,9 @@ function AgentCard({
         </div>
         <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Last validated</span>
-          <span className={styles.metaValue}>{new Date(agent.lastValidatedAt).toLocaleString("en")}</span>
+          <span className={styles.metaValue}>
+            {new Date(fallbackValidationTimestamp(agent)).toLocaleString("en")}
+          </span>
         </div>
         <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Agent ID</span>
@@ -358,39 +280,10 @@ function AgentCard({
         </div>
       </div>
 
-      {!isValid ? (
-        <div>
-          <p className="page-eyebrow">{validationIssuesLabel()}</p>
-          <p className="muted-note">Atlas keeps validation on snapshot readiness and provenance, not framework-first routing.</p>
-          <ul className={styles.issueList}>
-            {agent.validationIssues.map((issue) => (
-              <li key={`${agent.agentId}-${issue.code}-${issue.message}`}>{issue.message}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
       <div className={styles.actions}>
-        {isValid && !isPublished ? (
-          <Button onClick={() => onPublish(agent.agentId)} disabled={isPublishing}>
-            Publish
-          </Button>
-        ) : null}
-        {isValid && hasDraftChanges ? (
-          <Button onClick={() => onPublish(agent.agentId)} disabled={isPublishing}>
-            Publish update
-          </Button>
-        ) : null}
-        {isPublished ? (
-          <Button variant="secondary" onClick={() => onUnpublish(agent.agentId)} disabled={isUnpublishing}>
-            Unpublish
-          </Button>
-        ) : null}
-        {isValid ? (
-          <Button variant="secondary" onClick={() => onValidate(agent)} disabled={isValidating}>
-            Run validation
-          </Button>
-        ) : null}
+        <Button variant="secondary" onClick={() => onValidate(agent)} disabled={isValidating}>
+          Run validation
+        </Button>
         {isRunnableSnapshot ? (
           <Button href={`/experiments?agent=${encodeURIComponent(agent.agentId)}`} variant="secondary">
             Create experiment <ArrowUpRight size={14} />
@@ -402,21 +295,11 @@ function AgentCard({
 }
 
 export default function AgentsWorkspace() {
-  const discoveredAgentsQuery = useDiscoveredAgentsQuery();
   const publishedAgentsQuery = usePublishedAgentsQuery();
   const bootstrapMutation = useBootstrapClaudeCodeAgentMutation();
-  const publishMutation = usePublishAgentMutation();
-  const unpublishMutation = useUnpublishAgentMutation();
   const validationMutation = useStartValidationRunMutation();
   const [actionMessage, setActionMessage] = useState("");
-  const agents = useMemo<AgentWorkspaceRecord[]>(() => {
-    const discovered = (discoveredAgentsQuery.data ?? []).map((agent) => ({ ...agent, dataSource: "discovered" as const }));
-    const discoveredIds = new Set(discovered.map((agent) => agent.agentId));
-    const publishedOnly = (publishedAgentsQuery.data ?? [])
-      .filter((agent) => !discoveredIds.has(agent.agentId))
-      .map(mapPublishedAgent);
-    return [...discovered, ...publishedOnly];
-  }, [discoveredAgentsQuery.data, publishedAgentsQuery.data]);
+  const agents = useMemo<AgentRecord[]>(() => publishedAgentsQuery.data ?? [], [publishedAgentsQuery.data]);
 
   const groups = useMemo<AgentGroup[]>(
     () => [
@@ -434,21 +317,6 @@ export default function AgentsWorkspace() {
         title: "Needs review",
         description: "Assets whose latest validation run ended in a blocking state and need evidence review before handoff.",
         items: agents.filter((agent) => getAgentReadiness(agent) === "needs_review")
-      },
-      {
-        title: "Published with draft changes",
-        description: "Current repository code differs from the governed published snapshot.",
-        items: agents.filter((agent) => getAgentReadiness(agent) === "published_with_drift")
-      },
-      {
-        title: "Draft",
-        description: "Valid agent definitions that are not yet sealed as governed Atlas snapshots.",
-        items: agents.filter((agent) => getAgentReadiness(agent) === "draft")
-      },
-      {
-        title: "Invalid",
-        description: "Agent definitions that currently fail governance, readiness, or snapshot checks.",
-        items: agents.filter((agent) => getAgentReadiness(agent) === "invalid")
       }
     ],
     [agents]
@@ -456,27 +324,24 @@ export default function AgentsWorkspace() {
 
   const errorMessage =
     (bootstrapMutation.error instanceof Error && bootstrapMutation.error.message) ||
-    (publishMutation.error instanceof Error && publishMutation.error.message) ||
-    (unpublishMutation.error instanceof Error && unpublishMutation.error.message) ||
     (validationMutation.error instanceof Error && validationMutation.error.message) ||
-    (discoveredAgentsQuery.error instanceof Error && discoveredAgentsQuery.error.message) ||
     (publishedAgentsQuery.error instanceof Error && publishedAgentsQuery.error.message) ||
     "";
 
-  const isLoading = discoveredAgentsQuery.isLoading || publishedAgentsQuery.isLoading;
+  const isLoading = publishedAgentsQuery.isLoading;
 
   async function handleBootstrap() {
     try {
       const agent = await bootstrapMutation.mutateAsync();
       setActionMessage(
-        `Created ${agent.name}. Atlas can now validate it, return it to draft, or hand the governed snapshot into experiments from this surface.`
+        `Created ${agent.name}. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface.`
       );
     } catch {
       // Error state is surfaced through the shared notice area.
     }
   }
 
-  async function handleValidation(agent: DiscoveredAgentRecord) {
+  async function handleValidation(agent: AgentRecord) {
     try {
       const run = await validationMutation.mutateAsync({
         agentId: agent.agentId,
@@ -508,7 +373,7 @@ export default function AgentsWorkspace() {
               Ready to run <strong>{groups[0].items.length}</strong>
             </span>
             <span className="page-tag">
-              Needs review <strong>{groups[2].items.length + groups[3].items.length + groups[5].items.length}</strong>
+              Needs review <strong>{groups[2].items.length}</strong>
             </span>
           </div>
         </div>
@@ -516,12 +381,11 @@ export default function AgentsWorkspace() {
           <div className="page-info-item">
             <span className="page-info-label">Publishing status</span>
             <span className="page-info-value">
-              {groups[0].items.length} ready / {groups[1].items.length} validating / {groups[2].items.length} review /{" "}
-              {groups[3].items.length} drifted / {groups[4].items.length} staged / {groups[5].items.length} invalid
+              {groups[0].items.length} ready / {groups[1].items.length} validating / {groups[2].items.length} review
             </span>
             <p className="page-info-detail">
-              Start with governed snapshots, re-publish drifted ones, and use the latest validation summary to decide
-              what to hand off next.
+              Start with governed snapshots, use the latest validation summary to decide what to hand off next, and
+              keep intake narrow rather than teaching repo-local draft management.
             </p>
           </div>
         </div>
@@ -531,9 +395,6 @@ export default function AgentsWorkspace() {
         <MetricCard label="Ready" value={groups[0].items.length} />
         <MetricCard label="Validating" value={groups[1].items.length} />
         <MetricCard label="Needs review" value={groups[2].items.length} />
-        <MetricCard label="Draft changes" value={groups[3].items.length} />
-        <MetricCard label="Draft" value={groups[4].items.length} />
-        <MetricCard label="Invalid" value={groups[5].items.length} />
       </div>
 
       {actionMessage ? <Notice>{actionMessage}</Notice> : null}
@@ -544,20 +405,20 @@ export default function AgentsWorkspace() {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">No agents yet</p>
-              <h3 className="panel-title">Bootstrap the first governed Claude Code asset</h3>
+              <h3 className="panel-title">Create the first governed Claude Code asset</h3>
               <p className="muted-note">
-                Governed snapshots appear here once Atlas creates the first Claude Code starter asset from the existing
-                bootstrap path.
+                Atlas shows governed runnable assets here. The current Claude starter bootstrap remains available as a
+                transitional intake bridge, but it is no longer the product’s main asset-governance story.
               </p>
             </div>
           </div>
           <div className={styles.actions}>
             <Button onClick={() => void handleBootstrap()} disabled={bootstrapMutation.isPending}>
-              {bootstrapMutation.isPending ? "Bootstrapping Claude asset..." : "Bootstrap Claude Code asset"}
+              {bootstrapMutation.isPending ? "Creating Claude asset..." : "Create Claude Code asset"}
             </Button>
             <Notice>
-              This keeps the existing Claude Code bootstrap route, but lands the governed result back on the current
-              Agents surface.
+              This uses the existing bootstrap bridge only to land a governed asset back into Atlas. Draft browsing and
+              repo-local publish flows are no longer part of the shipped operator path.
             </Notice>
           </div>
         </Panel>
@@ -580,11 +441,7 @@ export default function AgentsWorkspace() {
                 <AgentCard
                   key={`${group.title}-${agent.agentId}`}
                   agent={agent}
-                  onPublish={(agentId) => publishMutation.mutate(agentId)}
-                  onUnpublish={(agentId) => unpublishMutation.mutate(agentId)}
                   onValidate={(currentAgent) => void handleValidation(currentAgent)}
-                  isPublishing={publishMutation.isPending}
-                  isUnpublishing={unpublishMutation.isPending}
                   isValidating={validationMutation.isPending}
                 />
               ))}
