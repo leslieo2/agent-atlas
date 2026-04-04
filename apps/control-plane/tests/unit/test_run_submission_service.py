@@ -268,7 +268,7 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
     assert execution_control.submitted[0].executor_config.tracing_backend == "phoenix"
 
 
-def test_run_submission_service_backfills_execution_target_from_workspace_binding() -> None:
+def test_run_submission_service_does_not_infer_execution_target_from_execution_binding() -> None:
     repository = StubRunRepository()
     execution_control = StubExecutionControl()
     service = RunSubmissionService(
@@ -310,14 +310,10 @@ def test_run_submission_service_backfills_execution_target_from_workspace_bindin
 
     run = service.submit(payload, agent)
 
-    assert run.execution_target is not None
-    assert run.execution_target.kind == "workspace_project"
-    assert run.execution_target.display_name == "migration-check"
-    assert run.execution_target.target_ref == "file:///tmp/migration-check.tar.gz"
-    assert run.execution_target.metadata == {"cwd": "/workspace/project/repo"}
+    assert run.execution_target is None
     assert run.provenance is not None
-    assert run.provenance.execution_target == run.execution_target
-    assert execution_control.submitted[0].execution_target == run.execution_target
+    assert run.provenance.execution_target is None
+    assert execution_control.submitted[0].execution_target is None
 
 
 def test_run_submission_service_preserves_explicit_execution_target() -> None:

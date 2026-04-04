@@ -78,43 +78,6 @@ def _resolved_submission_provenance(
     return provenance
 
 
-def _execution_target_from_binding(
-    *,
-    project: str,
-    execution_binding: ExecutionBinding | None,
-) -> ExecutionTarget | None:
-    if execution_binding is None:
-        return None
-    config = execution_binding.config
-    raw_materialization = config.get("project_materialization")
-    raw_cli = config.get("claude_code_cli")
-
-    metadata: dict[str, object] = {}
-    target_ref: str | None = None
-
-    if isinstance(raw_materialization, Mapping):
-        materialization = dict(raw_materialization)
-        raw_artifact_ref = materialization.get("artifact_ref")
-        if isinstance(raw_artifact_ref, str) and raw_artifact_ref.strip():
-            target_ref = raw_artifact_ref
-
-    if isinstance(raw_cli, Mapping):
-        cli_metadata = dict(raw_cli)
-        raw_cwd = cli_metadata.get("cwd")
-        if isinstance(raw_cwd, str) and raw_cwd.strip():
-            metadata["cwd"] = raw_cwd
-
-    if not metadata and target_ref is None:
-        return None
-
-    return ExecutionTarget(
-        kind="workspace_project",
-        display_name=project,
-        target_ref=target_ref,
-        metadata=metadata,
-    )
-
-
 def _resolve_executor_config(
     payload: RunCreateInput,
     *,
@@ -261,10 +224,7 @@ class RunSubmissionService:
         provenance.execution_target = (
             payload.execution_target.model_copy(deep=True)
             if payload.execution_target is not None
-            else _execution_target_from_binding(
-                project=payload.project,
-                execution_binding=execution_binding,
-            )
+            else None
         )
         provenance.approval_policy = (
             payload.approval_policy.model_copy(deep=True) if payload.approval_policy else None
