@@ -16,7 +16,6 @@ from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.models import (
     ExecutionBinding,
-    ExecutionTarget,
     ExecutorConfig,
     ProvenanceMetadata,
 )
