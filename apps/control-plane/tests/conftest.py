@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 import pytest
 from app.bootstrap.container import get_container
 from app.bootstrap.wiring import infrastructure as infrastructure_wiring
-from app.core.config import ExecutionJobBackend, RuntimeMode, settings
+from app.core.config import ExecutionJobBackend, settings
 from app.infrastructure.adapters.execution_jobs import InlineExecutionJobQueue
 from app.infrastructure.repositories import reset_state
 from fastapi.testclient import TestClient
@@ -24,7 +24,6 @@ def _reset_state() -> None:
 def reset_in_memory_state(monkeypatch) -> None:
     state_dir = TemporaryDirectory(prefix="agent-atlas-tests-")
     state_root = Path(state_dir.name)
-    settings.runtime_mode = RuntimeMode.AUTO
     settings.openai_api_key = None
     settings.control_plane_database_url = f"sqlite:///{state_root / 'control-plane-state.db'}"
     settings.data_plane_database_url = f"sqlite:///{state_root / 'data-plane-state.db'}"

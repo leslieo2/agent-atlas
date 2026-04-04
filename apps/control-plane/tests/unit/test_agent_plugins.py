@@ -4,7 +4,6 @@ from types import SimpleNamespace
 
 import pytest
 from agent_atlas_contracts.execution import ExecutionArtifact
-from app.core.config import RuntimeMode, settings
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.execution.adapters import runner_run_spec_from_run_spec
 from app.execution.application.results import (
@@ -455,22 +454,27 @@ def test_framework_plugin_discovery_falls_back_to_builtin_modules(monkeypatch) -
     }
 
 
-def test_framework_plugin_discovery_skips_builtin_modules_in_live_mode(
+def test_framework_plugin_discovery_loads_builtin_modules(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    imported_modules: list[str] = []
     monkeypatch.setattr(
         "app.infrastructure.adapters.framework_registry.entry_points",
         lambda: SimpleNamespace(select=lambda **_kwargs: []),
     )
     monkeypatch.setattr(
         "app.infrastructure.adapters.framework_registry.import_module",
-        lambda module_name: (_ for _ in ()).throw(AssertionError(module_name)),
+        lambda module_name: imported_modules.append(module_name)
+        or (_ for _ in ()).throw(ImportError(module_name)),
     )
 
     discovered = discover_framework_plugins()
 
     assert discovered == {}
+    assert imported_modules == [
+        "app.infrastructure.adapters.openai_agents",
+        "app.infrastructure.adapters.langchain",
+    ]
 
 
 def test_framework_plugin_discovery_skips_broken_entry_point_factories(monkeypatch) -> None:

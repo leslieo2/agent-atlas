@@ -5,7 +5,6 @@ from uuid import uuid4
 
 import app.modules.agents.domain.starter_assets as starter_assets
 from app.bootstrap.container import get_container
-from app.core.config import RuntimeMode, settings
 from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.agents.domain.models import (
     AgentManifest,
@@ -164,7 +163,6 @@ def test_agents_api_live_mode_uses_published_snapshots_without_repo_local_discov
     get_container().infrastructure.published_agent_repository.save_agent(
         build_fixture_published_agent("basic")
     )
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
 
     published_response = client.get("/api/v1/agents/published")
@@ -188,7 +186,6 @@ def test_agents_api_live_mode_uses_published_snapshots_without_repo_local_discov
 def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discovery(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     provision_calls: list[str] = []
     monkeypatch.setattr(
         starter_assets,
@@ -243,7 +240,6 @@ def test_agents_api_live_mode_supports_first_agent_bootstrap_without_repo_discov
 def test_agents_api_live_mode_bootstrap_keeps_starter_reachable_for_publish_and_drift(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     monkeypatch.setattr(starter_assets, "provision_claude_code_starter_carrier", lambda: None)
     get_container.cache_clear()
     from app.main import app
@@ -295,7 +291,6 @@ def test_agents_api_live_mode_bootstrap_keeps_starter_reachable_for_publish_and_
 def test_agents_api_live_mode_validation_runs_accept_state_backed_starter_drafts(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     provision_calls: list[str] = []
     monkeypatch.setattr(
         starter_assets,
@@ -340,7 +335,6 @@ def test_agents_api_live_mode_validation_runs_accept_state_backed_starter_drafts
 def test_agents_api_live_mode_lists_only_formally_governed_published_agents(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
 
     container = get_container()
@@ -370,7 +364,6 @@ def test_agents_api_live_mode_lists_only_formally_governed_published_agents(
 def test_agents_api_live_mode_validation_runs_accept_state_backed_formal_agents(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
 
     container = get_container()
@@ -517,7 +510,6 @@ def test_agents_api_starts_generic_validation_runs_via_agent_entrypoint(client) 
 def test_agents_api_live_mode_rejects_validation_for_corrupt_published_rows(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
     from app.main import app
 

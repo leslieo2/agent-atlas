@@ -4,7 +4,6 @@ import json
 
 import app.modules.agents.domain.starter_assets as starter_assets
 from app.bootstrap.container import get_container
-from app.core.config import RuntimeMode, settings
 from app.modules.agents.domain.starter_assets import claude_code_starter_runtime_profile
 from fastapi.testclient import TestClient
 from tests.support.fake_docker import install_fake_docker_runtime
@@ -46,7 +45,6 @@ def test_live_starter_governed_loop_is_hermetic_and_export_ready(
             return type("Completed", (), {"returncode": 0, "stderr": "", "stdout": ""})()
         raise AssertionError(f"Unexpected provisioning command: {cmd}")
 
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     monkeypatch.setattr(starter_assets.subprocess, "run", fake_docker_run)
     get_container.cache_clear()
     install_fake_docker_runtime(monkeypatch, outputs={"alpha": "alpha"})

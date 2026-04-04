@@ -4,7 +4,6 @@ import json
 
 import pytest
 from app.bootstrap.container import get_container
-from app.core.config import RuntimeMode, settings
 from tests.fixtures.agents import build_fixture_published_agent
 from tests.integration.test_experiments_api import _experiment_payload, _install_runtime
 from tests.support.fake_docker import install_fake_docker_runtime
@@ -427,7 +426,6 @@ def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_wit
     worker_drain,
     wait_until,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
     install_fake_docker_runtime(
         monkeypatch,

@@ -8,7 +8,7 @@ import pytest
 from app.agent_tracing.exporters.otlp import OtlpTraceExporter
 from app.bootstrap.container import get_container
 from app.bootstrap.wiring import infrastructure as infrastructure_wiring
-from app.core.config import RuntimeMode, settings
+from app.core.config import settings
 from app.core.errors import ProviderAuthError
 from app.execution.application.results import (
     PublishedRunExecutionResult,
@@ -342,7 +342,6 @@ def test_experiments_api_live_mode_starts_with_bootstrapped_starter_agent(
     monkeypatch,
     worker_drain,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
 
     from app.main import app
@@ -414,7 +413,6 @@ def test_experiments_api_live_mode_runs_with_state_backed_formal_agent(
     monkeypatch,
     worker_drain,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
 
     container = get_container()
@@ -488,7 +486,6 @@ def test_experiments_api_live_mode_pins_published_snapshot_across_unpublish(
     worker_drain,
     wait_until,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
     install_fake_docker_runtime(
         monkeypatch,
@@ -559,7 +556,6 @@ def test_experiments_api_live_mode_pins_published_snapshot_across_unpublish(
 def test_experiments_api_live_mode_rejects_corrupt_published_rows_for_new_experiments(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
 
     from app.main import app
@@ -624,7 +620,6 @@ def test_experiments_api_live_mode_bootstrapped_starter_uses_default_runtime_pro
     monkeypatch,
     worker_drain,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
     install_fake_docker_runtime(
         monkeypatch,
@@ -706,7 +701,6 @@ def test_experiments_api_live_mode_bootstrapped_starter_uses_default_runtime_pro
 def test_experiments_api_live_mode_rejects_corrupt_published_agent_rows(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
 
     container = get_container()
@@ -773,7 +767,6 @@ def test_experiments_api_live_mode_starter_emits_trace_deeplink_without_explicit
     monkeypatch,
     worker_drain,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     monkeypatch.setattr(settings, "tracing_otlp_endpoint", None)
     monkeypatch.setattr(settings, "phoenix_base_url", "http://phoenix.test:6006")
     get_container.cache_clear()
@@ -858,7 +851,6 @@ def test_experiments_api_live_mode_starter_completes_with_non_null_trace_url_whe
     thread.start()
     port = server.server_address[1]
 
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     monkeypatch.setattr(settings, "phoenix_base_url", f"http://127.0.0.1:{port}")
     monkeypatch.setattr(settings, "tracing_otlp_endpoint", f"http://127.0.0.1:{port}/v1/traces")
     monkeypatch.setattr(settings, "tracing_otlp_timeout_seconds", 1.0)
@@ -933,7 +925,6 @@ def test_experiments_api_run_list_falls_back_to_run_trace_pointer_when_evaluatio
     monkeypatch,
     worker_drain,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
     install_fake_docker_runtime(
         monkeypatch,
@@ -1011,7 +1002,6 @@ def test_experiments_api_run_list_falls_back_to_project_url_when_trace_url_is_mi
     monkeypatch,
     worker_drain,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     get_container.cache_clear()
     install_fake_docker_runtime(
         monkeypatch,

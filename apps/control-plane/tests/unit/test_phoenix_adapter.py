@@ -8,8 +8,7 @@ from app.bootstrap.wiring.infrastructure import (
     _default_phoenix_otlp_endpoint,
     build_infrastructure,
 )
-from app.core.config import RuntimeMode, settings
-from pydantic import SecretStr
+from app.core.config import settings
 
 
 def test_build_phoenix_urls():
@@ -104,12 +103,9 @@ def test_build_infrastructure_derives_otlp_endpoint_from_phoenix_base_url(monkey
     assert infrastructure.tracing.trace_exporter.backend_name_value == "phoenix"
 
 
-def test_build_infrastructure_removes_local_runtime_authority_in_live_mode(monkeypatch):
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
-    monkeypatch.setattr(settings, "openai_api_key", SecretStr("sk-test"))
-
+def test_build_infrastructure_keeps_internal_local_runner_seam(monkeypatch):
     infrastructure = build_infrastructure()
 
     assert infrastructure.execution.default_runner_backend == "k8s-container"
-    assert "local-process" not in infrastructure.execution.runner.runners
-    assert "local-runner" not in infrastructure.execution.execution_control.backends
+    assert "local-process" in infrastructure.execution.runner.runners
+    assert "local-runner" in infrastructure.execution.execution_control.backends

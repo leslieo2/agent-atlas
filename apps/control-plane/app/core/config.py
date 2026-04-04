@@ -6,12 +6,6 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class RuntimeMode(StrEnum):
-    AUTO = "auto"
-    LIVE = "live"
-    MOCK = "mock"
-
-
 class ExecutionJobBackend(StrEnum):
     ARQ = "arq"
     INLINE = "inline"
@@ -27,13 +21,6 @@ class Settings(BaseSettings):
     app_name: str = "Agent Atlas API"
     api_prefix: str = "/api/v1"
     allowed_origins: list[str] = Field(default_factory=lambda: ["*"])
-    runtime_mode: RuntimeMode = Field(
-        default=RuntimeMode.AUTO,
-        description=(
-            "Execution mode: auto|live|mock. "
-            "auto keeps Atlas on mock defaults until live mode is explicitly selected."
-        ),
-    )
     openai_api_key: SecretStr | None = Field(
         default=None,
         repr=False,
@@ -112,13 +99,6 @@ class Settings(BaseSettings):
         repr=False,
         description="Optional Phoenix API key used for OTLP export and deeplink resolution.",
     )
-
-    def effective_runtime_mode(self) -> RuntimeMode:
-        if self.runtime_mode == RuntimeMode.MOCK:
-            return RuntimeMode.MOCK
-        if self.runtime_mode == RuntimeMode.LIVE:
-            return RuntimeMode.LIVE
-        return RuntimeMode.MOCK
 
 
 settings = Settings()

@@ -176,7 +176,7 @@ class AgentPublicationCommands:
     def publish(self, agent_id: str) -> PublishedAgent:
         if self.discovery is None:
             raise UnsupportedOperationError(
-                "repo-local agent discovery is not available in live mode",
+                "repo-local agent discovery is not available in this deployment",
                 agent_id=agent_id,
             )
         discovered = self._get_discovered_agent(agent_id)
@@ -200,7 +200,7 @@ class AgentPublicationCommands:
     def _get_discovered_agent(self, agent_id: str) -> DiscoveredAgent:
         if self.discovery is None:
             raise UnsupportedOperationError(
-                "repo-local agent discovery is not available in live mode",
+                "repo-local agent discovery is not available in this deployment",
                 agent_id=agent_id,
             )
         for agent in self.discovery.list_agents():

@@ -5,7 +5,6 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 from agent_atlas_contracts.execution import ExecutionArtifact, RunnerRunSpec
-from app.core.config import RuntimeMode, settings
 from app.core.errors import (
     AgentFrameworkMismatchError,
     ModelNotFoundError,
@@ -109,7 +108,6 @@ def test_model_runtime_service_uses_openai_agents_sdk_runner(monkeypatch: pytest
 
     service = ModelRuntimeService()
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = RuntimeMode.LIVE
 
     result = service.execute(
         AdapterKind.OPENAI_AGENTS,
@@ -141,7 +139,6 @@ def test_model_runtime_service_raises_clear_error_when_agents_sdk_missing():
     sys.modules["agents"] = None
     service = ModelRuntimeService()
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = RuntimeMode.LIVE
 
     try:
         with pytest.raises(
@@ -181,7 +178,6 @@ def test_model_runtime_service_dispatches_through_runtime_adapters():
     adapter = StubAdapter()
     service = ModelRuntimeService(adapters={AdapterKind.LANGCHAIN: adapter})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = RuntimeMode.LIVE
 
     result = service.execute(
         AdapterKind.LANGCHAIN,
@@ -194,22 +190,26 @@ def test_model_runtime_service_dispatches_through_runtime_adapters():
     assert result.output == "stub:Check the account state."
 
 
-def test_model_runtime_service_skips_builtin_runtime_plugins_in_live_mode(
+def test_model_runtime_service_loads_builtin_runtime_plugins(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
+    imported_modules: list[str] = []
     monkeypatch.setattr(
         "app.infrastructure.adapters.runtime.entry_points",
         lambda: SimpleNamespace(select=lambda **_kwargs: []),
     )
     monkeypatch.setattr(
         "app.infrastructure.adapters.runtime._import_runtime_plugin_module",
-        lambda module_name: (_ for _ in ()).throw(AssertionError(module_name)),
+        lambda module_name: imported_modules.append(module_name) or None,
     )
 
     service = ModelRuntimeService()
 
     assert service.adapters == {}
+    assert imported_modules == [
+        "agent_atlas_runner_openai_agents.runtime_plugins",
+        "agent_atlas_runner_langgraph.runtime_plugins",
+    ]
 
 
 def test_model_runtime_service_normalizes_invalid_model_errors():
@@ -240,7 +240,6 @@ def test_model_runtime_service_normalizes_invalid_model_errors():
 
     service = ModelRuntimeService(adapters={AdapterKind.OPENAI_AGENTS: ExplodingAdapter()})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = RuntimeMode.LIVE
 
     with pytest.raises(ModelNotFoundError) as exc_info:
         service.execute(
@@ -281,7 +280,6 @@ def test_model_runtime_service_normalizes_invalid_model_errors_from_param_only_s
 
     service = ModelRuntimeService(adapters={AdapterKind.OPENAI_AGENTS: ExplodingAdapter()})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = RuntimeMode.LIVE
 
     with pytest.raises(ModelNotFoundError):
         service.execute(
@@ -321,7 +319,6 @@ def test_model_runtime_service_normalizes_runtime_provider_errors(
 
     service = ModelRuntimeService(adapters={AdapterKind.OPENAI_AGENTS: ExplodingAdapter()})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = RuntimeMode.LIVE
 
     with pytest.raises(expected_error):
         service.execute(
@@ -334,7 +331,6 @@ def test_model_runtime_service_normalizes_runtime_provider_errors(
 def test_model_runtime_service_raises_structured_error_for_unsupported_adapter():
     service = ModelRuntimeService(adapters={})
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = RuntimeMode.LIVE
 
     with pytest.raises(UnsupportedAdapterError) as exc_info:
         service.execute(
@@ -350,10 +346,9 @@ def test_model_runtime_service_raises_structured_error_for_unsupported_adapter()
     }
 
 
-def test_model_runtime_service_auto_mode_without_key_uses_mock():
-    service = ModelRuntimeService(adapters={})
+def test_model_runtime_service_can_simulate_output_for_tests_without_api_key():
+    service = ModelRuntimeService(adapters={}, simulate_outputs=True)
     service.api_key = None
-    service.runtime_mode = RuntimeMode.AUTO
 
     result = service.execute(
         AdapterKind.OPENAI_AGENTS,
@@ -365,10 +360,9 @@ def test_model_runtime_service_auto_mode_without_key_uses_mock():
     assert "Simulated openai-agents-sdk execution" in result.output
 
 
-def test_model_runtime_service_auto_mode_with_key_still_uses_mock():
-    service = ModelRuntimeService(adapters={})
+def test_model_runtime_service_can_simulate_output_for_tests_with_api_key():
+    service = ModelRuntimeService(adapters={}, simulate_outputs=True)
     service.api_key = SecretStr("sk-test")
-    service.runtime_mode = RuntimeMode.AUTO
 
     result = service.execute(
         AdapterKind.OPENAI_AGENTS,
@@ -380,7 +374,7 @@ def test_model_runtime_service_auto_mode_with_key_still_uses_mock():
     assert "Simulated openai-agents-sdk execution" in result.output
 
 
-def test_model_runtime_service_live_mode_without_platform_key_defers_to_provider_adapter():
+def test_model_runtime_service_without_platform_key_defers_to_provider_adapter():
     class StubAdapter:
         def __init__(self) -> None:
             self.api_keys: list[SecretStr | None] = []
@@ -404,7 +398,6 @@ def test_model_runtime_service_live_mode_without_platform_key_defers_to_provider
     adapter = StubAdapter()
     service = ModelRuntimeService(adapters={AdapterKind.LANGCHAIN: adapter})
     service.api_key = None
-    service.runtime_mode = RuntimeMode.LIVE
 
     result = service.execute(
         AdapterKind.LANGCHAIN,
@@ -468,7 +461,6 @@ def test_model_runtime_service_dispatches_published_runs_through_execution_dispa
     )
     service = ModelRuntimeService(adapters={}, published_execution_dispatcher=dispatcher)
     service.api_key = None
-    service.runtime_mode = RuntimeMode.LIVE
     published_agent = PublishedAgent(
         manifest=AgentManifest(
             agent_id="graph-bot",
@@ -625,8 +617,11 @@ def test_model_runtime_service_mock_mode_uses_snapshot_framework_for_published_r
             )
         }
     )
-    service = ModelRuntimeService(adapters={}, published_execution_dispatcher=dispatcher)
-    service.runtime_mode = RuntimeMode.MOCK
+    service = ModelRuntimeService(
+        adapters={},
+        published_execution_dispatcher=dispatcher,
+        simulate_outputs=True,
+    )
     published_agent = PublishedAgent(
         manifest=AgentManifest(
             agent_id="graph-bot",

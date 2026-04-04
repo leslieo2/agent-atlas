@@ -10,6 +10,7 @@ from app.execution.adapters import (
     PublishedArtifactResolver,
     runner_run_spec_from_run_spec,
 )
+from app.execution.application.results import PublishedRunExecutionResult, RuntimeExecutionResult
 from app.execution.contracts import ExecutionRunSpec
 from app.modules.agents.domain.models import AgentManifest, ExecutionReference, PublishedAgent
 from app.modules.shared.domain.enums import AdapterKind
@@ -212,9 +213,22 @@ def test_runner_run_spec_rejects_missing_artifact_metadata() -> None:
 
 
 def test_local_process_runner_stamps_runner_backend(monkeypatch) -> None:
-    monkeypatch.setenv("AGENT_ATLAS_RUNTIME_MODE", "mock")
     monkeypatch.delenv("AGENT_ATLAS_OPENAI_API_KEY", raising=False)
     run_id = uuid4()
+
+    class StubPublishedRuntime:
+        def execute_published(self, run_id_value, payload_value) -> PublishedRunExecutionResult:
+            del run_id_value, payload_value
+            return PublishedRunExecutionResult(
+                runtime_result=RuntimeExecutionResult(
+                    output="stubbed local-process output",
+                    latency_ms=5,
+                    token_usage=1,
+                    provider="stub-runtime",
+                    resolved_model="gpt-5.4-mini",
+                )
+            )
+
     payload = RunnerRunSpec(
         run_id=run_id,
         runner_backend="local-process",
@@ -248,14 +262,15 @@ def test_local_process_runner_stamps_runner_backend(monkeypatch) -> None:
             },
             "default_runtime_profile": {"backend": "k8s-job"},
         },
+        executor_config={
+            "backend": "local-runner",
+            "metadata": {"runner_mode": "in-process"},
+        },
     )
 
-    result = LocalProcessRunner().execute(payload)
+    result = LocalProcessRunner(published_runtime=StubPublishedRuntime()).execute(payload)
 
     assert result.runner_backend == "local-process"
     assert result.artifact_ref == "source://basic@fingerprint-123"
     assert result.execution.runtime_result.output
-    assert result.execution.runtime_result.provider in {"mock", "openai-agents-sdk"}
-    assert result.execution.terminal_result is not None
-    assert result.execution.terminal_result.attempt == 3
-    assert result.execution.terminal_result.attempt_id == payload.attempt_id
+    assert result.execution.runtime_result.provider == "stub-runtime"

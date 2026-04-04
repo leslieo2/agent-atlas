@@ -9,7 +9,7 @@ from app.agent_tracing.backends import (
     StateTraceBackend,
 )
 from app.agent_tracing.exporters import NoopTraceExporter, OtlpTraceExporter
-from app.core.config import RuntimeMode, settings
+from app.core.config import settings
 from app.data_plane.adapters import TraceEventTrajectoryProjector
 from app.execution.adapters import (
     DockerContainerRunner,
@@ -151,7 +151,6 @@ def build_infrastructure() -> InfrastructureBundle:
             redis_settings=RedisSettings.from_dsn(settings.execution_job_queue_url),
             queue_name=settings.execution_job_queue_name,
         )
-    effective_runtime_mode = settings.effective_runtime_mode()
     published_agent_catalog: PublishedAgentCatalogPort = StatePublishedAgentCatalog(
         published_agents=published_agent_repository,
     )
@@ -187,17 +186,15 @@ def build_infrastructure() -> InfrastructureBundle:
         ),
     }
     default_runner_backend = k8s_runner.backend_name()
-    if effective_runtime_mode != RuntimeMode.LIVE:
-        local_process_runner = LocalProcessRunner(
-            published_runtime=model_runtime,
-            launcher=LocalLauncher(),
-        )
-        runners[local_process_runner.backend_name()] = local_process_runner
-        execution_backends["local-runner"] = LocalRunnerExecutionAdapter(
-            job_queue=job_queue,
-            run_repository=run_repository,
-        )
-        default_runner_backend = local_process_runner.backend_name()
+    local_process_runner = LocalProcessRunner(
+        published_runtime=model_runtime,
+        launcher=LocalLauncher(),
+    )
+    runners[local_process_runner.backend_name()] = local_process_runner
+    execution_backends["local-runner"] = LocalRunnerExecutionAdapter(
+        job_queue=job_queue,
+        run_repository=run_repository,
+    )
     runner = RunnerRegistry(runners=runners)
     execution_control = ExecutionControlRegistry(backends=execution_backends)
     trace_backend: TraceBackendPort

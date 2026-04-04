@@ -3,7 +3,6 @@ from __future__ import annotations
 import subprocess  # nosec - docker CLI invocation is an explicit starter bootstrap dependency
 from pathlib import Path
 
-from app.core.config import RuntimeMode, settings
 from app.core.errors import AgentBootstrapFailedError
 from app.modules.agents.domain.constants import (
     CLAUDE_CODE_CLI_FRAMEWORK,
@@ -106,8 +105,6 @@ def claude_code_starter_runtime_profile() -> ExecutorConfig:
 
 
 def ensure_claude_code_starter_runtime_ready() -> None:
-    if settings.effective_runtime_mode() != RuntimeMode.LIVE:
-        return
     runtime_profile = claude_code_starter_runtime_profile()
     runner_backend = str(runtime_profile.metadata.get("runner_backend", "")).strip().lower()
     if runner_backend != "docker-container":

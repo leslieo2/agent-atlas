@@ -68,6 +68,10 @@ Important setting:
 If the backend is not running at `http://127.0.0.1:8000`, update `NEXT_PUBLIC_API_BASE_URL` before
 starting the dev server.
 
+The frontend has no `runtime_mode` switch. Runtime execution behavior is configured on the backend
+through canonical control-plane settings, primarily `AGENT_ATLAS_EXECUTION_JOB_BACKEND` plus
+explicit run execution configuration.
+
 ## Implemented Workspaces
 
 - Agents: review agent definitions, seal Atlas snapshots, and inspect provenance plus execution references

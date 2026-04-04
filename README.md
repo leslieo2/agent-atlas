@@ -301,20 +301,27 @@ Key settings currently wired in the backend:
 - `AGENT_ATLAS_API_PREFIX`: API route prefix
 - `AGENT_ATLAS_APP_NAME`: application name shown in docs and metadata
 - `AGENT_ATLAS_ALLOWED_ORIGINS`: allowed browser origins for local frontend access
-- `AGENT_ATLAS_RUNTIME_MODE`: provider execution behavior (`auto`, `live`, `mock`)
 - `AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL`: control-plane state database location
 - `AGENT_ATLAS_DATA_PLANE_DATABASE_URL`: data-plane state database location
 - `AGENT_ATLAS_OPENAI_API_KEY`: OpenAI credentials for OpenAI-backed run paths when selected
+- `AGENT_ATLAS_EXECUTION_JOB_BACKEND`: background execution backend (`arq` in product code, `inline` only for tests)
+- `AGENT_ATLAS_EXECUTION_JOB_QUEUE_URL`: Redis DSN used by the Arq execution queue
+- `AGENT_ATLAS_EXECUTION_JOB_QUEUE_NAME`: Arq queue name used for execution jobs
 
 Planned infrastructure settings such as runner backend selection should not be treated as shipped
 until they are backed by code and documented in subsystem docs.
 
-Phoenix-backed tracing is now required behind backend-owned settings:
+Tracing and deep-link settings:
 
+- `AGENT_ATLAS_TRACING_OTLP_ENDPOINT`
+- `AGENT_ATLAS_TRACING_PROJECT_NAME`
+- `AGENT_ATLAS_TRACING_HEADERS` (optional JSON map)
 - `AGENT_ATLAS_PHOENIX_BASE_URL`
-- `AGENT_ATLAS_PHOENIX_OTLP_ENDPOINT`
-- `AGENT_ATLAS_PHOENIX_PROJECT_NAME`
 - `AGENT_ATLAS_PHOENIX_API_KEY` (optional)
+
+Legacy runtime-mode names are not supported and should not appear in code or docs:
+`AGENT_ATLAS_RUNTIME_MODE`, `RuntimeMode`, `effective_runtime_mode`, `settings.runtime_mode`,
+`runtime_mode`, and `AGENT_ATLAS_RUNNER_MODE`.
 
 ### Frontend
 

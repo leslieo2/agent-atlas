@@ -155,7 +155,6 @@ Important settings currently wired in code:
 - `AGENT_ATLAS_API_PREFIX`: API route prefix
 - `AGENT_ATLAS_APP_NAME`: name shown in docs and metadata
 - `AGENT_ATLAS_ALLOWED_ORIGINS`: allowed browser origins for frontend access
-- `AGENT_ATLAS_RUNTIME_MODE`: provider execution behavior (`auto`, `live`, `mock`)
 - `AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL`: control-plane state database location
 - `AGENT_ATLAS_DATA_PLANE_DATABASE_URL`: data-plane state database location
 - `AGENT_ATLAS_OPENAI_API_KEY`: credentials for OpenAI-backed run paths when those paths are selected
@@ -175,13 +174,14 @@ Tracing settings:
 - `AGENT_ATLAS_PHOENIX_API_KEY`: optional Phoenix API key used for OTLP export and deeplink
   resolution
 
-Runtime mode notes:
+Runtime notes:
 
-- `AGENT_ATLAS_RUNTIME_MODE=mock`: always simulate execution
-- `AGENT_ATLAS_RUNTIME_MODE=auto`: keep Atlas on mock defaults until live mode is explicitly
-  selected
-- `AGENT_ATLAS_RUNTIME_MODE=live`: enable live control-plane behavior; provider credentials are
-  enforced by the selected provider or runner path rather than as a platform-global OpenAI gate
+- Atlas no longer exposes a platform-global runtime-mode switch.
+- Real execution is selected through explicit provider, runner, and executor configuration.
+- Simulated execution remains a test-owned internal seam rather than a documented product mode.
+- Legacy mode symbols are intentionally unsupported and should not be reintroduced:
+  `AGENT_ATLAS_RUNTIME_MODE`, `RuntimeMode`, `effective_runtime_mode`, `settings.runtime_mode`,
+  `runtime_mode`, and `AGENT_ATLAS_RUNNER_MODE`.
 
 ## Developer Commands
 

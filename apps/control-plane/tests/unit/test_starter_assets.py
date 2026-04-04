@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from app.core.config import RuntimeMode, settings
 from app.core.errors import AgentBootstrapFailedError
 from app.modules.agents.domain.starter_assets import (
     CLAUDE_CODE_STARTER_RUNNER_IMAGE,
@@ -86,7 +85,7 @@ def test_provision_claude_code_starter_carrier_raises_when_build_fails(
         provision_claude_code_starter_carrier(repo_root=tmp_path)
 
 
-def test_ensure_claude_code_starter_runtime_ready_only_provisions_in_live_mode(
+def test_ensure_claude_code_starter_runtime_ready_provisions_for_docker_carrier(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[str] = []
@@ -95,10 +94,5 @@ def test_ensure_claude_code_starter_runtime_ready_only_provisions_in_live_mode(
         lambda: calls.append("called"),
     )
 
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.MOCK)
-    ensure_claude_code_starter_runtime_ready()
-    assert calls == []
-
-    monkeypatch.setattr(settings, "runtime_mode", RuntimeMode.LIVE)
     ensure_claude_code_starter_runtime_ready()
     assert calls == ["called"]

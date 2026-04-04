@@ -8,7 +8,7 @@ from typing import Any, Protocol, cast
 from agent_atlas_contracts.execution import RunnerRunSpec
 from pydantic import SecretStr
 
-from app.core.config import RuntimeMode, settings
+from app.core.config import settings
 from app.core.errors import (
     ModelNotFoundError,
     ProviderAuthError,
@@ -218,23 +218,17 @@ class ModelRuntimeService:
         adapters: Mapping[AdapterKind, RuntimeAdapter] | None = None,
         published_adapter: PublishedAgentRuntimeAdapter | None = None,
         published_execution_dispatcher: PublishedAgentExecutionPort | None = None,
+        *,
+        simulate_outputs: bool = False,
     ) -> None:
         self.api_key = settings.openai_api_key
-        self.runtime_mode = settings.runtime_mode
         self.adapters = dict(adapters or self._default_adapters())
         self.published_adapter = published_adapter
         self.published_execution_dispatcher = published_execution_dispatcher
-
-    def _effective_runtime_mode(self) -> RuntimeMode:
-        if self.runtime_mode == RuntimeMode.MOCK:
-            return RuntimeMode.MOCK
-        if self.runtime_mode == RuntimeMode.LIVE:
-            return RuntimeMode.LIVE
-        return RuntimeMode.MOCK
+        self.simulate_outputs = simulate_outputs
 
     def execute(self, agent_type: AdapterKind, model: str, prompt: str) -> RuntimeExecutionResult:
-        effective_mode = self._effective_runtime_mode()
-        if effective_mode == RuntimeMode.MOCK:
+        if self.simulate_outputs:
             return self._simulate_output(agent_type, model, prompt)
 
         try:
@@ -259,8 +253,7 @@ class ModelRuntimeService:
             )
             resolved_agent_type = adapter_kind_for_agent_family(published_agent.agent_family)
 
-        effective_mode = self._effective_runtime_mode()
-        if effective_mode == RuntimeMode.MOCK:
+        if self.simulate_outputs:
             fallback = self._simulate_output(resolved_agent_type, payload.model, payload.prompt)
             return PublishedRunExecutionResult(
                 runtime_result=fallback.model_copy(update={"resolved_model": payload.model})
@@ -302,9 +295,6 @@ class ModelRuntimeService:
             if builder is None:
                 continue
             _register_runtime_adapter(adapters, builder)
-
-        if settings.effective_runtime_mode() == RuntimeMode.LIVE:
-            return adapters
 
         for module_name in BUILTIN_RUNTIME_PLUGIN_MODULES:
             module = _import_runtime_plugin_module(module_name)
