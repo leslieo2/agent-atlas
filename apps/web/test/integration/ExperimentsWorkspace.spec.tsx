@@ -68,6 +68,17 @@ describe("Experiments workspace", () => {
         publishedAt: "2026-03-20T09:00:00Z",
         sourceFingerprint: "basic-fingerprint-123456",
         executionReference: { artifactRef: "source://basic@basic-fingerprint-123456" },
+        latestValidation: {
+          runId: "run-basic-validation",
+          status: "succeeded",
+          createdAt: "2026-03-20T09:05:00Z",
+          startedAt: "2026-03-20T09:06:00Z",
+          completedAt: "2026-03-20T09:07:00Z"
+        },
+        validationOutcome: {
+          status: "succeeded",
+          reason: "Validation passed."
+        },
         executionProfile: {
           backend: "external-runner",
           metadata: {
@@ -76,6 +87,21 @@ describe("Experiments workspace", () => {
             }
           }
         }
+      },
+      {
+        agentId: "unvalidated_basic",
+        name: "Unvalidated Basic",
+        description: "Published snapshot that has not completed validation yet.",
+        framework: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
+        entrypoint: "snapshots/unvalidated-basic:run",
+        defaultModel: "gpt-5.4-mini",
+        tags: ["staged"],
+        capabilities: ["submit"],
+        publishedAt: "2026-03-24T00:00:00Z",
+        sourceFingerprint: "unvalidated-fingerprint-123456",
+        executionReference: { artifactRef: "source://unvalidated_basic@unvalidated-fingerprint-123456" },
+        executionProfile: { backend: "k8s-job" }
       },
       {
         agentId: "archived_basic",
@@ -90,6 +116,17 @@ describe("Experiments workspace", () => {
         publishedAt: "2026-03-24T00:00:00Z",
         sourceFingerprint: "archived-fingerprint-123456",
         executionReference: { artifactRef: "source://archived_basic@archived-fingerprint-123456" },
+        latestValidation: {
+          runId: "run-archived-basic",
+          status: "succeeded",
+          createdAt: "2026-03-24T00:05:00Z",
+          startedAt: "2026-03-24T00:06:00Z",
+          completedAt: "2026-03-24T00:07:00Z"
+        },
+        validationOutcome: {
+          status: "succeeded",
+          reason: "Validation passed."
+        },
         executionProfile: { backend: "k8s-job" }
       },
       {
@@ -412,6 +449,7 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
     expect(screen.getByRole("combobox", { name: "Published agent" })).toHaveValue("basic");
     expect(screen.getByRole("option", { name: "Archived Basic" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Unvalidated Basic" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Validating Agent" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Failed Live" })).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: "crm-v2 · Version 2026-03" })).toBeInTheDocument();

@@ -114,6 +114,23 @@ describe("Agents workspace", () => {
           reason: "Validation failed."
         },
         executionProfile: { backend: "k8s-job" }
+      },
+      {
+        agentId: "fresh_import",
+        name: "Fresh Import",
+        description: "Published asset that has not completed validation yet.",
+        framework: "openai-agents-sdk",
+        frameworkVersion: "0.1.0",
+        entrypoint: "snapshots/fresh-import:run",
+        defaultModel: "gpt-5.4-mini",
+        tags: ["new"],
+        capabilities: ["submit"],
+        publishedAt: "2026-03-25T00:00:00Z",
+        sourceFingerprint: "fresh-import-fingerprint-123456",
+        executionReference: {
+          artifactRef: "source://fresh_import@fresh-import-fingerprint-123456"
+        },
+        executionProfile: { backend: "external-runner" }
       }
     ];
 
@@ -143,7 +160,8 @@ describe("Agents workspace", () => {
     expect(await screen.findByText("Ready governed snapshot.")).toBeInTheDocument();
     expect(screen.getByText("Published asset with an active validation run.")).toBeInTheDocument();
     expect(screen.getByText("Published asset whose latest validation failed.")).toBeInTheDocument();
-    expect(screen.getByText("external-runner")).toBeInTheDocument();
+    expect(screen.getByText("Published asset that has not completed validation yet.")).toBeInTheDocument();
+    expect(screen.getAllByText("external-runner").length).toBeGreaterThan(0);
     expect(screen.getByText("source://basic@basic-fingerprint-123456")).toBeInTheDocument();
     expect(screen.getByText("run-validation-001")).toBeInTheDocument();
     expect(screen.getByText("bundle://basic-validation-001")).toBeInTheDocument();
@@ -160,6 +178,10 @@ describe("Agents workspace", () => {
       )
     ).toBeInTheDocument();
     expect(
+      screen.getByText("Run validation on this published asset before Atlas treats it as an experiment-ready snapshot.")
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Run validation" })[0]).toBeEnabled();
+    expect(
       screen.getAllByRole("link", { name: /Create experiment/i }).map((link) => link.getAttribute("href"))
     ).toEqual(expect.arrayContaining(["/experiments?agent=basic"]));
     expect(
@@ -168,6 +190,11 @@ describe("Agents workspace", () => {
     expect(
       screen.getAllByRole("link", { name: /Create experiment/i }).map((link) => link.getAttribute("href"))
     ).not.toEqual(expect.arrayContaining(["/experiments?agent=failed_live"]));
+    expect(
+      screen.getAllByRole("link", { name: /Create experiment/i }).map((link) => link.getAttribute("href"))
+    ).not.toEqual(expect.arrayContaining(["/experiments?agent=fresh_import"]));
+    expect(screen.getAllByRole("button", { name: "Run validation" })[1]).toBeDisabled();
+    expect(screen.getAllByText("Needs validation").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Run validation" })[0]);
     await waitFor(() =>

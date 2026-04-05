@@ -32,7 +32,7 @@ type AgentGroup = {
   items: AgentRecord[];
 };
 
-type AgentReadiness = "ready" | "validating" | "needs_review";
+type AgentReadiness = "ready" | "validating" | "needs_validation" | "needs_review";
 
 type EntryFocus = {
   agentId: string;
@@ -54,15 +54,21 @@ function getAgentReadiness(agent: AgentRecord): AgentReadiness {
   if (validationLifecycle.isActive) {
     return "validating";
   }
+  if (validationLifecycle.isSuccessful) {
+    return "ready";
+  }
   if (validationLifecycle.isBlocking) {
     return "needs_review";
   }
-  return "ready";
+  return "needs_validation";
 }
 
 function readinessLabel(state: AgentReadiness) {
   if (state === "validating") {
     return "Validating";
+  }
+  if (state === "needs_validation") {
+    return "Needs validation";
   }
   if (state === "needs_review") {
     return "Needs review";
@@ -134,20 +140,16 @@ function validationEvidenceLabel(validationEvidence?: AgentValidationEvidenceSum
   return "-";
 }
 
-function hasBlockingValidationOutcome(agent: AgentRecord) {
-  return getAgentValidationLifecycle(agent).isBlocking;
-}
-
 function nextStepLabel(agent: AgentRecord) {
   const readiness = getAgentReadiness(agent);
   if (readiness === "validating") {
     return "Atlas is still running the latest validation. Wait for the active run to finish before handing this snapshot into experiments.";
   }
+  if (readiness === "needs_validation") {
+    return "Run validation on this published asset before Atlas treats it as an experiment-ready snapshot.";
+  }
   if (readiness === "needs_review") {
     return "Review the latest validation run and evidence before handing this snapshot into a new experiment.";
-  }
-  if (hasBlockingValidationOutcome(agent)) {
-    return "Review the latest validation evidence before handing this snapshot into a new experiment.";
   }
   return "Hand this ready snapshot into the next experiment.";
 }
@@ -159,6 +161,9 @@ function entryFocusSummary(agent?: AgentRecord | null) {
   const readiness = getAgentReadiness(agent);
   if (readiness === "validating") {
     return `${agent.name} has an active validation run. Wait for the latest run to resolve before using this snapshot in experiments.`;
+  }
+  if (readiness === "needs_validation") {
+    return `${agent.name} still needs a successful validation run before Atlas exposes it as an experiment-ready snapshot.`;
   }
   if (readiness === "needs_review") {
     return `${agent.name} needs validation review. Resolve the latest outcome before using this snapshot in experiments.`;
@@ -192,7 +197,7 @@ function AgentCard({
 }) {
   const validationLifecycle = getAgentValidationLifecycle(agent);
   const readiness = getAgentReadiness(agent);
-  const isRunnableSnapshot = readiness === "ready" && !validationLifecycle.isBlocking && !validationLifecycle.isActive;
+  const isRunnableSnapshot = validationLifecycle.isSuccessful;
 
   return (
     <article className={styles.card}>
@@ -303,7 +308,7 @@ function AgentCard({
       </div>
 
       <div className={styles.actions}>
-        <Button variant="secondary" onClick={() => onValidate(agent)} disabled={isValidating}>
+        <Button variant="secondary" onClick={() => onValidate(agent)} disabled={isValidating || validationLifecycle.isActive}>
           Run validation
         </Button>
         {isRunnableSnapshot ? (
@@ -351,6 +356,11 @@ export default function AgentsWorkspace() {
         items: agents.filter((agent) => getAgentReadiness(agent) === "validating")
       },
       {
+        title: "Needs validation",
+        description: "Published assets that still need one successful validation run before Atlas exposes them to experiments.",
+        items: agents.filter((agent) => getAgentReadiness(agent) === "needs_validation")
+      },
+      {
         title: "Needs review",
         description: "Assets whose latest validation run ended in a blocking state and need evidence review before handoff.",
         items: agents.filter((agent) => getAgentReadiness(agent) === "needs_review")
@@ -367,7 +377,7 @@ export default function AgentsWorkspace() {
     "";
 
   const isLoading = publishedAgentsQuery.isLoading;
-  const validationBacklog = groups[1].items.length + groups[2].items.length;
+  const validationBacklog = groups[1].items.length + groups[2].items.length + groups[3].items.length;
 
   async function handleBootstrap() {
     try {
@@ -438,7 +448,10 @@ export default function AgentsWorkspace() {
               Ready to run <strong>{groups[0].items.length}</strong>
             </span>
             <span className="page-tag">
-              Needs review <strong>{groups[2].items.length}</strong>
+              Needs validation <strong>{groups[2].items.length}</strong>
+            </span>
+            <span className="page-tag">
+              Needs review <strong>{groups[3].items.length}</strong>
             </span>
           </div>
         </div>
@@ -446,7 +459,7 @@ export default function AgentsWorkspace() {
           <div className="page-info-item">
             <span className="page-info-label">Publishing status</span>
             <span className="page-info-value">
-              {groups[0].items.length} ready / {groups[1].items.length} validating / {groups[2].items.length} review
+              {groups[0].items.length} ready / {groups[1].items.length} validating / {groups[2].items.length} needs validation / {groups[3].items.length} review
             </span>
             <p className="page-info-detail">
               Start with governed snapshots, use the latest validation summary to decide what to hand off next, and
@@ -459,7 +472,8 @@ export default function AgentsWorkspace() {
       <div className="summary-strip">
         <MetricCard label="Ready" value={groups[0].items.length} />
         <MetricCard label="Validating" value={groups[1].items.length} />
-        <MetricCard label="Needs review" value={groups[2].items.length} />
+        <MetricCard label="Needs validation" value={groups[2].items.length} />
+        <MetricCard label="Needs review" value={groups[3].items.length} />
       </div>
 
       <Panel tone="strong" className={styles.entryPanel}>

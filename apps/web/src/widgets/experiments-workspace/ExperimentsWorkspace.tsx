@@ -44,7 +44,7 @@ type ExperimentAgentOption = Pick<AgentRecord, "agentId" | "name" | "executionPr
 
 function canSelectPublishedAgentForExperiment(agent: AgentRecord) {
   const validationLifecycle = getAgentValidationLifecycle(agent);
-  return !validationLifecycle.isActive && !validationLifecycle.isBlocking;
+  return validationLifecycle.isSuccessful;
 }
 
 function parseTags(value: string) {
