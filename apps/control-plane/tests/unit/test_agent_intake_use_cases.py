@@ -16,6 +16,8 @@ from app.modules.agents.domain.reference_assets import (
     CLAUDE_CODE_STARTER_ENTRYPOINT,
     claude_code_starter_execution_binding,
     claude_code_starter_manifest,
+    claude_code_starter_runtime_profile,
+    ensure_claude_code_starter_runtime_ready,
 )
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.models import build_source_execution_reference
@@ -120,13 +122,20 @@ def test_agent_validation_commands_prepares_runtime_from_persisted_execution_bin
     assert recorded_bindings == [agent.execution_binding]
 
 
-def test_governed_agent_intake_for_reference_asset_uses_reference_contract() -> None:
-    intake = GovernedAgentIntake.for_reference_asset("claude-code-starter")
+def test_governed_agent_intake_can_use_starter_bridge_defaults() -> None:
+    intake = GovernedAgentIntake(
+        manifest=claude_code_starter_manifest(),
+        entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
+        default_runtime_profile=claude_code_starter_runtime_profile(),
+        execution_binding=claude_code_starter_execution_binding(),
+        prepare_runtime=ensure_claude_code_starter_runtime_ready,
+    )
 
     assert intake.manifest.agent_id == "claude-code-starter"
     assert intake.entrypoint == CLAUDE_CODE_STARTER_ENTRYPOINT
+    assert intake.default_runtime_profile == claude_code_starter_runtime_profile()
     assert intake.execution_binding == claude_code_starter_execution_binding()
-    assert intake.prepare_runtime is not None
+    assert intake.prepare_runtime is ensure_claude_code_starter_runtime_ready
 
 
 def test_agent_intake_commands_publish_governed_intake_runs_generic_hooks(

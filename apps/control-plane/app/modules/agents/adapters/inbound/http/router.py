@@ -19,7 +19,13 @@ from app.modules.agents.application.use_cases import (
     GovernedAgentIntake,
     PublishedAgentCatalogQueries,
 )
-from app.modules.agents.domain.reference_assets import CLAUDE_CODE_STARTER_AGENT_ID
+from app.modules.agents.domain.reference_assets import (
+    CLAUDE_CODE_STARTER_ENTRYPOINT,
+    claude_code_starter_execution_binding,
+    claude_code_starter_manifest,
+    claude_code_starter_runtime_profile,
+    ensure_claude_code_starter_runtime_ready,
+)
 from app.modules.runs.adapters.inbound.http.schemas import RunResponse
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from fastapi import APIRouter, Depends, HTTPException
@@ -76,7 +82,13 @@ def create_claude_code_starter(
     try:
         return AgentDescriptorResponse.from_domain(
             commands.publish_governed_intake(
-                GovernedAgentIntake.for_reference_asset(CLAUDE_CODE_STARTER_AGENT_ID)
+                GovernedAgentIntake(
+                    manifest=claude_code_starter_manifest(),
+                    entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
+                    default_runtime_profile=claude_code_starter_runtime_profile(),
+                    execution_binding=claude_code_starter_execution_binding(),
+                    prepare_runtime=ensure_claude_code_starter_runtime_ready,
+                )
             )
         )
     except AppError as exc:

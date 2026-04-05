@@ -31,7 +31,6 @@ from app.modules.agents.domain.models import (
 )
 from app.modules.agents.domain.reference_assets import (
     ensure_claude_code_starter_runtime_ready,
-    get_governed_reference_asset,
 )
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -164,18 +163,6 @@ class GovernedAgentIntake:
             execution_binding=_import_execution_binding(),
             requires_runnable_validation=True,
         )
-
-    @classmethod
-    def for_reference_asset(cls, asset_id: str) -> GovernedAgentIntake:
-        asset = get_governed_reference_asset(asset_id)
-        return cls(
-            manifest=asset.manifest,
-            entrypoint=asset.entrypoint,
-            default_runtime_profile=asset.default_runtime_profile,
-            execution_binding=asset.execution_binding,
-            prepare_runtime=asset.prepare_runtime,
-        )
-
 
 def _governed_asset_from_intake(intake: GovernedAgentIntake) -> PublishedAgent:
     manifest = intake.manifest.model_copy(deep=True)

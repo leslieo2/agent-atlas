@@ -5,11 +5,13 @@ from pathlib import Path
 import pytest
 from app.core.errors import AgentBootstrapFailedError
 from app.modules.agents.domain.reference_assets import (
+    CLAUDE_CODE_STARTER_AGENT_ID,
+    CLAUDE_CODE_STARTER_ENTRYPOINT,
     CLAUDE_CODE_STARTER_RUNNER_IMAGE,
     claude_code_starter_execution_binding,
-    claude_code_starter_reference_asset,
+    claude_code_starter_manifest,
+    claude_code_starter_runtime_profile,
     ensure_claude_code_starter_runtime_ready,
-    get_governed_reference_asset,
     is_claude_code_starter_execution_binding,
     provision_claude_code_starter_carrier,
 )
@@ -130,10 +132,10 @@ def test_is_claude_code_starter_execution_binding_matches_only_starter_contract(
     )
 
 
-def test_get_governed_reference_asset_returns_starter_reference_shape() -> None:
-    asset = get_governed_reference_asset("claude-code-starter")
+def test_starter_helpers_expose_only_bridge_defaults() -> None:
+    manifest = claude_code_starter_manifest()
 
-    assert asset == claude_code_starter_reference_asset()
-    assert asset.asset_id == "claude-code-starter"
-    assert asset.entrypoint
-    assert asset.prepare_runtime is ensure_claude_code_starter_runtime_ready
+    assert manifest.agent_id == CLAUDE_CODE_STARTER_AGENT_ID
+    assert CLAUDE_CODE_STARTER_ENTRYPOINT
+    assert claude_code_starter_runtime_profile().backend == "external-runner"
+    assert claude_code_starter_execution_binding().runner_backend == "docker-container"

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import subprocess  # nosec - docker CLI invocation is an explicit starter bootstrap dependency
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -137,31 +135,3 @@ def ensure_claude_code_starter_runtime_ready(
     if not is_claude_code_starter_execution_binding(resolved_binding):
         return
     provision_claude_code_starter_carrier()
-
-
-@dataclass(frozen=True)
-class GovernedReferenceAsset:
-    asset_id: str
-    manifest: AgentManifest
-    entrypoint: str
-    default_runtime_profile: ExecutorConfig | None = None
-    execution_binding: ExecutionBinding | None = None
-    prepare_runtime: Callable[[ExecutionBinding | None], None] | None = None
-
-
-def claude_code_starter_reference_asset() -> GovernedReferenceAsset:
-    return GovernedReferenceAsset(
-        asset_id=CLAUDE_CODE_STARTER_AGENT_ID,
-        manifest=claude_code_starter_manifest(),
-        entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
-        default_runtime_profile=claude_code_starter_runtime_profile(),
-        execution_binding=claude_code_starter_execution_binding(),
-        prepare_runtime=ensure_claude_code_starter_runtime_ready,
-    )
-
-
-def get_governed_reference_asset(asset_id: str) -> GovernedReferenceAsset:
-    normalized = asset_id.strip()
-    if normalized == CLAUDE_CODE_STARTER_AGENT_ID:
-        return claude_code_starter_reference_asset()
-    raise ValueError(f"unknown governed reference asset '{asset_id}'")
