@@ -29,13 +29,10 @@ from app.modules.agents.domain.models import (
     PublishedAgent,
     compute_source_fingerprint,
 )
-from app.modules.agents.domain.starter_assets import (
+from app.modules.agents.domain.reference_assets import (
     CLAUDE_CODE_STARTER_AGENT_ID,
-    CLAUDE_CODE_STARTER_ENTRYPOINT,
-    claude_code_starter_execution_binding,
-    claude_code_starter_manifest,
-    claude_code_starter_runtime_profile,
     ensure_claude_code_starter_runtime_ready,
+    get_governed_reference_asset,
 )
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -192,13 +189,14 @@ def _import_intake_plan(
     )
 
 
-def _starter_intake_plan() -> _GovernedIntakePlan:
+def _reference_asset_intake_plan(asset_id: str) -> _GovernedIntakePlan:
+    asset = get_governed_reference_asset(asset_id)
     return _GovernedIntakePlan(
-        manifest=claude_code_starter_manifest(),
-        entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
-        default_runtime_profile=claude_code_starter_runtime_profile(),
-        execution_binding=claude_code_starter_execution_binding(),
-        prepare_runtime=ensure_claude_code_starter_runtime_ready,
+        manifest=asset.manifest,
+        entrypoint=asset.entrypoint,
+        default_runtime_profile=asset.default_runtime_profile,
+        execution_binding=asset.execution_binding,
+        prepare_runtime=asset.prepare_runtime,
     )
 
 
@@ -212,11 +210,15 @@ class AgentIntakeCommands:
         self.framework_registry = framework_registry
 
     def create_claude_code_starter(self) -> PublishedAgent:
-        existing = self.published_agents.get_agent(CLAUDE_CODE_STARTER_AGENT_ID)
+        return self.publish_reference_asset(CLAUDE_CODE_STARTER_AGENT_ID)
+
+    def publish_reference_asset(self, asset_id: str) -> PublishedAgent:
+        reference_asset = get_governed_reference_asset(asset_id)
+        existing = self.published_agents.get_agent(reference_asset.asset_id)
         if existing is not None and _is_valid_published_agent(existing):
             return existing
 
-        return self._ingest_governed_asset(_starter_intake_plan())
+        return self._ingest_governed_asset(_reference_asset_intake_plan(reference_asset.asset_id))
 
     def import_agent_source(self, *, manifest: AgentManifest, entrypoint: str) -> PublishedAgent:
         return self._ingest_governed_asset(

@@ -18,6 +18,7 @@ from app.modules.agents.application.use_cases import (
     AgentValidationCommands,
     PublishedAgentCatalogQueries,
 )
+from app.modules.agents.domain.reference_assets import CLAUDE_CODE_STARTER_AGENT_ID
 from app.modules.runs.adapters.inbound.http.schemas import RunResponse
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from fastapi import APIRouter, Depends, HTTPException
@@ -70,7 +71,9 @@ def create_claude_code_starter(
     commands: Annotated[AgentIntakeCommands, Depends(get_agent_intake_commands)],
 ) -> AgentDescriptorResponse:
     try:
-        return AgentDescriptorResponse.from_domain(commands.create_claude_code_starter())
+        return AgentDescriptorResponse.from_domain(
+            commands.publish_reference_asset(CLAUDE_CODE_STARTER_AGENT_ID)
+        )
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
     except ValueError as exc:

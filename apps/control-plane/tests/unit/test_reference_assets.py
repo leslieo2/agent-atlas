@@ -4,10 +4,12 @@ from pathlib import Path
 
 import pytest
 from app.core.errors import AgentBootstrapFailedError
-from app.modules.agents.domain.starter_assets import (
+from app.modules.agents.domain.reference_assets import (
     CLAUDE_CODE_STARTER_RUNNER_IMAGE,
     claude_code_starter_execution_binding,
+    claude_code_starter_reference_asset,
     ensure_claude_code_starter_runtime_ready,
+    get_governed_reference_asset,
     is_claude_code_starter_execution_binding,
     provision_claude_code_starter_carrier,
 )
@@ -31,7 +33,7 @@ def test_provision_claude_code_starter_carrier_skips_build_when_image_exists(
         commands.append(list(cmd))
         return type("Completed", (), {"returncode": 0, "stderr": "", "stdout": ""})()
 
-    monkeypatch.setattr("app.modules.agents.domain.starter_assets.subprocess.run", fake_run)
+    monkeypatch.setattr("app.modules.agents.domain.reference_assets.subprocess.run", fake_run)
 
     provision_claude_code_starter_carrier(repo_root=tmp_path)
 
@@ -50,7 +52,7 @@ def test_provision_claude_code_starter_carrier_builds_missing_image(
         returncode = 1 if cmd[:3] == ["docker", "image", "inspect"] else 0
         return type("Completed", (), {"returncode": returncode, "stderr": "", "stdout": ""})()
 
-    monkeypatch.setattr("app.modules.agents.domain.starter_assets.subprocess.run", fake_run)
+    monkeypatch.setattr("app.modules.agents.domain.reference_assets.subprocess.run", fake_run)
 
     provision_claude_code_starter_carrier(repo_root=tmp_path)
 
@@ -79,7 +81,7 @@ def test_provision_claude_code_starter_carrier_raises_when_build_fails(
             return type("Completed", (), {"returncode": 1, "stderr": "missing", "stdout": ""})()
         return type("Completed", (), {"returncode": 1, "stderr": "build exploded", "stdout": ""})()
 
-    monkeypatch.setattr("app.modules.agents.domain.starter_assets.subprocess.run", fake_run)
+    monkeypatch.setattr("app.modules.agents.domain.reference_assets.subprocess.run", fake_run)
 
     with pytest.raises(
         AgentBootstrapFailedError,
@@ -93,7 +95,7 @@ def test_ensure_claude_code_starter_runtime_ready_provisions_for_docker_carrier(
 ) -> None:
     calls: list[str] = []
     monkeypatch.setattr(
-        "app.modules.agents.domain.starter_assets.provision_claude_code_starter_carrier",
+        "app.modules.agents.domain.reference_assets.provision_claude_code_starter_carrier",
         lambda: calls.append("called"),
     )
 
@@ -106,7 +108,7 @@ def test_ensure_claude_code_starter_runtime_ready_skips_non_starter_binding(
 ) -> None:
     calls: list[str] = []
     monkeypatch.setattr(
-        "app.modules.agents.domain.starter_assets.provision_claude_code_starter_carrier",
+        "app.modules.agents.domain.reference_assets.provision_claude_code_starter_carrier",
         lambda: calls.append("called"),
     )
 
@@ -126,3 +128,12 @@ def test_is_claude_code_starter_execution_binding_matches_only_starter_contract(
         )
         is False
     )
+
+
+def test_get_governed_reference_asset_returns_starter_reference_shape() -> None:
+    asset = get_governed_reference_asset("claude-code-starter")
+
+    assert asset == claude_code_starter_reference_asset()
+    assert asset.asset_id == "claude-code-starter"
+    assert asset.entrypoint
+    assert asset.prepare_runtime is ensure_claude_code_starter_runtime_ready

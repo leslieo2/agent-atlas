@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 
-import app.modules.agents.domain.starter_assets as starter_assets
+import app.modules.agents.domain.reference_assets as starter_assets
 from app.bootstrap.container import get_container
-from app.modules.agents.domain.starter_assets import claude_code_starter_runtime_profile
+from app.modules.agents.domain.reference_assets import claude_code_starter_runtime_profile
 from fastapi.testclient import TestClient
 from tests.support.fake_docker import install_fake_docker_runtime
 

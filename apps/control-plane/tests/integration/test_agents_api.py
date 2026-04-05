@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-import app.modules.agents.domain.starter_assets as starter_assets
+import app.modules.agents.domain.reference_assets as starter_assets
 from app.bootstrap.container import get_container
 from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
-from app.modules.agents.domain.starter_assets import (
+from app.modules.agents.domain.reference_assets import (
     CLAUDE_CODE_STARTER_ENTRYPOINT,
 )
 from app.modules.runs.domain.models import RunRecord

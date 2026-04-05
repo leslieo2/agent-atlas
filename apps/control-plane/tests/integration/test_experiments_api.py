@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-import app.modules.agents.domain.starter_assets as starter_assets
+import app.modules.agents.domain.reference_assets as starter_assets
 import pytest
 from app.agent_tracing.exporters.otlp import OtlpTraceExporter
 from app.bootstrap.container import get_container

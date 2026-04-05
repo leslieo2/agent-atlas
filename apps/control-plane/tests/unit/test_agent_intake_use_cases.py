@@ -6,7 +6,7 @@ from app.modules.agents.domain.models import (
     PublishedAgent,
     compute_source_fingerprint,
 )
-from app.modules.agents.domain.starter_assets import (
+from app.modules.agents.domain.reference_assets import (
     CLAUDE_CODE_STARTER_ENTRYPOINT,
     claude_code_starter_execution_binding,
     claude_code_starter_manifest,
