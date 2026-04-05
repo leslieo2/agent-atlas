@@ -178,6 +178,42 @@ def test_run_submission_service_requires_explicit_carrier_for_external_runner() 
         service.submit(payload, agent)
 
 
+def test_run_submission_service_accepts_external_runner_with_local_process_binding() -> None:
+    repository = StubRunRepository()
+    execution_control = StubExecutionControl()
+    service = RunSubmissionService(
+        run_repository=repository,
+        execution_control=execution_control,
+    )
+    payload = RunCreateInput(
+        project="migration-check",
+        dataset="framework-ds",
+        agent_id="triage-bot",
+        input_summary="framework coverage",
+        prompt="Inspect the latest run.",
+        executor_config=ExecutorConfig(backend="external-runner"),
+    )
+    agent = PublishedAgent(
+        manifest=AgentManifest(
+            agent_id="triage-bot",
+            name="Triage Bot",
+            description="Checks routing and summarizes issues.",
+            framework=AdapterKind.LANGCHAIN.value,
+            default_model="gpt-5.4-mini",
+            tags=["ops"],
+        ),
+        entrypoint="tests.fixtures.agents.triage_bot:build_agent",
+        execution_binding=ExecutionBinding(runner_backend="local-process"),
+    )
+    agent, _artifact_ref = _seal_agent(agent)
+
+    run = service.submit(payload, agent)
+
+    assert run.executor_backend == "external-runner"
+    assert execution_control.submitted[0].execution_binding is not None
+    assert execution_control.submitted[0].execution_binding.runner_backend == "local-process"
+
+
 def test_run_submission_service_deep_merges_nested_runtime_profile_overrides() -> None:
     repository = StubRunRepository()
     execution_control = StubExecutionControl()

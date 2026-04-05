@@ -23,6 +23,7 @@ from app.modules.agents.domain.models import (
     AgentValidationOutcomeSummary,
     AgentValidationRecord,
     AgentValidationRunReference,
+    ExecutionBinding,
     ExecutionReference,
     PublishedAgent,
     compute_source_fingerprint,
@@ -128,6 +129,10 @@ def _governed_execution_reference(*, agent_id: str, source_fingerprint: str) -> 
     )
 
 
+def _import_execution_binding() -> ExecutionBinding:
+    return ExecutionBinding(runner_backend="local-process")
+
+
 def _intake_validation_context() -> AgentBuildContext:
     return AgentBuildContext(
         run_id=UUID("00000000-0000-0000-0000-000000000000"),
@@ -153,6 +158,7 @@ def _governed_asset_from_import(
             agent_id=manifest.agent_id,
             source_fingerprint=source_fingerprint,
         ),
+        execution_binding=_import_execution_binding(),
     )
 
 

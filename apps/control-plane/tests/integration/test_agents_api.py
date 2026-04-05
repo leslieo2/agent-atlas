@@ -62,6 +62,7 @@ def test_agents_api_excludes_corrupt_publications_from_catalog(client) -> None:
 
 
 def test_agents_api_imports_explicit_source_into_governed_asset(client) -> None:
+    container = get_container()
     response = client.post(
         "/api/v1/agents/imports",
         json={
@@ -92,6 +93,51 @@ def test_agents_api_imports_explicit_source_into_governed_asset(client) -> None:
     assert published_response.status_code == 200
     published = {item["agent_id"]: item for item in published_response.json()}
     assert published["basic"]["entrypoint"] == "tests.fixtures.agents.basic:build_agent"
+    stored = container.infrastructure.published_agent_repository.get_agent("basic")
+    assert stored is not None
+    assert stored.execution_binding is not None
+    assert stored.execution_binding.runner_backend == "local-process"
+
+
+def test_agents_api_validation_runs_accept_imported_agents_with_default_runtime_profile(
+    client,
+) -> None:
+    import_response = client.post(
+        "/api/v1/agents/imports",
+        json={
+            "agent_id": "basic",
+            "name": "Basic",
+            "description": "Minimal fixture agent for Atlas execution smoke tests.",
+            "framework": "openai-agents-sdk",
+            "default_model": "gpt-5.4-mini",
+            "entrypoint": "tests.fixtures.agents.basic:build_agent",
+            "agent_family": "openai-agents",
+            "framework_version": "1.0.0",
+            "tags": ["example", "import"],
+            "capabilities": ["submit"],
+        },
+    )
+    assert import_response.status_code == 200
+
+    response = client.post(
+        "/api/v1/agents/basic/validation-runs",
+        json={
+            "project": "atlas-validation",
+            "dataset": "controlled-validation",
+            "input_summary": "Validate the imported agent from the Agents surface",
+            "prompt": "alpha",
+            "tags": ["agents-surface"],
+            "project_metadata": {"validation_surface": "agents"},
+            "executor_config": import_response.json()["default_runtime_profile"],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["agent_id"] == "basic"
+    assert payload["status"] == "queued"
+    assert payload["executor_backend"] == "external-runner"
+    assert payload["provenance"]["executor"]["backend"] == "external-runner"
 
 
 def test_agents_api_starter_entry_creates_first_governed_claude_asset(
