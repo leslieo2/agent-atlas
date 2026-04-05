@@ -4,7 +4,6 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as agentApi from "@/src/entities/agent/api";
 import * as datasetApi from "@/src/entities/dataset/api";
 import * as experimentApi from "@/src/entities/experiment/api";
-import * as exportApi from "@/src/entities/export/api";
 import * as policyApi from "@/src/entities/policy/api";
 import { renderWithQueryClient } from "@/test/setup";
 import ExperimentsWorkspace from "@/src/widgets/experiments-workspace/ExperimentsWorkspace";
@@ -31,12 +30,6 @@ vi.mock("@/src/entities/policy/api", () => ({
   listPolicies: vi.fn()
 }));
 
-vi.mock("@/src/entities/export/api", () => ({
-  listExports: vi.fn(),
-  createExport: vi.fn(),
-  getExportDownloadUrl: vi.fn((exportId: string) => `http://127.0.0.1:8000/api/v1/exports/${exportId}`)
-}));
-
 type MockedApiFn = ReturnType<typeof vi.fn>;
 
 describe("Experiments workspace", () => {
@@ -51,8 +44,6 @@ describe("Experiments workspace", () => {
     (experimentApi.compareExperiments as unknown as MockedApiFn).mockReset();
     (experimentApi.patchExperimentRun as unknown as MockedApiFn).mockReset();
     (policyApi.listPolicies as unknown as MockedApiFn).mockReset();
-    (exportApi.createExport as unknown as MockedApiFn).mockReset();
-    (exportApi.listExports as unknown as MockedApiFn).mockReset();
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockResolvedValue([
       {
@@ -421,22 +412,9 @@ describe("Experiments workspace", () => {
       errorMessage: null,
       createdAt: "2026-03-25T00:30:00Z"
     });
-    (exportApi.createExport as unknown as MockedApiFn).mockResolvedValue({
-      exportId: "export-001",
-      format: "jsonl",
-      createdAt: "2026-03-25T00:40:00Z",
-      path: "/tmp/export-001.jsonl",
-      sizeBytes: 128,
-      rowCount: 1,
-      sourceExperimentId: "exp-002",
-      baselineExperimentId: "exp-001",
-      candidateExperimentId: "exp-002",
-      filtersSummary: {}
-    });
-    (exportApi.listExports as unknown as MockedApiFn).mockResolvedValue([]);
   });
 
-  it("creates experiments, compares baseline and candidate runs, patches curation, and exports filtered rows", async () => {
+  it("creates experiments, compares baseline and candidate runs, patches curation, and links export handoff into Exports", async () => {
     renderWithQueryClient(
       <ExperimentsWorkspace
         initialAgentId="basic"
@@ -486,29 +464,9 @@ describe("Experiments workspace", () => {
       })
     );
 
-    fireEvent.change(screen.getByLabelText("Compare"), { target: { value: "regressed" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create export" }));
-    await waitFor(() =>
-      expect(exportApi.createExport).toHaveBeenCalledWith({
-        experimentId: null,
-        baselineExperimentId: "exp-001",
-        candidateExperimentId: "exp-002",
-        datasetSampleIds: ["sample-regressed"],
-        judgements: null,
-        errorCodes: null,
-        compareOutcomes: ["regressed"],
-        tags: null,
-        slices: null,
-        curationStatuses: null,
-        exportEligible: null,
-        format: "jsonl"
-      })
-    );
-
-    expect(await screen.findByText(/Created export export-001\./)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Download export" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Continue to Exports" })).toHaveAttribute(
       "href",
-      "http://127.0.0.1:8000/api/v1/exports/export-001"
+      "/exports?candidate=exp-002&baseline=exp-001"
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Create and start" }));

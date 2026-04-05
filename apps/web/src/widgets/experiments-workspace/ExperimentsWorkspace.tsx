@@ -1,13 +1,11 @@
 "use client";
 
-import { ArrowUpRight, Download, Radar, RotateCcw } from "lucide-react";
+import { ArrowUpRight, Radar, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { AgentRecord } from "@/src/entities/agent/model";
 import { getAgentValidationLifecycle } from "@/src/entities/agent/lifecycle";
 import { usePublishedAgentsQuery } from "@/src/entities/agent/query";
 import { useDatasetsQuery } from "@/src/entities/dataset/query";
-import { getExportDownloadUrl } from "@/src/entities/export/api";
-import { useCreateExportMutation } from "@/src/entities/export/query";
 import type {
   ExperimentCompareSampleRecord,
   ExperimentRecord,
@@ -175,6 +173,21 @@ function datasetVersionOptionLabel(datasetName: string, version: string | null |
   return `${datasetName} · ${version ? `Version ${version}` : "Unversioned"}`;
 }
 
+function exportsHandoffHref(selectedExperiment: ExperimentRecord | null, baselineExperimentId: string) {
+  if (!selectedExperiment) {
+    return "/exports";
+  }
+
+  const params = new URLSearchParams();
+  if (baselineExperimentId) {
+    params.set("candidate", selectedExperiment.experimentId);
+    params.set("baseline", baselineExperimentId);
+  } else {
+    params.set("experiment", selectedExperiment.experimentId);
+  }
+  return `/exports?${params.toString()}`;
+}
+
 export default function ExperimentsWorkspace({
   initialAgentId = "",
   initialDatasetVersionId = "",
@@ -187,7 +200,6 @@ export default function ExperimentsWorkspace({
   const createExperimentMutation = useCreateExperimentMutation();
   const startExperimentMutation = useStartExperimentMutation();
   const cancelExperimentMutation = useCancelExperimentMutation();
-  const createExportMutation = useCreateExportMutation();
   const isAgentsLoading = publishedAgentsQuery.isPending;
 
   const agents = useMemo<ExperimentAgentOption[]>(() => {
@@ -231,7 +243,6 @@ export default function ExperimentsWorkspace({
   const [curationFilter, setCurationFilter] = useState("");
   const [compareOutcomeFilter, setCompareOutcomeFilter] = useState("");
   const [actionMessage, setActionMessage] = useState("");
-  const [latestExportId, setLatestExportId] = useState<string | null>(null);
 
   const selectedExperiment = useMemo(
     () => experiments.find((item) => item.experimentId === selectedExperimentId) ?? experiments[0] ?? null,
@@ -386,29 +397,6 @@ export default function ExperimentsWorkspace({
       const message = error instanceof Error ? error.message : "Unable to update the run curation state.";
       setActionMessage(message || "Unable to update the run curation state.");
     }
-  };
-
-  const handleExport = async () => {
-    if (!selectedExperiment) {
-      setActionMessage("Select an experiment before exporting.");
-      return;
-    }
-    const created = await createExportMutation.mutateAsync({
-      experimentId: baselineExperimentId ? null : selectedExperiment.experimentId,
-      candidateExperimentId: baselineExperimentId ? selectedExperiment.experimentId : null,
-      baselineExperimentId: baselineExperimentId || null,
-      datasetSampleIds: filteredRuns.map((run) => run.datasetSampleId),
-      judgements: judgementFilter ? [judgementFilter as SampleJudgement] : null,
-      errorCodes: errorCodeFilter ? [errorCodeFilter] : null,
-      compareOutcomes: compareOutcomeFilter ? [compareOutcomeFilter as CompareOutcome] : null,
-      tags: tagFilter ? [tagFilter] : null,
-      slices: sliceFilter ? [sliceFilter] : null,
-      curationStatuses: curationFilter ? [curationFilter as CurationStatus] : null,
-      exportEligible: null,
-      format: "jsonl"
-    });
-    setLatestExportId(created.exportId);
-    setActionMessage(`Created export ${created.exportId}.`);
   };
 
   return (
@@ -628,20 +616,22 @@ export default function ExperimentsWorkspace({
         <div className={styles.sectionHeader}>
           <div>
             <p className="surface-kicker">Runs</p>
-            <h3 className="panel-title">Curate sample outcomes before export</h3>
+            <h3 className="panel-title">Curate sample outcomes before export handoff</h3>
             <p className="muted-note">
-              Use compare and curation to decide which evidence-backed rows should move into the next export.
+              Use compare and curation to shape the evidence-backed rows, then continue into Exports for the actual
+              offline handoff.
             </p>
           </div>
           <div className="toolbar">
-            <Button onClick={() => void handleExport()} disabled={!selectedExperiment || createExportMutation.isPending}>
-              <Download size={14} /> {createExportMutation.isPending ? "Exporting..." : "Create export"}
-            </Button>
-            {latestExportId ? (
-              <Button href={getExportDownloadUrl(latestExportId)} variant="ghost">
-                Download export
+            {selectedExperiment ? (
+              <Button href={exportsHandoffHref(selectedExperiment, baselineExperimentId)} variant="secondary">
+                Continue to Exports <ArrowUpRight size={14} />
               </Button>
-            ) : null}
+            ) : (
+              <Button variant="secondary" disabled>
+                Continue to Exports <ArrowUpRight size={14} />
+              </Button>
+            )}
           </div>
         </div>
         <div className={styles.filtersGrid}>
