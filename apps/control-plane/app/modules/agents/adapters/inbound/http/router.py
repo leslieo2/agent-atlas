@@ -16,6 +16,7 @@ from app.modules.agents.adapters.inbound.http.schemas import (
 from app.modules.agents.application.use_cases import (
     AgentIntakeCommands,
     AgentValidationCommands,
+    GovernedAgentIntake,
     PublishedAgentCatalogQueries,
 )
 from app.modules.agents.domain.reference_assets import CLAUDE_CODE_STARTER_AGENT_ID
@@ -52,9 +53,12 @@ def import_agent_source(
 ) -> AgentDescriptorResponse:
     try:
         return AgentDescriptorResponse.from_domain(
-            commands.import_agent_source(
-                manifest=payload.manifest(),
-                entrypoint=payload.entrypoint,
+            commands.publish_governed_intake(
+                GovernedAgentIntake.for_import(
+                    payload.manifest(),
+                    entrypoint=payload.entrypoint,
+                ),
+                validate_candidate=commands.validate_runnable_intake_candidate,
             )
         )
     except AppError as exc:
@@ -72,7 +76,9 @@ def create_claude_code_starter(
 ) -> AgentDescriptorResponse:
     try:
         return AgentDescriptorResponse.from_domain(
-            commands.publish_reference_asset(CLAUDE_CODE_STARTER_AGENT_ID)
+            commands.publish_governed_intake(
+                GovernedAgentIntake.for_reference_asset(CLAUDE_CODE_STARTER_AGENT_ID)
+            )
         )
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc

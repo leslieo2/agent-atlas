@@ -209,22 +209,6 @@ class AgentIntakeCommands:
         self.published_agents = published_agents
         self.framework_registry = framework_registry
 
-    def publish_reference_asset(self, asset_id: str) -> PublishedAgent:
-        reference_asset = get_governed_reference_asset(asset_id)
-        existing = self.published_agents.get_agent(reference_asset.asset_id)
-        if existing is not None and _is_valid_published_agent(existing):
-            return existing
-
-        return self.publish_governed_intake(
-            GovernedAgentIntake.for_reference_asset(reference_asset.asset_id)
-        )
-
-    def import_agent_source(self, *, manifest: AgentManifest, entrypoint: str) -> PublishedAgent:
-        return self.publish_governed_intake(
-            GovernedAgentIntake.for_import(manifest, entrypoint=entrypoint),
-            validate_candidate=self._validate_runnable_intake_candidate,
-        )
-
     def publish_governed_intake(
         self,
         intake: GovernedAgentIntake,
@@ -253,7 +237,7 @@ class AgentIntakeCommands:
 
         self.published_agents.save_agent(candidate)
 
-    def _validate_runnable_intake_candidate(self, candidate: PublishedAgent) -> None:
+    def validate_runnable_intake_candidate(self, candidate: PublishedAgent) -> None:
         try:
             self.framework_registry.build_agent(
                 published_agent=candidate,
