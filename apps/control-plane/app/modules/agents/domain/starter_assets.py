@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess  # nosec - docker CLI invocation is an explicit starter bootstrap dependency
 from pathlib import Path
+from typing import Any
 
 from app.core.errors import AgentBootstrapFailedError
 from app.modules.agents.domain.constants import (
@@ -107,8 +108,30 @@ def claude_code_starter_execution_binding() -> ExecutionBinding:
     )
 
 
-def ensure_claude_code_starter_runtime_ready() -> None:
-    runner_backend = str(claude_code_starter_execution_binding().runner_backend).strip().lower()
+def _starter_cli_config(binding: ExecutionBinding | None) -> dict[str, Any]:
+    if binding is None or not isinstance(binding.config, dict):
+        return {}
+    cli_config = binding.config.get("claude_code_cli")
+    if not isinstance(cli_config, dict):
+        return {}
+    return cli_config
+
+
+def is_claude_code_starter_execution_binding(binding: ExecutionBinding | None) -> bool:
+    if binding is None:
+        return False
+    runner_backend = str(binding.runner_backend).strip().lower()
     if runner_backend != "docker-container":
+        return False
+    if binding.runner_image != CLAUDE_CODE_STARTER_RUNNER_IMAGE:
+        return False
+    return _starter_cli_config(binding).get("version") == "starter"
+
+
+def ensure_claude_code_starter_runtime_ready(
+    binding: ExecutionBinding | None = None,
+) -> None:
+    resolved_binding = binding or claude_code_starter_execution_binding()
+    if not is_claude_code_starter_execution_binding(resolved_binding):
         return
     provision_claude_code_starter_carrier()

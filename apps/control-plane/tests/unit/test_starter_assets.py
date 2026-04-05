@@ -6,9 +6,12 @@ import pytest
 from app.core.errors import AgentBootstrapFailedError
 from app.modules.agents.domain.starter_assets import (
     CLAUDE_CODE_STARTER_RUNNER_IMAGE,
+    claude_code_starter_execution_binding,
     ensure_claude_code_starter_runtime_ready,
+    is_claude_code_starter_execution_binding,
     provision_claude_code_starter_carrier,
 )
+from app.modules.shared.domain.models import ExecutionBinding
 
 
 def _write_validation_dockerfile(repo_root: Path) -> None:
@@ -96,3 +99,30 @@ def test_ensure_claude_code_starter_runtime_ready_provisions_for_docker_carrier(
 
     ensure_claude_code_starter_runtime_ready()
     assert calls == ["called"]
+
+
+def test_ensure_claude_code_starter_runtime_ready_skips_non_starter_binding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "app.modules.agents.domain.starter_assets.provision_claude_code_starter_carrier",
+        lambda: calls.append("called"),
+    )
+
+    ensure_claude_code_starter_runtime_ready(ExecutionBinding(runner_backend="local-process"))
+    assert calls == []
+
+
+def test_is_claude_code_starter_execution_binding_matches_only_starter_contract() -> None:
+    assert is_claude_code_starter_execution_binding(claude_code_starter_execution_binding()) is True
+    assert (
+        is_claude_code_starter_execution_binding(
+            ExecutionBinding(
+                runner_backend="docker-container",
+                runner_image=CLAUDE_CODE_STARTER_RUNNER_IMAGE,
+                config={"claude_code_cli": {"version": "not-starter"}},
+            )
+        )
+        is False
+    )

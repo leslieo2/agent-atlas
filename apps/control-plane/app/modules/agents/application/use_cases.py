@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from uuid import UUID
 
 from app.core.errors import (
@@ -38,7 +39,8 @@ from app.modules.agents.domain.starter_assets import (
 )
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
-from app.modules.shared.domain.models import build_source_execution_reference
+from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
+from app.modules.shared.domain.models import ExecutorConfig, build_source_execution_reference
 
 
 class PublishedAgentCatalogQueries:
@@ -144,40 +146,59 @@ def _intake_validation_context() -> AgentBuildContext:
     )
 
 
-def _governed_asset_from_import(
-    manifest: AgentManifest,
-    *,
-    entrypoint: str,
-) -> PublishedAgent:
-    source_fingerprint = compute_source_fingerprint(manifest, entrypoint)
+@dataclass(frozen=True)
+class _GovernedIntakePlan:
+    manifest: AgentManifest
+    entrypoint: str
+    default_runtime_profile: ExecutorConfig | None = None
+    execution_binding: ExecutionBinding | None = None
+    validate_candidate: Callable[[PublishedAgent], None] | None = None
+    prepare_runtime: Callable[[ExecutionBinding | None], None] | None = None
+
+
+def _governed_asset_from_intake(plan: _GovernedIntakePlan) -> PublishedAgent:
+    manifest = plan.manifest.model_copy(deep=True)
+    source_fingerprint = compute_source_fingerprint(manifest, plan.entrypoint)
     return PublishedAgent(
-        manifest=manifest.model_copy(deep=True),
-        entrypoint=entrypoint,
+        manifest=manifest,
+        entrypoint=plan.entrypoint,
         source_fingerprint=source_fingerprint,
         execution_reference=_governed_execution_reference(
             agent_id=manifest.agent_id,
             source_fingerprint=source_fingerprint,
         ),
+        default_runtime_profile=(
+            plan.default_runtime_profile.model_copy(deep=True)
+            if plan.default_runtime_profile is not None
+            else ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
+        ),
+        execution_binding=(
+            plan.execution_binding.model_copy(deep=True)
+            if plan.execution_binding is not None
+            else None
+        ),
+    )
+
+
+def _import_intake_plan(
+    manifest: AgentManifest,
+    *,
+    entrypoint: str,
+) -> _GovernedIntakePlan:
+    return _GovernedIntakePlan(
+        manifest=manifest,
+        entrypoint=entrypoint,
         execution_binding=_import_execution_binding(),
     )
 
 
-def _governed_asset_from_starter() -> PublishedAgent:
-    manifest = claude_code_starter_manifest()
-    source_fingerprint = compute_source_fingerprint(
-        manifest,
-        CLAUDE_CODE_STARTER_ENTRYPOINT,
-    )
-    return PublishedAgent(
-        manifest=manifest,
+def _starter_intake_plan() -> _GovernedIntakePlan:
+    return _GovernedIntakePlan(
+        manifest=claude_code_starter_manifest(),
         entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
-        source_fingerprint=source_fingerprint,
-        execution_reference=_governed_execution_reference(
-            agent_id=manifest.agent_id,
-            source_fingerprint=source_fingerprint,
-        ),
         default_runtime_profile=claude_code_starter_runtime_profile(),
         execution_binding=claude_code_starter_execution_binding(),
+        prepare_runtime=ensure_claude_code_starter_runtime_ready,
     )
 
 
@@ -195,16 +216,29 @@ class AgentIntakeCommands:
         if existing is not None and _is_valid_published_agent(existing):
             return existing
 
-        ensure_claude_code_starter_runtime_ready()
-        starter = _governed_asset_from_starter()
-        self._save_governed_asset(starter)
-        return starter
+        return self._ingest_governed_asset(_starter_intake_plan())
 
     def import_agent_source(self, *, manifest: AgentManifest, entrypoint: str) -> PublishedAgent:
-        published = _governed_asset_from_import(manifest, entrypoint=entrypoint)
-        self._validate_runnable_import(published)
-        self._save_governed_asset(published)
-        return published
+        return self._ingest_governed_asset(
+            _import_intake_plan(manifest, entrypoint=entrypoint),
+            validate_candidate=self._validate_runnable_import,
+        )
+
+    def _ingest_governed_asset(
+        self,
+        plan: _GovernedIntakePlan,
+        *,
+        validate_candidate: Callable[[PublishedAgent], None] | None = None,
+    ) -> PublishedAgent:
+        candidate = _governed_asset_from_intake(plan)
+        if plan.prepare_runtime is not None:
+            plan.prepare_runtime(candidate.execution_binding)
+        if validate_candidate is not None:
+            validate_candidate(candidate)
+        elif plan.validate_candidate is not None:
+            plan.validate_candidate(candidate)
+        self._save_governed_asset(candidate)
+        return candidate
 
     def _save_governed_asset(self, candidate: PublishedAgent) -> None:
         existing = self.published_agents.get_agent(candidate.agent_id)
@@ -247,8 +281,7 @@ class AgentValidationCommands:
 
     def create_run(self, agent_id: str, payload: RunCreateInput) -> RunRecord:
         agent = self._resolve_agent(agent_id)
-        if agent.manifest.agent_id == CLAUDE_CODE_STARTER_AGENT_ID:
-            ensure_claude_code_starter_runtime_ready()
+        ensure_claude_code_starter_runtime_ready(agent.execution_binding)
         return self.submission_service.submit(payload, agent)
 
     def _resolve_agent(self, agent_id: str) -> PublishedAgent:
