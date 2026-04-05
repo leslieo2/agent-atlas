@@ -135,6 +135,9 @@ describe("Agents workspace", () => {
     renderWithQueryClient(<AgentsWorkspace />);
 
     expect(await screen.findByRole("heading", { name: "Agents" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Intake a candidate, clear validation, then promote the governed snapshot" })
+    ).toBeInTheDocument();
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalledTimes(1));
 
     expect(await screen.findByText("Ready governed snapshot.")).toBeInTheDocument();
@@ -277,7 +280,7 @@ describe("Agents workspace", () => {
 
     renderWithQueryClient(<AgentsWorkspace />);
 
-    expect(await screen.findByText("Import the first governed agent asset")).toBeInTheDocument();
+    expect(await screen.findByText("No governed assets have cleared entry yet")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create Claude Code starter" })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Agent ID"), { target: { value: "imported-basic" } });
@@ -305,6 +308,9 @@ describe("Agents workspace", () => {
       screen.getByText(
         "Imported Imported Basic. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface."
       )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Imported Basic is the current intake focus on this surface.")
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Create experiment/i })).toHaveAttribute(
       "href",

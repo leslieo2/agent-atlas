@@ -34,6 +34,11 @@ type AgentGroup = {
 
 type AgentReadiness = "ready" | "validating" | "needs_review";
 
+type EntryFocus = {
+  agentId: string;
+  name: string;
+};
+
 function fallbackValidationTimestamp(agent: AgentRecord) {
   return (
     agent.latestValidation?.completedAt ??
@@ -145,6 +150,20 @@ function nextStepLabel(agent: AgentRecord) {
     return "Review the latest validation evidence before handing this snapshot into a new experiment.";
   }
   return "Hand this ready snapshot into the next experiment.";
+}
+
+function entryFocusSummary(agent?: AgentRecord | null) {
+  if (!agent) {
+    return "Import a runnable candidate or use the starter bridge, then validate it here before Atlas treats the snapshot as experiment-ready.";
+  }
+  const readiness = getAgentReadiness(agent);
+  if (readiness === "validating") {
+    return `${agent.name} is inside the validation gate now. Wait for the latest run to resolve before promoting it into experiment handoff.`;
+  }
+  if (readiness === "needs_review") {
+    return `${agent.name} is blocked on evidence review. Resolve the latest validation outcome before Atlas promotes it as the next governed snapshot.`;
+  }
+  return `${agent.name} is ready. Atlas can hand this governed snapshot into experiments without going back through repo-local draft management.`;
 }
 
 function validationPayload(agent: AgentRecord) {
@@ -303,6 +322,7 @@ export default function AgentsWorkspace() {
   const importMutation = useImportAgentMutation();
   const validationMutation = useStartValidationRunMutation();
   const [actionMessage, setActionMessage] = useState("");
+  const [entryFocus, setEntryFocus] = useState<EntryFocus | null>(null);
   const [importForm, setImportForm] = useState<ImportAgentInput>({
     agentId: "",
     name: "",
@@ -313,6 +333,10 @@ export default function AgentsWorkspace() {
     tags: []
   });
   const agents = useMemo<AgentRecord[]>(() => publishedAgentsQuery.data ?? [], [publishedAgentsQuery.data]);
+  const focusedAgent = useMemo(
+    () => agents.find((agent) => agent.agentId === entryFocus?.agentId) ?? null,
+    [agents, entryFocus]
+  );
 
   const groups = useMemo<AgentGroup[]>(
     () => [
@@ -343,10 +367,12 @@ export default function AgentsWorkspace() {
     "";
 
   const isLoading = publishedAgentsQuery.isLoading;
+  const validationBacklog = groups[1].items.length + groups[2].items.length;
 
   async function handleBootstrap() {
     try {
       const agent = await bootstrapMutation.mutateAsync();
+      setEntryFocus({ agentId: agent.agentId, name: agent.name });
       setActionMessage(
         `Created ${agent.name} as the starter bridge. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface.`
       );
@@ -362,6 +388,7 @@ export default function AgentsWorkspace() {
   async function handleImport() {
     try {
       const agent = await importMutation.mutateAsync(importForm);
+      setEntryFocus({ agentId: agent.agentId, name: agent.name });
       setActionMessage(
         `Imported ${agent.name}. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface.`
       );
@@ -435,6 +462,132 @@ export default function AgentsWorkspace() {
         <MetricCard label="Needs review" value={groups[2].items.length} />
       </div>
 
+      <Panel tone="strong" className={styles.entryPanel}>
+        <div className="surface-header">
+          <div>
+            <p className="surface-kicker">Governed entry</p>
+            <h3 className="panel-title">Intake a candidate, clear validation, then promote the governed snapshot</h3>
+            <p className="muted-note">
+              The front-half path stays explicit now: Atlas takes in a runnable candidate, holds the validation gate on
+              this surface, and only then hands the governed asset into experiments.
+            </p>
+          </div>
+        </div>
+        <div className={styles.entryGrid}>
+          <div className="page-stack">
+            <div className={styles.formGrid}>
+              <Field label="Agent ID" htmlFor="agent-import-id">
+                <input
+                  id="agent-import-id"
+                  value={importForm.agentId}
+                  onChange={(event) => updateImportField("agentId", event.target.value)}
+                  placeholder="customer-service"
+                />
+              </Field>
+              <Field label="Name" htmlFor="agent-import-name">
+                <input
+                  id="agent-import-name"
+                  value={importForm.name}
+                  onChange={(event) => updateImportField("name", event.target.value)}
+                  placeholder="Customer Service"
+                />
+              </Field>
+              <Field label="Framework" htmlFor="agent-import-framework">
+                <select
+                  id="agent-import-framework"
+                  value={importForm.framework}
+                  onChange={(event) => updateImportField("framework", event.target.value)}
+                >
+                  <option value="openai-agents-sdk">openai-agents-sdk</option>
+                  <option value="langchain">langchain</option>
+                  <option value="claude-code-cli">claude-code-cli</option>
+                </select>
+              </Field>
+              <Field label="Default model" htmlFor="agent-import-model">
+                <input
+                  id="agent-import-model"
+                  value={importForm.defaultModel}
+                  onChange={(event) => updateImportField("defaultModel", event.target.value)}
+                  placeholder="gpt-5.4-mini"
+                />
+              </Field>
+              <Field label="Entrypoint" htmlFor="agent-import-entrypoint" wide>
+                <input
+                  id="agent-import-entrypoint"
+                  value={importForm.entrypoint}
+                  onChange={(event) => updateImportField("entrypoint", event.target.value)}
+                  placeholder="agents.customer_service:build_agent"
+                />
+              </Field>
+              <Field label="Description" htmlFor="agent-import-description" wide>
+                <textarea
+                  id="agent-import-description"
+                  rows={3}
+                  value={importForm.description}
+                  onChange={(event) => updateImportField("description", event.target.value)}
+                  placeholder="Governed support agent imported from a runnable entrypoint."
+                />
+              </Field>
+            </div>
+            <div className={styles.actions}>
+              <Button
+                onClick={() => void handleImport()}
+                disabled={
+                  importMutation.isPending ||
+                  !importForm.agentId.trim() ||
+                  !importForm.name.trim() ||
+                  !importForm.description.trim() ||
+                  !importForm.entrypoint.trim()
+                }
+              >
+                {importMutation.isPending ? "Importing agent..." : "Import agent"}
+              </Button>
+              <Button onClick={() => void handleBootstrap()} variant="ghost" disabled={bootstrapMutation.isPending}>
+                {bootstrapMutation.isPending ? "Creating starter..." : "Create Claude Code starter"}
+              </Button>
+            </div>
+          </div>
+
+          <div className={styles.entryRail}>
+            <div className={styles.entryStep}>
+              <div className={styles.entryStepHeader}>
+                <span className={styles.entryStepTitle}>1. Candidate intake</span>
+                <StatusPill tone={entryFocus ? "success" : "warn"}>{entryFocus ? "Captured" : "Waiting"}</StatusPill>
+              </div>
+              <p className="muted-note">
+                {entryFocus
+                  ? `${entryFocus.name} is the current intake focus on this surface.`
+                  : "Use explicit import as the primary path. The Claude starter stays available only as a bridge/reference path."}
+              </p>
+            </div>
+
+            <div className={styles.entryStep}>
+              <div className={styles.entryStepHeader}>
+                <span className={styles.entryStepTitle}>2. Validation gate</span>
+                <StatusPill tone={validationBacklog ? "warn" : "success"}>
+                  {validationBacklog ? `${validationBacklog} pending` : "Clear"}
+                </StatusPill>
+              </div>
+              <p className="muted-note">
+                {focusedAgent
+                  ? nextStepLabel(focusedAgent)
+                  : "Run validation on the new intake before Atlas treats it as the next experiment snapshot."}
+              </p>
+            </div>
+
+            <div className={styles.entryStep}>
+              <div className={styles.entryStepHeader}>
+                <span className={styles.entryStepTitle}>3. Governed promotion</span>
+                <StatusPill tone={groups[0].items.length ? "success" : "warn"}>
+                  {groups[0].items.length ? `${groups[0].items.length} ready` : "No ready assets"}
+                </StatusPill>
+              </div>
+              <p className="muted-note">{entryFocusSummary(focusedAgent)}</p>
+            </div>
+          </div>
+        </div>
+      </Panel>
+
       {actionMessage ? <Notice>{actionMessage}</Notice> : null}
       {errorMessage ? <Notice>{errorMessage}</Notice> : null}
       {isLoading ? <Notice>Loading agents...</Notice> : null}
@@ -443,93 +596,19 @@ export default function AgentsWorkspace() {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">No agents yet</p>
-              <h3 className="panel-title">Import the first governed agent asset</h3>
+              <h3 className="panel-title">No governed assets have cleared entry yet</h3>
               <p className="muted-note">
-                Atlas shows governed runnable assets here. Import a runnable agent explicitly into governance first.
-                The Claude starter remains available only as a bridge/reference path when you do not yet have an asset
-                to import.
+                Use the governed entry panel above to intake the first candidate, run validation, and promote the
+                resulting snapshot into the catalog below.
               </p>
             </div>
           </div>
-          <div className={styles.formGrid}>
-            <Field label="Agent ID" htmlFor="agent-import-id">
-              <input
-                id="agent-import-id"
-                value={importForm.agentId}
-                onChange={(event) => updateImportField("agentId", event.target.value)}
-                placeholder="customer-service"
-              />
-            </Field>
-            <Field label="Name" htmlFor="agent-import-name">
-              <input
-                id="agent-import-name"
-                value={importForm.name}
-                onChange={(event) => updateImportField("name", event.target.value)}
-                placeholder="Customer Service"
-              />
-            </Field>
-            <Field label="Framework" htmlFor="agent-import-framework">
-              <select
-                id="agent-import-framework"
-                value={importForm.framework}
-                onChange={(event) => updateImportField("framework", event.target.value)}
-              >
-                <option value="openai-agents-sdk">openai-agents-sdk</option>
-                <option value="langchain">langchain</option>
-                <option value="claude-code-cli">claude-code-cli</option>
-              </select>
-            </Field>
-            <Field label="Default model" htmlFor="agent-import-model">
-              <input
-                id="agent-import-model"
-                value={importForm.defaultModel}
-                onChange={(event) => updateImportField("defaultModel", event.target.value)}
-                placeholder="gpt-5.4-mini"
-              />
-            </Field>
-            <Field label="Entrypoint" htmlFor="agent-import-entrypoint" wide>
-              <input
-                id="agent-import-entrypoint"
-                value={importForm.entrypoint}
-                onChange={(event) => updateImportField("entrypoint", event.target.value)}
-                placeholder="agents.customer_service:build_agent"
-              />
-            </Field>
-            <Field label="Description" htmlFor="agent-import-description" wide>
-              <textarea
-                id="agent-import-description"
-                rows={3}
-                value={importForm.description}
-                onChange={(event) => updateImportField("description", event.target.value)}
-                placeholder="Governed support agent imported from a runnable entrypoint."
-              />
-            </Field>
-          </div>
-          <div className={styles.actions}>
-            <Button
-              onClick={() => void handleImport()}
-              disabled={
-                importMutation.isPending ||
-                !importForm.agentId.trim() ||
-                !importForm.name.trim() ||
-                !importForm.description.trim() ||
-                !importForm.entrypoint.trim()
-              }
-            >
-              {importMutation.isPending ? "Importing agent..." : "Import agent"}
-            </Button>
-            <Button onClick={() => void handleBootstrap()} variant="ghost" disabled={bootstrapMutation.isPending}>
-              {bootstrapMutation.isPending ? "Creating starter..." : "Create Claude Code starter"}
-            </Button>
-          </div>
           <div className="page-stack">
             <Notice>
-              Explicit import is the primary operator path. Atlas records the runnable asset identity here and keeps
-              validation, experiment handoff, and provenance attached to the governed snapshot.
+              Atlas only renders assets below after they have come through the explicit governed entry front-half.
             </Notice>
             <Notice>
-              The Claude starter is a bridge/reference path only. Draft browsing and repo-local publish flows are not
-              part of the shipped intake surface.
+              Draft browsing and repo-local publish flows are not part of the shipped operator path anymore.
             </Notice>
           </div>
         </Panel>
