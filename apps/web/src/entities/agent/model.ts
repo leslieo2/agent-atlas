@@ -61,3 +61,16 @@ export interface AgentValidationIssueRecord {
   code: string;
   message: string;
 }
+
+export interface ImportAgentInput {
+  agentId: string;
+  name: string;
+  description: string;
+  framework: string;
+  defaultModel: string;
+  entrypoint: string;
+  agentFamily?: string;
+  frameworkVersion?: string;
+  tags?: string[];
+  capabilities?: string[];
+}

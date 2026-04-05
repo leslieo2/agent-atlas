@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from uuid import UUID
 
 from app.core.errors import (
     AgentImportConflictError,
+    AgentLoadFailedError,
     AgentValidationFailedError,
     PublishedAgentNotFoundError,
 )
@@ -14,13 +16,13 @@ from app.modules.agents.application.ports import (
     PublishedAgentRepositoryPort,
 )
 from app.modules.agents.domain.models import (
-    AgentModuleSource,
+    AgentBuildContext,
+    AgentManifest,
     AgentValidationEvidenceSummary,
     AgentValidationOutcomeStatus,
     AgentValidationOutcomeSummary,
     AgentValidationRecord,
     AgentValidationRunReference,
-    DiscoveredAgent,
     ExecutionReference,
     PublishedAgent,
     compute_source_fingerprint,
@@ -126,25 +128,30 @@ def _governed_execution_reference(*, agent_id: str, source_fingerprint: str) -> 
     )
 
 
-def _governed_asset_from_discovered(
-    discovered: DiscoveredAgent,
+def _intake_validation_context() -> AgentBuildContext:
+    return AgentBuildContext(
+        run_id=UUID("00000000-0000-0000-0000-000000000000"),
+        project="agent-import-validation",
+        dataset=None,
+        prompt="validation",
+        tags=["agent-import"],
+        project_metadata={"source": "governed-intake"},
+    )
+
+
+def _governed_asset_from_import(
+    manifest: AgentManifest,
     *,
     entrypoint: str,
 ) -> PublishedAgent:
-    source_fingerprint = compute_source_fingerprint(discovered.manifest, entrypoint)
+    source_fingerprint = compute_source_fingerprint(manifest, entrypoint)
     return PublishedAgent(
-        manifest=discovered.manifest.model_copy(deep=True),
+        manifest=manifest.model_copy(deep=True),
         entrypoint=entrypoint,
         source_fingerprint=source_fingerprint,
         execution_reference=_governed_execution_reference(
-            agent_id=discovered.agent_id,
+            agent_id=manifest.agent_id,
             source_fingerprint=source_fingerprint,
-        ),
-        default_runtime_profile=discovered.default_runtime_profile.model_copy(deep=True),
-        execution_binding=(
-            discovered.execution_binding.model_copy(deep=True)
-            if discovered.execution_binding is not None
-            else None
         ),
     )
 
@@ -187,16 +194,9 @@ class AgentIntakeCommands:
         self._save_governed_asset(starter)
         return starter
 
-    def import_agent_source(self, *, module_name: str, entrypoint: str) -> PublishedAgent:
-        source = AgentModuleSource(module_name=module_name, entrypoint=entrypoint)
-        discovered = self.framework_registry.discover(source)
-        if discovered.validation_status != "valid":
-            reason = "; ".join(issue.message for issue in discovered.validation_issues) or (
-                f"agent_id '{discovered.agent_id}' failed source inspection"
-            )
-            raise AgentValidationFailedError(discovered.agent_id, reason)
-
-        published = _governed_asset_from_discovered(discovered, entrypoint=entrypoint)
+    def import_agent_source(self, *, manifest: AgentManifest, entrypoint: str) -> PublishedAgent:
+        published = _governed_asset_from_import(manifest, entrypoint=entrypoint)
+        self._validate_runnable_import(published)
         self._save_governed_asset(published)
         return published
 
@@ -211,6 +211,23 @@ class AgentIntakeCommands:
             raise AgentImportConflictError(candidate.agent_id)
 
         self.published_agents.save_agent(candidate)
+
+    def _validate_runnable_import(self, candidate: PublishedAgent) -> None:
+        try:
+            self.framework_registry.build_agent(
+                published_agent=candidate,
+                context=_intake_validation_context(),
+            )
+        except AgentLoadFailedError as exc:
+            raise AgentValidationFailedError(candidate.agent_id, str(exc)) from exc
+        except Exception as exc:
+            raise AgentValidationFailedError(
+                candidate.agent_id,
+                (
+                    f"entrypoint '{candidate.entrypoint}' could not be loaded "
+                    f"as a runnable asset: {exc}"
+                ),
+            ) from exc
 
 
 class AgentValidationCommands:

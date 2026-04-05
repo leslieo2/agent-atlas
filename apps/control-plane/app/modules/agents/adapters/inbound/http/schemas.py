@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.modules.agents.domain.models import (
+    AgentManifest,
     AgentValidationEvidenceSummary,
     AgentValidationIssue,
     AgentValidationOutcomeSummary,
@@ -126,8 +127,29 @@ class AgentValidationOutcomeSummaryResponse(BaseModel):
 class AgentImportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    module_name: str
+    agent_id: str
+    name: str
+    description: str
+    framework: str
+    default_model: str
     entrypoint: str
+    agent_family: str | None = None
+    framework_version: str = "1.0.0"
+    tags: list[str] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
+
+    def manifest(self) -> AgentManifest:
+        return AgentManifest(
+            agent_id=self.agent_id,
+            name=self.name,
+            description=self.description,
+            agent_family=self.agent_family,
+            framework=self.framework,
+            framework_version=self.framework_version,
+            default_model=self.default_model,
+            tags=list(self.tags),
+            capabilities=list(self.capabilities),
+        )
 
 
 class AgentValidationRunStartRequest(BaseModel):

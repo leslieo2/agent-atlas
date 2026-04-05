@@ -4,6 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   useCreateClaudeCodeStarterAssetMutation,
+  useImportAgentMutation,
   usePublishedAgentsQuery,
   useStartValidationRunMutation
 } from "@/src/entities/agent/query";
@@ -13,10 +14,12 @@ import type {
   AgentValidationEvidenceSummaryRecord,
   AgentValidationOutcomeSummaryRecord,
   AgentValidationRunReferenceRecord,
-  ExecutionReferenceRecord
+  ExecutionReferenceRecord,
+  ImportAgentInput
 } from "@/src/entities/agent/model";
 import { executionProfileSummary } from "@/src/shared/runtime/identity";
 import { Button } from "@/src/shared/ui/Button";
+import { Field } from "@/src/shared/ui/Field";
 import { MetricCard } from "@/src/shared/ui/MetricCard";
 import { Notice } from "@/src/shared/ui/Notice";
 import { Panel } from "@/src/shared/ui/Panel";
@@ -297,8 +300,18 @@ function AgentCard({
 export default function AgentsWorkspace() {
   const publishedAgentsQuery = usePublishedAgentsQuery();
   const bootstrapMutation = useCreateClaudeCodeStarterAssetMutation();
+  const importMutation = useImportAgentMutation();
   const validationMutation = useStartValidationRunMutation();
   const [actionMessage, setActionMessage] = useState("");
+  const [importForm, setImportForm] = useState<ImportAgentInput>({
+    agentId: "",
+    name: "",
+    description: "",
+    framework: "openai-agents-sdk",
+    defaultModel: "gpt-5.4-mini",
+    entrypoint: "",
+    tags: []
+  });
   const agents = useMemo<AgentRecord[]>(() => publishedAgentsQuery.data ?? [], [publishedAgentsQuery.data]);
 
   const groups = useMemo<AgentGroup[]>(
@@ -323,6 +336,7 @@ export default function AgentsWorkspace() {
   );
 
   const errorMessage =
+    (importMutation.error instanceof Error && importMutation.error.message) ||
     (bootstrapMutation.error instanceof Error && bootstrapMutation.error.message) ||
     (validationMutation.error instanceof Error && validationMutation.error.message) ||
     (publishedAgentsQuery.error instanceof Error && publishedAgentsQuery.error.message) ||
@@ -334,8 +348,32 @@ export default function AgentsWorkspace() {
     try {
       const agent = await bootstrapMutation.mutateAsync();
       setActionMessage(
-        `Created ${agent.name}. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface.`
+        `Created ${agent.name} as the starter bridge. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface.`
       );
+    } catch {
+      // Error state is surfaced through the shared notice area.
+    }
+  }
+
+  function updateImportField<K extends keyof ImportAgentInput>(key: K, value: ImportAgentInput[K]) {
+    setImportForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function handleImport() {
+    try {
+      const agent = await importMutation.mutateAsync(importForm);
+      setActionMessage(
+        `Imported ${agent.name}. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface.`
+      );
+      setImportForm({
+        agentId: "",
+        name: "",
+        description: "",
+        framework: "openai-agents-sdk",
+        defaultModel: "gpt-5.4-mini",
+        entrypoint: "",
+        tags: []
+      });
     } catch {
       // Error state is surfaced through the shared notice area.
     }
@@ -405,20 +443,93 @@ export default function AgentsWorkspace() {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">No agents yet</p>
-              <h3 className="panel-title">Create the first governed Claude Code asset</h3>
+              <h3 className="panel-title">Import the first governed agent asset</h3>
               <p className="muted-note">
-                Atlas shows governed runnable assets here. The current Claude starter bootstrap remains available as a
-                transitional intake bridge, but it is no longer the product’s main asset-governance story.
+                Atlas shows governed runnable assets here. Import a runnable agent explicitly into governance first.
+                The Claude starter remains available only as a bridge/reference path when you do not yet have an asset
+                to import.
               </p>
             </div>
           </div>
+          <div className={styles.formGrid}>
+            <Field label="Agent ID" htmlFor="agent-import-id">
+              <input
+                id="agent-import-id"
+                value={importForm.agentId}
+                onChange={(event) => updateImportField("agentId", event.target.value)}
+                placeholder="customer-service"
+              />
+            </Field>
+            <Field label="Name" htmlFor="agent-import-name">
+              <input
+                id="agent-import-name"
+                value={importForm.name}
+                onChange={(event) => updateImportField("name", event.target.value)}
+                placeholder="Customer Service"
+              />
+            </Field>
+            <Field label="Framework" htmlFor="agent-import-framework">
+              <select
+                id="agent-import-framework"
+                value={importForm.framework}
+                onChange={(event) => updateImportField("framework", event.target.value)}
+              >
+                <option value="openai-agents-sdk">openai-agents-sdk</option>
+                <option value="langchain">langchain</option>
+                <option value="claude-code-cli">claude-code-cli</option>
+              </select>
+            </Field>
+            <Field label="Default model" htmlFor="agent-import-model">
+              <input
+                id="agent-import-model"
+                value={importForm.defaultModel}
+                onChange={(event) => updateImportField("defaultModel", event.target.value)}
+                placeholder="gpt-5.4-mini"
+              />
+            </Field>
+            <Field label="Entrypoint" htmlFor="agent-import-entrypoint" wide>
+              <input
+                id="agent-import-entrypoint"
+                value={importForm.entrypoint}
+                onChange={(event) => updateImportField("entrypoint", event.target.value)}
+                placeholder="agents.customer_service:build_agent"
+              />
+            </Field>
+            <Field label="Description" htmlFor="agent-import-description" wide>
+              <textarea
+                id="agent-import-description"
+                rows={3}
+                value={importForm.description}
+                onChange={(event) => updateImportField("description", event.target.value)}
+                placeholder="Governed support agent imported from a runnable entrypoint."
+              />
+            </Field>
+          </div>
           <div className={styles.actions}>
-            <Button onClick={() => void handleBootstrap()} disabled={bootstrapMutation.isPending}>
-              {bootstrapMutation.isPending ? "Creating Claude asset..." : "Create Claude Code asset"}
+            <Button
+              onClick={() => void handleImport()}
+              disabled={
+                importMutation.isPending ||
+                !importForm.agentId.trim() ||
+                !importForm.name.trim() ||
+                !importForm.description.trim() ||
+                !importForm.entrypoint.trim()
+              }
+            >
+              {importMutation.isPending ? "Importing agent..." : "Import agent"}
             </Button>
+            <Button onClick={() => void handleBootstrap()} variant="ghost" disabled={bootstrapMutation.isPending}>
+              {bootstrapMutation.isPending ? "Creating starter..." : "Create Claude Code starter"}
+            </Button>
+          </div>
+          <div className="page-stack">
             <Notice>
-              This uses the existing bootstrap bridge only to land a governed asset back into Atlas. Draft browsing and
-              repo-local publish flows are no longer part of the shipped operator path.
+              Explicit import is the primary operator path. Atlas records the runnable asset identity here and keeps
+              validation, experiment handoff, and provenance attached to the governed snapshot.
+            </Notice>
+            <Notice>
+              The Claude starter is a bridge/reference path only. Draft browsing and repo-local publish flows are not
+              part of the shipped intake surface.
             </Notice>
           </div>
         </Panel>

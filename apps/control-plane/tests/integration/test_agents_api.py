@@ -65,28 +65,33 @@ def test_agents_api_imports_explicit_source_into_governed_asset(client) -> None:
     response = client.post(
         "/api/v1/agents/imports",
         json={
-            "module_name": "tests.fixtures.agents.importable_basic",
-            "entrypoint": "tests.fixtures.agents.importable_basic:build_agent",
+            "agent_id": "basic",
+            "name": "Basic",
+            "description": "Minimal fixture agent for Atlas execution smoke tests.",
+            "framework": "openai-agents-sdk",
+            "default_model": "gpt-5.4-mini",
+            "entrypoint": "tests.fixtures.agents.basic:build_agent",
+            "agent_family": "openai-agents",
+            "framework_version": "1.0.0",
+            "tags": ["example", "import"],
+            "capabilities": ["submit"],
         },
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["agent_id"] == "importable-basic"
-    assert payload["entrypoint"] == "tests.fixtures.agents.importable_basic:build_agent"
+    assert payload["agent_id"] == "basic"
+    assert payload["entrypoint"] == "tests.fixtures.agents.basic:build_agent"
     assert payload["source_fingerprint"]
     assert (
         payload["execution_reference"]["artifact_ref"]
-        == f"source://importable-basic@{payload['source_fingerprint']}"
+        == f"source://basic@{payload['source_fingerprint']}"
     )
 
     published_response = client.get("/api/v1/agents/published")
     assert published_response.status_code == 200
     published = {item["agent_id"]: item for item in published_response.json()}
-    assert (
-        published["importable-basic"]["entrypoint"]
-        == "tests.fixtures.agents.importable_basic:build_agent"
-    )
+    assert published["basic"]["entrypoint"] == "tests.fixtures.agents.basic:build_agent"
 
 
 def test_agents_api_starter_entry_creates_first_governed_claude_asset(

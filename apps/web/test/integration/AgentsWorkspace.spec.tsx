@@ -9,6 +9,7 @@ import AgentsWorkspace from "@/src/widgets/agents-workspace/AgentsWorkspace";
 vi.mock("@/src/entities/agent/api", () => ({
   listPublishedAgents: vi.fn(),
   createClaudeCodeStarterAsset: vi.fn(),
+  importAgent: vi.fn(),
   startValidationRun: vi.fn()
 }));
 
@@ -118,10 +119,12 @@ describe("Agents workspace", () => {
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockReset();
     (agentApi.createClaudeCodeStarterAsset as unknown as MockedApiFn).mockReset();
+    (agentApi.importAgent as unknown as MockedApiFn).mockReset();
     (agentApi.startValidationRun as unknown as MockedApiFn).mockReset();
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
     (agentApi.createClaudeCodeStarterAsset as unknown as MockedApiFn).mockResolvedValue(null);
+    (agentApi.importAgent as unknown as MockedApiFn).mockResolvedValue(null);
     (agentApi.startValidationRun as unknown as MockedApiFn).mockImplementation(async (agentId: string) => ({
       run_id: `validation-${agentId}`,
       status: "queued"
@@ -229,73 +232,83 @@ describe("Agents workspace", () => {
     );
   });
 
-  it("bootstraps the first governed agent asset from the empty state action", async () => {
+  it("imports the first governed agent asset from the empty state action and keeps starter intake secondary", async () => {
     let publishedAgents: AgentRecord[] = [];
-    const starterAgent: AgentRecord = {
-      agentId: "claude-code-starter",
-      name: "Claude Code Starter",
-      description: "Published starter snapshot created from the transitional live intake bridge.",
+    const importedAgent: AgentRecord = {
+      agentId: "imported-basic",
+      name: "Imported Basic",
+      description: "Governed asset imported explicitly from a runnable entrypoint.",
       framework: "openai-agents-sdk",
       frameworkVersion: "0.1.0",
-      entrypoint: "snapshots/claude-code-starter:run",
+      entrypoint: "agents.imported_basic:build_agent",
       defaultModel: "gpt-5.4-mini",
-      tags: ["starter", "live"],
+      tags: ["import", "ops"],
       capabilities: ["submit"],
       publishedAt: "2026-04-02T09:00:00Z",
-      sourceFingerprint: "claude-code-starter-fingerprint-123456",
+      sourceFingerprint: "imported-basic-fingerprint-123456",
       executionReference: {
-        artifactRef: "bundle://claude-code-starter"
+        artifactRef: "source://imported-basic@imported-basic-fingerprint-123456"
       },
       latestValidation: {
-        runId: "run-claude-code-starter-validation",
+        runId: "run-imported-basic-validation",
         status: "succeeded",
         createdAt: "2026-04-02T09:01:00Z",
         startedAt: "2026-04-02T09:02:00Z",
         completedAt: "2026-04-02T09:03:00Z"
       },
       validationEvidence: {
-        artifactRef: "bundle://claude-code-starter-validation",
-        traceUrl: "http://phoenix.local/trace/claude-code-starter-validation"
+        artifactRef: "bundle://imported-basic-validation",
+        traceUrl: "http://phoenix.local/trace/imported-basic-validation"
       },
       validationOutcome: {
         status: "succeeded",
-        reason: "Starter intake completed with reusable validation evidence."
+        reason: "Explicit import completed with validation evidence."
       },
       executionProfile: {
-        backend: "external-runner",
-        runner_image: "atlas-claude-validation:local",
-        metadata: {
-          runner_backend: "docker-container",
-          claude_code_cli: {
-            command: "claude",
-            version: "starter"
-          }
-        }
+        backend: "external-runner"
       }
     };
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
-    (agentApi.createClaudeCodeStarterAsset as unknown as MockedApiFn).mockImplementation(async () => {
-      publishedAgents = [starterAgent];
-      return starterAgent;
+    (agentApi.importAgent as unknown as MockedApiFn).mockImplementation(async () => {
+      publishedAgents = [importedAgent];
+      return importedAgent;
     });
 
     renderWithQueryClient(<AgentsWorkspace />);
 
-    expect(await screen.findByText("Create the first governed Claude Code asset")).toBeInTheDocument();
+    expect(await screen.findByText("Import the first governed agent asset")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Claude Code starter" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Claude Code asset" }));
+    fireEvent.change(screen.getByLabelText("Agent ID"), { target: { value: "imported-basic" } });
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Imported Basic" } });
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "Governed asset imported explicitly from a runnable entrypoint." }
+    });
+    fireEvent.change(screen.getByLabelText("Entrypoint"), {
+      target: { value: "agents.imported_basic:build_agent" }
+    });
 
-    await waitFor(() => expect(agentApi.createClaudeCodeStarterAsset).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText("Published starter snapshot created from the transitional live intake bridge.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Import agent" }));
+
+    await waitFor(() => expect(agentApi.importAgent).toHaveBeenCalledTimes(1));
+    expect((agentApi.importAgent as unknown as MockedApiFn).mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        agentId: "imported-basic",
+        name: "Imported Basic",
+        entrypoint: "agents.imported_basic:build_agent",
+        framework: "openai-agents-sdk"
+      })
+    );
+    expect(await screen.findByText("Governed asset imported explicitly from a runnable entrypoint.")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Created Claude Code Starter. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface."
+        "Imported Imported Basic. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface."
       )
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Create experiment/i })).toHaveAttribute(
       "href",
-      "/experiments?agent=claude-code-starter"
+      "/experiments?agent=imported-basic"
     );
   });
 });

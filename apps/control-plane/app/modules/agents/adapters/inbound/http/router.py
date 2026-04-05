@@ -52,7 +52,7 @@ def import_agent_source(
     try:
         return AgentDescriptorResponse.from_domain(
             commands.import_agent_source(
-                module_name=payload.module_name,
+                manifest=payload.manifest(),
                 entrypoint=payload.entrypoint,
             )
         )
