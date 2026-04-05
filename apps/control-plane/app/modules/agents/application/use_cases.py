@@ -131,19 +131,19 @@ def _import_execution_binding() -> ExecutionBinding:
     return ExecutionBinding(runner_backend="local-process")
 
 
-def _intake_validation_context() -> AgentBuildContext:
+def _governed_intake_validation_context() -> AgentBuildContext:
     return AgentBuildContext(
         run_id=UUID("00000000-0000-0000-0000-000000000000"),
-        project="agent-import-validation",
+        project="governed-agent-intake-validation",
         dataset=None,
         prompt="validation",
-        tags=["agent-import"],
+        tags=["agent-intake"],
         project_metadata={"source": "governed-intake"},
     )
 
 
 @dataclass(frozen=True)
-class _GovernedIntakePlan:
+class GovernedAgentIntake:
     manifest: AgentManifest
     entrypoint: str
     default_runtime_profile: ExecutorConfig | None = None
@@ -151,51 +151,52 @@ class _GovernedIntakePlan:
     validate_candidate: Callable[[PublishedAgent], None] | None = None
     prepare_runtime: Callable[[ExecutionBinding | None], None] | None = None
 
+    @classmethod
+    def for_import(
+        cls,
+        manifest: AgentManifest,
+        *,
+        entrypoint: str,
+    ) -> GovernedAgentIntake:
+        return cls(
+            manifest=manifest,
+            entrypoint=entrypoint,
+            execution_binding=_import_execution_binding(),
+        )
 
-def _governed_asset_from_intake(plan: _GovernedIntakePlan) -> PublishedAgent:
-    manifest = plan.manifest.model_copy(deep=True)
-    source_fingerprint = compute_source_fingerprint(manifest, plan.entrypoint)
+    @classmethod
+    def for_reference_asset(cls, asset_id: str) -> GovernedAgentIntake:
+        asset = get_governed_reference_asset(asset_id)
+        return cls(
+            manifest=asset.manifest,
+            entrypoint=asset.entrypoint,
+            default_runtime_profile=asset.default_runtime_profile,
+            execution_binding=asset.execution_binding,
+            prepare_runtime=asset.prepare_runtime,
+        )
+
+
+def _governed_asset_from_intake(intake: GovernedAgentIntake) -> PublishedAgent:
+    manifest = intake.manifest.model_copy(deep=True)
+    source_fingerprint = compute_source_fingerprint(manifest, intake.entrypoint)
     return PublishedAgent(
         manifest=manifest,
-        entrypoint=plan.entrypoint,
+        entrypoint=intake.entrypoint,
         source_fingerprint=source_fingerprint,
         execution_reference=_governed_execution_reference(
             agent_id=manifest.agent_id,
             source_fingerprint=source_fingerprint,
         ),
         default_runtime_profile=(
-            plan.default_runtime_profile.model_copy(deep=True)
-            if plan.default_runtime_profile is not None
+            intake.default_runtime_profile.model_copy(deep=True)
+            if intake.default_runtime_profile is not None
             else ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
         ),
         execution_binding=(
-            plan.execution_binding.model_copy(deep=True)
-            if plan.execution_binding is not None
+            intake.execution_binding.model_copy(deep=True)
+            if intake.execution_binding is not None
             else None
         ),
-    )
-
-
-def _import_intake_plan(
-    manifest: AgentManifest,
-    *,
-    entrypoint: str,
-) -> _GovernedIntakePlan:
-    return _GovernedIntakePlan(
-        manifest=manifest,
-        entrypoint=entrypoint,
-        execution_binding=_import_execution_binding(),
-    )
-
-
-def _reference_asset_intake_plan(asset_id: str) -> _GovernedIntakePlan:
-    asset = get_governed_reference_asset(asset_id)
-    return _GovernedIntakePlan(
-        manifest=asset.manifest,
-        entrypoint=asset.entrypoint,
-        default_runtime_profile=asset.default_runtime_profile,
-        execution_binding=asset.execution_binding,
-        prepare_runtime=asset.prepare_runtime,
     )
 
 
@@ -214,27 +215,29 @@ class AgentIntakeCommands:
         if existing is not None and _is_valid_published_agent(existing):
             return existing
 
-        return self._ingest_governed_asset(_reference_asset_intake_plan(reference_asset.asset_id))
-
-    def import_agent_source(self, *, manifest: AgentManifest, entrypoint: str) -> PublishedAgent:
-        return self._ingest_governed_asset(
-            _import_intake_plan(manifest, entrypoint=entrypoint),
-            validate_candidate=self._validate_runnable_import,
+        return self.publish_governed_intake(
+            GovernedAgentIntake.for_reference_asset(reference_asset.asset_id)
         )
 
-    def _ingest_governed_asset(
+    def import_agent_source(self, *, manifest: AgentManifest, entrypoint: str) -> PublishedAgent:
+        return self.publish_governed_intake(
+            GovernedAgentIntake.for_import(manifest, entrypoint=entrypoint),
+            validate_candidate=self._validate_runnable_intake_candidate,
+        )
+
+    def publish_governed_intake(
         self,
-        plan: _GovernedIntakePlan,
+        intake: GovernedAgentIntake,
         *,
         validate_candidate: Callable[[PublishedAgent], None] | None = None,
     ) -> PublishedAgent:
-        candidate = _governed_asset_from_intake(plan)
-        if plan.prepare_runtime is not None:
-            plan.prepare_runtime(candidate.execution_binding)
+        candidate = _governed_asset_from_intake(intake)
+        if intake.prepare_runtime is not None:
+            intake.prepare_runtime(candidate.execution_binding)
         if validate_candidate is not None:
             validate_candidate(candidate)
-        elif plan.validate_candidate is not None:
-            plan.validate_candidate(candidate)
+        elif intake.validate_candidate is not None:
+            intake.validate_candidate(candidate)
         self._save_governed_asset(candidate)
         return candidate
 
@@ -250,11 +253,11 @@ class AgentIntakeCommands:
 
         self.published_agents.save_agent(candidate)
 
-    def _validate_runnable_import(self, candidate: PublishedAgent) -> None:
+    def _validate_runnable_intake_candidate(self, candidate: PublishedAgent) -> None:
         try:
             self.framework_registry.build_agent(
                 published_agent=candidate,
-                context=_intake_validation_context(),
+                context=_governed_intake_validation_context(),
             )
         except AgentLoadFailedError as exc:
             raise AgentValidationFailedError(candidate.agent_id, str(exc)) from exc

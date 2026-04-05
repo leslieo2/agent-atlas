@@ -1,7 +1,13 @@
 from __future__ import annotations
 
-from app.modules.agents.application.use_cases import AgentValidationCommands
+from app.modules.agents.application.use_cases import (
+    AgentIntakeCommands,
+    AgentValidationCommands,
+    GovernedAgentIntake,
+)
 from app.modules.agents.domain.models import (
+    AgentManifest,
+    ExecutionBinding,
     ExecutionReference,
     PublishedAgent,
     compute_source_fingerprint,
@@ -26,6 +32,31 @@ class _Catalog:
         if self._agent.agent_id == agent_id:
             return self._agent
         return None
+
+
+class _PublishedAgents:
+    def __init__(self) -> None:
+        self.saved: list[PublishedAgent] = []
+        self.by_id: dict[str, PublishedAgent] = {}
+
+    def list_agents(self) -> list[PublishedAgent]:
+        return list(self.by_id.values())
+
+    def get_agent(self, agent_id: str) -> PublishedAgent | None:
+        return self.by_id.get(agent_id)
+
+    def save_agent(self, agent: PublishedAgent) -> None:
+        self.saved.append(agent)
+        self.by_id[agent.agent_id] = agent
+
+
+class _FrameworkRegistry:
+    def __init__(self) -> None:
+        self.calls: list[PublishedAgent] = []
+
+    def build_agent(self, *, published_agent: PublishedAgent, context) -> object:
+        self.calls.append(published_agent)
+        return object()
 
 
 class _SubmissionService:
@@ -87,3 +118,43 @@ def test_agent_validation_commands_prepares_runtime_from_persisted_execution_bin
     assert run.agent_id == agent.agent_id
     assert submission.calls == [(payload, agent)]
     assert recorded_bindings == [agent.execution_binding]
+
+
+def test_governed_agent_intake_for_reference_asset_uses_reference_contract() -> None:
+    intake = GovernedAgentIntake.for_reference_asset("claude-code-starter")
+
+    assert intake.manifest.agent_id == "claude-code-starter"
+    assert intake.entrypoint == CLAUDE_CODE_STARTER_ENTRYPOINT
+    assert intake.execution_binding == claude_code_starter_execution_binding()
+    assert intake.prepare_runtime is not None
+
+
+def test_agent_intake_commands_publish_governed_intake_runs_generic_hooks() -> None:
+    published_agents = _PublishedAgents()
+    commands = AgentIntakeCommands(published_agents, _FrameworkRegistry())
+    prepared_bindings: list[ExecutionBinding | None] = []
+    validated_agents: list[str] = []
+    intake = GovernedAgentIntake(
+        manifest=AgentManifest(
+            agent_id="basic",
+            name="Basic",
+            description="Minimal fixture agent for Atlas execution smoke tests.",
+            framework="openai-agents-sdk",
+            default_model="gpt-5.4-mini",
+            agent_family="openai-agents",
+            framework_version="1.0.0",
+            tags=["example", "import"],
+            capabilities=["submit"],
+        ),
+        entrypoint="tests.fixtures.agents.basic:build_agent",
+        execution_binding=ExecutionBinding(runner_backend="local-process"),
+        prepare_runtime=lambda binding: prepared_bindings.append(binding),
+        validate_candidate=lambda agent: validated_agents.append(agent.agent_id),
+    )
+
+    published = commands.publish_governed_intake(intake)
+
+    assert published.agent_id == "basic"
+    assert prepared_bindings == [published.execution_binding]
+    assert validated_agents == ["basic"]
+    assert published_agents.saved == [published]
