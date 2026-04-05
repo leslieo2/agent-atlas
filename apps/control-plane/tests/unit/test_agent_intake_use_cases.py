@@ -129,11 +129,18 @@ def test_governed_agent_intake_for_reference_asset_uses_reference_contract() -> 
     assert intake.prepare_runtime is not None
 
 
-def test_agent_intake_commands_publish_governed_intake_runs_generic_hooks() -> None:
+def test_agent_intake_commands_publish_governed_intake_runs_generic_hooks(
+    monkeypatch,
+) -> None:
     published_agents = _PublishedAgents()
     commands = AgentIntakeCommands(published_agents, _FrameworkRegistry())
     prepared_bindings: list[ExecutionBinding | None] = []
     validated_agents: list[str] = []
+    monkeypatch.setattr(
+        commands,
+        "validate_runnable_intake_candidate",
+        lambda agent: validated_agents.append(agent.agent_id),
+    )
     intake = GovernedAgentIntake(
         manifest=AgentManifest(
             agent_id="basic",
@@ -148,8 +155,8 @@ def test_agent_intake_commands_publish_governed_intake_runs_generic_hooks() -> N
         ),
         entrypoint="tests.fixtures.agents.basic:build_agent",
         execution_binding=ExecutionBinding(runner_backend="local-process"),
+        requires_runnable_validation=True,
         prepare_runtime=lambda binding: prepared_bindings.append(binding),
-        validate_candidate=lambda agent: validated_agents.append(agent.agent_id),
     )
 
     published = commands.publish_governed_intake(intake)

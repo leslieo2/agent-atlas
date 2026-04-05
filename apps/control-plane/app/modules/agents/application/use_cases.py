@@ -148,7 +148,7 @@ class GovernedAgentIntake:
     entrypoint: str
     default_runtime_profile: ExecutorConfig | None = None
     execution_binding: ExecutionBinding | None = None
-    validate_candidate: Callable[[PublishedAgent], None] | None = None
+    requires_runnable_validation: bool = False
     prepare_runtime: Callable[[ExecutionBinding | None], None] | None = None
 
     @classmethod
@@ -162,6 +162,7 @@ class GovernedAgentIntake:
             manifest=manifest,
             entrypoint=entrypoint,
             execution_binding=_import_execution_binding(),
+            requires_runnable_validation=True,
         )
 
     @classmethod
@@ -212,16 +213,12 @@ class AgentIntakeCommands:
     def publish_governed_intake(
         self,
         intake: GovernedAgentIntake,
-        *,
-        validate_candidate: Callable[[PublishedAgent], None] | None = None,
     ) -> PublishedAgent:
         candidate = _governed_asset_from_intake(intake)
         if intake.prepare_runtime is not None:
             intake.prepare_runtime(candidate.execution_binding)
-        if validate_candidate is not None:
-            validate_candidate(candidate)
-        elif intake.validate_candidate is not None:
-            intake.validate_candidate(candidate)
+        if intake.requires_runnable_validation:
+            self.validate_runnable_intake_candidate(candidate)
         self._save_governed_asset(candidate)
         return candidate
 

@@ -57,8 +57,7 @@ def import_agent_source(
                 GovernedAgentIntake.for_import(
                     payload.manifest(),
                     entrypoint=payload.entrypoint,
-                ),
-                validate_candidate=commands.validate_runnable_intake_candidate,
+                )
             )
         )
     except AppError as exc:
