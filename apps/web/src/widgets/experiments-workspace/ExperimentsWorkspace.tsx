@@ -23,7 +23,13 @@ import {
   useStartExperimentMutation
 } from "@/src/entities/experiment/query";
 import { usePoliciesQuery } from "@/src/entities/policy/query";
-import type { CompareOutcome, CurationStatus, SampleJudgement, ScoringMode } from "@/src/shared/api/contract";
+import type {
+  CompareOutcome,
+  CurationStatus,
+  RunStatus,
+  SampleJudgement,
+  ScoringMode
+} from "@/src/shared/api/contract";
 import { executionProfileSummary } from "@/src/shared/runtime/identity";
 import { Button } from "@/src/shared/ui/Button";
 import { Field } from "@/src/shared/ui/Field";
@@ -82,6 +88,22 @@ function compareTone(outcome: CompareOutcome) {
     return "error";
   }
   return "warn";
+}
+
+const CURATION_READY_RUN_STATUSES = new Set<RunStatus>(["succeeded", "failed", "cancelled", "lost"]);
+
+function canCurateRun(run: ExperimentRunRecord) {
+  return CURATION_READY_RUN_STATUSES.has(run.runStatus);
+}
+
+function curationDisabledReason(run: ExperimentRunRecord, isMutationPending: boolean) {
+  if (isMutationPending) {
+    return "Updating curation state...";
+  }
+  if (!canCurateRun(run)) {
+    return "Wait for this sample to finish before changing curation.";
+  }
+  return undefined;
 }
 
 function uniqueStrings(values: Array<string | null | undefined>) {
@@ -341,14 +363,24 @@ export default function ExperimentsWorkspace({
     run: ExperimentRunRecord,
     payload: { curationStatus?: CurationStatus; exportEligible?: boolean }
   ) => {
-    await patchRunMutation.mutateAsync({
-      runId: run.runId,
-      payload: {
-        curationStatus: payload.curationStatus ?? run.curationStatus,
-        curationNote: run.curationNote ?? null,
-        exportEligible: payload.exportEligible ?? run.exportEligible ?? false
-      }
-    });
+    if (!canCurateRun(run)) {
+      setActionMessage(`Wait for ${run.datasetSampleId} to finish before changing its curation state.`);
+      return;
+    }
+
+    try {
+      await patchRunMutation.mutateAsync({
+        runId: run.runId,
+        payload: {
+          curationStatus: payload.curationStatus ?? run.curationStatus,
+          curationNote: run.curationNote ?? null,
+          exportEligible: payload.exportEligible ?? run.exportEligible ?? false
+        }
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to update the run curation state.";
+      setActionMessage(message || "Unable to update the run curation state.");
+    }
   };
 
   const handleExport = async () => {
@@ -731,18 +763,24 @@ export default function ExperimentsWorkspace({
                     <div className={styles.curationActions}>
                       <Button
                         variant={run.curationStatus === "include" ? "primary" : "ghost"}
+                        disabled={!canCurateRun(run) || patchRunMutation.isPending}
+                        title={curationDisabledReason(run, patchRunMutation.isPending)}
                         onClick={() => void handlePatchRun(run, { curationStatus: "include" })}
                       >
                         Include
                       </Button>
                       <Button
                         variant={run.curationStatus === "review" ? "primary" : "ghost"}
+                        disabled={!canCurateRun(run) || patchRunMutation.isPending}
+                        title={curationDisabledReason(run, patchRunMutation.isPending)}
                         onClick={() => void handlePatchRun(run, { curationStatus: "review" })}
                       >
                         Review
                       </Button>
                       <Button
                         variant={run.curationStatus === "exclude" ? "primary" : "ghost"}
+                        disabled={!canCurateRun(run) || patchRunMutation.isPending}
+                        title={curationDisabledReason(run, patchRunMutation.isPending)}
                         onClick={() => void handlePatchRun(run, { curationStatus: "exclude" })}
                       >
                         Exclude

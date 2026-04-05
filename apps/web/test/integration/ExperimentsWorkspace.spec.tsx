@@ -532,6 +532,75 @@ describe("Experiments workspace", () => {
     expect(agentSelect).toHaveTextContent("Archived Basic");
   });
 
+  it("disables curation controls while runs are still in flight", async () => {
+    (experimentApi.listExperimentRuns as unknown as MockedApiFn).mockResolvedValue([
+      {
+        runId: "run-queued",
+        experimentId: "exp-002",
+        datasetSampleId: "sample-queued",
+        input: "queued input",
+        expected: "queued expected",
+        actual: null,
+        runStatus: "queued",
+        judgement: null,
+        compareOutcome: null,
+        failureReason: null,
+        errorCode: null,
+        errorMessage: null,
+        tags: [],
+        slice: null,
+        source: null,
+        exportEligible: null,
+        curationStatus: "review",
+        curationNote: null,
+        publishedAgentSnapshot: null,
+        artifactRef: null,
+        imageRef: null,
+        executorBackend: "k8s-job",
+        latencyMs: null,
+        toolCalls: null,
+        traceUrl: null
+      },
+      {
+        runId: "run-running",
+        experimentId: "exp-002",
+        datasetSampleId: "sample-running",
+        input: "running input",
+        expected: "running expected",
+        actual: null,
+        runStatus: "running",
+        judgement: null,
+        compareOutcome: null,
+        failureReason: null,
+        errorCode: null,
+        errorMessage: null,
+        tags: [],
+        slice: null,
+        source: null,
+        exportEligible: null,
+        curationStatus: "review",
+        curationNote: null,
+        publishedAgentSnapshot: null,
+        artifactRef: null,
+        imageRef: null,
+        executorBackend: "k8s-job",
+        latencyMs: null,
+        toolCalls: null,
+        traceUrl: null
+      }
+    ]);
+
+    renderWithQueryClient(<ExperimentsWorkspace initialExperimentId="exp-002" />);
+
+    expect(await screen.findByText("sample-queued")).toBeInTheDocument();
+    expect(screen.getByText("sample-running")).toBeInTheDocument();
+
+    const reviewButtons = screen.getAllByRole("button", { name: "Review" });
+    expect(reviewButtons).toHaveLength(2);
+    reviewButtons.forEach((button) => expect(button).toBeDisabled());
+    expect(experimentApi.patchExperimentRun).not.toHaveBeenCalled();
+  });
+
   it("syncs dataset selection when the page handoff updates the initial dataset version", async () => {
     (datasetApi.listDatasets as unknown as MockedApiFn).mockResolvedValue([
       {
