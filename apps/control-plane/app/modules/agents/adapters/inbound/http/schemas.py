@@ -123,6 +123,13 @@ class AgentValidationOutcomeSummaryResponse(BaseModel):
         return cls.model_validate(summary.model_dump(mode="json"))
 
 
+class AgentImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    module_name: str
+    entrypoint: str
+
+
 class AgentValidationRunStartRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

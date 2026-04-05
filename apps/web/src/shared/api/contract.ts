@@ -21,6 +21,10 @@ export interface AgentDescriptorResponse {
   "validation_evidence"?: AgentValidationEvidenceSummaryResponse | null;
   "validation_outcome"?: AgentValidationOutcomeSummaryResponse | null;
 }
+export interface AgentImportRequest {
+  "module_name": string;
+  "entrypoint": string;
+}
 export interface AgentValidationEvidenceSummaryResponse {
   "artifact_ref"?: string | null;
   "image_ref"?: string | null;

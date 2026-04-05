@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
 from app.modules.agents.application.ports import AgentValidationRecordPort
 from app.modules.agents.application.use_cases import (
-    AgentBootstrapCommands,
+    AgentIntakeCommands,
     AgentValidationCommands,
     PublishedAgentCatalogQueries,
 )
@@ -69,7 +69,7 @@ class StateAgentValidationRecords:
 class AgentModuleBundle:
     agent_exists: Callable[[str], bool]
     published_agent_catalog_queries: PublishedAgentCatalogQueries
-    agent_bootstrap_commands: AgentBootstrapCommands
+    agent_intake_commands: AgentIntakeCommands
     agent_validation_commands: AgentValidationCommands
 
 
@@ -83,9 +83,9 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
         published_agents=infra.published_agent_catalog,
         validation_records=validation_records,
     )
-    agent_bootstrap_commands = AgentBootstrapCommands(
+    agent_intake_commands = AgentIntakeCommands(
         published_agents=infra.published_agent_repository,
-        live_agent_markers=infra.live_agent_marker_repository,
+        framework_registry=infra.framework_registry,
     )
     agent_validation_commands = AgentValidationCommands(
         published_agents=infra.published_agent_catalog,
@@ -99,6 +99,6 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     return AgentModuleBundle(
         agent_exists=agent_exists,
         published_agent_catalog_queries=published_agent_catalog_queries,
-        agent_bootstrap_commands=agent_bootstrap_commands,
+        agent_intake_commands=agent_intake_commands,
         agent_validation_commands=agent_validation_commands,
     )

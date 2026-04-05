@@ -2,19 +2,25 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from app.core.errors import PublishedAgentNotFoundError
+from app.core.errors import (
+    AgentImportConflictError,
+    AgentValidationFailedError,
+    PublishedAgentNotFoundError,
+)
 from app.modules.agents.application.ports import (
     AgentValidationRecordPort,
-    LiveAgentMarkerRepositoryPort,
+    FrameworkRegistryPort,
     PublishedAgentCatalogPort,
     PublishedAgentRepositoryPort,
 )
 from app.modules.agents.domain.models import (
+    AgentModuleSource,
     AgentValidationEvidenceSummary,
     AgentValidationOutcomeStatus,
     AgentValidationOutcomeSummary,
     AgentValidationRecord,
     AgentValidationRunReference,
+    DiscoveredAgent,
     ExecutionReference,
     PublishedAgent,
     compute_source_fingerprint,
@@ -111,43 +117,100 @@ def _is_valid_published_agent(agent: PublishedAgent) -> bool:
     return True
 
 
-class AgentBootstrapCommands:
+def _governed_execution_reference(*, agent_id: str, source_fingerprint: str) -> ExecutionReference:
+    return ExecutionReference.model_validate(
+        build_source_execution_reference(
+            agent_id=agent_id,
+            source_fingerprint=source_fingerprint,
+        ).model_dump(mode="json")
+    )
+
+
+def _governed_asset_from_discovered(
+    discovered: DiscoveredAgent,
+    *,
+    entrypoint: str,
+) -> PublishedAgent:
+    source_fingerprint = compute_source_fingerprint(discovered.manifest, entrypoint)
+    return PublishedAgent(
+        manifest=discovered.manifest.model_copy(deep=True),
+        entrypoint=entrypoint,
+        source_fingerprint=source_fingerprint,
+        execution_reference=_governed_execution_reference(
+            agent_id=discovered.agent_id,
+            source_fingerprint=source_fingerprint,
+        ),
+        default_runtime_profile=discovered.default_runtime_profile.model_copy(deep=True),
+        execution_binding=(
+            discovered.execution_binding.model_copy(deep=True)
+            if discovered.execution_binding is not None
+            else None
+        ),
+    )
+
+
+def _governed_asset_from_starter() -> PublishedAgent:
+    manifest = claude_code_starter_manifest()
+    source_fingerprint = compute_source_fingerprint(
+        manifest,
+        CLAUDE_CODE_STARTER_ENTRYPOINT,
+    )
+    return PublishedAgent(
+        manifest=manifest,
+        entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
+        source_fingerprint=source_fingerprint,
+        execution_reference=_governed_execution_reference(
+            agent_id=manifest.agent_id,
+            source_fingerprint=source_fingerprint,
+        ),
+        default_runtime_profile=claude_code_starter_runtime_profile(),
+        execution_binding=claude_code_starter_execution_binding(),
+    )
+
+
+class AgentIntakeCommands:
     def __init__(
         self,
         published_agents: PublishedAgentRepositoryPort,
-        live_agent_markers: LiveAgentMarkerRepositoryPort | None = None,
+        framework_registry: FrameworkRegistryPort,
     ) -> None:
         self.published_agents = published_agents
-        self.live_agent_markers = live_agent_markers
+        self.framework_registry = framework_registry
 
-    def bootstrap_claude_code(self) -> PublishedAgent:
-        ensure_claude_code_starter_runtime_ready()
-        if self.live_agent_markers is not None:
-            self.live_agent_markers.save_agent_id(CLAUDE_CODE_STARTER_AGENT_ID)
+    def create_claude_code_starter(self) -> PublishedAgent:
         existing = self.published_agents.get_agent(CLAUDE_CODE_STARTER_AGENT_ID)
         if existing is not None and _is_valid_published_agent(existing):
             return existing
 
-        manifest = claude_code_starter_manifest()
-        source_fingerprint = compute_source_fingerprint(
-            manifest,
-            CLAUDE_CODE_STARTER_ENTRYPOINT,
-        )
-        published = PublishedAgent(
-            manifest=manifest,
-            entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
-            source_fingerprint=source_fingerprint,
-            execution_reference=ExecutionReference.model_validate(
-                build_source_execution_reference(
-                    agent_id=manifest.agent_id,
-                    source_fingerprint=source_fingerprint,
-                ).model_dump(mode="json")
-            ),
-            default_runtime_profile=claude_code_starter_runtime_profile(),
-            execution_binding=claude_code_starter_execution_binding(),
-        )
-        self.published_agents.save_agent(published)
+        ensure_claude_code_starter_runtime_ready()
+        starter = _governed_asset_from_starter()
+        self._save_governed_asset(starter)
+        return starter
+
+    def import_agent_source(self, *, module_name: str, entrypoint: str) -> PublishedAgent:
+        source = AgentModuleSource(module_name=module_name, entrypoint=entrypoint)
+        discovered = self.framework_registry.discover(source)
+        if discovered.validation_status != "valid":
+            reason = "; ".join(issue.message for issue in discovered.validation_issues) or (
+                f"agent_id '{discovered.agent_id}' failed source inspection"
+            )
+            raise AgentValidationFailedError(discovered.agent_id, reason)
+
+        published = _governed_asset_from_discovered(discovered, entrypoint=entrypoint)
+        self._save_governed_asset(published)
         return published
+
+    def _save_governed_asset(self, candidate: PublishedAgent) -> None:
+        existing = self.published_agents.get_agent(candidate.agent_id)
+        if existing is not None and _is_valid_published_agent(existing):
+            if (
+                existing.source_fingerprint_or_raise() == candidate.source_fingerprint_or_raise()
+                and existing.entrypoint == candidate.entrypoint
+            ):
+                return
+            raise AgentImportConflictError(candidate.agent_id)
+
+        self.published_agents.save_agent(candidate)
 
 
 class AgentValidationCommands:

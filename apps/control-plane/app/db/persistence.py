@@ -235,7 +235,6 @@ class StatePersistence:
         approval_policies = self._control.table("approval_policies")
         tool_policies = self._control.table("tool_policies")
         published_agents = self._control.table("published_agents")
-        live_agent_markers = self._control.table("live_agent_markers")
         statements = [
             f"""
             CREATE TABLE IF NOT EXISTS {runs} (
@@ -286,12 +285,6 @@ class StatePersistence:
             CREATE TABLE IF NOT EXISTS {published_agents} (
                 agent_id TEXT PRIMARY KEY,
                 payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {live_agent_markers} (
-                agent_id TEXT PRIMARY KEY,
                 updated_at TEXT NOT NULL
             )
             """,
@@ -462,37 +455,6 @@ class StatePersistence:
         cursor = self._control.execute(
             (
                 f"DELETE FROM {self._control.table('published_agents')} "  # nosec B608
-                f"WHERE agent_id = {self._control.placeholder}"
-            ),
-            (agent_id,),
-            commit=True,
-        )
-        return bool(cursor.rowcount)
-
-    def save_live_agent_marker(self, agent_id: str) -> None:
-        placeholder = self._control.placeholder
-        self._control.execute(  # nosec B608
-            f"""
-            INSERT INTO {self._control.table('live_agent_markers')} (agent_id, updated_at)
-            VALUES ({placeholder}, {placeholder})
-            ON CONFLICT(agent_id) DO UPDATE SET
-                updated_at = excluded.updated_at
-            """,
-            (agent_id, datetime.now(UTC).isoformat()),
-            commit=True,
-        )
-
-    def list_live_agent_markers(self) -> list[str]:
-        rows = self._control.fetchall(  # nosec B608
-            f"SELECT agent_id FROM {self._control.table('live_agent_markers')} "
-            "ORDER BY updated_at DESC"
-        )
-        return [str(row["agent_id"]) for row in rows]
-
-    def delete_live_agent_marker(self, agent_id: str) -> bool:
-        cursor = self._control.execute(
-            (
-                f"DELETE FROM {self._control.table('live_agent_markers')} "
                 f"WHERE agent_id = {self._control.placeholder}"
             ),
             (agent_id,),

@@ -87,6 +87,18 @@ class AgentBootstrapFailedError(AppError):
     status_code = 500
 
 
+class AgentImportConflictError(AppError, ValueError):
+    code = "agent_import_conflict"
+    status_code = 409
+
+    def __init__(self, agent_id: str, message: str | None = None) -> None:
+        self.agent_id = agent_id
+        super().__init__(
+            message or f"agent_id '{agent_id}' conflicts with an existing governed asset",
+            agent_id=agent_id,
+        )
+
+
 class AgentFrameworkMismatchError(AgentLoadFailedError, ValueError):
     code = "agent_framework_mismatch"
     status_code = 400

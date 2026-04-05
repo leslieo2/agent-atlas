@@ -348,7 +348,7 @@ def test_experiments_api_live_mode_starts_with_bootstrapped_starter_agent(
     from fastapi.testclient import TestClient
 
     with TestClient(app) as live_client:
-        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        bootstrap_response = live_client.post("/api/v1/agents/starters/claude-code")
         assert bootstrap_response.status_code == 200
         assert bootstrap_response.json()["agent_id"] == "claude-code-starter"
 
@@ -496,7 +496,7 @@ def test_experiments_api_live_mode_pins_published_snapshot_across_unpublish(
     from fastapi.testclient import TestClient
 
     with TestClient(app) as live_client:
-        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        bootstrap_response = live_client.post("/api/v1/agents/starters/claude-code")
         assert bootstrap_response.status_code == 200
 
         dataset_response = live_client.post(
@@ -627,7 +627,7 @@ def test_experiments_api_live_mode_bootstrapped_starter_uses_default_runtime_pro
     from fastapi.testclient import TestClient
 
     with TestClient(app) as live_client:
-        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        bootstrap_response = live_client.post("/api/v1/agents/starters/claude-code")
         assert bootstrap_response.status_code == 200
         assert bootstrap_response.json()["default_runtime_profile"]["backend"] == "external-runner"
         assert "binding" not in bootstrap_response.json()["default_runtime_profile"]
@@ -770,7 +770,7 @@ def test_experiments_api_live_mode_starter_emits_trace_deeplink_without_explicit
     from fastapi.testclient import TestClient
 
     with TestClient(app) as live_client:
-        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        bootstrap_response = live_client.post("/api/v1/agents/starters/claude-code")
         assert bootstrap_response.status_code == 200
 
         dataset_response = live_client.post(
@@ -857,7 +857,7 @@ def test_experiments_api_live_mode_starter_completes_with_non_null_trace_url_whe
 
     try:
         with TestClient(app) as live_client:
-            bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+            bootstrap_response = live_client.post("/api/v1/agents/starters/claude-code")
             assert bootstrap_response.status_code == 200
 
             dataset_response = live_client.post(
@@ -926,7 +926,7 @@ def test_experiments_api_run_list_falls_back_to_run_trace_pointer_when_evaluatio
     from fastapi.testclient import TestClient
 
     with TestClient(app) as live_client:
-        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        bootstrap_response = live_client.post("/api/v1/agents/starters/claude-code")
         assert bootstrap_response.status_code == 200
 
         dataset_response = live_client.post(
@@ -1003,7 +1003,7 @@ def test_experiments_api_run_list_falls_back_to_project_url_when_trace_url_is_mi
     from fastapi.testclient import TestClient
 
     with TestClient(app) as live_client:
-        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        bootstrap_response = live_client.post("/api/v1/agents/starters/claude-code")
         assert bootstrap_response.status_code == 200
 
         dataset_response = live_client.post(

@@ -3,7 +3,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
-  useBootstrapClaudeCodeAgentMutation,
+  useCreateClaudeCodeStarterAssetMutation,
   usePublishedAgentsQuery,
   useStartValidationRunMutation
 } from "@/src/entities/agent/query";
@@ -296,7 +296,7 @@ function AgentCard({
 
 export default function AgentsWorkspace() {
   const publishedAgentsQuery = usePublishedAgentsQuery();
-  const bootstrapMutation = useBootstrapClaudeCodeAgentMutation();
+  const bootstrapMutation = useCreateClaudeCodeStarterAssetMutation();
   const validationMutation = useStartValidationRunMutation();
   const [actionMessage, setActionMessage] = useState("");
   const agents = useMemo<AgentRecord[]>(() => publishedAgentsQuery.data ?? [], [publishedAgentsQuery.data]);

@@ -223,7 +223,8 @@ Current backend endpoints include:
 - Health: `GET /health`
 - Agents:
   - `GET /api/v1/agents/published`
-  - `POST /api/v1/agents/bootstrap/claude-code`
+  - `POST /api/v1/agents/imports`
+  - `POST /api/v1/agents/starters/claude-code`
   - `POST /api/v1/agents/{agent_id}/validation-runs`
 - Runs:
   - `GET /api/v1/runs`

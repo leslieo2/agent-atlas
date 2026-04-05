@@ -11,7 +11,7 @@ shape described in [prd.md](/Users/leslie/PycharmProjects/agent-atlas/prd.md).
   - Scope: no real network, no browser navigation, no background process orchestration beyond local stubs and mocks.
 - `integration`
   - Goal: verify boundary collaboration inside one app.
-  - Backend: FastAPI routes for governed asset listing, transitional bootstrap intake, validation-run
+  - Backend: FastAPI routes for governed asset listing, explicit import and starter-governance intake, validation-run
     creation, experiment/run creation, persistence, and export flow.
   - Frontend: rendered React components plus mocked API boundaries.
 - `e2e`
@@ -26,9 +26,9 @@ shape described in [prd.md](/Users/leslie/PycharmProjects/agent-atlas/prd.md).
 - Govern runnable agent assets
   - Backend unit: manifest parsing, duplicate detection, intake helpers, and validation metadata
     normalization
-  - Backend integration: `GET /api/v1/agents/published`, `POST /api/v1/agents/bootstrap/claude-code`,
-    `POST /api/v1/agents/{agent_id}/validation-runs`
-  - Frontend integration: Agents workspace rendering, governed asset grouping, transitional bootstrap
+  - Backend integration: `GET /api/v1/agents/published`, `POST /api/v1/agents/imports`,
+    `POST /api/v1/agents/starters/claude-code`, `POST /api/v1/agents/{agent_id}/validation-runs`
+  - Frontend integration: Agents workspace rendering, governed asset grouping, starter-governance
     bridge, validation actions, and experiment handoff links
 - Run an agent
   - Backend integration: experiment/run creation, trajectory persistence, structured runtime errors,

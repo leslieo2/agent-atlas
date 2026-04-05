@@ -52,7 +52,7 @@ def test_live_starter_governed_loop_is_hermetic_and_export_ready(
     from app.main import app
 
     with TestClient(app) as client:
-        bootstrap_response = client.post("/api/v1/agents/bootstrap/claude-code")
+        bootstrap_response = client.post("/api/v1/agents/starters/claude-code")
         assert bootstrap_response.status_code == 200
         assert bootstrap_response.json()["agent_id"] == "claude-code-starter"
         assert provisioning_commands == [

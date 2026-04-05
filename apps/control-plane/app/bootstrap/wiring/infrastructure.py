@@ -44,7 +44,6 @@ from app.infrastructure.adapters.framework_registry import (
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.infrastructure.repositories import (
     StateApprovalPolicyRepository,
-    StateLiveAgentMarkerRepository,
     StatePublishedAgentRepository,
     StateSystemStatus,
 )
@@ -98,7 +97,6 @@ class InfrastructureBundle:
     run_evaluation_repository: StateRunEvaluationRepository
     export_repository: StateExportRepository
     published_agent_repository: StatePublishedAgentRepository
-    live_agent_marker_repository: StateLiveAgentMarkerRepository
     approval_policy_repository: StateApprovalPolicyRepository
     system_status: StateSystemStatus
     framework_registry: FrameworkRegistryPort
@@ -131,7 +129,6 @@ def build_infrastructure() -> InfrastructureBundle:
     run_evaluation_repository = StateRunEvaluationRepository()
     export_repository = StateExportRepository()
     published_agent_repository = StatePublishedAgentRepository()
-    live_agent_marker_repository = StateLiveAgentMarkerRepository()
     approval_policy_repository = StateApprovalPolicyRepository()
     system_status = StateSystemStatus()
     framework_plugins = discover_framework_plugins()
@@ -260,7 +257,6 @@ def build_infrastructure() -> InfrastructureBundle:
         run_evaluation_repository=run_evaluation_repository,
         export_repository=export_repository,
         published_agent_repository=published_agent_repository,
-        live_agent_marker_repository=live_agent_marker_repository,
         approval_policy_repository=approval_policy_repository,
         system_status=system_status,
         framework_registry=framework_registry,

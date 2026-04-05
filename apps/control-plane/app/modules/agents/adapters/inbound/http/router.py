@@ -3,17 +3,18 @@ from __future__ import annotations
 from typing import Annotated, Protocol
 
 from app.bootstrap.providers.agents import (
-    get_agent_bootstrap_commands,
+    get_agent_intake_commands,
     get_agent_validation_commands,
     get_published_agent_catalog_queries,
 )
 from app.core.errors import AppError
 from app.modules.agents.adapters.inbound.http.schemas import (
     AgentDescriptorResponse,
+    AgentImportRequest,
     AgentValidationRunStartRequest,
 )
 from app.modules.agents.application.use_cases import (
-    AgentBootstrapCommands,
+    AgentIntakeCommands,
     AgentValidationCommands,
     PublishedAgentCatalogQueries,
 )
@@ -43,12 +44,33 @@ def list_published_agents(
         ) from exc
 
 
-@router.post("/bootstrap/claude-code", response_model=AgentDescriptorResponse)
-def bootstrap_claude_code_agent(
-    commands: Annotated[AgentBootstrapCommands, Depends(get_agent_bootstrap_commands)],
+@router.post("/imports", response_model=AgentDescriptorResponse)
+def import_agent_source(
+    payload: AgentImportRequest,
+    commands: Annotated[AgentIntakeCommands, Depends(get_agent_intake_commands)],
 ) -> AgentDescriptorResponse:
     try:
-        return AgentDescriptorResponse.from_domain(commands.bootstrap_claude_code())
+        return AgentDescriptorResponse.from_domain(
+            commands.import_agent_source(
+                module_name=payload.module_name,
+                entrypoint=payload.entrypoint,
+            )
+        )
+    except AppError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "agent_descriptor_invalid", "message": str(exc)},
+        ) from exc
+
+
+@router.post("/starters/claude-code", response_model=AgentDescriptorResponse)
+def create_claude_code_starter(
+    commands: Annotated[AgentIntakeCommands, Depends(get_agent_intake_commands)],
+) -> AgentDescriptorResponse:
+    try:
+        return AgentDescriptorResponse.from_domain(commands.create_claude_code_starter())
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
     except ValueError as exc:

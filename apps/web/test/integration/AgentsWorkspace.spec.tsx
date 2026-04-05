@@ -8,7 +8,7 @@ import AgentsWorkspace from "@/src/widgets/agents-workspace/AgentsWorkspace";
 
 vi.mock("@/src/entities/agent/api", () => ({
   listPublishedAgents: vi.fn(),
-  bootstrapClaudeCodeAgent: vi.fn(),
+  createClaudeCodeStarterAsset: vi.fn(),
   startValidationRun: vi.fn()
 }));
 
@@ -117,11 +117,11 @@ describe("Agents workspace", () => {
     ];
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockReset();
-    (agentApi.bootstrapClaudeCodeAgent as unknown as MockedApiFn).mockReset();
+    (agentApi.createClaudeCodeStarterAsset as unknown as MockedApiFn).mockReset();
     (agentApi.startValidationRun as unknown as MockedApiFn).mockReset();
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
-    (agentApi.bootstrapClaudeCodeAgent as unknown as MockedApiFn).mockResolvedValue(null);
+    (agentApi.createClaudeCodeStarterAsset as unknown as MockedApiFn).mockResolvedValue(null);
     (agentApi.startValidationRun as unknown as MockedApiFn).mockImplementation(async (agentId: string) => ({
       run_id: `validation-${agentId}`,
       status: "queued"
@@ -275,7 +275,7 @@ describe("Agents workspace", () => {
     };
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
-    (agentApi.bootstrapClaudeCodeAgent as unknown as MockedApiFn).mockImplementation(async () => {
+    (agentApi.createClaudeCodeStarterAsset as unknown as MockedApiFn).mockImplementation(async () => {
       publishedAgents = [starterAgent];
       return starterAgent;
     });
@@ -286,7 +286,7 @@ describe("Agents workspace", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Create Claude Code asset" }));
 
-    await waitFor(() => expect(agentApi.bootstrapClaudeCodeAgent).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(agentApi.createClaudeCodeStarterAsset).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Published starter snapshot created from the transitional live intake bridge.")).toBeInTheDocument();
     expect(
       screen.getByText(

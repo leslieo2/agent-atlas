@@ -21,14 +21,3 @@ class StatePublishedAgentRepository:
 
     def delete_agent(self, agent_id: str) -> bool:
         return state_persistence.delete_published_agent(agent_id)
-
-
-class StateLiveAgentMarkerRepository:
-    def list_agent_ids(self) -> list[str]:
-        return state_persistence.list_live_agent_markers()
-
-    def save_agent_id(self, agent_id: str) -> None:
-        state_persistence.save_live_agent_marker(agent_id)
-
-    def delete_agent_id(self, agent_id: str) -> bool:
-        return state_persistence.delete_live_agent_marker(agent_id)

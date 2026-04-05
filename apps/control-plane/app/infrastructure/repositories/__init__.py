@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from app.infrastructure.repositories.agents import (
-    StateLiveAgentMarkerRepository,
-    StatePublishedAgentRepository,
-)
+from app.infrastructure.repositories.agents import StatePublishedAgentRepository
 from app.infrastructure.repositories.policies import StateApprovalPolicyRepository
 from app.infrastructure.repositories.system import StateSystemStatus, reset_state
 from app.modules.datasets.adapters.outbound.persistence.state import StateDatasetRepository
@@ -23,7 +20,6 @@ __all__ = [
     "StateDatasetRepository",
     "StateExperimentRepository",
     "StateExportRepository",
-    "StateLiveAgentMarkerRepository",
     "StatePublishedAgentRepository",
     "StateRunEvaluationRepository",
     "StateRunRepository",

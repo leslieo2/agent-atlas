@@ -61,7 +61,35 @@ def test_agents_api_excludes_corrupt_publications_from_catalog(client) -> None:
     assert "basic" not in published
 
 
-def test_agents_api_bootstrap_creates_first_governed_claude_asset(
+def test_agents_api_imports_explicit_source_into_governed_asset(client) -> None:
+    response = client.post(
+        "/api/v1/agents/imports",
+        json={
+            "module_name": "tests.fixtures.agents.importable_basic",
+            "entrypoint": "tests.fixtures.agents.importable_basic:build_agent",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["agent_id"] == "importable-basic"
+    assert payload["entrypoint"] == "tests.fixtures.agents.importable_basic:build_agent"
+    assert payload["source_fingerprint"]
+    assert (
+        payload["execution_reference"]["artifact_ref"]
+        == f"source://importable-basic@{payload['source_fingerprint']}"
+    )
+
+    published_response = client.get("/api/v1/agents/published")
+    assert published_response.status_code == 200
+    published = {item["agent_id"]: item for item in published_response.json()}
+    assert (
+        published["importable-basic"]["entrypoint"]
+        == "tests.fixtures.agents.importable_basic:build_agent"
+    )
+
+
+def test_agents_api_starter_entry_creates_first_governed_claude_asset(
     monkeypatch,
 ) -> None:
     provision_calls: list[str] = []
@@ -78,7 +106,7 @@ def test_agents_api_bootstrap_creates_first_governed_claude_asset(
         assert published_response.status_code == 200
         assert published_response.json() == []
 
-        bootstrap_response = live_client.post("/api/v1/agents/bootstrap/claude-code")
+        bootstrap_response = live_client.post("/api/v1/agents/starters/claude-code")
         assert bootstrap_response.status_code == 200
         assert bootstrap_response.json()["agent_id"] == "claude-code-starter"
         assert bootstrap_response.json()["entrypoint"] == CLAUDE_CODE_STARTER_ENTRYPOINT

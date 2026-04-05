@@ -10,9 +10,9 @@ export async function listPublishedAgents() {
   return (await request<AgentDescriptorResponse[]>("/api/v1/agents/published")).map(mapAgent);
 }
 
-export async function bootstrapClaudeCodeAgent() {
+export async function createClaudeCodeStarterAsset() {
   return mapAgent(
-    await request<AgentDescriptorResponse>("/api/v1/agents/bootstrap/claude-code", {
+    await request<AgentDescriptorResponse>("/api/v1/agents/starters/claude-code", {
       method: "POST"
     })
   );
