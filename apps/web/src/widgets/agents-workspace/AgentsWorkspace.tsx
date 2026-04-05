@@ -154,16 +154,16 @@ function nextStepLabel(agent: AgentRecord) {
 
 function entryFocusSummary(agent?: AgentRecord | null) {
   if (!agent) {
-    return "Import a runnable candidate or use the starter bridge, then validate it here before Atlas treats the snapshot as experiment-ready.";
+    return "Import a runnable agent or use the starter bridge, then validate it here before using the snapshot in experiments.";
   }
   const readiness = getAgentReadiness(agent);
   if (readiness === "validating") {
-    return `${agent.name} is inside the validation gate now. Wait for the latest run to resolve before promoting it into experiment handoff.`;
+    return `${agent.name} has an active validation run. Wait for the latest run to resolve before using this snapshot in experiments.`;
   }
   if (readiness === "needs_review") {
-    return `${agent.name} is blocked on evidence review. Resolve the latest validation outcome before Atlas promotes it as the next governed snapshot.`;
+    return `${agent.name} needs validation review. Resolve the latest outcome before using this snapshot in experiments.`;
   }
-  return `${agent.name} is ready. Atlas can hand this governed snapshot into experiments without going back through repo-local draft management.`;
+  return `${agent.name} is ready for experiments based on its latest validation summary.`;
 }
 
 function validationPayload(agent: AgentRecord) {
@@ -374,7 +374,7 @@ export default function AgentsWorkspace() {
       const agent = await bootstrapMutation.mutateAsync();
       setEntryFocus({ agentId: agent.agentId, name: agent.name });
       setActionMessage(
-        `Created ${agent.name} as the starter bridge. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface.`
+        `Created ${agent.name} as the starter bridge. Review its validation here before using the snapshot in experiments.`
       );
     } catch {
       // Error state is surfaced through the shared notice area.
@@ -390,7 +390,7 @@ export default function AgentsWorkspace() {
       const agent = await importMutation.mutateAsync(importForm);
       setEntryFocus({ agentId: agent.agentId, name: agent.name });
       setActionMessage(
-        `Imported ${agent.name}. Atlas can now validate the governed asset and hand the sealed snapshot into experiments from this surface.`
+        `Imported ${agent.name}. Review its validation here before using the snapshot in experiments.`
       );
       setImportForm({
         agentId: "",
@@ -466,10 +466,10 @@ export default function AgentsWorkspace() {
         <div className="surface-header">
           <div>
             <p className="surface-kicker">Governed entry</p>
-            <h3 className="panel-title">Intake a candidate, clear validation, then promote the governed snapshot</h3>
+            <h3 className="panel-title">Import an agent, review validation, then use ready snapshots</h3>
             <p className="muted-note">
-              The front-half path stays explicit now: Atlas takes in a runnable candidate, holds the validation gate on
-              this surface, and only then hands the governed asset into experiments.
+              Keep the current operator path in one place: import a runnable agent or bootstrap the starter, review the
+              latest validation status on this surface, then hand ready snapshots into experiments.
             </p>
           </div>
         </div>
@@ -551,19 +551,19 @@ export default function AgentsWorkspace() {
           <div className={styles.entryRail}>
             <div className={styles.entryStep}>
               <div className={styles.entryStepHeader}>
-                <span className={styles.entryStepTitle}>1. Candidate intake</span>
-                <StatusPill tone={entryFocus ? "success" : "warn"}>{entryFocus ? "Captured" : "Waiting"}</StatusPill>
+                <span className={styles.entryStepTitle}>1. Import or starter</span>
+                <StatusPill tone={entryFocus ? "success" : "warn"}>{entryFocus ? "Focused" : "Idle"}</StatusPill>
               </div>
               <p className="muted-note">
                 {entryFocus
-                  ? `${entryFocus.name} is the current intake focus on this surface.`
+                  ? `${entryFocus.name} is the current import focus on this surface.`
                   : "Use explicit import as the primary path. The Claude starter stays available only as a bridge/reference path."}
               </p>
             </div>
 
             <div className={styles.entryStep}>
               <div className={styles.entryStepHeader}>
-                <span className={styles.entryStepTitle}>2. Validation gate</span>
+                <span className={styles.entryStepTitle}>2. Validation status</span>
                 <StatusPill tone={validationBacklog ? "warn" : "success"}>
                   {validationBacklog ? `${validationBacklog} pending` : "Clear"}
                 </StatusPill>
@@ -577,7 +577,7 @@ export default function AgentsWorkspace() {
 
             <div className={styles.entryStep}>
               <div className={styles.entryStepHeader}>
-                <span className={styles.entryStepTitle}>3. Governed promotion</span>
+                <span className={styles.entryStepTitle}>3. Ready for experiments</span>
                 <StatusPill tone={groups[0].items.length ? "success" : "warn"}>
                   {groups[0].items.length ? `${groups[0].items.length} ready` : "No ready assets"}
                 </StatusPill>
@@ -596,17 +596,15 @@ export default function AgentsWorkspace() {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">No agents yet</p>
-              <h3 className="panel-title">No governed assets have cleared entry yet</h3>
+              <h3 className="panel-title">No ready snapshots yet</h3>
               <p className="muted-note">
-                Use the governed entry panel above to intake the first candidate, run validation, and promote the
-                resulting snapshot into the catalog below.
+                Use the governed entry panel above to import the first agent, run validation, and move ready snapshots
+                into the catalog below.
               </p>
             </div>
           </div>
           <div className="page-stack">
-            <Notice>
-              Atlas only renders assets below after they have come through the explicit governed entry front-half.
-            </Notice>
+            <Notice>Import starts the catalog entry here, and validation determines when a snapshot is ready to use.</Notice>
             <Notice>
               Draft browsing and repo-local publish flows are not part of the shipped operator path anymore.
             </Notice>
