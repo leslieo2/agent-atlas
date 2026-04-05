@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 from uuid import uuid4
 
+from app import worker
 from app.execution.contracts import ExecutionRunSpec
 from app.infrastructure.adapters.execution_jobs import ArqExecutionJobQueue
 from app.modules.shared.domain.enums import AdapterKind
+from app.modules.shared.domain.jobs import ExecutionJobKind
 from arq.connections import RedisSettings
 
 
@@ -56,3 +59,55 @@ def test_arq_execution_job_queue_enqueues_run_execution_with_stable_job_id() -> 
         )
     ]
     assert fake_redis.closed is True
+
+
+def test_run_execution_worker_accepts_arq_ctx_and_keyword_payload(monkeypatch) -> None:
+    dispatched = []
+
+    class FakeHandlers:
+        def dispatch(self, job) -> None:
+            dispatched.append(job)
+
+    class FakeJobs:
+        handlers = FakeHandlers()
+
+    class FakeContainer:
+        jobs = FakeJobs()
+
+    monkeypatch.setattr(worker, "get_container", lambda: FakeContainer())
+
+    payload = {"run_id": str(uuid4()), "project": "atlas-validation"}
+
+    asyncio.run(worker.run_execution_job({}, run_spec=payload))
+
+    assert len(dispatched) == 1
+    assert dispatched[0].kind == ExecutionJobKind.RUN_EXECUTION
+    assert dispatched[0].kwargs == {"run_spec": payload}
+
+
+def test_experiment_workers_accept_arq_ctx_and_keyword_payload(monkeypatch) -> None:
+    dispatched = []
+
+    class FakeHandlers:
+        def dispatch(self, job) -> None:
+            dispatched.append(job)
+
+    class FakeJobs:
+        handlers = FakeHandlers()
+
+    class FakeContainer:
+        jobs = FakeJobs()
+
+    monkeypatch.setattr(worker, "get_container", lambda: FakeContainer())
+
+    asyncio.run(worker.execute_experiment_job({}, experiment_id="exp-123"))
+    asyncio.run(worker.refresh_experiment_job({}, experiment_id="exp-456"))
+
+    assert [job.kind for job in dispatched] == [
+        ExecutionJobKind.EXPERIMENT_EXECUTION,
+        ExecutionJobKind.EXPERIMENT_AGGREGATION,
+    ]
+    assert [job.kwargs for job in dispatched] == [
+        {"experiment_id": "exp-123"},
+        {"experiment_id": "exp-456"},
+    ]

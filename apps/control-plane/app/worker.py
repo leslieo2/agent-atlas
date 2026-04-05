@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.modules.shared.domain.jobs import EnqueuedExecutionJob, ExecutionJobKind
 
 
-async def run_execution_job(run_spec: dict[str, object]) -> None:
+async def run_execution_job(_ctx: dict[str, object], *, run_spec: dict[str, object]) -> None:
     get_container().jobs.handlers.dispatch(
         EnqueuedExecutionJob(
             job_id="worker",
@@ -21,7 +21,7 @@ async def run_execution_job(run_spec: dict[str, object]) -> None:
     )
 
 
-async def execute_experiment_job(experiment_id: str) -> None:
+async def execute_experiment_job(_ctx: dict[str, object], *, experiment_id: str) -> None:
     get_container().jobs.handlers.dispatch(
         EnqueuedExecutionJob(
             job_id="worker",
@@ -31,7 +31,7 @@ async def execute_experiment_job(experiment_id: str) -> None:
     )
 
 
-async def refresh_experiment_job(experiment_id: str) -> None:
+async def refresh_experiment_job(_ctx: dict[str, object], *, experiment_id: str) -> None:
     get_container().jobs.handlers.dispatch(
         EnqueuedExecutionJob(
             job_id="worker",
