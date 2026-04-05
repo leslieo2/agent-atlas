@@ -282,10 +282,6 @@ function AgentCard({
           <span className={`${styles.metaValue} mono`}>{agent.agentId}</span>
         </div>
         <div className={styles.metaItem}>
-          <span className={styles.metaLabel}>Default model</span>
-          <span className={styles.metaValue}>{agent.defaultModel || "-"}</span>
-        </div>
-        <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Entrypoint</span>
           <span className={`${styles.metaValue} mono`}>{agent.entrypoint}</span>
         </div>
@@ -304,6 +300,10 @@ function AgentCard({
         <div className={styles.metaItem}>
           <span className={styles.metaLabel}>Source fingerprint</span>
           <span className={`${styles.metaValue} mono`}>{shortSourceFingerprint(agent.sourceFingerprint)}</span>
+        </div>
+        <div className={styles.metaItem}>
+          <span className={styles.metaLabel}>Default model</span>
+          <span className={styles.metaValue}>{agent.defaultModel || "-"}</span>
         </div>
       </div>
 
@@ -333,7 +333,7 @@ export default function AgentsWorkspace() {
     name: "",
     description: "",
     framework: "openai-agents-sdk",
-    defaultModel: "gpt-5.4-mini",
+    defaultModel: "",
     entrypoint: "",
     tags: []
   });
@@ -407,7 +407,7 @@ export default function AgentsWorkspace() {
         name: "",
         description: "",
         framework: "openai-agents-sdk",
-        defaultModel: "gpt-5.4-mini",
+        defaultModel: "",
         entrypoint: "",
         tags: []
       });
@@ -522,7 +522,7 @@ export default function AgentsWorkspace() {
                   id="agent-import-model"
                   value={importForm.defaultModel}
                   onChange={(event) => updateImportField("defaultModel", event.target.value)}
-                  placeholder="gpt-5.4-mini"
+                  placeholder="Enter the asset default model"
                 />
               </Field>
               <Field label="Entrypoint" htmlFor="agent-import-entrypoint" wide>
@@ -551,6 +551,7 @@ export default function AgentsWorkspace() {
                   !importForm.agentId.trim() ||
                   !importForm.name.trim() ||
                   !importForm.description.trim() ||
+                  !importForm.defaultModel.trim() ||
                   !importForm.entrypoint.trim()
                 }
               >

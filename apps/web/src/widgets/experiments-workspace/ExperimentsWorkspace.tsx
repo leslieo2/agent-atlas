@@ -46,7 +46,7 @@ type Props = {
   initialExperimentId?: string;
 };
 
-type ExperimentAgentOption = Pick<AgentRecord, "agentId" | "name" | "executionProfile">;
+type ExperimentAgentOption = Pick<AgentRecord, "agentId" | "name" | "defaultModel" | "executionProfile">;
 
 function canSelectPublishedAgentForExperiment(agent: AgentRecord) {
   const validationLifecycle = getAgentValidationLifecycle(agent);
@@ -196,6 +196,7 @@ export default function ExperimentsWorkspace({
       .map((agent) => ({
         agentId: agent.agentId,
         name: agent.name,
+        defaultModel: agent.defaultModel,
         executionProfile: agent.executionProfile
       }));
   }, [publishedAgentsQuery.data]);
@@ -216,7 +217,7 @@ export default function ExperimentsWorkspace({
 
   const [agentId, setAgentId] = useState(initialAgentId);
   const [datasetVersionId, setDatasetVersionId] = useState(initialDatasetVersionId);
-  const [model, setModel] = useState("gpt-5.4-mini");
+  const [model, setModel] = useState("");
   const [scoringMode, setScoringMode] = useState<ScoringMode>("exact_match");
   const [approvalPolicyId, setApprovalPolicyId] = useState("");
   const [tagsText, setTagsText] = useState("");
@@ -324,6 +325,10 @@ export default function ExperimentsWorkspace({
       setApprovalPolicyId(policies[0].approvalPolicyId);
     }
   }, [approvalPolicyId, policies]);
+
+  useEffect(() => {
+    setModel(selectedAgent?.defaultModel ?? "");
+  }, [selectedAgent?.agentId, selectedAgent?.defaultModel]);
 
   useEffect(() => {
     if (!baselineOptions.length) {

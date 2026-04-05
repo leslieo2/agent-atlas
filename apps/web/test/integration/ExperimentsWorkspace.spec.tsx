@@ -62,7 +62,7 @@ describe("Experiments workspace", () => {
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
         entrypoint: "snapshots/basic:run",
-        defaultModel: "gpt-5.4-mini",
+        defaultModel: "gpt-5-mini",
         tags: ["example", "smoke"],
         capabilities: ["submit", "cancel"],
         publishedAt: "2026-03-20T09:00:00Z",
@@ -461,6 +461,7 @@ describe("Experiments workspace", () => {
         /Execution profile is inherited from the published snapshot: external-runner\./i
       )
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Model")).toHaveValue("gpt-5-mini");
     expect(
       screen.getByText(/Atlas keeps the same run, evidence, and export chain regardless of the underlying execution path\./i)
     ).toBeInTheDocument();
@@ -470,6 +471,11 @@ describe("Experiments workspace", () => {
       "http://phoenix.local/project/exp-002"
     );
     expect(await screen.findByText("sample-regressed")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Published agent"), { target: { value: "archived_basic" } });
+    expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.4-mini");
+    fireEvent.change(screen.getByLabelText("Published agent"), { target: { value: "basic" } });
+    expect(screen.getByLabelText("Model")).toHaveValue("gpt-5-mini");
 
     fireEvent.click(screen.getAllByRole("button", { name: "Exclude" })[0]);
     await waitFor(() =>
@@ -511,7 +517,7 @@ describe("Experiments workspace", () => {
         name: "basic-2026-03",
         datasetVersionId: "dataset-v2",
         publishedAgentId: "basic",
-        model: "gpt-5.4-mini",
+        model: "gpt-5-mini",
         scoringMode: "exact_match",
         approvalPolicyId: "policy-default",
         systemPrompt: "",

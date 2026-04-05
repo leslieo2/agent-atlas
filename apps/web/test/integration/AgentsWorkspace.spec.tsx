@@ -195,6 +195,8 @@ describe("Agents workspace", () => {
     ).not.toEqual(expect.arrayContaining(["/experiments?agent=fresh_import"]));
     expect(screen.getAllByRole("button", { name: "Run validation" })[1]).toBeDisabled();
     expect(screen.getAllByText("Needs validation").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Default model")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Import agent" })).toBeDisabled();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Run validation" })[0]);
     await waitFor(() =>
@@ -315,6 +317,9 @@ describe("Agents workspace", () => {
     fireEvent.change(screen.getByLabelText("Description"), {
       target: { value: "Governed asset imported explicitly from a runnable entrypoint." }
     });
+    fireEvent.change(screen.getByLabelText("Default model"), {
+      target: { value: "gpt-5-mini" }
+    });
     fireEvent.change(screen.getByLabelText("Entrypoint"), {
       target: { value: "agents.imported_basic:build_agent" }
     });
@@ -327,7 +332,8 @@ describe("Agents workspace", () => {
         agentId: "imported-basic",
         name: "Imported Basic",
         entrypoint: "agents.imported_basic:build_agent",
-        framework: "openai-agents-sdk"
+        framework: "openai-agents-sdk",
+        defaultModel: "gpt-5-mini"
       })
     );
     expect(await screen.findByText("Governed asset imported explicitly from a runnable entrypoint.")).toBeInTheDocument();
