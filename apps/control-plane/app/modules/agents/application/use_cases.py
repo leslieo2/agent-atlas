@@ -30,7 +30,6 @@ from app.modules.agents.domain.models import (
     compute_source_fingerprint,
 )
 from app.modules.agents.domain.reference_assets import (
-    CLAUDE_CODE_STARTER_AGENT_ID,
     ensure_claude_code_starter_runtime_ready,
     get_governed_reference_asset,
 )
@@ -208,9 +207,6 @@ class AgentIntakeCommands:
     ) -> None:
         self.published_agents = published_agents
         self.framework_registry = framework_registry
-
-    def create_claude_code_starter(self) -> PublishedAgent:
-        return self.publish_reference_asset(CLAUDE_CODE_STARTER_AGENT_ID)
 
     def publish_reference_asset(self, asset_id: str) -> PublishedAgent:
         reference_asset = get_governed_reference_asset(asset_id)
