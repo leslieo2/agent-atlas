@@ -101,7 +101,7 @@ test.describe("live product smoke", () => {
     await page.goto("/agents");
 
     await expect(page.getByRole("heading", { name: "Agents" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Add an asset, review validation, then use ready snapshots" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Add an asset, review validation, then use ready assets" })).toBeVisible();
 
     await page.getByRole("button", { name: "Add Claude Code bridge" }).click();
 

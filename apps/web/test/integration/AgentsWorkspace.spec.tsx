@@ -21,7 +21,7 @@ describe("Agents workspace", () => {
       {
         agentId: "basic",
         name: "Basic",
-        description: "Ready governed snapshot.",
+        description: "Ready governed asset.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
         entrypoint: "snapshots/basic:run",
@@ -152,10 +152,10 @@ describe("Agents workspace", () => {
     renderWithQueryClient(<AgentsWorkspace />);
 
     expect(await screen.findByRole("heading", { name: "Agents" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Add an asset, review validation, then use ready snapshots" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Add an asset, review validation, then use ready assets" })).toBeInTheDocument();
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalledTimes(1));
 
-    expect(await screen.findByText("Ready governed snapshot.")).toBeInTheDocument();
+    expect(await screen.findByText("Ready governed asset.")).toBeInTheDocument();
     expect(screen.getByText("Published asset with an active validation run.")).toBeInTheDocument();
     expect(screen.getByText("Published asset whose latest validation failed.")).toBeInTheDocument();
     expect(screen.getByText("Published asset that has not completed validation yet.")).toBeInTheDocument();
@@ -164,19 +164,19 @@ describe("Agents workspace", () => {
     expect(screen.getByText("run-validation-001")).toBeInTheDocument();
     expect(screen.getByText("bundle://basic-validation-001")).toBeInTheDocument();
     expect(screen.getAllByText("Validation run completed with evidence attached.")).toHaveLength(2);
-    expect(screen.getByText("Hand this ready snapshot into the next experiment.")).toBeInTheDocument();
+    expect(screen.getByText("Hand this ready asset into the next experiment.")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Atlas is still running the latest validation. Wait for the active run to finish before handing this snapshot into experiments."
+        "Atlas is still running the latest validation. Wait for the active run to finish before handing this asset into experiments."
       )
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Review the latest validation run and evidence before handing this snapshot into a new experiment."
+        "Review the latest validation run and evidence before handing this asset into a new experiment."
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Run validation on this governed asset before Atlas treats it as an experiment-ready snapshot.")
+      screen.getByText("Run validation on this governed asset before Atlas treats it as experiment-ready.")
     ).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Run validation" })[0]).toBeEnabled();
     expect(
@@ -215,7 +215,7 @@ describe("Agents workspace", () => {
       {
         agentId: "live-agent",
         name: "Live Agent",
-        description: "Published snapshot from the live catalog.",
+        description: "Governed asset from the live catalog.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
         entrypoint: "snapshots/live-agent:run",
@@ -252,9 +252,9 @@ describe("Agents workspace", () => {
 
     renderWithQueryClient(<AgentsWorkspace />);
 
-    expect(await screen.findByText("Published snapshot from the live catalog.")).toBeInTheDocument();
+    expect(await screen.findByText("Governed asset from the live catalog.")).toBeInTheDocument();
     expect(screen.getByText("Live Agent")).toBeInTheDocument();
-    expect(screen.getByText("Hand this ready snapshot into the next experiment.")).toBeInTheDocument();
+    expect(screen.getByText("Hand this ready asset into the next experiment.")).toBeInTheDocument();
     expect(screen.getByText("bundle://live-agent-validation")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open validation evidence" })).toHaveAttribute(
       "href",
@@ -307,7 +307,7 @@ describe("Agents workspace", () => {
 
     renderWithQueryClient(<AgentsWorkspace />);
 
-    expect(await screen.findByText("No ready snapshots yet")).toBeInTheDocument();
+    expect(await screen.findByText("No ready assets yet")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Claude Code bridge" })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Agent ID"), { target: { value: "imported-basic" } });
@@ -336,7 +336,7 @@ describe("Agents workspace", () => {
     );
     expect(await screen.findByText("Governed asset imported explicitly from a runnable entrypoint.")).toBeInTheDocument();
     expect(
-      screen.getByText("Imported Imported Basic. Review its validation here before using the snapshot in experiments.")
+      screen.getByText("Imported Imported Basic. Review its validation here before using the asset in experiments.")
     ).toBeInTheDocument();
     expect(screen.getByText("Imported Basic is the current import focus on this surface.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Create experiment/i })).toHaveAttribute(

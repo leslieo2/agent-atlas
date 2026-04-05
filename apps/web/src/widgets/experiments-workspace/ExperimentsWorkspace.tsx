@@ -158,7 +158,7 @@ function experimentLabel(record: ExperimentRecord) {
 
 function experimentNextStep(record: ExperimentRecord | null) {
   if (!record) {
-    return "Create an experiment from a governed snapshot to start collecting evidence.";
+    return "Create an experiment from a governed asset to start collecting evidence.";
   }
   if (record.status === "completed") {
     return "Review the evidence summary, compare against a baseline if needed, then curate runs for export.";
@@ -406,7 +406,7 @@ export default function ExperimentsWorkspace({
           <p className="page-eyebrow">Experiment control plane</p>
           <h2 className="page-title">Governance to evidence loop</h2>
           <p className="muted-note">
-            Atlas turns governed agent snapshots into runs, evidence, and curated exports without promoting provider,
+            Atlas turns governed assets into runs, evidence, and curated exports without promoting provider,
             runner, or credential internals into the product center. Phoenix remains a deeplink for deeper trace inspection.
           </p>
         </div>

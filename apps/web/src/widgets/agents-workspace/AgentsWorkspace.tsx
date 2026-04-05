@@ -143,30 +143,30 @@ function validationEvidenceLabel(validationEvidence?: AgentValidationEvidenceSum
 function nextStepLabel(agent: AgentRecord) {
   const readiness = getAgentReadiness(agent);
   if (readiness === "validating") {
-    return "Atlas is still running the latest validation. Wait for the active run to finish before handing this snapshot into experiments.";
+    return "Atlas is still running the latest validation. Wait for the active run to finish before handing this asset into experiments.";
   }
   if (readiness === "needs_validation") {
-    return "Run validation on this governed asset before Atlas treats it as an experiment-ready snapshot.";
+    return "Run validation on this governed asset before Atlas treats it as experiment-ready.";
   }
   if (readiness === "needs_review") {
-    return "Review the latest validation run and evidence before handing this snapshot into a new experiment.";
+    return "Review the latest validation run and evidence before handing this asset into a new experiment.";
   }
-  return "Hand this ready snapshot into the next experiment.";
+  return "Hand this ready asset into the next experiment.";
 }
 
 function entryFocusSummary(agent?: AgentRecord | null) {
   if (!agent) {
-    return "Import a runnable asset or add the Claude Code bridge, then validate it here before using the snapshot in experiments.";
+    return "Import a runnable asset or add the Claude Code bridge, then validate it here before using the asset in experiments.";
   }
   const readiness = getAgentReadiness(agent);
   if (readiness === "validating") {
-    return `${agent.name} has an active validation run. Wait for the latest run to resolve before using this snapshot in experiments.`;
+    return `${agent.name} has an active validation run. Wait for the latest run to resolve before using this asset in experiments.`;
   }
   if (readiness === "needs_validation") {
-    return `${agent.name} still needs a successful validation run before Atlas exposes it as an experiment-ready snapshot.`;
+    return `${agent.name} still needs a successful validation run before Atlas exposes it as experiment-ready.`;
   }
   if (readiness === "needs_review") {
-    return `${agent.name} needs validation review. Resolve the latest outcome before using this snapshot in experiments.`;
+    return `${agent.name} needs validation review. Resolve the latest outcome before using this asset in experiments.`;
   }
   return `${agent.name} is ready for experiments based on its latest validation summary.`;
 }
@@ -384,7 +384,7 @@ export default function AgentsWorkspace() {
       const agent = await bootstrapMutation.mutateAsync();
       setEntryFocus({ agentId: agent.agentId, name: agent.name });
       setActionMessage(
-        `Added ${agent.name} as the Claude Code bridge. Review its validation here before using the snapshot in experiments.`
+        `Added ${agent.name} as the Claude Code bridge. Review its validation here before using the asset in experiments.`
       );
     } catch {
       // Error state is surfaced through the shared notice area.
@@ -400,7 +400,7 @@ export default function AgentsWorkspace() {
       const agent = await importMutation.mutateAsync(importForm);
       setEntryFocus({ agentId: agent.agentId, name: agent.name });
       setActionMessage(
-        `Imported ${agent.name}. Review its validation here before using the snapshot in experiments.`
+        `Imported ${agent.name}. Review its validation here before using the asset in experiments.`
       );
       setImportForm({
         agentId: "",
@@ -437,7 +437,7 @@ export default function AgentsWorkspace() {
           <p className="page-eyebrow">Agent control plane</p>
           <h2 className="section-title">Agents</h2>
           <p className="kicker">
-            Govern formal agent assets, review the latest validation evidence, and hand the right snapshot into
+            Govern formal agent assets, review the latest validation evidence, and hand the right asset into
             experiment orchestration.
           </p>
           <div className="page-tag-list">
@@ -462,7 +462,7 @@ export default function AgentsWorkspace() {
               {groups[0].items.length} ready / {groups[1].items.length} validating / {groups[2].items.length} needs validation / {groups[3].items.length} review
             </span>
             <p className="page-info-detail">
-              Start with governed snapshots, use the latest validation summary to decide what to hand off next, and
+              Start with governed assets, use the latest validation summary to decide what to hand off next, and
               keep intake narrow rather than teaching repo-local draft management.
             </p>
           </div>
@@ -480,10 +480,10 @@ export default function AgentsWorkspace() {
         <div className="surface-header">
           <div>
             <p className="surface-kicker">Governed entry</p>
-            <h3 className="panel-title">Add an asset, review validation, then use ready snapshots</h3>
+            <h3 className="panel-title">Add an asset, review validation, then use ready assets</h3>
             <p className="muted-note">
               Keep the current operator path in one place: import a runnable asset or add the Claude Code bridge,
-              review the latest validation status on this surface, then hand ready snapshots into experiments.
+              review the latest validation status on this surface, then hand ready assets into experiments.
             </p>
           </div>
         </div>
@@ -586,7 +586,7 @@ export default function AgentsWorkspace() {
               <p className="muted-note">
                 {focusedAgent
                   ? nextStepLabel(focusedAgent)
-                  : "Run validation on the new intake before Atlas treats it as the next experiment snapshot."}
+                  : "Run validation on the new intake before Atlas treats it as the next experiment-ready asset."}
               </p>
             </div>
 
@@ -611,9 +611,9 @@ export default function AgentsWorkspace() {
           <div className="surface-header">
             <div>
               <p className="surface-kicker">No agents yet</p>
-              <h3 className="panel-title">No ready snapshots yet</h3>
+              <h3 className="panel-title">No ready assets yet</h3>
               <p className="muted-note">
-                Use the governed entry panel above to import the first asset, run validation, and move ready snapshots
+                Use the governed entry panel above to import the first asset, run validation, and move ready assets
                 into the catalog below.
               </p>
             </div>

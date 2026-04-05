@@ -6,9 +6,9 @@ This frontend now treats the product model as:
 
 ## What Stays First-Class
 
-- `AgentAsset`: the governed snapshot operators publish and validate
-- `ExecutionProfile`: the thin execution contract attached to an asset snapshot
-- `Run`: the active or historical execution record created from a governed snapshot
+- `AgentAsset`: the governed asset operators intake, validate, and hand into experiments
+- `ExecutionProfile`: the thin execution contract attached to a governed asset
+- `Run`: the active or historical execution record created from a governed asset
 - `Evidence`: validation summaries, traces, artifacts, and outcome projections attached to a run
 - `Export`: offline handoff files produced from curated evidence-backed rows
 
@@ -77,7 +77,7 @@ This inventory is the actionable cut for follow-up task splitting. Each residue 
 - `apps/web/src/widgets/experiments-workspace/ExperimentsWorkspace.tsx`
   Residue: experiment creation and summary copy previously centered the neutral runner seam and adapter detail.
   Treatment: `migrate`.
-  Guidance: experiments should talk about converting governed snapshots into runs, evidence, compare, curation, and export. Execution details belong inside the inherited execution profile or evidence drill-downs.
+  Guidance: experiments should talk about converting governed assets into runs, evidence, compare, curation, and export. Execution details belong inside the inherited execution profile or evidence drill-downs.
 
 - Phoenix wording across shell, agents, and experiments
   Residue: trace links can accidentally become a second product center.

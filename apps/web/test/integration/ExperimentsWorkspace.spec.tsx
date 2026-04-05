@@ -82,7 +82,7 @@ describe("Experiments workspace", () => {
       {
         agentId: "unvalidated_basic",
         name: "Unvalidated Basic",
-        description: "Published snapshot that has not completed validation yet.",
+        description: "Governed asset that has not completed validation yet.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
         entrypoint: "snapshots/unvalidated-basic:run",
@@ -97,7 +97,7 @@ describe("Experiments workspace", () => {
       {
         agentId: "archived_basic",
         name: "Archived Basic",
-        description: "Published snapshot no longer discoverable locally.",
+        description: "Governed asset no longer discoverable locally.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
         entrypoint: "snapshots/archived-basic:run",
@@ -123,7 +123,7 @@ describe("Experiments workspace", () => {
       {
         agentId: "failed_live",
         name: "Failed Live",
-        description: "Published snapshot whose latest validation failed.",
+        description: "Governed asset whose latest validation failed.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
         entrypoint: "snapshots/failed-live:run",
