@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  createClaudeCodeStarterAsset,
+  createClaudeCodeBridgeAsset,
   importAgent,
   listPublishedAgents,
   startValidationRun
@@ -22,11 +22,11 @@ export function usePublishedAgentsQuery() {
   return useQuery(publishedAgentsQueryOptions());
 }
 
-export function useCreateClaudeCodeStarterAssetMutation() {
+export function useCreateClaudeCodeBridgeAssetMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => createClaudeCodeStarterAsset(),
+    mutationFn: () => createClaudeCodeBridgeAsset(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: publishedAgentsQueryRoot });
     }

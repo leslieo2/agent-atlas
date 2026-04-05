@@ -149,7 +149,7 @@ describe("Experiments workspace", () => {
       {
         agentId: "validating_agent",
         name: "Validating Agent",
-        description: "Published agent still running validation.",
+        description: "Governed asset still running validation.",
         framework: "openai-agents-sdk",
         frameworkVersion: "0.1.0",
         entrypoint: "snapshots/validating-agent:run",
@@ -425,7 +425,7 @@ describe("Experiments workspace", () => {
 
     expect(await screen.findByRole("heading", { name: "Governance to evidence loop" })).toBeInTheDocument();
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
-    expect(screen.getByRole("combobox", { name: "Published agent" })).toHaveValue("basic");
+    expect(screen.getByRole("combobox", { name: "Governed asset" })).toHaveValue("basic");
     expect(screen.getByRole("option", { name: "Archived Basic" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Unvalidated Basic" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Validating Agent" })).not.toBeInTheDocument();
@@ -436,7 +436,7 @@ describe("Experiments workspace", () => {
     await waitFor(() => expect(experimentApi.compareExperiments).toHaveBeenCalledWith("exp-001", "exp-002"));
     expect(
       screen.getByText(
-        /Execution profile is inherited from the published snapshot: external-runner\./i
+        /Execution profile is inherited from the selected asset: external-runner\./i
       )
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Model")).toHaveValue("gpt-5-mini");
@@ -450,9 +450,9 @@ describe("Experiments workspace", () => {
     );
     expect(await screen.findByText("sample-regressed")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Published agent"), { target: { value: "archived_basic" } });
+    fireEvent.change(screen.getByLabelText("Governed asset"), { target: { value: "archived_basic" } });
     expect(screen.getByLabelText("Model")).toHaveValue("gpt-5.4-mini");
-    fireEvent.change(screen.getByLabelText("Published agent"), { target: { value: "basic" } });
+    fireEvent.change(screen.getByLabelText("Governed asset"), { target: { value: "basic" } });
     expect(screen.getByLabelText("Model")).toHaveValue("gpt-5-mini");
 
     fireEvent.click(screen.getAllByRole("button", { name: "Exclude" })[0]);
@@ -489,7 +489,7 @@ describe("Experiments workspace", () => {
   it("keeps a published-only live agent selectable when the catalog has no local intake records", async () => {
     renderWithQueryClient(<ExperimentsWorkspace initialAgentId="archived_basic" initialDatasetVersionId="dataset-v2" />);
 
-    const agentSelect = await screen.findByRole("combobox", { name: "Published agent" });
+    const agentSelect = await screen.findByRole("combobox", { name: "Governed asset" });
 
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalled());
     expect(agentSelect).toHaveValue("archived_basic");

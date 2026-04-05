@@ -11,7 +11,7 @@ const navItems = [
   {
     href: "/agents",
     label: "Agents",
-    description: "Govern formal agent assets, validation evidence, and execution readiness before experiments.",
+    description: "Govern formal agent assets, validation evidence, and experiment handoff readiness.",
     icon: Shapes,
     match: (pathname: string) => pathname.startsWith("/agents")
   },
@@ -57,8 +57,8 @@ export default function WorkbenchShell({ children }: { children: ReactNode }) {
           </div>
           <h1>Agent Atlas</h1>
           <p>
-            Coordinate governed agent assets, execution profiles, runs, evidence, and exports in Atlas. Execution
-            details can stay visible without becoming the product center, and deep trace debugging stays in Phoenix.
+            Coordinate governed agent assets, runs, evidence, and exports in Atlas. Execution detail stays secondary
+            metadata, and deep trace debugging stays in Phoenix.
           </p>
         </div>
 

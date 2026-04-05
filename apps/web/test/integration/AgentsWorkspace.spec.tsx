@@ -8,7 +8,7 @@ import AgentsWorkspace from "@/src/widgets/agents-workspace/AgentsWorkspace";
 
 vi.mock("@/src/entities/agent/api", () => ({
   listPublishedAgents: vi.fn(),
-  createClaudeCodeStarterAsset: vi.fn(),
+  createClaudeCodeBridgeAsset: vi.fn(),
   importAgent: vi.fn(),
   startValidationRun: vi.fn()
 }));
@@ -135,12 +135,12 @@ describe("Agents workspace", () => {
     ];
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockReset();
-    (agentApi.createClaudeCodeStarterAsset as unknown as MockedApiFn).mockReset();
+    (agentApi.createClaudeCodeBridgeAsset as unknown as MockedApiFn).mockReset();
     (agentApi.importAgent as unknown as MockedApiFn).mockReset();
     (agentApi.startValidationRun as unknown as MockedApiFn).mockReset();
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
-    (agentApi.createClaudeCodeStarterAsset as unknown as MockedApiFn).mockResolvedValue(null);
+    (agentApi.createClaudeCodeBridgeAsset as unknown as MockedApiFn).mockResolvedValue(null);
     (agentApi.importAgent as unknown as MockedApiFn).mockResolvedValue(null);
     (agentApi.startValidationRun as unknown as MockedApiFn).mockImplementation(async (agentId: string) => ({
       run_id: `validation-${agentId}`,
@@ -152,9 +152,7 @@ describe("Agents workspace", () => {
     renderWithQueryClient(<AgentsWorkspace />);
 
     expect(await screen.findByRole("heading", { name: "Agents" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Import an agent, review validation, then use ready snapshots" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Add an asset, review validation, then use ready snapshots" })).toBeInTheDocument();
     await waitFor(() => expect(agentApi.listPublishedAgents).toHaveBeenCalledTimes(1));
 
     expect(await screen.findByText("Ready governed snapshot.")).toBeInTheDocument();
@@ -178,7 +176,7 @@ describe("Agents workspace", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Run validation on this published asset before Atlas treats it as an experiment-ready snapshot.")
+      screen.getByText("Run validation on this governed asset before Atlas treats it as an experiment-ready snapshot.")
     ).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Run validation" })[0]).toBeEnabled();
     expect(
@@ -196,7 +194,7 @@ describe("Agents workspace", () => {
     expect(screen.getAllByRole("button", { name: "Run validation" })[1]).toBeDisabled();
     expect(screen.getAllByText("Needs validation").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Default model")).toHaveValue("");
-    expect(screen.getByRole("button", { name: "Import agent" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Import asset" })).toBeDisabled();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Run validation" })[0]);
     await waitFor(() =>
@@ -264,7 +262,7 @@ describe("Agents workspace", () => {
     );
   });
 
-  it("imports the first governed agent asset from the empty state action and keeps starter intake secondary", async () => {
+  it("imports the first governed agent asset from the empty state action and keeps the bridge path secondary", async () => {
     let publishedAgents: AgentRecord[] = [];
     const importedAgent: AgentRecord = {
       agentId: "imported-basic",
@@ -310,7 +308,7 @@ describe("Agents workspace", () => {
     renderWithQueryClient(<AgentsWorkspace />);
 
     expect(await screen.findByText("No ready snapshots yet")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create Claude Code starter" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Claude Code bridge" })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Agent ID"), { target: { value: "imported-basic" } });
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Imported Basic" } });
@@ -324,7 +322,7 @@ describe("Agents workspace", () => {
       target: { value: "agents.imported_basic:build_agent" }
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Import agent" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import asset" }));
 
     await waitFor(() => expect(agentApi.importAgent).toHaveBeenCalledTimes(1));
     expect((agentApi.importAgent as unknown as MockedApiFn).mock.calls[0]?.[0]).toEqual(

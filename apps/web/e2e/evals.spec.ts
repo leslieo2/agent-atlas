@@ -452,7 +452,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
   await expect(page.getByRole("heading", { name: "Governance to evidence loop" })).toBeVisible();
   await expect(
     page.getByText(
-      /Execution profile is inherited from the published snapshot: external-runner · Claude Code CLI\./
+      /Execution profile is inherited from the selected asset: external-runner · Claude Code CLI\./
     )
   ).toBeVisible();
   await page.getByRole("button", { name: /candidate · basic/ }).click();

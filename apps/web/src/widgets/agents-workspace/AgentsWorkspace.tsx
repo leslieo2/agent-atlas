@@ -3,7 +3,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
-  useCreateClaudeCodeStarterAssetMutation,
+  useCreateClaudeCodeBridgeAssetMutation,
   useImportAgentMutation,
   usePublishedAgentsQuery,
   useStartValidationRunMutation
@@ -146,7 +146,7 @@ function nextStepLabel(agent: AgentRecord) {
     return "Atlas is still running the latest validation. Wait for the active run to finish before handing this snapshot into experiments.";
   }
   if (readiness === "needs_validation") {
-    return "Run validation on this published asset before Atlas treats it as an experiment-ready snapshot.";
+    return "Run validation on this governed asset before Atlas treats it as an experiment-ready snapshot.";
   }
   if (readiness === "needs_review") {
     return "Review the latest validation run and evidence before handing this snapshot into a new experiment.";
@@ -156,7 +156,7 @@ function nextStepLabel(agent: AgentRecord) {
 
 function entryFocusSummary(agent?: AgentRecord | null) {
   if (!agent) {
-    return "Import a runnable agent or use the starter bridge, then validate it here before using the snapshot in experiments.";
+    return "Import a runnable asset or add the Claude Code bridge, then validate it here before using the snapshot in experiments.";
   }
   const readiness = getAgentReadiness(agent);
   if (readiness === "validating") {
@@ -290,7 +290,7 @@ function AgentCard({
           <span className={styles.metaValue}>{agent.tags.length ? agent.tags.join(", ") : "none"}</span>
         </div>
         <div className={styles.metaItem}>
-          <span className={styles.metaLabel}>Published at</span>
+          <span className={styles.metaLabel}>Cataloged at</span>
           <span className={styles.metaValue}>{agent.publishedAt ? new Date(agent.publishedAt).toLocaleString("en") : "-"}</span>
         </div>
         <div className={styles.metaItem}>
@@ -323,7 +323,7 @@ function AgentCard({
 
 export default function AgentsWorkspace() {
   const publishedAgentsQuery = usePublishedAgentsQuery();
-  const bootstrapMutation = useCreateClaudeCodeStarterAssetMutation();
+  const bootstrapMutation = useCreateClaudeCodeBridgeAssetMutation();
   const importMutation = useImportAgentMutation();
   const validationMutation = useStartValidationRunMutation();
   const [actionMessage, setActionMessage] = useState("");
@@ -347,7 +347,7 @@ export default function AgentsWorkspace() {
     () => [
       {
         title: "Ready",
-        description: "Governed published assets ready to generate RL evaluation data.",
+        description: "Governed assets ready to generate RL evaluation data.",
         items: agents.filter((agent) => getAgentReadiness(agent) === "ready")
       },
       {
@@ -357,7 +357,7 @@ export default function AgentsWorkspace() {
       },
       {
         title: "Needs validation",
-        description: "Published assets that still need one successful validation run before Atlas exposes them to experiments.",
+        description: "Governed assets that still need one successful validation run before Atlas exposes them to experiments.",
         items: agents.filter((agent) => getAgentReadiness(agent) === "needs_validation")
       },
       {
@@ -384,7 +384,7 @@ export default function AgentsWorkspace() {
       const agent = await bootstrapMutation.mutateAsync();
       setEntryFocus({ agentId: agent.agentId, name: agent.name });
       setActionMessage(
-        `Created ${agent.name} as the starter bridge. Review its validation here before using the snapshot in experiments.`
+        `Added ${agent.name} as the Claude Code bridge. Review its validation here before using the snapshot in experiments.`
       );
     } catch {
       // Error state is surfaced through the shared notice area.
@@ -445,7 +445,7 @@ export default function AgentsWorkspace() {
               Visible <strong>{agents.length}</strong>
             </span>
             <span className="page-tag">
-              Ready to run <strong>{groups[0].items.length}</strong>
+              Ready for experiments <strong>{groups[0].items.length}</strong>
             </span>
             <span className="page-tag">
               Needs validation <strong>{groups[2].items.length}</strong>
@@ -457,7 +457,7 @@ export default function AgentsWorkspace() {
         </div>
         <div className="page-info-grid">
           <div className="page-info-item">
-            <span className="page-info-label">Publishing status</span>
+            <span className="page-info-label">Catalog status</span>
             <span className="page-info-value">
               {groups[0].items.length} ready / {groups[1].items.length} validating / {groups[2].items.length} needs validation / {groups[3].items.length} review
             </span>
@@ -480,10 +480,10 @@ export default function AgentsWorkspace() {
         <div className="surface-header">
           <div>
             <p className="surface-kicker">Governed entry</p>
-            <h3 className="panel-title">Import an agent, review validation, then use ready snapshots</h3>
+            <h3 className="panel-title">Add an asset, review validation, then use ready snapshots</h3>
             <p className="muted-note">
-              Keep the current operator path in one place: import a runnable agent or bootstrap the starter, review the
-              latest validation status on this surface, then hand ready snapshots into experiments.
+              Keep the current operator path in one place: import a runnable asset or add the Claude Code bridge,
+              review the latest validation status on this surface, then hand ready snapshots into experiments.
             </p>
           </div>
         </div>
@@ -506,7 +506,7 @@ export default function AgentsWorkspace() {
                   placeholder="Customer Service"
                 />
               </Field>
-              <Field label="Framework" htmlFor="agent-import-framework">
+              <Field label="Asset family" htmlFor="agent-import-framework">
                 <select
                   id="agent-import-framework"
                   value={importForm.framework}
@@ -555,10 +555,10 @@ export default function AgentsWorkspace() {
                   !importForm.entrypoint.trim()
                 }
               >
-                {importMutation.isPending ? "Importing agent..." : "Import agent"}
+                {importMutation.isPending ? "Importing asset..." : "Import asset"}
               </Button>
               <Button onClick={() => void handleBootstrap()} variant="ghost" disabled={bootstrapMutation.isPending}>
-                {bootstrapMutation.isPending ? "Creating starter..." : "Create Claude Code starter"}
+                {bootstrapMutation.isPending ? "Adding bridge..." : "Add Claude Code bridge"}
               </Button>
             </div>
           </div>
@@ -566,13 +566,13 @@ export default function AgentsWorkspace() {
           <div className={styles.entryRail}>
             <div className={styles.entryStep}>
               <div className={styles.entryStepHeader}>
-                <span className={styles.entryStepTitle}>1. Import or starter</span>
+                <span className={styles.entryStepTitle}>1. Add asset</span>
                 <StatusPill tone={entryFocus ? "success" : "warn"}>{entryFocus ? "Focused" : "Idle"}</StatusPill>
               </div>
               <p className="muted-note">
                 {entryFocus
                   ? `${entryFocus.name} is the current import focus on this surface.`
-                  : "Use explicit import as the primary path. The Claude starter stays available only as a bridge/reference path."}
+                  : "Use explicit import as the primary path. The Claude Code bridge stays available only as a beginner/reference path."}
               </p>
             </div>
 
@@ -613,16 +613,14 @@ export default function AgentsWorkspace() {
               <p className="surface-kicker">No agents yet</p>
               <h3 className="panel-title">No ready snapshots yet</h3>
               <p className="muted-note">
-                Use the governed entry panel above to import the first agent, run validation, and move ready snapshots
+                Use the governed entry panel above to import the first asset, run validation, and move ready snapshots
                 into the catalog below.
               </p>
             </div>
           </div>
           <div className="page-stack">
-            <Notice>Import starts the catalog entry here, and validation determines when a snapshot is ready to use.</Notice>
-            <Notice>
-              Draft browsing and repo-local publish flows are not part of the shipped operator path anymore.
-            </Notice>
+            <Notice>Import starts the catalog entry here, and validation determines when an asset is ready to use.</Notice>
+            <Notice>The catalog below only shows current governed assets after intake and validation.</Notice>
           </div>
         </Panel>
       ) : null}

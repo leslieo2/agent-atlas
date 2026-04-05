@@ -354,7 +354,7 @@ export default function ExperimentsWorkspace({
 
   const handleCreateExperiment = async () => {
     if (!agentId || !datasetVersionId) {
-      setActionMessage("Select a published agent and dataset version before creating an experiment.");
+      setActionMessage("Select a governed asset and dataset version before creating an experiment.");
       return;
     }
 
@@ -421,9 +421,9 @@ export default function ExperimentsWorkspace({
         <div className={styles.sectionHeader}>
           <div>
             <p className="surface-kicker">Create experiment</p>
-            <h3 className="panel-title">Bind governed snapshot, dataset version, and policy</h3>
+            <h3 className="panel-title">Bind governed asset, dataset version, and policy</h3>
             <p className="muted-note">
-              Start with one ready governed snapshot, pair it with a dataset version, then let Atlas create the
+              Start with one ready governed asset, pair it with a dataset version, then let Atlas create the
               evidence loop you will compare and curate.
             </p>
           </div>
@@ -431,11 +431,11 @@ export default function ExperimentsWorkspace({
         {isAgentsLoading ? <Notice>Loading agents...</Notice> : null}
         {!isAgentsLoading && !agents.length ? (
           <Notice>
-            No published agents are available yet. Bootstrap or publish a governed snapshot before creating an experiment.
+            No governed assets are ready yet. Add and validate one on Agents before creating an experiment.
           </Notice>
         ) : null}
         <div className={styles.filtersGrid}>
-          <Field label="Published agent" htmlFor="experiment-agent">
+          <Field label="Governed asset" htmlFor="experiment-agent">
             <select id="experiment-agent" value={agentId} onChange={(event) => setAgentId(event.target.value)}>
               {agents.map((agent) => (
                 <option key={agent.agentId} value={agent.agentId}>
@@ -501,8 +501,8 @@ export default function ExperimentsWorkspace({
           </Field>
         </div>
         <p className="muted-note">
-          Only ready, governed snapshots appear in this selector. Execution profile is inherited from the published
-          snapshot: {executionProfileSummary(selectedAgent?.executionProfile)}. Atlas keeps the same run, evidence, and
+          Only ready, governed assets appear in this selector. Execution profile is inherited from the selected
+          asset: {executionProfileSummary(selectedAgent?.executionProfile)}. Atlas keeps the same run, evidence, and
           export chain regardless of the underlying execution path.
         </p>
         <div className={styles.actions}>

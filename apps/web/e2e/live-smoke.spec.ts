@@ -101,13 +101,13 @@ test.describe("live product smoke", () => {
     await page.goto("/agents");
 
     await expect(page.getByRole("heading", { name: "Agents" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Start the first live starter agent" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Add an asset, review validation, then use ready snapshots" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Create Claude Code starter" }).click();
+    await page.getByRole("button", { name: "Add Claude Code bridge" }).click();
 
     await expect(page.getByText("Claude Code Starter")).toBeVisible();
     await expect(page.getByText("Visible 1")).toBeVisible();
-    await expect(page.getByText("Ready to run 1")).toBeVisible();
+    await expect(page.getByText("Ready for experiments 1")).toBeVisible();
     await expect(page.getByRole("link", { name: /Create experiment/i })).toHaveAttribute(
       "href",
       "/experiments?agent=claude-code-starter"
@@ -138,7 +138,7 @@ test.describe("live product smoke", () => {
       throw new Error("Expected datasetVersion handoff query param after dataset creation.");
     }
     await expect(page.getByRole("heading", { name: "Experiments" })).toBeVisible();
-    await expect(page.getByLabel("Published agent")).toHaveValue("claude-code-starter");
+    await expect(page.getByLabel("Governed asset")).toHaveValue("claude-code-starter");
     await expect(page.getByRole("option", { name: `${datasetName} · Version ${datasetVersion}` })).toBeVisible();
 
     await page.getByRole("button", { name: "Create and start" }).click();

@@ -104,7 +104,7 @@ This inventory is the actionable cut for follow-up task splitting. Each residue 
 ### Automation Mental Model
 
 - `apps/web/e2e/live-smoke.spec.ts`
-  Residue: the filename and surrounding task history still encode starter/smoke language from the pre-reset model even when the assertions now follow the real user path.
+  Residue: the filename and surrounding task history still encode starter/smoke language even though the assertions now describe the governed asset path in product terms.
   Treatment: `migrate`.
   Guidance: future automation should describe the main path in product terms (`Agents -> Validation -> Datasets -> Experiments -> Exports`) and stop teaching a starter- or smoke-first mental model. This is follow-up automation work, not part of the current doc-only framing gate.
 
@@ -124,3 +124,4 @@ This inventory is the actionable cut for follow-up task splitting. Each residue 
 - Schema/API follow-up: keep wire compatibility, but continue wrapping execution-plane fields in product-facing frontend models instead of leaking generated contract names into widgets.
 - UI/IA follow-up: guard thin execution-profile summaries and keep Phoenix, provider, credential, and backend details out of headline copy or top-level navigation.
 - Automation follow-up: rename and reframe remaining starter/smoke residue so tests teach the canonical user path rather than legacy infrastructure history.
+- UI copy follow-up: keep starter/reference bridges framed as thin beginner paths under governed asset intake instead of as standalone product mechanisms.
