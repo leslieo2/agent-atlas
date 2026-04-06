@@ -1,9 +1,46 @@
 .shell {
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(79, 64, 50, 0.12);
   border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, rgba(8, 13, 24, 0.76), rgba(6, 10, 18, 0.7)), rgba(8, 13, 24, 0.74);
   padding: 14px;
   overflow: auto;
+}
+
+.deep {
+  background:
+    radial-gradient(circle at top right, rgba(190, 126, 74, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(255, 250, 244, 0.96), rgba(246, 232, 218, 0.92)),
+    rgba(255, 248, 241, 0.92);
+  color: var(--text);
+  box-shadow: 0 14px 28px rgba(92, 30, 25, 0.08);
+}
+
+.deep :global(table) {
+  color: var(--text);
+}
+
+.deep :global(th),
+.deep :global(td) {
+  border-bottom-color: rgba(79, 64, 50, 0.08);
+}
+
+.deep :global(thead th) {
+  color: #5c1e19;
+}
+
+.deep :global(td strong) {
+  color: #5c1e19;
+}
+
+.deep :global(.muted-note) {
+  color: var(--text-muted);
+}
+
+.deep :global(.table-link) {
+  color: var(--accent-strong);
+}
+
+.deep :global(tbody tr:hover) {
+  background: rgba(190, 126, 74, 0.08);
 }
 
 .plain {
