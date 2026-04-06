@@ -23,8 +23,18 @@ from app.modules.shared.domain.models import ExecutionBinding
 
 def test_claude_code_starter_manifest_uses_anthropic_model_when_present(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(
+        '{"env": {"ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-sonnet-4-5"}}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "app.modules.agents.domain.reference_assets._claude_code_settings_path",
+        lambda: settings_path,
+    )
 
     manifest = claude_code_starter_manifest()
 
@@ -33,8 +43,13 @@ def test_claude_code_starter_manifest_uses_anthropic_model_when_present(
 
 def test_claude_code_starter_manifest_falls_back_when_anthropic_model_missing(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
+    settings_path = tmp_path / ".claude" / "settings.json"
+    monkeypatch.setattr(
+        "app.modules.agents.domain.reference_assets._claude_code_settings_path",
+        lambda: settings_path,
+    )
 
     manifest = claude_code_starter_manifest()
 
@@ -155,7 +170,15 @@ def test_is_claude_code_starter_execution_binding_matches_only_starter_contract(
     )
 
 
-def test_starter_helpers_expose_only_bridge_defaults() -> None:
+def test_starter_helpers_expose_only_bridge_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    settings_path = tmp_path / ".claude" / "settings.json"
+    monkeypatch.setattr(
+        "app.modules.agents.domain.reference_assets._claude_code_settings_path",
+        lambda: settings_path,
+    )
     manifest = claude_code_starter_manifest()
     binding = claude_code_starter_execution_binding()
 

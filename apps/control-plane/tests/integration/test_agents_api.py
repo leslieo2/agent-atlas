@@ -142,9 +142,16 @@ def test_agents_api_validation_runs_accept_imported_agents_with_default_runtime_
 
 def test_agents_api_starter_entry_creates_first_governed_claude_asset(
     monkeypatch,
+    tmp_path,
 ) -> None:
     provision_calls: list[str] = []
-    monkeypatch.setenv("ANTHROPIC_MODEL", "claude-opus-4-1")
+    starter_settings = tmp_path / ".claude" / "settings.json"
+    starter_settings.parent.mkdir(parents=True, exist_ok=True)
+    starter_settings.write_text(
+        '{"env": {"ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-1"}}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(starter_assets, "_claude_code_settings_path", lambda: starter_settings)
     monkeypatch.setattr(
         starter_assets,
         "provision_claude_code_starter_carrier",

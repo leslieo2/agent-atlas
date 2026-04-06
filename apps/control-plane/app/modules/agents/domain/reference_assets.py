@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+import json
 import subprocess  # nosec - docker CLI invocation is an explicit starter bootstrap dependency
 from pathlib import Path
 from typing import Any
@@ -31,8 +31,36 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[6]
 
 
+def _claude_code_settings_path() -> Path:
+    return Path.home() / ".claude" / "settings.json"
+
+
+def _claude_code_settings_default_model() -> str | None:
+    settings_path = _claude_code_settings_path()
+    if not settings_path.exists():
+        return None
+    try:
+        raw_settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(raw_settings, dict):
+        return None
+
+    configured = raw_settings.get("ANTHROPIC_DEFAULT_OPUS_MODEL")
+    if isinstance(configured, str) and configured.strip():
+        return configured.strip()
+
+    raw_env = raw_settings.get("env")
+    if not isinstance(raw_env, dict):
+        return None
+    nested = raw_env.get("ANTHROPIC_DEFAULT_OPUS_MODEL")
+    if isinstance(nested, str) and nested.strip():
+        return nested.strip()
+    return None
+
+
 def _claude_code_starter_default_model() -> str:
-    configured = os.getenv("ANTHROPIC_MODEL", "").strip()
+    configured = _claude_code_settings_default_model()
     return configured or CLAUDE_CODE_STARTER_FALLBACK_MODEL
 
 
