@@ -19,7 +19,9 @@ CLAUDE_CODE_STARTER_ENTRYPOINT = (
     "app.modules.agents.domain.reference_assets:build_claude_code_starter"
 )
 CLAUDE_CODE_STARTER_RUNNER_IMAGE = "atlas-claude-validation:local"
-CLAUDE_CODE_STARTER_PROJECT_BUNDLE_ARTIFACT_REF = "file:///opt/atlas-validation/project-bundle.tar.gz"
+CLAUDE_CODE_STARTER_PROJECT_BUNDLE_ARTIFACT_REF = (
+    "file:///opt/atlas-validation/project-bundle.tar.gz"
+)
 CLAUDE_CODE_STARTER_PROJECT_MOUNT_PATH = "/workspace/project"
 
 

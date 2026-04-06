@@ -164,6 +164,7 @@ class GovernedAgentIntake:
             requires_runnable_validation=True,
         )
 
+
 def _governed_asset_from_intake(intake: GovernedAgentIntake) -> PublishedAgent:
     manifest = intake.manifest.model_copy(deep=True)
     source_fingerprint = compute_source_fingerprint(manifest, intake.entrypoint)

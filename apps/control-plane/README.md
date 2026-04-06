@@ -1,29 +1,18 @@
 # Agent Atlas Control Plane
 
-The backend is the control plane for Agent Atlas. It provides the HTTP API, persists Atlas-owned
-state, turns governed intake into governed assets, submits run intent through a neutral
-execution-control contract, coordinates datasets and experiment batches, and produces export
-artifacts.
+This document is the backend-local guide for the Agent Atlas control plane. It covers control-plane
+ownership, architecture, setup, runtime boundaries, and backend developer workflows.
 
-Strategically, the backend is moving toward a split where:
-
-- Atlas remains the source of truth for governed assets, datasets, experiments, provenance, and
-  exports
-- Phoenix is an optional trace inspection backend for experiment-heavy debugging workflows
-- immutable artifacts or images and runner orchestration become the execution handoff
-- local and Kubernetes carriers remain adapter implementations behind the runner handoff boundary
-- external systems such as Inspect AI and E2B integrate only through adapters
-- RL integration starts with offline export contracts
-
-For the full-stack workflow, start from the repository root README. Use this document when you are
-working directly on the backend service.
+Use the repository root `README.md` for the product contract and first product loop. This file
+should not act like a second product-definition surface.
 
 ## What This Service Owns
 
-Today:
+The control-plane backend owns:
 
-- governed intake, governed-asset catalog, and the starter bootstrap convenience surface
-- run creation, lifecycle tracking, and execution dispatch as supporting infrastructure
+- HTTP APIs for governed intake, datasets, experiments, runs, and exports
+- governed-asset persistence and validation state
+- run creation, lifecycle tracking, and execution dispatch as backend infrastructure
 - background job processing through the worker
 - trajectory and trace ingestion and normalization behind backend-owned ports
 - dataset CRUD
@@ -31,21 +20,17 @@ Today:
 - artifact export metadata and download flow
 - local development defaults backed by SQLite
 
-Directionally, the backend will also own:
+The control plane does not own:
 
-- stronger dataset and sample identity for RL data workflows
-- artifact or image provenance attached to governed assets and exports
-- runner backend selection and execution control behind a run contract
-- Phoenix-backed trace integration behind backend-owned ports and deep links
-- RL-ready export contracts and curation-oriented filtering
-- canonical evidence records that stay stable across execution backends
-
-The backend should not become the primary place for:
-
-- raw trace browsing UX
+- raw trace browsing UX or Phoenix-native workflows
 - prompt and evaluator management
 - manual-run-first workflows
-- experiment analysis features that Phoenix already owns
+- product-level runner or vendor-console semantics
+
+Starter-specific note:
+
+- `POST /api/v1/agents/starters/claude-code` is a convenience bootstrap entry into the same
+  governed-intake path used by other governed assets; it is not a separate backend lane
 
 ## Architecture
 
@@ -111,18 +96,17 @@ Current runtime model:
 - run both `make run-api` and `make run-worker` during development if you want runs to advance past
   `queued`
 
-Planned runtime direction:
+Control-plane runtime boundary:
 
-- governed assets stay managed by Atlas while artifact/image handoff replaces control-plane-local
-  runtime assumptions
-- execution resolves from the governed asset toward immutable artifact or image references
-- runner orchestration is added behind infrastructure ports
-- local and Kubernetes execution stay as carrier adapters rather than the product default story
-- Inspect AI and E2B stay outside the core model as adapter-backed integrations
-- runtime and control-plane trace export flows use OTLP without making Phoenix the runtime
-  contract
-- experiments, datasets, and exports become the primary product loop while runs remain supporting
-  execution records
+- governed assets stay managed by Atlas while runner/image/artifact execution remains downstream of
+  backend-owned contracts
+- execution resolves from the governed asset toward immutable artifacts, images, or other runner
+  references
+- local and Kubernetes execution stay carrier adapters rather than backend product nouns
+- external runtimes such as Inspect AI, E2B, or Claude Code CLI stay behind adapter-bound
+  execution-control seams
+- runtime and trace export wiring may integrate with Phoenix, but Phoenix does not become the
+  backend runtime contract
 
 ## Dependency Management
 

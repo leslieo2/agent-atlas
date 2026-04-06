@@ -21,7 +21,7 @@ from tests.support.fake_docker import install_fake_docker_runtime
 STARTER_CODE_EDIT_PROMPT = (
     'Inside the mounted project, edit `app.py` so `TARGET = "after"`. '
     "Do not modify any other file. "
-    'After saving the change, reply exactly with `UPDATED app.py` and nothing else.'
+    "After saving the change, reply exactly with `UPDATED app.py` and nothing else."
 )
 STARTER_CODE_EDIT_OUTPUT = "UPDATED app.py"
 
