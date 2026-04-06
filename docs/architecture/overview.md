@@ -60,7 +60,7 @@ The goal is to make one thing clear:
 
 The control plane is where Atlas-owned semantics live:
 
-- published agent governance
+- governed asset governance
 - dataset identity
 - experiment orchestration
 - run and evidence projection

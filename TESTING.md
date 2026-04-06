@@ -1,7 +1,8 @@
 # Agent Atlas Testing Strategy
 
-This repository uses a layered testing model aligned to the current governed-asset control-plane
-shape described in [prd.md](/Users/leslie/PycharmProjects/agent-atlas/prd.md).
+This repository uses a layered testing model aligned to the current governed-intake ->
+published-agent -> run -> evidence -> export shape described in
+[prd.md](/Users/leslie/PycharmProjects/agent-atlas/prd.md).
 
 ## Test Pyramid
 
@@ -11,14 +12,14 @@ shape described in [prd.md](/Users/leslie/PycharmProjects/agent-atlas/prd.md).
   - Scope: no real network, no browser navigation, no background process orchestration beyond local stubs and mocks.
 - `integration`
   - Goal: verify boundary collaboration inside one app.
-  - Backend: FastAPI routes for governed asset listing, explicit import and starter-governance intake, validation-run
-    creation, experiment/run creation, persistence, and export flow.
+  - Backend: FastAPI routes for governed-asset listing, governed intake through explicit import or starter prefill,
+    validation-run creation, experiment/run creation, persistence, and export flow.
   - Frontend: rendered React components plus mocked API boundaries.
 - `e2e`
-  - Goal: verify the main governed-asset intake -> run -> evidence -> export workflow through the
+  - Goal: verify the main governed-intake -> governed-asset -> run -> evidence -> export workflow through the
     actual UI or full backend workflow.
   - Frontend: Playwright against a running Next.js app with route interception or live services.
-  - Backend: end-to-end flows across governed asset intake, runnable catalog, run creation,
+  - Backend: end-to-end flows across governed intake, governed-asset catalog, run creation,
     evidence inspection, and export.
 
 ## PRD-to-Suite Mapping
@@ -28,14 +29,14 @@ shape described in [prd.md](/Users/leslie/PycharmProjects/agent-atlas/prd.md).
     normalization
   - Backend integration: `GET /api/v1/agents/published`, `POST /api/v1/agents/imports`,
     `POST /api/v1/agents/starters/claude-code`, `POST /api/v1/agents/{agent_id}/validation-runs`
-  - Frontend integration: Agents workspace rendering, governed asset grouping, starter-governance
+  - Frontend integration: Agents workspace rendering, governed-asset grouping, starter-prefill
     bridge, validation actions, and experiment handoff links
 - Run an agent
   - Backend integration: experiment/run creation, trajectory persistence, structured runtime errors,
-    and invalid published-asset rejection
+    and invalid governed-asset rejection
   - Frontend integration: `ExperimentsWorkspace`, run/evidence summary surfaces
   - Frontend e2e: create or intake a governed asset, then create an experiment/run from the selected
-    published asset
+    governed asset
 - Debug a run
   - Backend integration: trajectory and trace persistence contracts
   - Frontend integration: `TrajectoryViewer`, step inspection surfaces
@@ -51,11 +52,12 @@ The following are intentionally not part of the current v1 golden-path test matr
 
 - Replay for governed assets
 - Eval for governed assets
+- Separate starter-lane product semantics
 - LangChain plugin support
 - MCP plugin support
 - Deterministic tool-step replay
 - External package or remote plugin sources
-- Versioned publish snapshots
+- Full publication history and rollback UX
 
 They may retain historical tests where needed, but they do not define the primary product verification path.
 
@@ -94,7 +96,7 @@ Files kept at the test root are also classified:
 
 `apps/web/test/setup.ts` provides stable browser shims for `matchMedia`, `ResizeObserver`, and `IntersectionObserver`, which avoids false failures in jsdom-based integration tests.
 
-`apps/web/e2e/support/mockApi.ts` centralizes Playwright API fixtures so new governed-asset intake,
+`apps/web/e2e/support/mockApi.ts` centralizes Playwright API fixtures so new governed-intake,
 validation, and run flows can be added without repeating raw `page.route` boilerplate.
 
 ## TDD Workflow
@@ -113,7 +115,7 @@ Recommended command path:
 2. Backend API contract or persistence change: `make test-tdd-integration`
 3. Frontend mapping or util change: `npm run test:tdd:unit`
 4. Frontend component behavior change: `npm run test:tdd:integration`
-5. Cross-screen governed-asset intake, validation, or run workflow change: `npm run test:e2e:ui`
+5. Cross-screen governed-intake, validation, or run workflow change: `npm run test:e2e:ui`
 
 ## Coverage Guidance
 

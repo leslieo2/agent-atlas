@@ -26,7 +26,7 @@ stable ports:
 
 Typical control-plane objects:
 
-- `PublishedAgentSnapshot`
+- governed asset records
 - `RunRecord`
 - `RunEvidence`
 - `SampleOutcome`

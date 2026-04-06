@@ -34,7 +34,7 @@ The frozen platform contract surface is:
 
 The long-lived Atlas objects are:
 
-- `PublishedAgentSnapshot`
+- governed asset records
 - `RunRecord`
 - `RunEvidence`
 - `SampleOutcome`
@@ -83,7 +83,7 @@ Owns:
 - agents, datasets, experiments, exports, policies, and run submission semantics
 - control-plane APIs and operator-facing state
 - publication, provenance, and policy decisions
-- canonical Atlas records such as `PublishedAgentSnapshot`, `RunRecord`, `SampleOutcome`, and
+- canonical Atlas records such as governed asset records, `RunRecord`, `SampleOutcome`, and
   `ExportRecord`
 - execution intent, not carrier mechanics
 
@@ -316,7 +316,7 @@ Do:
 
 - keep the primary contract limited to run submission, cancel, status, heartbeat, event ingest,
   terminal result, and artifact manifest
-- converge Atlas-owned long-lived records on `PublishedAgentSnapshot`, `RunRecord`,
+- converge Atlas-owned long-lived records on governed asset records, `RunRecord`,
   `RunEvidence`, `SampleOutcome`, `ExperimentResult`, and `ExportRecord`
 - keep `packages/contracts/python` as the only required runner-facing contract package
 - keep control-plane read models private to control-plane modules

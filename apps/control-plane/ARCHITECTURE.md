@@ -254,7 +254,7 @@ Infrastructure may depend on module ports and domain models. The reverse must no
 - traces
 - datasets
 - eval jobs and sample results
-- published agents
+- governed assets
 - artifacts
 - health and system status
 
@@ -474,7 +474,8 @@ Control-plane code should depend on execution intent and lifecycle contracts onl
 - event ingest
 - terminal result
 - artifact manifest
-- Atlas-owned records such as `PublishedAgentSnapshot`, `RunRecord`, `RunEvidence`,
+- Atlas-owned records such as governed asset records (`PublishedAgent` in current backend code),
+  `RunRecord`, `RunEvidence`,
   `SampleOutcome`, `ExperimentResult`, and `ExportRecord`
 
 Control-plane code must not depend on:
@@ -503,7 +504,7 @@ and raw trace events flow directly into trace or data-plane adapters.
 
 Atlas remains the source of truth for:
 
-- published agents
+- governed assets
 - dataset identity and samples
 - eval jobs and sample outcomes
 - run state and lifecycle
@@ -569,7 +570,7 @@ POST /runs
   -> RunCommands.create_run
   -> RunnableAgentCatalogPort.get_agent(...)
   -> RunSubmissionService.submit
-  -> resolve published snapshot -> artifact/image reference
+  -> resolve governed asset -> artifact/image reference
   -> enqueue execution work
   -> worker or runner adapter executes selected artifact/image
   -> telemetry export adapter emits spans via OTLP/OpenInference

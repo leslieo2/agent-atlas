@@ -1,12 +1,13 @@
 # Agent Atlas Control Plane
 
 The backend is the control plane for Agent Atlas. It provides the HTTP API, persists Atlas-owned
-state, submits run intent through a neutral execution-control contract, manages governed runnable
-assets, coordinates datasets and experiment batches, and produces export artifacts.
+state, turns governed intake into governed assets, submits run intent through a neutral
+execution-control contract, coordinates datasets and experiment batches, and produces export
+artifacts.
 
 Strategically, the backend is moving toward a split where:
 
-- Atlas remains the source of truth for governed runnable assets, datasets, experiments, provenance, and
+- Atlas remains the source of truth for governed assets, datasets, experiments, provenance, and
   exports
 - Phoenix is an optional trace inspection backend for experiment-heavy debugging workflows
 - immutable artifacts or images and runner orchestration become the execution handoff
@@ -21,7 +22,7 @@ working directly on the backend service.
 
 Today:
 
-- governed asset catalog and transitional first-asset bootstrap
+- governed intake, governed-asset catalog, and the starter bootstrap convenience surface
 - run creation, lifecycle tracking, and execution dispatch as supporting infrastructure
 - background job processing through the worker
 - trajectory and trace ingestion and normalization behind backend-owned ports
@@ -114,7 +115,7 @@ Planned runtime direction:
 
 - governed assets stay managed by Atlas while artifact/image handoff replaces control-plane-local
   runtime assumptions
-- execution resolves from published snapshot toward immutable artifact or image references
+- execution resolves from the governed asset toward immutable artifact or image references
 - runner orchestration is added behind infrastructure ports
 - local and Kubernetes execution stay as carrier adapters rather than the product default story
 - Inspect AI and E2B stay outside the core model as adapter-backed integrations
@@ -253,6 +254,9 @@ Product note:
 
 - `runs` remain important backend objects, but they are supporting APIs for eval, provenance, and
   export workflows rather than the center of the product experience
+- `POST /api/v1/agents/imports` and `POST /api/v1/agents/starters/claude-code` are two entry
+  surfaces into the same governed-intake path; the starter route is a convenience prefill, not a
+  separate product lane
 
 Sample datasets for manual import live under `apps/control-plane/datasets/`. The seeded
 `fulfillment_ops` dataset is also available as
