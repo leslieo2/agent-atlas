@@ -45,3 +45,22 @@ def test_datasets_api_persists_rl_asset_metadata(client) -> None:
     assert detail["name"] == "rl-curation-set"
     assert detail["rows"][0]["sample_id"] == "sample-001"
     assert detail["rows"][0]["source"] == "support_ticket_backfill"
+
+
+def test_datasets_api_can_materialize_the_bundled_claude_code_starter_dataset(client) -> None:
+    create_response = client.post("/api/v1/datasets/starters/claude-code")
+
+    assert create_response.status_code == 200
+    created = create_response.json()
+    assert created["name"] == "claude-code-code-edit"
+    assert created["version"] == "v1"
+    assert created["source"] == "claude-code-code-edit-v1"
+    assert created["rows"][0]["sample_id"] == "claude-code-edit-sample-1"
+    assert created["rows"][0]["tags"] == ["claude-code", "code-edit", "starter"]
+    assert created["rows"][0]["export_eligible"] is True
+
+    second_response = client.post("/api/v1/datasets/starters/claude-code")
+
+    assert second_response.status_code == 200
+    assert second_response.json()["name"] == "claude-code-code-edit"
+    assert second_response.json()["current_version_id"] == created["current_version_id"]

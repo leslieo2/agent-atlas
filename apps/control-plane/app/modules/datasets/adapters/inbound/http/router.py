@@ -12,6 +12,10 @@ from app.modules.datasets.adapters.inbound.http.schemas import (
     DatasetVersionResponse,
 )
 from app.modules.datasets.application.use_cases import DatasetCommands, DatasetQueries
+from app.modules.datasets.domain.reference_datasets import (
+    CLAUDE_CODE_STARTER_DATASET_NAME,
+    claude_code_starter_dataset_create,
+)
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
@@ -54,3 +58,16 @@ def create_dataset_version(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return DatasetVersionResponse.from_domain(version)
+
+
+@router.post("/starters/claude-code", response_model=DatasetResponse)
+def ensure_claude_code_starter_dataset(
+    commands: Annotated[DatasetCommands, Depends(get_dataset_commands)],
+    queries: Annotated[DatasetQueries, Depends(get_dataset_queries)],
+) -> DatasetResponse:
+    existing = queries.get(CLAUDE_CODE_STARTER_DATASET_NAME)
+    if existing is not None:
+        return DatasetResponse.from_domain(existing)
+
+    dataset = commands.create(claude_code_starter_dataset_create())
+    return DatasetResponse.from_domain(dataset)

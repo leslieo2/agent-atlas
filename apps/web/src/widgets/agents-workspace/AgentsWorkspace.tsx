@@ -8,6 +8,7 @@ import {
   usePublishedAgentsQuery,
   useStartValidationRunMutation
 } from "@/src/entities/agent/query";
+import { useEnsureClaudeCodeStarterDatasetMutation } from "@/src/entities/dataset/query";
 import { getAgentValidationLifecycle } from "@/src/entities/agent/lifecycle";
 import type {
   AgentRecord,
@@ -189,7 +190,7 @@ function validationPayload(agent: AgentRecord) {
 }
 
 function bridgeAlreadyExistsMessage(agent: AgentRecord) {
-  return `${agent.name} already exists as the Claude Code bridge. Review its validation here before using it in experiments.`;
+  return `${agent.name} already exists as the Claude Code bridge, and the starter code-edit dataset is ready too. Review its validation here before using it in experiments.`;
 }
 
 function AgentCard({
@@ -330,6 +331,7 @@ function AgentCard({
 export default function AgentsWorkspace() {
   const publishedAgentsQuery = usePublishedAgentsQuery();
   const bootstrapMutation = useCreateClaudeCodeBridgeAssetMutation();
+  const starterDatasetMutation = useEnsureClaudeCodeStarterDatasetMutation();
   const importMutation = useImportAgentMutation();
   const validationMutation = useStartValidationRunMutation();
   const [actionMessage, setActionMessage] = useState("");
@@ -382,6 +384,7 @@ export default function AgentsWorkspace() {
   const errorMessage =
     (importMutation.error instanceof Error && importMutation.error.message) ||
     (bootstrapMutation.error instanceof Error && bootstrapMutation.error.message) ||
+    (starterDatasetMutation.error instanceof Error && starterDatasetMutation.error.message) ||
     (validationMutation.error instanceof Error && validationMutation.error.message) ||
     (publishedAgentsQuery.error instanceof Error && publishedAgentsQuery.error.message) ||
     "";
@@ -391,6 +394,7 @@ export default function AgentsWorkspace() {
 
   async function handleBootstrap() {
     if (existingClaudeBridge) {
+      await starterDatasetMutation.mutateAsync();
       bootstrapMutation.reset();
       setEntryFocus({ agentId: existingClaudeBridge.agentId, name: existingClaudeBridge.name });
       setActionMessage(bridgeAlreadyExistsMessage(existingClaudeBridge));
@@ -398,16 +402,20 @@ export default function AgentsWorkspace() {
     }
 
     try {
-      const agent = await bootstrapMutation.mutateAsync();
+      const [agent, starterDataset] = await Promise.all([
+        bootstrapMutation.mutateAsync(),
+        starterDatasetMutation.mutateAsync()
+      ]);
       setEntryFocus({ agentId: agent.agentId, name: agent.name });
       setActionMessage(
-        `Added ${agent.name} as the Claude Code bridge. Review its validation here before using the asset in experiments.`
+        `Added ${agent.name} as the Claude Code bridge and prepared the starter code-edit dataset. Review validation here, then use the starter flow in experiments.`
       );
     } catch (error) {
       if (error instanceof Error && error.message.includes("conflicts with an existing governed asset")) {
         const refreshed = await publishedAgentsQuery.refetch();
         const bridge = refreshed.data?.find((agent) => agent.agentId === CLAUDE_CODE_BRIDGE_AGENT_ID) ?? null;
         if (bridge) {
+          await starterDatasetMutation.mutateAsync();
           bootstrapMutation.reset();
           setEntryFocus({ agentId: bridge.agentId, name: bridge.name });
           setActionMessage(bridgeAlreadyExistsMessage(bridge));
@@ -582,9 +590,13 @@ export default function AgentsWorkspace() {
               >
                 {importMutation.isPending ? "Importing asset..." : "Import asset"}
               </Button>
-              <Button onClick={() => void handleBootstrap()} variant="ghost" disabled={bootstrapMutation.isPending}>
-                {bootstrapMutation.isPending
-                  ? "Adding bridge..."
+              <Button
+                onClick={() => void handleBootstrap()}
+                variant="ghost"
+                disabled={bootstrapMutation.isPending || starterDatasetMutation.isPending}
+              >
+                {bootstrapMutation.isPending || starterDatasetMutation.isPending
+                  ? "Preparing starter..."
                   : existingClaudeBridge
                     ? "Review Claude Code bridge"
                     : "Add Claude Code bridge"}

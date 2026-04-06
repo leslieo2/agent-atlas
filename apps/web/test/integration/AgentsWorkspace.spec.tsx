@@ -2,6 +2,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as agentApi from "@/src/entities/agent/api";
+import * as datasetApi from "@/src/entities/dataset/api";
 import type { AgentRecord } from "@/src/entities/agent/model";
 import { renderWithQueryClient } from "@/test/setup";
 import AgentsWorkspace from "@/src/widgets/agents-workspace/AgentsWorkspace";
@@ -11,6 +12,13 @@ vi.mock("@/src/entities/agent/api", () => ({
   createClaudeCodeBridgeAsset: vi.fn(),
   importAgent: vi.fn(),
   startValidationRun: vi.fn()
+}));
+
+vi.mock("@/src/entities/dataset/api", () => ({
+  createDataset: vi.fn(),
+  createDatasetVersion: vi.fn(),
+  ensureClaudeCodeStarterDataset: vi.fn(),
+  listDatasets: vi.fn()
 }));
 
 type MockedApiFn = ReturnType<typeof vi.fn>;
@@ -138,6 +146,7 @@ describe("Agents workspace", () => {
     (agentApi.createClaudeCodeBridgeAsset as unknown as MockedApiFn).mockReset();
     (agentApi.importAgent as unknown as MockedApiFn).mockReset();
     (agentApi.startValidationRun as unknown as MockedApiFn).mockReset();
+    (datasetApi.ensureClaudeCodeStarterDataset as unknown as MockedApiFn).mockReset();
 
     (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
     (agentApi.createClaudeCodeBridgeAsset as unknown as MockedApiFn).mockResolvedValue(null);
@@ -146,6 +155,9 @@ describe("Agents workspace", () => {
       run_id: `validation-${agentId}`,
       status: "queued"
     }));
+    (datasetApi.ensureClaudeCodeStarterDataset as unknown as MockedApiFn).mockResolvedValue({
+      name: "claude-code-code-edit"
+    });
   });
 
   it("groups governed assets by validation readiness and routes ready assets into experiments", async () => {
@@ -390,9 +402,10 @@ describe("Agents workspace", () => {
     fireEvent.click(button);
 
     expect(agentApi.createClaudeCodeBridgeAsset).not.toHaveBeenCalled();
+    await waitFor(() => expect(datasetApi.ensureClaudeCodeStarterDataset).toHaveBeenCalledTimes(1));
     expect(
       await screen.findByText(
-        "Claude Code Starter already exists as the Claude Code bridge. Review its validation here before using it in experiments."
+        "Claude Code Starter already exists as the Claude Code bridge, and the starter code-edit dataset is ready too. Review its validation here before using it in experiments."
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Claude Code Starter is the current import focus on this surface.")).toBeInTheDocument();
@@ -445,12 +458,107 @@ describe("Agents workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Claude Code bridge" }));
 
     await waitFor(() => expect(agentApi.createClaudeCodeBridgeAsset).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.ensureClaudeCodeStarterDataset).toHaveBeenCalledTimes(2));
     expect(
       await screen.findByText(
-        "Claude Code Starter already exists as the Claude Code bridge. Review its validation here before using it in experiments."
+        "Claude Code Starter already exists as the Claude Code bridge, and the starter code-edit dataset is ready too. Review its validation here before using it in experiments."
       )
     ).toBeInTheDocument();
     expect(screen.queryByText("agent_id 'claude-code-starter' conflicts with an existing governed asset")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review Claude Code bridge" })).toBeInTheDocument();
+  });
+
+  it("adds the Claude Code bridge and imports the starter dataset together", async () => {
+    let publishedAgents: AgentRecord[] = [];
+    const starterAgent: AgentRecord = {
+      agentId: "claude-code-starter",
+      name: "Claude Code Starter",
+      description: "Starter agent template for live code-edit validation and experiment flows.",
+      framework: "claude-code-cli",
+      frameworkVersion: "1.0.0",
+      entrypoint: "app.modules.agents.domain.reference_assets:build_claude_code_starter",
+      defaultModel: "claude-sonnet-4",
+      tags: ["starter"],
+      capabilities: [],
+      publishedAt: "2026-04-06T12:00:00Z",
+      sourceFingerprint: "claude-starter-fingerprint",
+      executionReference: {
+        artifactRef: "source://claude-code-starter@claude-starter-fingerprint"
+      },
+      executionProfile: { backend: "external-runner" }
+    };
+
+    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
+    (agentApi.createClaudeCodeBridgeAsset as unknown as MockedApiFn).mockImplementation(async () => {
+      publishedAgents = [starterAgent];
+      return starterAgent;
+    });
+
+    renderWithQueryClient(<AgentsWorkspace />);
+
+    expect(await screen.findByText("No ready assets yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add Claude Code bridge" }));
+
+    await waitFor(() => expect(agentApi.createClaudeCodeBridgeAsset).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.ensureClaudeCodeStarterDataset).toHaveBeenCalledTimes(1));
+    expect(
+      await screen.findByText(
+        "Added Claude Code Starter as the Claude Code bridge and prepared the starter code-edit dataset. Review validation here, then use the starter flow in experiments."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("re-ensures the starter dataset when the bridge already exists after a prior partial success", async () => {
+    let publishedAgents: AgentRecord[] = [];
+    const starterAgent: AgentRecord = {
+      agentId: "claude-code-starter",
+      name: "Claude Code Starter",
+      description: "Starter agent template for live code-edit validation and experiment flows.",
+      framework: "claude-code-cli",
+      frameworkVersion: "1.0.0",
+      entrypoint: "app.modules.agents.domain.reference_assets:build_claude_code_starter",
+      defaultModel: "claude-sonnet-4",
+      tags: ["starter"],
+      capabilities: [],
+      publishedAt: "2026-04-06T12:00:00Z",
+      sourceFingerprint: "claude-starter-fingerprint",
+      executionReference: {
+        artifactRef: "source://claude-code-starter@claude-starter-fingerprint"
+      },
+      executionProfile: { backend: "external-runner" }
+    };
+    let datasetAttempts = 0;
+
+    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
+    (agentApi.createClaudeCodeBridgeAsset as unknown as MockedApiFn).mockImplementation(async () => {
+      publishedAgents = [starterAgent];
+      return starterAgent;
+    });
+    (datasetApi.ensureClaudeCodeStarterDataset as unknown as MockedApiFn).mockImplementation(async () => {
+      datasetAttempts += 1;
+      if (datasetAttempts === 1) {
+        throw new Error("starter dataset import failed");
+      }
+      return { name: "claude-code-code-edit" };
+    });
+
+    renderWithQueryClient(<AgentsWorkspace />);
+
+    expect(await screen.findByText("No ready assets yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add Claude Code bridge" }));
+
+    await waitFor(() => expect(agentApi.createClaudeCodeBridgeAsset).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(datasetApi.ensureClaudeCodeStarterDataset).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("starter dataset import failed")).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review Claude Code bridge" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Review Claude Code bridge" }));
+
+    await waitFor(() => expect(datasetApi.ensureClaudeCodeStarterDataset).toHaveBeenCalledTimes(2));
+    expect(
+      await screen.findByText(
+        "Claude Code Starter already exists as the Claude Code bridge, and the starter code-edit dataset is ready too. Review its validation here before using it in experiments."
+      )
+    ).toBeInTheDocument();
   });
 });

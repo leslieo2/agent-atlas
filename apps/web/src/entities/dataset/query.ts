@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createDataset, createDatasetVersion, listDatasets } from "./api";
+import { createDataset, createDatasetVersion, ensureClaudeCodeStarterDataset, listDatasets } from "./api";
 import type { CreateDatasetInput, CreateDatasetVersionInput } from "./model";
 
 const datasetsQueryRoot = ["datasets"] as const;
@@ -31,6 +31,17 @@ export function useCreateDatasetVersionMutation(datasetName: string) {
 
   return useMutation({
     mutationFn: (payload: CreateDatasetVersionInput) => createDatasetVersion(datasetName, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: datasetsQueryRoot });
+    }
+  });
+}
+
+export function useEnsureClaudeCodeStarterDatasetMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => ensureClaudeCodeStarterDataset(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: datasetsQueryRoot });
     }

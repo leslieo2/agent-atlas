@@ -71,3 +71,11 @@ export async function createDatasetVersion(datasetName: string, payload: CreateD
     }))
   };
 }
+
+export async function ensureClaudeCodeStarterDataset() {
+  return mapDataset(
+    await request<DatasetResponse>("/api/v1/datasets/starters/claude-code", {
+      method: "POST"
+    })
+  );
+}

@@ -1,5 +1,0 @@
-{"sample_id":"fulfillment-001","input":"Order ORD-1001 has not arrived. Check status and decide the next action.","expected":"resolved: wait_for_delivery","tags":["fulfillment","shipping-window"]}
-{"sample_id":"fulfillment-002","input":"Order ORD-1002 is missing in transit. Check inventory and decide the next action.","expected":"resolved: reship_order","tags":["fulfillment","replacement"]}
-{"sample_id":"fulfillment-003","input":"Order ORD-1003 is stuck before shipment. Decide the next action.","expected":"resolved: escalate_to_human","tags":["fulfillment","blocked"]}
-{"sample_id":"fulfillment-004","input":"Order ORD-1004 was delivered but the customer disputes receipt. Decide the next action.","expected":"resolved: escalate_to_human","tags":["fulfillment","delivered-dispute"]}
-{"sample_id":"fulfillment-err-001","input":"Order ORD-ERR-100 is delayed. Check status and decide the next action.","expected":null,"tags":["fulfillment","runtime-error"]}
