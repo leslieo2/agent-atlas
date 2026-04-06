@@ -39,6 +39,8 @@ type EntryFocus = {
   name: string;
 };
 
+const CLAUDE_CODE_BRIDGE_AGENT_ID = "claude-code-starter";
+
 function fallbackValidationTimestamp(agent: AgentRecord) {
   return (
     agent.latestValidation?.completedAt ??
@@ -184,6 +186,10 @@ function validationPayload(agent: AgentRecord) {
     },
     executor_config: agent.executionProfile
   };
+}
+
+function bridgeAlreadyExistsMessage(agent: AgentRecord) {
+  return `${agent.name} already exists as the Claude Code bridge. Review its validation here before using it in experiments.`;
 }
 
 function AgentCard({
@@ -342,6 +348,10 @@ export default function AgentsWorkspace() {
     () => agents.find((agent) => agent.agentId === entryFocus?.agentId) ?? null,
     [agents, entryFocus]
   );
+  const existingClaudeBridge = useMemo(
+    () => agents.find((agent) => agent.agentId === CLAUDE_CODE_BRIDGE_AGENT_ID) ?? null,
+    [agents]
+  );
 
   const groups = useMemo<AgentGroup[]>(
     () => [
@@ -380,14 +390,29 @@ export default function AgentsWorkspace() {
   const validationBacklog = groups[1].items.length + groups[2].items.length + groups[3].items.length;
 
   async function handleBootstrap() {
+    if (existingClaudeBridge) {
+      bootstrapMutation.reset();
+      setEntryFocus({ agentId: existingClaudeBridge.agentId, name: existingClaudeBridge.name });
+      setActionMessage(bridgeAlreadyExistsMessage(existingClaudeBridge));
+      return;
+    }
+
     try {
       const agent = await bootstrapMutation.mutateAsync();
       setEntryFocus({ agentId: agent.agentId, name: agent.name });
       setActionMessage(
         `Added ${agent.name} as the Claude Code bridge. Review its validation here before using the asset in experiments.`
       );
-    } catch {
-      // Error state is surfaced through the shared notice area.
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("conflicts with an existing governed asset")) {
+        const refreshed = await publishedAgentsQuery.refetch();
+        const bridge = refreshed.data?.find((agent) => agent.agentId === CLAUDE_CODE_BRIDGE_AGENT_ID) ?? null;
+        if (bridge) {
+          bootstrapMutation.reset();
+          setEntryFocus({ agentId: bridge.agentId, name: bridge.name });
+          setActionMessage(bridgeAlreadyExistsMessage(bridge));
+        }
+      }
     }
   }
 
@@ -558,7 +583,11 @@ export default function AgentsWorkspace() {
                 {importMutation.isPending ? "Importing asset..." : "Import asset"}
               </Button>
               <Button onClick={() => void handleBootstrap()} variant="ghost" disabled={bootstrapMutation.isPending}>
-                {bootstrapMutation.isPending ? "Adding bridge..." : "Add Claude Code bridge"}
+                {bootstrapMutation.isPending
+                  ? "Adding bridge..."
+                  : existingClaudeBridge
+                    ? "Review Claude Code bridge"
+                    : "Add Claude Code bridge"}
               </Button>
             </div>
           </div>

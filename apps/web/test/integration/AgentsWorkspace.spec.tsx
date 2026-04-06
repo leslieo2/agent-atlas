@@ -344,4 +344,113 @@ describe("Agents workspace", () => {
       "/experiments?agent=imported-basic"
     );
   });
+
+  it("reuses the existing Claude Code bridge instead of creating it again when the governed asset already exists", async () => {
+    const publishedAgents: AgentRecord[] = [
+      {
+        agentId: "claude-code-starter",
+        name: "Claude Code Starter",
+        description: "Starter agent template for live-mode Atlas validation and experiment flows.",
+        framework: "claude-code-cli",
+        frameworkVersion: "1.0.0",
+        entrypoint: "starters.claude_code:build_agent",
+        defaultModel: "claude-sonnet-4",
+        tags: ["bridge"],
+        capabilities: ["submit"],
+        publishedAt: "2026-04-06T12:00:00Z",
+        sourceFingerprint: "claude-bridge-fingerprint",
+        executionReference: {
+          artifactRef: "bundle://claude-code-starter"
+        },
+        latestValidation: {
+          runId: "run-claude-starter-validation",
+          status: "succeeded",
+          createdAt: "2026-04-06T12:01:00Z",
+          startedAt: "2026-04-06T12:02:00Z",
+          completedAt: "2026-04-06T12:03:00Z"
+        },
+        validationEvidence: {
+          artifactRef: "bundle://claude-starter-validation",
+          traceUrl: "http://phoenix.local/trace/claude-starter-validation"
+        },
+        validationOutcome: {
+          status: "succeeded",
+          reason: "Validation succeeded."
+        },
+        executionProfile: { backend: "external-runner" }
+      }
+    ];
+
+    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
+
+    renderWithQueryClient(<AgentsWorkspace />);
+
+    expect(await screen.findByText("Starter agent template for live-mode Atlas validation and experiment flows.")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "Review Claude Code bridge" });
+    fireEvent.click(button);
+
+    expect(agentApi.createClaudeCodeBridgeAsset).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(
+        "Claude Code Starter already exists as the Claude Code bridge. Review its validation here before using it in experiments."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Claude Code Starter is the current import focus on this surface.")).toBeInTheDocument();
+  });
+
+  it("collapses bridge-id conflicts back into the existing-bridge state instead of surfacing the raw backend error", async () => {
+    let publishedAgents: AgentRecord[] = [];
+    const existingBridge: AgentRecord = {
+      agentId: "claude-code-starter",
+      name: "Claude Code Starter",
+      description: "Starter agent template for live-mode Atlas validation and experiment flows.",
+      framework: "claude-code-cli",
+      frameworkVersion: "1.0.0",
+      entrypoint: "starters.claude_code:build_agent",
+      defaultModel: "claude-sonnet-4",
+      tags: ["bridge"],
+      capabilities: ["submit"],
+      publishedAt: "2026-04-06T12:00:00Z",
+      sourceFingerprint: "claude-bridge-fingerprint",
+      executionReference: {
+        artifactRef: "bundle://claude-code-starter"
+      },
+      latestValidation: {
+        runId: "run-claude-starter-validation",
+        status: "succeeded",
+        createdAt: "2026-04-06T12:01:00Z",
+        startedAt: "2026-04-06T12:02:00Z",
+        completedAt: "2026-04-06T12:03:00Z"
+      },
+      validationEvidence: {
+        artifactRef: "bundle://claude-starter-validation",
+        traceUrl: "http://phoenix.local/trace/claude-starter-validation"
+      },
+      validationOutcome: {
+        status: "succeeded",
+        reason: "Validation succeeded."
+      },
+      executionProfile: { backend: "external-runner" }
+    };
+
+    (agentApi.listPublishedAgents as unknown as MockedApiFn).mockImplementation(async () => publishedAgents);
+    (agentApi.createClaudeCodeBridgeAsset as unknown as MockedApiFn).mockImplementation(async () => {
+      publishedAgents = [existingBridge];
+      throw new Error("agent_id 'claude-code-starter' conflicts with an existing governed asset");
+    });
+
+    renderWithQueryClient(<AgentsWorkspace />);
+
+    expect(await screen.findByText("No ready assets yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add Claude Code bridge" }));
+
+    await waitFor(() => expect(agentApi.createClaudeCodeBridgeAsset).toHaveBeenCalledTimes(1));
+    expect(
+      await screen.findByText(
+        "Claude Code Starter already exists as the Claude Code bridge. Review its validation here before using it in experiments."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText("agent_id 'claude-code-starter' conflicts with an existing governed asset")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review Claude Code bridge" })).toBeInTheDocument();
+  });
 });
