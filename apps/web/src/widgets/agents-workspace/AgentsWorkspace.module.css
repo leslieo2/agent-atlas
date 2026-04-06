@@ -39,7 +39,7 @@
 }
 
 .entryStepTitle {
-  color: var(--text-main);
+  color: var(--text);
   font-size: 0.95rem;
   font-weight: 700;
 }
