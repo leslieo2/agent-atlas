@@ -85,15 +85,16 @@ test.describe("live product smoke", () => {
     const datasetName = `live-smoke-dataset-${suffix}`;
     const datasetVersion = `v-${suffix}`;
     const datasetSource = `playwright-live-${suffix}`;
-    const sampleInput = "Summarize the customer exchange and decide whether escalation is required.";
-    const expectedOutput = "Escalate only when the existing policy cannot resolve the request.";
+    const sampleInput =
+      'Inside the mounted project, edit `app.py` so `TARGET = "after"`. Do not modify any other file. After saving the change, reply exactly with `UPDATED app.py` and nothing else.';
+    const expectedOutput = "UPDATED app.py";
     const sampleId = `${datasetName}-sample-1`;
     const datasetRows = `${JSON.stringify({
       sample_id: sampleId,
       input: sampleInput,
       expected: expectedOutput,
-      tags: ["support", "escalation"],
-      slice: "validated-live-loop",
+      tags: ["claude-code", "code-edit", "starter"],
+      slice: "validated-code-edit-loop",
       source: datasetSource,
       export_eligible: true
     })}\n`;
@@ -120,7 +121,9 @@ test.describe("live product smoke", () => {
     await page.getByLabel("Dataset name").fill(datasetName);
     await page.getByLabel("Version").fill(datasetVersion);
     await page.getByLabel("Source").fill(datasetSource);
-    await page.getByLabel("Description").fill("Playwright live smoke dataset for the validated four-page loop.");
+    await page
+      .getByLabel("Description")
+      .fill("Playwright live smoke dataset for the validated four-page code-edit loop.");
     await page.getByLabel("Upload dataset JSONL").setInputFiles({
       name: `${datasetName}.jsonl`,
       mimeType: "application/x-ndjson",

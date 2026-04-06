@@ -19,9 +19,8 @@ CLAUDE_CODE_STARTER_ENTRYPOINT = (
     "app.modules.agents.domain.reference_assets:build_claude_code_starter"
 )
 CLAUDE_CODE_STARTER_RUNNER_IMAGE = "atlas-claude-validation:local"
-CLAUDE_CODE_STARTER_SYSTEM_PROMPT = (
-    "Reply with the user prompt text only. No greeting or explanation."
-)
+CLAUDE_CODE_STARTER_PROJECT_BUNDLE_ARTIFACT_REF = "file:///opt/atlas-validation/project-bundle.tar.gz"
+CLAUDE_CODE_STARTER_PROJECT_MOUNT_PATH = "/workspace/project"
 
 
 def _repo_root() -> Path:
@@ -77,7 +76,7 @@ def claude_code_starter_manifest() -> AgentManifest:
     return AgentManifest(
         agent_id=CLAUDE_CODE_STARTER_AGENT_ID,
         name="Claude Code Starter",
-        description="Starter agent template for live-mode Atlas validation and experiment flows.",
+        description="Starter agent template for live code-edit validation and experiment flows.",
         agent_family=AgentFamily.CLAUDE_CODE.value,
         framework=CLAUDE_CODE_CLI_FRAMEWORK,
         default_model="gpt-5.4-mini",
@@ -98,10 +97,14 @@ def claude_code_starter_execution_binding() -> ExecutionBinding:
         runner_backend="docker-container",
         runner_image=CLAUDE_CODE_STARTER_RUNNER_IMAGE,
         config={
+            "project_materialization": {
+                "mode": "artifact_bundle",
+                "artifact_ref": CLAUDE_CODE_STARTER_PROJECT_BUNDLE_ARTIFACT_REF,
+                "mount_path": CLAUDE_CODE_STARTER_PROJECT_MOUNT_PATH,
+            },
             "claude_code_cli": {
                 "command": "claude",
                 "args": ["--dangerously-skip-permissions"],
-                "system_prompt": CLAUDE_CODE_STARTER_SYSTEM_PROMPT,
                 "version": "starter",
             },
         },

@@ -7,6 +7,8 @@ from app.core.errors import AgentBootstrapFailedError
 from app.modules.agents.domain.reference_assets import (
     CLAUDE_CODE_STARTER_AGENT_ID,
     CLAUDE_CODE_STARTER_ENTRYPOINT,
+    CLAUDE_CODE_STARTER_PROJECT_BUNDLE_ARTIFACT_REF,
+    CLAUDE_CODE_STARTER_PROJECT_MOUNT_PATH,
     CLAUDE_CODE_STARTER_RUNNER_IMAGE,
     claude_code_starter_execution_binding,
     claude_code_starter_manifest,
@@ -134,8 +136,19 @@ def test_is_claude_code_starter_execution_binding_matches_only_starter_contract(
 
 def test_starter_helpers_expose_only_bridge_defaults() -> None:
     manifest = claude_code_starter_manifest()
+    binding = claude_code_starter_execution_binding()
 
     assert manifest.agent_id == CLAUDE_CODE_STARTER_AGENT_ID
     assert CLAUDE_CODE_STARTER_ENTRYPOINT
     assert claude_code_starter_runtime_profile().backend == "external-runner"
-    assert claude_code_starter_execution_binding().runner_backend == "docker-container"
+    assert binding.runner_backend == "docker-container"
+    assert binding.config["project_materialization"] == {
+        "mode": "artifact_bundle",
+        "artifact_ref": CLAUDE_CODE_STARTER_PROJECT_BUNDLE_ARTIFACT_REF,
+        "mount_path": CLAUDE_CODE_STARTER_PROJECT_MOUNT_PATH,
+    }
+    assert binding.config["claude_code_cli"] == {
+        "command": "claude",
+        "args": ["--dangerously-skip-permissions"],
+        "version": "starter",
+    }

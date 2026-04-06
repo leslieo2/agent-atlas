@@ -8,6 +8,13 @@ from app.modules.agents.domain.reference_assets import claude_code_starter_runti
 from fastapi.testclient import TestClient
 from tests.support.fake_docker import install_fake_docker_runtime
 
+STARTER_CODE_EDIT_PROMPT = (
+    'Inside the mounted project, edit `app.py` so `TARGET = "after"`. '
+    "Do not modify any other file. "
+    'After saving the change, reply exactly with `UPDATED app.py` and nothing else.'
+)
+STARTER_CODE_EDIT_OUTPUT = "UPDATED app.py"
+
 
 def _drain_background_work(worker_drain, *, limit: int, rounds: int = 6) -> int:
     processed_total = 0
@@ -47,7 +54,10 @@ def test_live_starter_governed_loop_is_hermetic_and_export_ready(
 
     monkeypatch.setattr(starter_assets.subprocess, "run", fake_docker_run)
     get_container.cache_clear()
-    install_fake_docker_runtime(monkeypatch, outputs={"alpha": "alpha"})
+    install_fake_docker_runtime(
+        monkeypatch,
+        outputs={STARTER_CODE_EDIT_PROMPT: STARTER_CODE_EDIT_OUTPUT},
+    )
 
     from app.main import app
 
@@ -79,10 +89,13 @@ def test_live_starter_governed_loop_is_hermetic_and_export_ready(
             json={
                 "project": "atlas-validation",
                 "dataset": "controlled-validation",
-                "input_summary": "Validate the fresh live starter from governed state only",
-                "prompt": "alpha",
+                "input_summary": "Validate the starter against the mounted sample project",
+                "prompt": STARTER_CODE_EDIT_PROMPT,
                 "tags": ["agents-surface", "governed-live-loop"],
-                "project_metadata": {"validation_surface": "governed-live-loop"},
+                "project_metadata": {
+                    "validation_surface": "governed-live-loop",
+                    "task_kind": "code-edit",
+                },
                 "executor_config": claude_code_starter_runtime_profile().model_dump(mode="json"),
             },
         )
@@ -118,16 +131,16 @@ def test_live_starter_governed_loop_is_hermetic_and_export_ready(
             "/api/v1/datasets",
             json={
                 "name": "e2e-governed-live-loop",
-                "description": "Hermetic live loop dataset created inside the backend e2e gate",
+                "description": "Hermetic live code-edit dataset created inside the backend e2e gate",
                 "source": "playwright-hermetic",
                 "version": "2026-04",
                 "rows": [
                     {
                         "sample_id": "sample-1",
-                        "input": "alpha",
-                        "expected": "alpha",
-                        "tags": ["support"],
-                        "slice": "governed-live-loop",
+                        "input": STARTER_CODE_EDIT_PROMPT,
+                        "expected": STARTER_CODE_EDIT_OUTPUT,
+                        "tags": ["code-edit", "starter"],
+                        "slice": "governed-code-edit-loop",
                         "source": "playwright-hermetic",
                         "export_eligible": True,
                     }

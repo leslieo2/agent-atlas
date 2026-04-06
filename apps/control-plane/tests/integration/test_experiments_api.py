@@ -18,6 +18,13 @@ from app.modules.shared.domain.models import TracePointer
 from tests.fixtures.agents import build_fixture_published_agent
 from tests.support.fake_docker import install_fake_docker_runtime
 
+STARTER_CODE_EDIT_PROMPT = (
+    'Inside the mounted project, edit `app.py` so `TARGET = "after"`. '
+    "Do not modify any other file. "
+    'After saving the change, reply exactly with `UPDATED app.py` and nothing else.'
+)
+STARTER_CODE_EDIT_OUTPUT = "UPDATED app.py"
+
 
 @pytest.fixture(autouse=True)
 def _stub_starter_carrier_build(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -343,6 +350,10 @@ def test_experiments_api_live_mode_starts_with_bootstrapped_starter_agent(
     worker_drain,
 ) -> None:
     get_container.cache_clear()
+    install_fake_docker_runtime(
+        monkeypatch,
+        outputs={STARTER_CODE_EDIT_PROMPT: STARTER_CODE_EDIT_OUTPUT},
+    )
 
     from app.main import app
     from fastapi.testclient import TestClient
@@ -356,10 +367,20 @@ def test_experiments_api_live_mode_starts_with_bootstrapped_starter_agent(
             "/api/v1/datasets",
             json={
                 "name": "live-starter-dataset",
-                "description": "Dataset for fresh live starter experiment path",
-                "source": "crm",
+                "description": "Dataset for fresh live starter code-edit experiment path",
+                "source": "starter-code-edit",
                 "version": "2026-04",
-                "rows": [{"sample_id": "sample-1", "input": "alpha", "expected": "alpha"}],
+                "rows": [
+                    {
+                        "sample_id": "sample-1",
+                        "input": STARTER_CODE_EDIT_PROMPT,
+                        "expected": STARTER_CODE_EDIT_OUTPUT,
+                        "tags": ["code-edit", "starter"],
+                        "slice": "starter-code-edit",
+                        "source": "starter-code-edit",
+                        "export_eligible": True,
+                    }
+                ],
             },
         )
         assert dataset_response.status_code == 200

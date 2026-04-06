@@ -262,6 +262,10 @@ Sample datasets for manual import live under `apps/control-plane/datasets/`. The
 `fulfillment_ops` dataset is also available as
 [`apps/control-plane/datasets/fulfillment-eval-v1.jsonl`](/Users/leslie/PycharmProjects/agent-atlas/apps/control-plane/datasets/fulfillment-eval-v1.jsonl)
 so you can upload it through the UI or load it into the database without relying on demo seeding.
+The starter walkthrough also has a real code-edit JSONL at
+[`apps/control-plane/datasets/claude-code-code-edit-v1.jsonl`](/Users/leslie/PycharmProjects/agent-atlas/apps/control-plane/datasets/claude-code-code-edit-v1.jsonl),
+which is designed for the Claude Code starter's mounted sample project instead of the older toy
+prompt loop.
 
 ## Verification
 
