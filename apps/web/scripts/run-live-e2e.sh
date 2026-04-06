@@ -26,8 +26,15 @@ append_no_proxy() {
 
 API_PORT="${AGENT_ATLAS_LIVE_API_PORT:-$(allocate_port)}"
 WEB_PORT="${AGENT_ATLAS_LIVE_WEB_PORT:-$(allocate_port)}"
+REDIS_PORT="${AGENT_ATLAS_LIVE_REDIS_PORT:-$(allocate_port)}"
+PHOENIX_PORT="${AGENT_ATLAS_LIVE_PHOENIX_PORT:-$(allocate_port)}"
 API_BASE_URL="http://127.0.0.1:${API_PORT}"
 WEB_BASE_URL="http://127.0.0.1:${WEB_PORT}"
+REDIS_URL="redis://127.0.0.1:${REDIS_PORT}/0"
+REDIS_CONTAINER_NAME="agent-atlas-live-e2e-redis-${REDIS_PORT}"
+PHOENIX_BASE_URL="http://127.0.0.1:${PHOENIX_PORT}"
+PHOENIX_OTLP_ENDPOINT="${PHOENIX_BASE_URL}/v1/traces"
+PHOENIX_CONTAINER_NAME="agent-atlas-live-e2e-phoenix-${PHOENIX_PORT}"
 RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/agent-atlas-live-e2e.XXXXXX")
 CONTROL_DB_URL="sqlite:///${RUN_DIR}/control-plane.db"
 DATA_DB_URL="sqlite:///${RUN_DIR}/data-plane.db"
@@ -36,17 +43,38 @@ NO_PROXY_VALUE=$(append_no_proxy "${NO_PROXY:-}" "127.0.0.1")
 NO_PROXY_VALUE=$(append_no_proxy "$NO_PROXY_VALUE" "localhost")
 
 cleanup() {
+  docker rm -f "$PHOENIX_CONTAINER_NAME" >/dev/null 2>&1 || true
+  docker rm -f "$REDIS_CONTAINER_NAME" >/dev/null 2>&1 || true
   kill "${FRONTEND_PID:-}" "${WORKER_PID:-}" "${API_PID:-}" 2>/dev/null || true
   rm -rf "$RUN_DIR"
 }
 
 trap cleanup EXIT INT TERM
 
+docker rm -f "$REDIS_CONTAINER_NAME" >/dev/null 2>&1 || true
+docker run -d --name "$REDIS_CONTAINER_NAME" -p "${REDIS_PORT}:6379" redis:7-alpine \
+  >"${RUN_DIR}/redis-container.log" 2>&1
+
+until docker exec "$REDIS_CONTAINER_NAME" redis-cli ping >/dev/null 2>&1; do
+  sleep 1
+done
+
+docker rm -f "$PHOENIX_CONTAINER_NAME" >/dev/null 2>&1 || true
+docker run -d --name "$PHOENIX_CONTAINER_NAME" -p "${PHOENIX_PORT}:6006" arizephoenix/phoenix:latest \
+  >"${RUN_DIR}/phoenix-container.log" 2>&1
+
+until curl --noproxy '*' -sf "$PHOENIX_BASE_URL" >/dev/null; do
+  sleep 1
+done
+
 cd "$BACKEND_DIR"
 NO_PROXY="$NO_PROXY_VALUE" no_proxy="$NO_PROXY_VALUE" \
   AGENT_ATLAS_ALLOWED_ORIGINS="$ALLOWED_ORIGINS" \
   AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL="$CONTROL_DB_URL" \
   AGENT_ATLAS_DATA_PLANE_DATABASE_URL="$DATA_DB_URL" \
+  AGENT_ATLAS_EXECUTION_JOB_QUEUE_URL="$REDIS_URL" \
+  AGENT_ATLAS_PHOENIX_BASE_URL="$PHOENIX_BASE_URL" \
+  AGENT_ATLAS_TRACING_OTLP_ENDPOINT="$PHOENIX_OTLP_ENDPOINT" \
   .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port "$API_PORT" \
   >"${RUN_DIR}/api.log" 2>&1 &
 API_PID=$!
@@ -55,6 +83,9 @@ NO_PROXY="$NO_PROXY_VALUE" no_proxy="$NO_PROXY_VALUE" \
   AGENT_ATLAS_ALLOWED_ORIGINS="$ALLOWED_ORIGINS" \
   AGENT_ATLAS_CONTROL_PLANE_DATABASE_URL="$CONTROL_DB_URL" \
   AGENT_ATLAS_DATA_PLANE_DATABASE_URL="$DATA_DB_URL" \
+  AGENT_ATLAS_EXECUTION_JOB_QUEUE_URL="$REDIS_URL" \
+  AGENT_ATLAS_PHOENIX_BASE_URL="$PHOENIX_BASE_URL" \
+  AGENT_ATLAS_TRACING_OTLP_ENDPOINT="$PHOENIX_OTLP_ENDPOINT" \
   AGENT_ATLAS_WORKER_POLL_INTERVAL_SECONDS=0.2 .venv/bin/python -m app.worker \
   >"${RUN_DIR}/worker.log" 2>&1 &
 WORKER_PID=$!
@@ -74,5 +105,5 @@ until curl --noproxy '*' -sf "$WEB_BASE_URL" >/dev/null; do
 done
 
 NO_PROXY="$NO_PROXY_VALUE" no_proxy="$NO_PROXY_VALUE" \
-  AGENT_ATLAS_E2E_LIVE=1 AGENT_ATLAS_API_BASE_URL="$API_BASE_URL" PLAYWRIGHT_BASE_URL="$WEB_BASE_URL" \
+  AGENT_ATLAS_E2E_LIVE=1 AGENT_ATLAS_API_BASE_URL="$API_BASE_URL" AGENT_ATLAS_PHOENIX_BASE_URL="$PHOENIX_BASE_URL" PLAYWRIGHT_BASE_URL="$WEB_BASE_URL" \
   npx playwright test e2e/live-smoke.spec.ts --config=playwright.config.ts "$@"

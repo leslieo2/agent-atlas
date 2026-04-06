@@ -17,6 +17,17 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
       capabilities: ["submit", "cancel"],
       published_at: "2026-03-24T00:00:00Z",
       source_fingerprint: "basic-fingerprint-123456",
+      latest_validation: {
+        run_id: "run-basic-validation",
+        status: "succeeded",
+        created_at: "2026-03-24T00:05:00Z",
+        started_at: "2026-03-24T00:06:00Z",
+        completed_at: "2026-03-24T00:07:00Z"
+      },
+      validation_outcome: {
+        status: "succeeded",
+        reason: "Validation passed."
+      },
       execution_reference: {
         artifact_ref: "source://basic@basic-fingerprint-123456",
         image_ref: null
@@ -451,9 +462,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
 
   await expect(page.getByRole("heading", { name: "Governance to evidence loop" })).toBeVisible();
   await expect(
-    page.getByText(
-      /Execution profile is inherited from the selected asset: external-runner · Claude Code CLI\./
-    )
+    page.getByText(/Execution profile is inherited from the selected asset: external-runner\./i)
   ).toBeVisible();
   await page.getByRole("button", { name: /candidate · basic/ }).click();
   await expect(page.getByText("sample-regressed")).toBeVisible();
@@ -469,6 +478,10 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
   await expect(page.getByText("sample-pass")).toHaveCount(0);
   await sampleRow.getByRole("button", { name: "Include" }).click();
 
+  await page.getByRole("link", { name: "Continue to Exports" }).click();
+  await expect(page.getByRole("heading", { name: "Exports" })).toBeVisible();
+  await expect(page.getByLabel("Candidate experiment")).toHaveValue("exp-002");
+  await expect(page.getByLabel("Baseline experiment")).toHaveValue("exp-001");
   await page.getByRole("button", { name: "Create export" }).click();
   await expect(page.getByText("Created export export-001.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Download export" })).toHaveAttribute(
@@ -478,7 +491,7 @@ test("experiments workspace can compare experiments and curate runs", async ({ p
   expect(exportCalls).toEqual([
     {
       format: "jsonl",
-      datasetSampleIds: ["sample-regressed"]
+      datasetSampleIds: ["sample-pass", "sample-regressed"]
     }
   ]);
 });

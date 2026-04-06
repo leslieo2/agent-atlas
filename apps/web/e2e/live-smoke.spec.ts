@@ -3,6 +3,7 @@ import { expect, test, type APIRequestContext, type Download } from "@playwright
 
 const liveE2E = process.env.AGENT_ATLAS_E2E_LIVE === "1";
 const apiBaseUrl = process.env.AGENT_ATLAS_API_BASE_URL ?? "http://127.0.0.1:8005";
+const phoenixBaseUrl = process.env.AGENT_ATLAS_PHOENIX_BASE_URL ?? "http://127.0.0.1:6006";
 
 function apiUrl(path: string) {
   return `${apiBaseUrl}${path}`;
@@ -50,6 +51,34 @@ async function waitForRunEvidence(request: APIRequestContext, experimentId: stri
     .toEqual({ runCount: 1, hasTrace: true });
 }
 
+async function waitForAgentToBeReady(request: APIRequestContext, agentId: string) {
+  await expect
+    .poll(
+      async () => {
+        const agents = (await expectOkJson(request, "/api/v1/agents/published")) as Array<{
+          agent_id: string;
+          latest_validation?: { status?: string | null } | null;
+          validation_outcome?: { status?: string | null } | null;
+        }>;
+        const agent = agents.find((item) => item.agent_id === agentId);
+        return {
+          present: Boolean(agent),
+          runStatus: agent?.latest_validation?.status ?? null,
+          outcomeStatus: agent?.validation_outcome?.status ?? null
+        };
+      },
+      {
+        timeout: 6 * 60_000,
+        intervals: [1_000, 2_000, 5_000]
+      }
+    )
+    .toEqual({
+      present: true,
+      runStatus: "succeeded",
+      outcomeStatus: "passed"
+    });
+}
+
 function extractId(text: string, prefix: string) {
   const normalized = text.trim();
   if (!normalized.startsWith(prefix)) {
@@ -63,6 +92,14 @@ function requireText(value: string | null, label: string) {
     throw new Error(`Expected ${label} to contain text.`);
   }
   return value;
+}
+
+function extractExportId(text: string) {
+  const match = text.match(/Created export ([^.]+)\./);
+  if (!match) {
+    throw new Error(`Expected export message, received "${text.trim()}"`);
+  }
+  return match[1].trim();
 }
 
 async function readDownload(download: Download) {
@@ -106,13 +143,12 @@ test.describe("live product smoke", () => {
 
     await page.getByRole("button", { name: "Add Claude Code bridge" }).click();
 
-    await expect(page.getByText("Claude Code Starter")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Claude Code Starter" })).toBeVisible();
     await expect(page.getByText("Visible 1")).toBeVisible();
-    await expect(page.getByText("Ready for experiments 1")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Create experiment/i })).toHaveAttribute(
-      "href",
-      "/experiments?agent=claude-code-starter"
-    );
+    await expect(page.getByText("Needs validation 1")).toBeVisible();
+    await page.getByRole("button", { name: "Run validation" }).click();
+    await expect(page.getByText(/Started validation run .* for Claude Code Starter\./)).toBeVisible();
+    await waitForAgentToBeReady(request, "claude-code-starter");
 
     await page.goto("/datasets");
 
@@ -130,6 +166,7 @@ test.describe("live product smoke", () => {
       buffer: Buffer.from(datasetRows, "utf8")
     });
 
+    await page.getByRole("button", { name: "Import dataset" }).click();
     await expect(page.getByText(`Imported dataset ${datasetName} with 1 sample.`)).toBeVisible();
     await expect(page.getByRole("link", { name: "Open imported dataset in experiments" })).toBeVisible();
 
@@ -140,9 +177,9 @@ test.describe("live product smoke", () => {
     if (!datasetVersionId) {
       throw new Error("Expected datasetVersion handoff query param after dataset creation.");
     }
-    await expect(page.getByRole("heading", { name: "Experiments" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Governance to evidence loop" })).toBeVisible();
     await expect(page.getByLabel("Governed asset")).toHaveValue("claude-code-starter");
-    await expect(page.getByRole("option", { name: `${datasetName} · Version ${datasetVersion}` })).toBeVisible();
+    await expect(page.getByLabel("Dataset version")).toContainText(`${datasetName} · Version ${datasetVersion}`);
 
     await page.getByRole("button", { name: "Create and start" }).click();
 
@@ -160,31 +197,51 @@ test.describe("live product smoke", () => {
       `/experiments?datasetVersion=${encodeURIComponent(datasetVersionId)}&experiment=${encodeURIComponent(experimentId)}`
     );
 
-    await expect(page.getByRole("heading", { name: "Experiments" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Governance to evidence loop" })).toBeVisible();
     await expect(page.getByText(sampleId)).toBeVisible();
-    await expect(page.getByRole("link", { name: "Open Phoenix deeplink" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Open Phoenix" })).toBeVisible();
+    const phoenixRunLink = page.getByRole("link", { name: "Open Phoenix" });
+    await expect(phoenixRunLink).toBeVisible();
+    const phoenixHref = await phoenixRunLink.getAttribute("href");
+    if (!phoenixHref) {
+      throw new Error("Expected run row to expose a Phoenix link.");
+    }
+    expect(phoenixHref).toContain(phoenixBaseUrl);
+    const phoenixPage = await page.context().newPage();
+    await phoenixPage.goto(phoenixHref, { waitUntil: "domcontentloaded" });
+    await expect(phoenixPage).toHaveURL(new RegExp(phoenixBaseUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    await phoenixPage.close();
 
-    await page.goto(`/exports?experiment=${encodeURIComponent(experimentId)}`);
+    await page.getByRole("link", { name: "Continue to Exports" }).click();
 
     await expect(page.getByRole("heading", { name: "Exports" })).toBeVisible();
-    await expect(page.getByLabel("Experiment")).toHaveValue(experimentId);
-    await expect(page.getByText(`claude-code-starter on ${datasetName}`)).toBeVisible();
+    await expect(page.getByLabel("Experiment", { exact: true })).toHaveValue(experimentId);
+    await expect(page.locator(".page-info-value").filter({ hasText: `claude-code-starter on ${datasetName}` })).toBeVisible();
 
     await page.getByRole("button", { name: "Create export" }).click();
 
     const exportMessage = page.locator("text=/Created export /").first();
     await expect(exportMessage).toBeVisible();
-    const exportId = extractId(requireText(await exportMessage.textContent(), "export creation message"), "Created export ");
+    const exportId = extractExportId(requireText(await exportMessage.textContent(), "export creation message"));
 
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("link", { name: "Download export" }).click();
     const download = await downloadPromise;
     const downloadContents = await readDownload(download);
+    const exportedRows = downloadContents
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as { dataset_sample_id?: string; input?: string; expected?: string });
 
     expect(download.suggestedFilename()).toContain(exportId);
-    expect(downloadContents).toContain(sampleId);
-    expect(downloadContents).toContain(sampleInput);
-    expect(downloadContents).toContain(expectedOutput);
+    expect(exportedRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          dataset_sample_id: sampleId,
+          input: sampleInput,
+          expected: expectedOutput
+        })
+      ])
+    );
   });
 });
