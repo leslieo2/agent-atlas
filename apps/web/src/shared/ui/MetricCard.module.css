@@ -3,10 +3,10 @@
   gap: 8px;
   min-height: 96px;
   padding: 14px 16px;
-  border: 1px solid rgba(158, 189, 226, 0.1);
-  border-top-color: rgba(117, 218, 255, 0.26);
+  border: 1px solid rgba(140, 102, 78, 0.1);
+  border-top-color: rgba(196, 124, 82, 0.26);
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(13, 22, 39, 0.9), rgba(8, 13, 24, 0.78));
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.94), rgba(246, 232, 219, 0.82));
   box-shadow: none;
 }
 

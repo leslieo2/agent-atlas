@@ -1,15 +1,15 @@
 .panel {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, rgba(10, 17, 30, 0.84), rgba(7, 12, 22, 0.74)), rgba(8, 14, 25, 0.72);
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.94), rgba(248, 236, 223, 0.88)), rgba(255, 250, 244, 0.72);
   padding: 20px;
   box-shadow: none;
 }
 
 .strong {
   background:
-    radial-gradient(circle at top right, rgba(117, 218, 255, 0.06), transparent 24%),
-    linear-gradient(180deg, rgba(11, 19, 33, 0.9), rgba(8, 14, 25, 0.82));
+    radial-gradient(circle at top right, rgba(196, 124, 82, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(255, 249, 242, 0.96), rgba(245, 230, 216, 0.9));
 }
 
 .plain {

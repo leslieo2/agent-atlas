@@ -16,9 +16,9 @@
 .emptyState,
 .previewCard,
 .datasetRow {
-  border: 1px solid rgba(158, 189, 226, 0.12);
+  border: 1px solid var(--border-subtle);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.56);
 }
 
 .sectionBlock,
@@ -75,12 +75,12 @@
 
 .datasetRow:hover {
   transform: translateY(-1px);
-  border-color: rgba(117, 218, 255, 0.24);
+  border-color: var(--border-strong);
 }
 
 .datasetRowActive {
   border-color: var(--border-strong);
-  background: linear-gradient(180deg, rgba(117, 218, 255, 0.12), rgba(117, 218, 255, 0.04));
+  background: linear-gradient(180deg, rgba(190, 126, 74, 0.14), rgba(190, 126, 74, 0.06));
 }
 
 .datasetMeta {
@@ -130,9 +130,9 @@
   display: inline-flex;
   align-items: center;
   padding: 5px 9px;
-  border: 1px solid rgba(117, 218, 255, 0.18);
+  border: 1px solid rgba(190, 126, 74, 0.18);
   border-radius: 999px;
-  background: rgba(117, 218, 255, 0.08);
+  background: rgba(190, 126, 74, 0.1);
   color: var(--text-muted);
   font-size: 0.76rem;
 }

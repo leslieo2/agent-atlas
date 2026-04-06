@@ -19,9 +19,9 @@
   display: grid;
   gap: 14px;
   padding: 16px;
-  border: 1px solid rgba(158, 189, 226, 0.12);
+  border: 1px solid var(--border-subtle);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.56);
 }
 
 .sectionHeading {
@@ -61,8 +61,8 @@
 
 .filterChip,
 .historyFilter {
-  border: 1px solid rgba(117, 218, 255, 0.16);
-  background: rgba(117, 218, 255, 0.08);
+  border: 1px solid rgba(190, 126, 74, 0.16);
+  background: rgba(190, 126, 74, 0.08);
   color: var(--text-muted);
 }
 .handoffLine,
@@ -79,9 +79,9 @@
   gap: 10px 16px;
   margin-top: 18px;
   padding: 12px 14px;
-  border: 1px solid rgba(158, 189, 226, 0.1);
+  border: 1px solid rgba(79, 64, 50, 0.1);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .handoffLine strong {
@@ -105,7 +105,7 @@
 .historyTable th,
 .historyTable td {
   padding: 12px 10px;
-  border-bottom: 1px solid rgba(158, 189, 226, 0.08);
+  border-bottom: 1px solid rgba(79, 64, 50, 0.08);
   text-align: left;
   vertical-align: top;
 }

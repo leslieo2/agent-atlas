@@ -11,10 +11,10 @@
   min-height: 100vh;
   flex-direction: column;
   gap: 28px;
-  border-right: 1px solid rgba(158, 189, 226, 0.1);
+  border-right: 1px solid rgba(79, 64, 50, 0.1);
   background:
-    radial-gradient(circle at top, rgba(117, 218, 255, 0.2), transparent 38%),
-    linear-gradient(180deg, rgba(17, 28, 49, 0.98) 0%, rgba(8, 14, 25, 0.98) 42%, rgba(5, 9, 18, 0.99) 100%);
+    radial-gradient(circle at top, rgba(190, 126, 74, 0.18), transparent 38%),
+    linear-gradient(180deg, rgba(255, 248, 241, 0.98) 0%, rgba(248, 232, 216, 0.98) 42%, rgba(238, 214, 193, 0.99) 100%);
   padding: 24px 20px 20px;
 }
 
@@ -36,9 +36,9 @@
   min-width: 40px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid rgba(117, 218, 255, 0.22);
+  border: 1px solid rgba(190, 126, 74, 0.22);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.5);
   color: var(--accent);
   font-family: var(--font-display), var(--font-sans), sans-serif;
   font-size: 0.76rem;
@@ -51,7 +51,7 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: #7a6655;
 }
 
 .brand h1 {
@@ -65,7 +65,7 @@
 .brand p {
   margin: 0;
   max-width: 18rem;
-  color: var(--text-muted);
+  color: #5d4d40;
   font-size: 0.88rem;
   line-height: 1.62;
 }
@@ -100,20 +100,20 @@
 }
 
 .navLink:hover {
-  border-color: rgba(117, 218, 255, 0.2);
-  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(190, 126, 74, 0.2);
+  background: rgba(255, 255, 255, 0.46);
   transform: translateX(3px);
 }
 
 .navLink[aria-current="page"] {
-  border-color: rgba(117, 218, 255, 0.34);
+  border-color: rgba(190, 126, 74, 0.34);
   background:
-    linear-gradient(180deg, rgba(117, 218, 255, 0.14) 0%, rgba(117, 218, 255, 0.05) 100%), rgba(255, 255, 255, 0.02);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    linear-gradient(180deg, rgba(190, 126, 74, 0.14) 0%, rgba(190, 126, 74, 0.05) 100%), rgba(255, 255, 255, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .navLink[aria-current="page"]::before {
-  background: linear-gradient(180deg, rgba(117, 218, 255, 0.92), rgba(121, 236, 180, 0.52));
+  background: linear-gradient(180deg, rgba(207, 117, 67, 0.92), rgba(190, 126, 74, 0.72));
 }
 
 .navLabel {
@@ -125,7 +125,7 @@
 }
 
 .navDescription {
-  color: var(--text-faint);
+  color: #756252;
   font-size: 0.8rem;
   line-height: 1.48;
 }
@@ -140,9 +140,9 @@
   display: grid;
   gap: 8px;
   padding: 14px;
-  border: 1px solid rgba(158, 189, 226, 0.12);
+  border: 1px solid rgba(79, 64, 50, 0.12);
   border-radius: 16px;
-  background: radial-gradient(circle at top right, rgba(117, 218, 255, 0.08), transparent 34%), rgba(4, 8, 16, 0.34);
+  background: radial-gradient(circle at top right, rgba(190, 126, 74, 0.08), transparent 34%), rgba(255, 250, 244, 0.74);
 }
 
 .focusLabel {
@@ -161,7 +161,7 @@
 
 .focusCard p {
   margin: 0;
-  color: var(--text-muted);
+  color: #59493d;
   font-size: 0.85rem;
   line-height: 1.55;
 }
@@ -202,7 +202,7 @@
     min-height: auto;
     gap: 22px;
     border-right: 0;
-    border-bottom: 1px solid rgba(158, 189, 226, 0.1);
+    border-bottom: 1px solid rgba(79, 64, 50, 0.1);
   }
 
   .nav {

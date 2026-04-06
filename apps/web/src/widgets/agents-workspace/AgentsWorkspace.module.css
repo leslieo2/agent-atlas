@@ -2,7 +2,7 @@
   display: grid;
   gap: 14px;
   padding-top: 18px;
-  border-top: 1px solid rgba(158, 189, 226, 0.08);
+  border-top: 1px solid rgba(79, 64, 50, 0.08);
 }
 
 .entryPanel {
@@ -26,9 +26,9 @@
   display: grid;
   gap: 6px;
   padding: 14px 16px;
-  border: 1px solid rgba(158, 189, 226, 0.08);
+  border: 1px solid rgba(79, 64, 50, 0.08);
   border-radius: 16px;
-  background: rgba(6, 11, 20, 0.22);
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .entryStepHeader {
@@ -65,9 +65,9 @@
   display: grid;
   gap: 16px;
   padding: 18px;
-  border: 1px solid rgba(158, 189, 226, 0.08);
+  border: 1px solid rgba(79, 64, 50, 0.08);
   border-radius: 16px;
-  background: rgba(6, 11, 20, 0.26);
+  background: rgba(255, 255, 255, 0.62);
   transition:
     transform 160ms ease,
     border-color 160ms ease,
@@ -76,8 +76,8 @@
 
 .card:hover {
   transform: translateY(-1px);
-  border-color: rgba(117, 218, 255, 0.16);
-  background: rgba(6, 11, 20, 0.34);
+  border-color: rgba(190, 126, 74, 0.18);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .cardHeader {
@@ -97,7 +97,7 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px 18px;
   padding-top: 12px;
-  border-top: 1px solid rgba(158, 189, 226, 0.08);
+  border-top: 1px solid rgba(79, 64, 50, 0.08);
 }
 
 .metaItem {

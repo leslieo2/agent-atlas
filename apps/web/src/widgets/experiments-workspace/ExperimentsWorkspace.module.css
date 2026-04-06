@@ -60,7 +60,7 @@
   padding: 14px 16px;
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.56);
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -72,12 +72,12 @@
 
 .jobCard:hover {
   transform: translateY(-1px);
-  border-color: rgba(117, 218, 255, 0.24);
+  border-color: var(--border-strong);
 }
 
 .jobCard[data-active="true"] {
   border-color: var(--border-strong);
-  background: linear-gradient(180deg, rgba(117, 218, 255, 0.12), rgba(117, 218, 255, 0.04));
+  background: linear-gradient(180deg, rgba(190, 126, 74, 0.14), rgba(190, 126, 74, 0.06));
 }
 
 .jobCardHeader {
