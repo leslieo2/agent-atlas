@@ -5,38 +5,59 @@ RL-ready execution data.
 
 It gives teams one product surface for:
 
-- governing runnable agent assets and readiness
+- governing intake into runnable agent assets
 - defining datasets, slices, provenance, and export eligibility
-- running and comparing experiments over published agents
+- running and comparing experiments over governed assets
 - exporting curated offline files for downstream RL or post-training workflows
 
 Atlas is the product center for agent governance, datasets, experiments, and exports. Phoenix
 remains the trace and debugging backend. Runner adapters such as Claude Code CLI stay visible, but
 they do not become the product itself.
 
-## Core Surfaces
+## Product Contract
 
-Agent Atlas is organized around four first-class product surfaces:
+Atlas is organized around one canonical lifecycle:
 
-- `Agents`: govern runnable agent assets, readiness, and validation follow-through
+`governed intake -> governed asset -> run -> evidence -> export`
+
+That lifecycle maps to the four operator-facing product surfaces:
+
+- `Agents`: intake, validate, and govern runnable assets
 - `Datasets`: define dataset identity, slices, provenance, and export eligibility
-- `Experiments`: batch runs, compare baselines, review outcomes, and curate export-ready rows
-- `Exports`: package curated evidence into offline RL handoff files
+- `Experiments`: turn governed assets and datasets into runs, compare outcomes, and curate rows
+- `Exports`: package curated evidence-backed rows into offline handoff files
 
-These four surfaces are the current product spine of the repository and the default operator path
-through the system.
+What Atlas ingests:
 
-## First Five Minutes
+- governed agent intake
+- datasets and dataset slices
+- run intent against a governed asset + dataset pairing
 
-The default local product loop is:
+What Atlas produces:
 
-1. start the local stack with `make dev`
-2. open `Agents` and create the first governed asset
-3. open `Datasets` and create or import a dataset
+- governed assets with validation state
+- run records and evidence
+- curated export artifacts for downstream RL or post-training workflows
+
+## Boundary Rules
+
+- Atlas owns the product model, provenance, curation, and export semantics.
+- Phoenix owns raw traces and deep debugging. Atlas links out to Phoenix; it does not rebuild Phoenix as a peer workspace.
+- Runner adapters, providers, carriers, and tool integrations stay behind Atlas-owned contracts and provenance fields.
+- The README is the public entrypoint. Internal transition history, superseded wording, and deeper architecture debate belong in subsystem docs, not here.
+
+## First Product Loop
+
+The default local operator path is:
+
+1. start the stack with `make dev`
+2. open `Agents` and add or govern the first asset
+3. open `Datasets` and import a dataset
 4. open `Experiments` and run the dataset against the governed asset
-5. open `Exports` and create an offline file from the resulting evidence
+5. review evidence, compare outcomes, and curate rows
+6. open `Exports` and create an offline handoff file
 
-If this loop works, Atlas is behaving like a product instead of a loose collection of subsystems.
+If this loop works, Atlas is behaving like the product described above.
 
 ## Quick Start
 
@@ -49,151 +70,39 @@ cp apps/web/.env.example apps/web/.env.local
 make dev
 ```
 
-This starts the local stack with the default ports:
+Default local endpoints:
 
 - Phoenix: `http://127.0.0.1:6006`
 - backend API: `http://127.0.0.1:8000`
 - frontend: `http://127.0.0.1:3000`
 
-Stop all three development processes together with `Ctrl-C`.
 `make dev` starts Phoenix through Docker, so make sure Docker Desktop or the Docker daemon is running first.
-
-## Product Direction
-
-Agent Atlas is where teams govern agent versions, datasets, experiments, and export-ready
-evidence.
-
-The current division of responsibility is:
-
-- Agent Atlas owns agent governance, datasets, experiments, provenance, curation, and export
-  semantics
-- Phoenix owns raw traces, prompts, evaluators, playground workflows, and deep debugging
-  interfaces
-- RL integration starts with offline export first, not direct training orchestration
-- Inspect AI, E2B, and similar systems enter as adapters around Atlas-owned contracts
-
-This README should describe Atlas first as a product, then as a repository. The remaining sections
-cover current capability, boundary rules, and contributor-facing architecture context.
-
-## Current Capability Snapshot
-
-What exists today:
-
-- governed asset intake with a narrow transitional bootstrap bridge for creating the first managed
-  asset
-- worker-backed execution behind a neutral run-control contract
-- dataset management and dataset-driven eval jobs
-- artifact export for downstream analysis
-- legacy run, trajectory, and playground surfaces from the earlier workbench story
-
-What is directional, not yet shipped:
-
-- immutable artifact or image-backed publication
-- richer curation-first export contracts for RL workflows
-- product-level removal of Atlas surfaces that overlap with Phoenix
-- a first-class external runner gateway beyond the current in-repo adapters
-
-## Boundary Freeze
-
-The current platform migration is freezing a narrow Atlas-owned contract surface.
-
-Primary contracts:
-
-- run submission
-- cancel, status, and heartbeat
-- event ingest
-- terminal result
-- artifact manifest
-
-Long-lived Atlas objects:
-
-- `PublishedAgentSnapshot`
-- `RunRecord`
-- `RunEvidence`
-- `SampleOutcome`
-- `ExperimentResult`
-- `ExportRecord`
-
-Execution carriers and external tools must map into those contracts and objects. They must not
-become the source of truth for Atlas domain semantics.
-
-The target first-class Atlas surfaces are:
-
-- `Agents`
-- `Datasets`
-- `Experiments`
-- `Exports`
-
-This means the long-term shape is:
-
-- governed asset intake, validation evidence, and sealed runnable handoff
-- governed publication with artifact, image, and runner provenance
-- dataset and sample identity for RL data production
-- eval-driven batch execution and comparison
-- Phoenix-linked debugging instead of Atlas-native trace tooling
-- RL-ready offline export
+Stop all local processes together with `Ctrl-C`.
 
 ## What Is In This Repository
 
-For contributors, the repository is organized by execution ownership rather than by abstract
-concept names.
+For contributors, the repository is organized by product and execution ownership:
 
 - `apps/web/`: operator-facing web UI
 - `apps/control-plane/`: FastAPI control plane, worker process, feature modules, tests, and
   backend-specific tooling
-- planned product-plane services such as `apps/data-ingestion/`, `apps/export-worker/`,
-  `apps/eval-worker/`, `apps/executor-gateway/`, and `apps/data-plane-api/`: target landing zones
-  for the next split, not directories that exist in this checkout today
 - `packages/contracts/`: neutral cross-plane contract package
 - `runtimes/`: execution-side runtime packages, including shared runner bootstrap and launcher code
 - `infra/`, `schemas/`, and `docs/`: deployment assets, shared schemas, and architecture docs
 - `Makefile`: root entrypoint for installing dependencies and running the common full-stack
   workflows
 
-`apps/control-plane/app/*` holds in-process control-plane subsystems, `packages/*` holds shared
+`apps/control-plane/app/*` holds in-process control-plane modules, `packages/*` holds shared
 libraries, `schemas/*` holds language-neutral definitions, and `runtimes/*` holds execution-side
-implementations that should evolve outside the control-plane process.
-
-## Platform Architecture
-
-For technical contributors, the platform is best understood as layered planes rather than as one
-giant hexagonal application.
-
-The platform planes are:
-
-- control plane: governs datasets, experiments, runs, provenance, curation, and
-  export contracts
-- execution plane: runs agents in isolated carriers such as local workers, containers, or
-  Kubernetes jobs
-- observability and eval plane: collects telemetry, stores raw traces, and supports debugging and
-  comparison
-- data plane: normalizes trajectories, artifacts, labels, and lineage into training-usable data
-- training plane: filters, transforms, and exports offline RL or post-training datasets
-
-Hexagonal architecture is still useful, but only locally:
-
-- use it inside control-plane and core business services where Atlas-owned semantics must stay
-  stable while backends change
-- do not use it as the primary mental model for the whole platform topology
-- do not force execution orchestration, telemetry pipelines, or high-throughput data processing
-  into a pure ports-and-adapters shape when state-machine, event-driven, or data-pipeline designs
-  fit better
+implementations that should remain downstream of Atlas-owned product semantics.
 
 ## Architecture At A Glance
 
-- Control plane: a modular monolith built with FastAPI. HTTP routes stay thin, feature logic lives
-  under `apps/control-plane/app/modules`, infrastructure adapters live under
-  `apps/control-plane/app/infrastructure`, and wiring happens in
-  `apps/control-plane/app/bootstrap/container.py`.
-- Web app: a layered Next.js App Router app. Route entrypoints live in `apps/web/app`, while
-  product code follows `app -> widgets -> features -> entities -> shared` in `apps/web/src`.
-- Shared contracts: the long-term neutral boundary for run submission, event envelopes, terminal
-  results, artifact manifests, and related cross-plane contracts lives under `packages/contracts/`.
-- Planned packages and worker apps described elsewhere in the docs are directional landing zones
-  unless the directory exists in the repository today.
-- External backend direction: Atlas keeps control-plane truth while Phoenix remains an analysis
-  backend for raw traces and experiment-heavy debugging workflows. Kubernetes is the primary
-  execution implementation, while Inspect AI and E2B remain adapter integrations.
+- Control plane: governs intake, assets, runs, evidence, curation, and export records.
+- Web app: the operator-facing product UI, organized around `Agents / Datasets / Experiments / Exports`.
+- Shared contracts: neutral run/evidence/export boundary types under `packages/contracts/`.
+- Execution runtimes: downstream carriers and adapter integrations under `runtimes/`.
+- Observability: Phoenix stays as the trace/deep-debug backend behind Atlas-linked evidence.
 
 ### Platform Diagram
 
@@ -225,7 +134,7 @@ Use this as the quick mental model:
 The full version of this diagram and the corresponding boundary rules live in
 [docs/architecture/overview.md](docs/architecture/overview.md).
 
-Use the subsystem docs for the full architecture rules:
+Use the deeper docs when you need subsystem rules rather than the public entrypoint:
 
 - [prd.md](prd.md)
 - [roadmap.md](roadmap.md)
