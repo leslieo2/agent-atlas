@@ -1,34 +1,43 @@
 # Agent Atlas Frontend
 
-The frontend is the operator interface for Agent Atlas. It provides the browser UI for control-plane
-orchestration and evidence-plane workflows around agents, datasets, experiments, and exports.
+The frontend is the operator-facing UI for Agent Atlas. It renders the product contract already
+defined in the root README:
 
-The frontend is intentionally a control-plane UI, not a runtime host or vendor console. When
-external observability backends such as Phoenix are integrated, the frontend should continue to
-consume Atlas-owned APIs, evidence summaries, and deep links instead of binding directly to vendor
-SDKs or runner-specific protocols.
+`governed asset -> execution profile -> run -> evidence -> export`
 
-For the full-stack workflow, start from the repository root README. Use this document when you are
-working directly on the frontend application.
+Use this document for local frontend ownership, setup, and verification. For the public product
+story, start from the repository root README instead of treating this file as a second authority.
 
 ## What This App Owns
 
-- Agents workspace and snapshot-oriented interaction flows
-- datasets and eval workspaces
-- export-oriented interaction flows
-- client-side data fetching, mapping, and caching for control-plane views
-- frontend architecture and design system rules for the UI layer
-- evidence summaries and deep links that stay attached to Atlas-owned records
+- the `Agents`, `Datasets`, `Experiments`, and `Exports` workspaces
+- client-side data fetching, mapping, and caching for Atlas-owned APIs
+- evidence summaries and deep links attached to Atlas-owned records
+- frontend architecture, design system, and contributor rules for the web app
 
-Supporting, but not long-term product surfaces:
+Supporting views, not first-class product centers:
 
-- run-level drill-downs under eval workflows
-- trajectory summaries and Phoenix links for debugging
-- no separate legacy runtime-host routes; Atlas now centers the four primary workspaces
+- run-level drill-downs under experiment workflows
+- Phoenix deep links and evidence summaries for debugging
+- execution-profile, provenance, and runner detail shown as secondary metadata
+
+## Product Framing Rules
+
+The frontend should reinforce Atlas as the control plane:
+
+- keep the IA centered on `Agents / Datasets / Experiments / Exports`
+- keep the product chain legible as `governed asset -> execution profile -> run -> evidence -> export`
+- keep execution detail behind execution-profile, provenance, or evidence summaries instead of
+  elevating it into first-class navigation or object nouns
+- keep Phoenix deeplink-only inside the product UI; do not grow a peer tracing workspace
+- treat validation as lifecycle and evidence state on governed assets and runs, not as a separate
+  product center
+- preserve explicit snake_case-to-camelCase mapping at entity boundaries when backend contracts
+  expand
 
 ## Architecture
 
-This frontend uses Next.js App Router with a layered product structure:
+This frontend uses Next.js App Router with a layered structure:
 
 - `app/`: routes, layouts, metadata, and page entrypoints
 - `src/widgets/`: screen and workspace composition
@@ -40,8 +49,8 @@ Dependency direction:
 
 `app -> widgets -> features -> entities -> shared`
 
-Read the full rules in [ARCHITECTURE.md](./ARCHITECTURE.md). Visual and interaction guidance lives
-in [DESIGN_LANGUAGE.md](./DESIGN_LANGUAGE.md). Contributor and layering guidance lives in
+Read the full layering rules in [ARCHITECTURE.md](./ARCHITECTURE.md). Visual and interaction
+guidance lives in [DESIGN_LANGUAGE.md](./DESIGN_LANGUAGE.md). Contributor guidance lives in
 [AGENTS.md](./AGENTS.md).
 
 ## Local Setup
@@ -69,30 +78,14 @@ If the backend is not running at `http://127.0.0.1:8000`, update `NEXT_PUBLIC_AP
 starting the dev server.
 
 The frontend has no `runtime_mode` switch. Runtime execution behavior is configured on the backend
-through canonical control-plane settings, primarily `AGENT_ATLAS_EXECUTION_JOB_BACKEND` plus
-explicit run execution configuration.
+through canonical control-plane settings and explicit run execution configuration.
 
 ## Implemented Workspaces
 
-- Agents: review agent definitions, seal Atlas snapshots, and inspect provenance plus execution references
+- Agents: intake, govern, and validate runnable assets
 - Datasets: upload and manage sample sets
-- Experiments: create batch runs and inspect result summaries and failures
-- Export actions: download offline artifacts from run and eval workflows
-
-Residual debug-oriented scaffolding is being removed from the codebase as the backend subtraction work lands. It should not define the default frontend product story.
-
-## Product Direction
-
-The frontend should evolve in a way that reinforces Atlas as the control plane:
-
-- center the IA on `Agents`, `Datasets`, `Experiments`, and `Exports`
-- treat the canonical product chain as `AgentAsset -> ExecutionProfile -> Run -> Evidence -> Export`
-- show snapshot status, execution-profile, provenance, and evidence state inside Atlas-owned records
-- keep tracing UI limited to evidence summaries, reference fields, evidence association, and Phoenix deep links
-- avoid rebuilding a complete observability product inside the frontend
-- avoid elevating runners, providers, credentials, or vendor consoles into first-class navigation or object centers
-- avoid growing runtime-host, manual-run, or playground surfaces as first-class product workflows
-- preserve explicit snake_case-to-camelCase payload mapping when backend contracts expand
+- Experiments: create batch runs, compare outcomes, and inspect evidence summaries
+- Exports: create and download offline handoff artifacts
 
 ## Developer Commands
 

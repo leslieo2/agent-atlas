@@ -1,17 +1,23 @@
 # Product Requirements Document
 
+This document narrows the current product contract behind the repository README. It is not a
+second public entrypoint.
+
 ## Product Definition
 
-Agent Atlas is the control plane for collecting, curating, and exporting RL-ready agent execution
-data.
+Agent Atlas is the control plane for turning governed assets, datasets, and runs into
+evidence-backed offline RL data.
 
-Atlas is not an observability product and should not compete with Phoenix on tracing,
-experimentation, prompt workflows, evaluator authoring, or playground UX. Its value is the
-governed data path from published agents to offline training exports.
+The shortest useful product model is:
+
+`governed intake -> governed asset -> run -> evidence -> export`
+
+Atlas is not a runner console and not a tracing product. Its value is governed asset lifecycle,
+dataset identity, evidence-backed orchestration, and exportable data.
 
 ## Architecture Stance
 
-The product architecture should be described as a layered platform:
+Atlas should be described as a layered platform:
 
 - `Control Plane`
 - `Execution Plane`
@@ -19,89 +25,76 @@ The product architecture should be described as a layered platform:
 - `Data Plane`
 - `Training Plane`
 
-That is the right level for the whole product because the system includes orchestration, telemetry,
-storage, and offline data-processing concerns in addition to business services.
-
-Hexagonal architecture is still appropriate, but only for part of the system:
-
-- use it inside control-plane and core business services where Atlas needs stable domain semantics
-  across changing frameworks, runners, trace backends, and tool gateways
-- do not use it as the top-level model for execution runtime, tracing pipelines, or trajectory and
-  reward data processing
-- treat execution runtime primarily as orchestration and state machines
-- treat telemetry and trajectory ingestion primarily as event-driven or data-pipeline systems
+Hexagonal architecture still applies inside control-plane business services, but it is not the
+top-level description for execution runtime, telemetry pipelines, or data-processing systems.
 
 ## Problem
 
-Training teams need a reliable way to answer these questions:
+Training and eval teams need a reliable way to answer:
 
-- which published agent version produced this data
-- which dataset and sample produced this outcome
-- which experiment generated it
+- which governed asset produced this run
+- which dataset sample and experiment generated this evidence
 - which artifact, image, and runner were involved
-- which outcomes are useful for downstream RL or fine-tuning workflows
+- which outcomes are worth exporting for downstream RL or post-training workflows
 
-Existing agent tooling is strong at debugging and experimentation, but weaker at governed data
+Existing tooling is strong at debugging and experimentation, but weaker at governed data
 production, curation, provenance, and export handoff. Atlas exists to own that layer.
 
 ## Target Users
 
-- agent platform engineers who publish and govern runnable agent snapshots
+- platform engineers who intake, validate, and govern runnable assets
 - eval and data engineers who run batch jobs across datasets and slices
-- training pipeline owners who need RL-ready offline exports with provenance
+- training pipeline owners who need export-ready offline data with provenance
 
 ## Product Goals
 
-### 1. Govern published agent snapshots
+### 1. Govern intake into runnable assets
 
-Atlas must keep a stable record of which agent version was used to generate data.
+Atlas must keep a stable governed record of what is allowed to run.
 
 Required outcomes:
 
-- repository-local discovery
-- validation and publish gate
-- published snapshot metadata
-- artifact, image, and runner provenance attached to publication
+- governed intake and validation follow-through
+- asset identity plus execution provenance
+- clear readiness state before experiments start
 
 ### 2. Treat datasets as formal RL data assets
 
-Atlas datasets are not experiment workspaces. They are controlled data assets used to generate,
-filter, and export training data.
+Datasets are controlled inputs for evidence production and export, not loose experiment scratchpads.
 
 Required outcomes:
 
 - dataset and sample identity
 - slice, tag, and source metadata
-- linkage from sample to eval result and export row
 - export eligibility and curation state
+- linkage from sample to run evidence and export rows
 
 ### 3. Orchestrate batch production through experiments
 
-Atlas should make it easy to run one or more published agent snapshots across one or more dataset
-slices and collect sample-level outcomes.
+Experiments should be the primary way Atlas turns governed assets and datasets into evidence-backed
+results.
 
 Required outcomes:
 
-- batch job creation
-- batch execution tracking
-- sample-level result aggregation
-- baseline and candidate comparison that helps decide what to export
+- batch job creation and lifecycle tracking
+- sample-level outcomes
+- baseline and candidate comparison
+- evidence summaries that support curation
 
 ### 4. Export RL-ready offline data
 
-Atlas should produce data files that a training team can consume without reconstructing lineage from
-multiple systems.
+Exports are the main product handoff.
 
 Required outcomes:
 
 - offline export first
 - stable export schema
-- critical provenance embedded in each row
+- embedded provenance per row
 - filters that support curation by success, failure type, regression, and slice
 
 ## Product Non-Goals
 
-Atlas should not be the primary place for:
+Atlas should not become the primary place for:
 
 - raw trace browsing
 - trace search and filtering UX
@@ -111,41 +104,39 @@ Atlas should not be the primary place for:
 - rich playground or manual run workflows
 - direct training-job orchestration
 
-These belong in Phoenix or other vendor tooling. Atlas can hold links and summaries, but it should
-not recreate those products.
+Those belong in Phoenix or other downstream tooling. Atlas can hold links and summaries, but it
+should not recreate those products.
 
 ## Core Product Objects
 
-### First-class Atlas objects
+First-class product objects:
 
-- `PublishedAgent`
-- `Dataset`
-- `DatasetSample`
-- `Experiment`
-- `RunEvaluation`
-- `ExportArtifact`
+- governed asset
+- dataset
+- experiment
+- run evidence
+- export artifact
 
-### Supporting internal objects
+Supporting internal records:
 
-- `Run`
-- `TracePointer`
-- `ObservabilityMetadata`
+- run
+- trace pointer
+- observability metadata
 
-Runs still matter for provenance and execution state, but they are supporting records beneath experiments
-and exports, not the center of the product.
+Runs still matter for provenance and execution state, but they are supporting records beneath
+experiments and exports, not the center of the product.
 
 ## Product Boundary With Phoenix
 
-### Atlas owns
+Atlas owns:
 
-- published agent identity and governance
+- governed asset lifecycle
 - dataset identity and curation state
 - experiment orchestration
-- run provenance
-- export eligibility
-- RL-ready offline export
+- run provenance and evidence association
+- export eligibility and offline export
 
-### Phoenix owns
+Phoenix owns:
 
 - raw traces
 - deep trace inspection
@@ -154,16 +145,16 @@ and exports, not the center of the product.
 - playground
 - trace-centric experiment analysis
 
-### Relationship model
+Relationship model:
 
-- Atlas is the source of truth for datasets, samples, experiments, and exports.
+- Atlas is the source of truth for governed assets, datasets, experiments, evidence, and exports.
 - Phoenix is the analysis plane.
 - Atlas stores Phoenix pointers and deep links where useful.
 - Atlas should not maintain a second product-level trace browser or experiment workbench.
 
 ## Information Architecture
 
-The target first-class product surfaces are:
+The first-class product surfaces are:
 
 - `Agents`
 - `Datasets`
@@ -172,42 +163,29 @@ The target first-class product surfaces are:
 
 Supporting drill-downs:
 
-- run detail as a child view within experiment workflows
+- run detail inside experiment workflows
 - Phoenix deep links for trace inspection
 
-Surfaces to remove or downscope:
+Surfaces to remove or keep downscoped:
 
 - standalone `Runs` as a primary navigation item
 - standalone `Playground` or manual run console
 - Atlas-native tracing workspace
 
-## Primary Workflow
-
-```text
-Published Agent
-  -> Dataset / Slice
-  -> Experiment
-  -> Sample-level Results
-  -> Curation / Compare
-  -> RL-ready Export
-```
-
-Phoenix supports debugging and inspection around that loop, but Atlas owns the loop itself.
-
 ## Success Criteria
 
 The product is succeeding when:
 
-- every exported row can be traced back to a published agent snapshot, dataset sample, and experiment
-- training teams can filter or select export slices without leaving Atlas
+- every exported row can be traced back to a governed asset, dataset sample, and experiment
+- training teams can filter and select export slices without leaving Atlas
 - operators use Phoenix for debugging, not Atlas-native trace tooling
-- Atlas remains narrow and does not grow a second observability or experiment product
+- Atlas stays narrow and does not regrow a second observability or experiment product
 
 ## Deferred Work
 
 Important but not required for the current product definition:
 
 - multi-language agent runtime support such as TypeScript agents
-- Docker-backed and remote runners beyond the current local-first path
+- broader remote runner coverage beyond the current local and external-runner paths
 - direct integration with RL ingestion or training-job scheduling systems
 - full publication history and rollback UX

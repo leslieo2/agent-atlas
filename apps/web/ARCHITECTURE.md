@@ -23,6 +23,18 @@ External backend rule:
 - first-class Atlas workspaces should converge on `Agents`, `Datasets`, `Experiments`, and `Exports`
 - run details, tracing deep links, and other evidence drill-downs are supporting views, not the target product center
 
+## Product Model Guardrails
+
+Use these rules when frontend data or copy starts drifting back toward runtime-first framing:
+
+- the durable product chain is `governed asset -> execution profile -> run -> evidence -> export`
+- execution-profile detail may stay visible, but it should remain secondary metadata rather than a
+  new first-class product noun
+- validation is lifecycle and evidence state on governed assets and runs, not a separate workspace
+- Phoenix stays deeplink-only inside the product; do not regrow a peer tracing surface
+- provider, runner, carrier, image, and credential details belong in metadata rows or provenance
+  panels, not in page titles, primary CTAs, or top-level navigation
+
 ## Current Conventions
 
 - Route files should stay thin and delegate immediately to a widget.
