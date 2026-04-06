@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess  # nosec - docker CLI invocation is an explicit starter bootstrap dependency
 from pathlib import Path
 from typing import Any
@@ -23,10 +24,16 @@ CLAUDE_CODE_STARTER_PROJECT_BUNDLE_ARTIFACT_REF = (
     "file:///opt/atlas-validation/project-bundle.tar.gz"
 )
 CLAUDE_CODE_STARTER_PROJECT_MOUNT_PATH = "/workspace/project"
+CLAUDE_CODE_STARTER_FALLBACK_MODEL = "gpt-5.4-mini"
 
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[6]
+
+
+def _claude_code_starter_default_model() -> str:
+    configured = os.getenv("ANTHROPIC_MODEL", "").strip()
+    return configured or CLAUDE_CODE_STARTER_FALLBACK_MODEL
 
 
 def provision_claude_code_starter_carrier(*, repo_root: Path | None = None) -> None:
@@ -81,7 +88,7 @@ def claude_code_starter_manifest() -> AgentManifest:
         description="Starter agent template for live code-edit validation and experiment flows.",
         agent_family=AgentFamily.CLAUDE_CODE.value,
         framework=CLAUDE_CODE_CLI_FRAMEWORK,
-        default_model="gpt-5.4-mini",
+        default_model=_claude_code_starter_default_model(),
         tags=list(CLAUDE_CODE_STARTER_TAGS),
     )
 

@@ -7,6 +7,7 @@ from app.core.errors import AgentBootstrapFailedError
 from app.modules.agents.domain.reference_assets import (
     CLAUDE_CODE_STARTER_AGENT_ID,
     CLAUDE_CODE_STARTER_ENTRYPOINT,
+    CLAUDE_CODE_STARTER_FALLBACK_MODEL,
     CLAUDE_CODE_STARTER_PROJECT_BUNDLE_ARTIFACT_REF,
     CLAUDE_CODE_STARTER_PROJECT_MOUNT_PATH,
     CLAUDE_CODE_STARTER_RUNNER_IMAGE,
@@ -18,6 +19,26 @@ from app.modules.agents.domain.reference_assets import (
     provision_claude_code_starter_carrier,
 )
 from app.modules.shared.domain.models import ExecutionBinding
+
+
+def test_claude_code_starter_manifest_uses_anthropic_model_when_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
+
+    manifest = claude_code_starter_manifest()
+
+    assert manifest.default_model == "claude-sonnet-4-5"
+
+
+def test_claude_code_starter_manifest_falls_back_when_anthropic_model_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
+
+    manifest = claude_code_starter_manifest()
+
+    assert manifest.default_model == CLAUDE_CODE_STARTER_FALLBACK_MODEL
 
 
 def _write_validation_dockerfile(repo_root: Path) -> None:
@@ -140,6 +161,7 @@ def test_starter_helpers_expose_only_bridge_defaults() -> None:
 
     assert manifest.agent_id == CLAUDE_CODE_STARTER_AGENT_ID
     assert CLAUDE_CODE_STARTER_ENTRYPOINT
+    assert manifest.default_model == CLAUDE_CODE_STARTER_FALLBACK_MODEL
     assert claude_code_starter_runtime_profile().backend == "external-runner"
     assert binding.runner_backend == "docker-container"
     assert binding.config["project_materialization"] == {

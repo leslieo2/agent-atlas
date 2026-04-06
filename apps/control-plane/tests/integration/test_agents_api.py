@@ -144,6 +144,7 @@ def test_agents_api_starter_entry_creates_first_governed_claude_asset(
     monkeypatch,
 ) -> None:
     provision_calls: list[str] = []
+    monkeypatch.setenv("ANTHROPIC_MODEL", "claude-opus-4-1")
     monkeypatch.setattr(
         starter_assets,
         "provision_claude_code_starter_carrier",
@@ -163,6 +164,7 @@ def test_agents_api_starter_entry_creates_first_governed_claude_asset(
         assert bootstrap_response.json()["entrypoint"] == CLAUDE_CODE_STARTER_ENTRYPOINT
         assert bootstrap_response.json()["agent_family"] == AgentFamily.CLAUDE_CODE.value
         assert bootstrap_response.json()["framework"] == CLAUDE_CODE_CLI_FRAMEWORK
+        assert bootstrap_response.json()["default_model"] == "claude-opus-4-1"
         assert (
             bootstrap_response.json()["default_runtime_profile"]["backend"]
             == EXTERNAL_RUNNER_EXECUTION_BACKEND
