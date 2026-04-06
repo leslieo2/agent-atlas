@@ -11,8 +11,8 @@ It gives teams one product surface for:
 - exporting curated offline files for downstream RL or post-training workflows
 
 Atlas is the product center for agent governance, datasets, experiments, and exports. Phoenix
-remains the trace and debugging backend. Runner adapters such as Claude Code CLI stay visible, but
-they do not become the product itself.
+remains the trace and debugging backend. Runner adapters such as Claude Code CLI may still appear
+through provenance or supporting metadata, but they do not become the product itself.
 
 ## Product Contract
 
@@ -43,7 +43,8 @@ What Atlas produces:
 
 - Atlas owns the product model, provenance, curation, and export semantics.
 - Phoenix owns raw traces and deep debugging. Atlas links out to Phoenix; it does not rebuild Phoenix as a peer workspace.
-- Runner adapters, providers, carriers, and tool integrations stay behind Atlas-owned contracts and provenance fields.
+- Runner adapters, providers, carriers, execution-profile settings, and tool integrations stay
+  behind Atlas-owned contracts, provenance fields, and supporting metadata.
 - The README is the public entrypoint. Internal transition history, superseded wording, and deeper architecture debate belong in subsystem docs, not here.
 
 ## First Product Loop

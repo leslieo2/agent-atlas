@@ -68,7 +68,7 @@ The control plane is where Atlas-owned semantics live:
 
 This is why the UI talks to the control plane first, not to Phoenix, Kubernetes, or a framework SDK.
 
-### 2. Execution is a carrier, not the product center
+### 2. Execution is supporting infrastructure, not the product center
 
 The execution plane exists to take Atlas run intent and deliver it into a runnable carrier:
 
@@ -78,6 +78,8 @@ The execution plane exists to take Atlas run intent and deliver it into a runnab
 - future adapter-backed carriers
 
 Execution infrastructure can change without redefining Atlas product objects.
+Provider, runner, carrier, image, and execution-profile details may still appear in provenance or
+supporting metadata, but they should not become first-class Atlas nouns.
 
 ### 3. Runners consume neutral contracts
 

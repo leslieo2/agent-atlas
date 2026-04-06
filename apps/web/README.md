@@ -3,7 +3,7 @@
 The frontend is the operator-facing UI for Agent Atlas. It renders the product contract already
 defined in the root README:
 
-`governed asset -> execution profile -> run -> evidence -> export`
+`governed asset -> run -> evidence -> export`
 
 Use this document for local frontend ownership, setup, and verification. For the public product
 story, start from the repository root README instead of treating this file as a second authority.
@@ -19,14 +19,14 @@ Supporting views, not first-class product centers:
 
 - run-level drill-downs under experiment workflows
 - Phoenix deep links and evidence summaries for debugging
-- execution-profile, provenance, and runner detail shown as secondary metadata
+- execution-profile, provenance, and runner detail shown as supporting metadata
 
 ## Product Framing Rules
 
 The frontend should reinforce Atlas as the control plane:
 
 - keep the IA centered on `Agents / Datasets / Experiments / Exports`
-- keep the product chain legible as `governed asset -> execution profile -> run -> evidence -> export`
+- keep the product chain legible as `governed asset -> run -> evidence -> export`
 - keep execution detail behind execution-profile, provenance, or evidence summaries instead of
   elevating it into first-class navigation or object nouns
 - keep Phoenix deeplink-only inside the product UI; do not grow a peer tracing workspace

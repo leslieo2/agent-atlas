@@ -27,8 +27,8 @@ External backend rule:
 
 Use these rules when frontend data or copy starts drifting back toward runtime-first framing:
 
-- the durable product chain is `governed asset -> execution profile -> run -> evidence -> export`
-- execution-profile detail may stay visible, but it should remain secondary metadata rather than a
+- the durable product chain is `governed asset -> run -> evidence -> export`
+- execution-profile detail may stay visible, but it should remain supporting metadata rather than a
   new first-class product noun
 - validation is lifecycle and evidence state on governed assets and runs, not a separate workspace
 - Phoenix stays deeplink-only inside the product; do not regrow a peer tracing surface
