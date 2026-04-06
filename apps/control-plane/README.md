@@ -251,6 +251,17 @@ The starter walkthrough also has a real code-edit JSONL at
 which is designed for the Claude Code starter's mounted sample project instead of the older toy
 prompt loop.
 
+Security note for the local Claude Code starter bridge:
+
+- the Docker-backed starter path explicitly copies host Claude auth from `~/.claude` and
+  `~/.claude.json` into a temporary container home before launch
+- the same path also passes through host `ANTHROPIC_*` and `CLAUDE_*` environment variables unless
+  the execution binding already set those keys explicitly
+- treat that behavior as a sensitive local-development bridge for the starter and validation
+  walkthroughs, not as silent generic runtime inheritance for every Atlas execution path
+- if you do not want local Claude auth material or host env credentials to cross that bridge, do
+  not use the Claude Code starter route on that machine
+
 ## Verification
 
 Typical local verification:
