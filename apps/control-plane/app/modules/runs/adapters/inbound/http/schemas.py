@@ -6,11 +6,13 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
+from app.modules.shared.adapters.inbound.http.execution_profiles import (
+    ExecutionProfileRequest,
+)
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
-    ExecutionProfileRequest,
     ExecutionTarget,
     ProvenanceMetadata,
     RunLineage,

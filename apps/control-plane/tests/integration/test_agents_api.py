@@ -207,8 +207,10 @@ def test_agents_api_validation_runs_accept_published_formal_agents() -> None:
                 "project_metadata": {"validation_image": "atlas-claude-validation:local"},
                 "executor_config": {
                     "backend": "external-runner",
-                    "runner_image": "atlas-claude-validation:local",
-                    "metadata": {"runner_backend": "k8s-container"},
+                    "execution_binding": {
+                        "runner_backend": "k8s-container",
+                        "runner_image": "atlas-claude-validation:local",
+                    },
                 },
             },
         )

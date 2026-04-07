@@ -87,20 +87,40 @@ def _experiment_payload(
     runner_mode: str | None = None,
     executor_overrides: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    executor_config = {
-        "backend": executor_backend,
+    binding_config: dict[str, object] = {
         "timeout_seconds": 600,
         "max_steps": 32,
         "concurrency": 1,
         "resources": {},
-        "tracing_backend": "phoenix",
-        "artifact_path": None,
-        "metadata": {},
     }
     if runner_mode is not None:
-        executor_config["metadata"]["runner_mode"] = runner_mode
+        binding_config["runner_mode"] = runner_mode
+    executor_config = {
+        "backend": executor_backend,
+        "tracing_backend": "phoenix",
+        "execution_binding": {
+            "artifact_path": None,
+            "config": binding_config,
+        },
+    }
     if executor_overrides:
-        executor_config.update(executor_overrides)
+        execution_binding = executor_config["execution_binding"]
+        if not isinstance(execution_binding, dict):
+            raise TypeError("execution_binding must be a mapping")
+        binding_config = execution_binding.get("config")
+        if not isinstance(binding_config, dict):
+            raise TypeError("execution_binding.config must be a mapping")
+        for key, value in executor_overrides.items():
+            if key == "metadata":
+                if not isinstance(value, dict):
+                    raise TypeError("metadata override must be a mapping")
+                binding_config.update(value)
+            elif key in {"runner_image", "artifact_path", "runner_backend"}:
+                execution_binding[key] = value
+            elif key in {"timeout_seconds", "max_steps", "concurrency", "resources"}:
+                binding_config[key] = value
+            else:
+                executor_config[key] = value
 
     return {
         "name": name,
@@ -326,16 +346,20 @@ def test_experiments_api_accepts_archived_valid_published_snapshot_for_new_runs(
                 "prompt_config": {"prompt_version": "2026-03"},
                 "toolset_config": {"tools": [], "metadata": {}},
                 "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
-                "executor_config": {
-                    "backend": "local-runner",
-                    "timeout_seconds": 600,
-                    "max_steps": 32,
-                    "concurrency": 1,
-                    "resources": {},
-                    "tracing_backend": "phoenix",
-                    "artifact_path": None,
-                    "metadata": {"runner_mode": "in-process"},
-                },
+                    "executor_config": {
+                        "backend": "local-runner",
+                        "tracing_backend": "phoenix",
+                        "execution_binding": {
+                            "artifact_path": None,
+                            "config": {
+                                "timeout_seconds": 600,
+                                "max_steps": 32,
+                                "concurrency": 1,
+                                "resources": {},
+                                "runner_mode": "in-process",
+                            },
+                        },
+                    },
                 "tags": [],
             },
         },
@@ -399,8 +423,10 @@ def test_experiments_api_live_mode_starts_with_bootstrapped_starter_agent(
                     "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
                     "executor_config": {
                         "backend": "external-runner",
-                        "runner_image": "atlas-claude-validation:local",
-                        "metadata": {"runner_backend": "k8s-container"},
+                        "execution_binding": {
+                            "runner_backend": "k8s-container",
+                            "runner_image": "atlas-claude-validation:local",
+                        },
                     },
                     "tags": ["live-starter"],
                 },
@@ -471,8 +497,10 @@ def test_experiments_api_live_mode_runs_with_state_backed_formal_agent(
                     "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
                     "executor_config": {
                         "backend": "external-runner",
-                        "runner_image": "atlas-claude-validation:local",
-                        "metadata": {"runner_backend": "k8s-container"},
+                        "execution_binding": {
+                            "runner_backend": "k8s-container",
+                            "runner_image": "atlas-claude-validation:local",
+                        },
                     },
                     "tags": ["live-formal-agent"],
                 },
@@ -546,8 +574,10 @@ def test_experiments_api_live_mode_pins_published_snapshot_across_unpublish(
                     "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
                     "executor_config": {
                         "backend": "external-runner",
-                        "runner_image": "atlas-claude-validation:local",
-                        "metadata": {"runner_backend": "docker-container"},
+                        "execution_binding": {
+                            "runner_backend": "docker-container",
+                            "runner_image": "atlas-claude-validation:local",
+                        },
                     },
                     "tags": ["live-starter"],
                 },
@@ -618,8 +648,10 @@ def test_experiments_api_live_mode_rejects_corrupt_published_rows_for_new_experi
                     "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
                     "executor_config": {
                         "backend": "external-runner",
-                        "runner_image": "atlas-claude-validation:local",
-                        "metadata": {"runner_backend": "docker-container"},
+                        "execution_binding": {
+                            "runner_backend": "docker-container",
+                            "runner_image": "atlas-claude-validation:local",
+                        },
                     },
                     "tags": [],
                 },
@@ -759,8 +791,10 @@ def test_experiments_api_live_mode_rejects_corrupt_published_agent_rows(
                     "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
                     "executor_config": {
                         "backend": "external-runner",
-                        "runner_image": "atlas-claude-validation:local",
-                        "metadata": {"runner_backend": "k8s-container"},
+                        "execution_binding": {
+                            "runner_backend": "k8s-container",
+                            "runner_image": "atlas-claude-validation:local",
+                        },
                     },
                     "tags": ["live-formal-agent", "corrupt"],
                 },

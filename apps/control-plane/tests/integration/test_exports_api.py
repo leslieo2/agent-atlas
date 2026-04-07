@@ -452,8 +452,10 @@ def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_wit
                 "project_metadata": {"validation_surface": "live-formal-gate"},
                 "executor_config": {
                     "backend": "external-runner",
-                    "runner_image": "atlas-claude-validation:local",
-                    "metadata": {"runner_backend": "docker-container"},
+                    "execution_binding": {
+                        "runner_backend": "docker-container",
+                        "runner_image": "atlas-claude-validation:local",
+                    },
                 },
             },
         )
@@ -503,8 +505,10 @@ def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_wit
                     "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
                     "executor_config": {
                         "backend": "external-runner",
-                        "runner_image": "atlas-claude-validation:local",
-                        "metadata": {"runner_backend": "docker-container"},
+                        "execution_binding": {
+                            "runner_backend": "docker-container",
+                            "runner_image": "atlas-claude-validation:local",
+                        },
                     },
                     "tags": ["live-formal-agent", "gate"],
                 },

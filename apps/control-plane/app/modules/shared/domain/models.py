@@ -11,7 +11,7 @@ from agent_atlas_contracts.runtime import (
 from agent_atlas_contracts.runtime import (
     TraceTelemetryMetadata as ContractTraceTelemetryMetadata,
 )
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import SkipJsonSchema
 
 from app.modules.shared.domain.enums import PolicyEffect, ScoringMode, StepType
@@ -122,7 +122,7 @@ class ExecutionBinding(BaseModel):
 
 
 class ExecutionProfile(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     backend: str
     tracing_backend: str = "state"
@@ -131,58 +131,6 @@ class ExecutionProfile(BaseModel):
         exclude=True,
         repr=False,
     )
-
-    @model_validator(mode="before")
-    @classmethod
-    def _coerce_legacy_executor_shape(cls, value: object) -> object:
-        if not isinstance(value, dict):
-            return value
-
-        payload = dict(value)
-        binding_payload = payload.get("execution_binding") or payload.get("binding")
-        binding = dict(binding_payload) if isinstance(binding_payload, dict) else {}
-        binding_config = binding.get("config")
-        config = dict(binding_config) if isinstance(binding_config, dict) else {}
-
-        legacy_runner_backend = None
-        metadata = payload.get("metadata")
-        if isinstance(metadata, dict):
-            for key, item in metadata.items():
-                config.setdefault(key, item)
-            raw_runner_backend = metadata.get("runner_backend")
-            if isinstance(raw_runner_backend, str) and raw_runner_backend.strip():
-                legacy_runner_backend = raw_runner_backend
-
-        if legacy_runner_backend is not None and "runner_backend" not in binding:
-            binding["runner_backend"] = legacy_runner_backend
-
-        for key in ("runner_image", "artifact_path"):
-            if key in payload and key not in binding:
-                binding[key] = payload[key]
-
-        for key in ("timeout_seconds", "max_steps", "concurrency", "resources"):
-            if key in payload and key not in config:
-                config[key] = payload[key]
-
-        if config:
-            binding["config"] = config
-
-        if binding:
-            payload["execution_binding"] = binding
-
-        for legacy_key in (
-            "binding",
-            "runner_image",
-            "timeout_seconds",
-            "max_steps",
-            "concurrency",
-            "resources",
-            "artifact_path",
-            "metadata",
-        ):
-            payload.pop(legacy_key, None)
-
-        return payload
 
     @property
     def runner_image(self) -> str | None:
@@ -240,29 +188,6 @@ class ExecutionProfile(BaseModel):
 
 
 ExecutorConfig = ExecutionProfile
-
-
-class ExecutionProfileRequest(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    backend: str
-    tracing_backend: str = "state"
-
-    def to_domain(self) -> tuple[ExecutorConfig, ExecutionBinding | None]:
-        payload = self.model_dump(mode="python")
-        payload.pop("binding", None)
-        payload.pop("execution_binding", None)
-        executor_config = ExecutorConfig.model_validate(payload)
-        execution_binding = (
-            executor_config.execution_binding.model_copy(deep=True)
-            if executor_config.execution_binding is not None
-            else None
-        )
-        public_profile = ExecutorConfig(
-            backend=executor_config.backend,
-            tracing_backend=executor_config.tracing_backend,
-        )
-        return public_profile, execution_binding
 
 
 class TracePointer(BaseModel):

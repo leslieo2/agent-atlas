@@ -16,10 +16,12 @@ from app.modules.experiments.domain.models import (
     ExperimentStatus,
     RunEvaluationPatchInput,
 )
+from app.modules.shared.adapters.inbound.http.execution_profiles import (
+    ExecutionProfileRequest,
+)
 from app.modules.shared.domain.enums import CompareOutcome, CurationStatus, SampleJudgement
 from app.modules.shared.domain.models import (
     EvaluatorConfig,
-    ExecutionProfileRequest,
     ExecutionTarget,
     ExecutorConfig,
     ModelConfig,

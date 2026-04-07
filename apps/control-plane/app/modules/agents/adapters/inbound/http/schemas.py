@@ -12,10 +12,12 @@ from app.modules.agents.domain.models import (
     PublishedAgent,
 )
 from app.modules.runs.domain.models import RunCreateInput
+from app.modules.shared.adapters.inbound.http.execution_profiles import (
+    ExecutionProfileRequest,
+)
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
-    ExecutionProfileRequest,
     ExecutionTarget,
     ExecutorConfig,
     ToolsetConfig,
