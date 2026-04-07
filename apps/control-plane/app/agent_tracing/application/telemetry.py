@@ -11,7 +11,7 @@ from app.modules.shared.application.contracts import (
     TrajectoryRepository,
     TrajectoryStepProjectorPort,
 )
-from app.modules.shared.domain.models import TracingMetadata, TrajectoryStepRecord
+from app.modules.shared.domain.observability import TracingMetadata, TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from app.modules.shared.domain.models import ExecutionBinding, ExecutorConfig
+from app.modules.shared.domain.execution import ExecutionBinding, ExecutorConfig
 
 
 class ExecutionProfileRequest(BaseModel):

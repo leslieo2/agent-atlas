@@ -5,17 +5,19 @@ from app.modules.shared.domain.enums import (
     RunStatus,
     StepType,
 )
-from app.modules.shared.domain.models import (
+from app.modules.shared.domain.execution import (
     ExecutionReferenceMetadata,
     ExecutionTarget,
-    ProvenanceMetadata,
+    build_source_artifact_ref,
+    build_source_execution_reference,
+)
+from app.modules.shared.domain.observability import (
     TraceTelemetryMetadata,
     TracingMetadata,
     TrajectoryStepRecord,
-    build_source_artifact_ref,
-    build_source_execution_reference,
     utc_now,
 )
+from app.modules.shared.domain.provenance import ProvenanceMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 __all__ = [

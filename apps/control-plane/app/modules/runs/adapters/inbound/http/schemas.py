@@ -11,15 +11,13 @@ from app.modules.shared.adapters.inbound.http.execution_profiles import (
 )
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
-from app.modules.shared.domain.models import (
-    ApprovalPolicySnapshot,
+from app.modules.shared.domain.execution import (
     ExecutionTarget,
-    ProvenanceMetadata,
-    RunLineage,
     ToolsetConfig,
-    TracePointer,
-    TracingMetadata,
 )
+from app.modules.shared.domain.observability import RunLineage, TracePointer, TracingMetadata
+from app.modules.shared.domain.policies import ApprovalPolicySnapshot
+from app.modules.shared.domain.provenance import ProvenanceMetadata
 
 
 class RunCreateRequest(BaseModel):

@@ -20,15 +20,15 @@ from app.modules.shared.adapters.inbound.http.execution_profiles import (
     ExecutionProfileRequest,
 )
 from app.modules.shared.domain.enums import CompareOutcome, CurationStatus, SampleJudgement
-from app.modules.shared.domain.models import (
+from app.modules.shared.domain.execution import (
     EvaluatorConfig,
     ExecutionTarget,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
     ToolsetConfig,
-    TracingMetadata,
 )
+from app.modules.shared.domain.observability import TracingMetadata
 
 
 class ExperimentSpecRequest(BaseModel):

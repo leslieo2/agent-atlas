@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
-from app.modules.shared.domain.models import ExecutionBinding, ExecutorConfig
+from app.modules.shared.domain.execution import ExecutionBinding, ExecutorConfig
 
 
 @dataclass(frozen=True)

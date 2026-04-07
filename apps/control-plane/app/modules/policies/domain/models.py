@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from app.modules.shared.domain.models import ToolPolicyRule
+from app.modules.shared.domain.policies import ToolPolicyRule
 from pydantic import BaseModel, Field
 
 

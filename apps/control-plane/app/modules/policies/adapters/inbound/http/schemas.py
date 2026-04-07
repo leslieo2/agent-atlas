@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.modules.policies.domain.models import ApprovalPolicyRecord
-from app.modules.shared.domain.models import ToolPolicyRule
+from app.modules.shared.domain.policies import ToolPolicyRule
 from pydantic import BaseModel, Field
 
 

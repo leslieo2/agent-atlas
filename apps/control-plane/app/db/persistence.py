@@ -18,7 +18,7 @@ from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluatio
 from app.modules.exports.domain.models import ArtifactMetadata
 from app.modules.policies.domain.models import ApprovalPolicyRecord
 from app.modules.runs.domain.models import RunRecord
-from app.modules.shared.domain.models import TrajectoryStepRecord
+from app.modules.shared.domain.observability import TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceSpan
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")

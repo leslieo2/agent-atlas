@@ -35,7 +35,10 @@ from app.modules.agents.domain.reference_assets import (
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
-from app.modules.shared.domain.models import ExecutorConfig, build_source_execution_reference
+from app.modules.shared.domain.execution import (
+    ExecutorConfig,
+    build_source_execution_reference,
+)
 
 
 class PublishedAgentCatalogQueries:

@@ -6,7 +6,7 @@ from typing import Any
 
 from app.agent_tracing.ports import TraceLinkResolverPort
 from app.modules.shared.domain.enums import StepType
-from app.modules.shared.domain.models import TracingMetadata
+from app.modules.shared.domain.observability import TracingMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 

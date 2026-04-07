@@ -23,7 +23,7 @@ from app.execution.contracts import ExecutionRunSpec, runner_run_spec_from_run_s
 from app.execution.metadata import requested_runner_backend, uses_k8s_runner_backend
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus, StepType
-from app.modules.shared.domain.models import TraceTelemetryMetadata
+from app.modules.shared.domain.observability import TraceTelemetryMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent
 
 

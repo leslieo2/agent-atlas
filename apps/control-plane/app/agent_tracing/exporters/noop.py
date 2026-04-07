@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.modules.shared.domain.models import TracingMetadata
+from app.modules.shared.domain.observability import TracingMetadata
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 

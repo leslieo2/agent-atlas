@@ -14,11 +14,8 @@ from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
-from app.modules.shared.domain.models import (
-    ExecutionBinding,
-    ExecutorConfig,
-    ProvenanceMetadata,
-)
+from app.modules.shared.domain.execution import ExecutionBinding, ExecutorConfig
+from app.modules.shared.domain.provenance import ProvenanceMetadata
 
 
 def _deep_merge_values(base: object, override: object) -> object:

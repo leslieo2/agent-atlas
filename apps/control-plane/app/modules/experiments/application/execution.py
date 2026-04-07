@@ -18,7 +18,7 @@ from app.modules.experiments.domain.scoring import evaluate_run
 from app.modules.runs.domain.models import RunCreateInput
 from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.enums import RunStatus
-from app.modules.shared.domain.models import ApprovalPolicySnapshot
+from app.modules.shared.domain.policies import ApprovalPolicySnapshot
 from pydantic import ValidationError
 
 

@@ -11,8 +11,7 @@ from app.modules.shared.domain.enums import (
     RunStatus,
     SampleJudgement,
 )
-from app.modules.shared.domain.models import (
-    ApprovalPolicySnapshot,
+from app.modules.shared.domain.execution import (
     EvaluatorConfig,
     ExecutionBinding,
     ExecutionTarget,
@@ -20,8 +19,9 @@ from app.modules.shared.domain.models import (
     ModelConfig,
     PromptConfig,
     ToolsetConfig,
-    TracingMetadata,
 )
+from app.modules.shared.domain.observability import TracingMetadata
+from app.modules.shared.domain.policies import ApprovalPolicySnapshot
 from pydantic import BaseModel, Field
 
 

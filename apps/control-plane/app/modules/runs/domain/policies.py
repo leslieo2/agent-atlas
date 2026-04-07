@@ -5,7 +5,7 @@ from uuid import uuid4
 from app.execution.contracts import ExecutionRunSpec
 from app.modules.runs.domain.models import ExecutionMetrics, RunRecord, utc_now
 from app.modules.shared.domain.enums import RunStatus
-from app.modules.shared.domain.models import RunLineage
+from app.modules.shared.domain.observability import RunLineage
 
 
 class RunAggregate:

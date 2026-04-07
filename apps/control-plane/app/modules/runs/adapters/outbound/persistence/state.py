@@ -9,7 +9,7 @@ from app.infrastructure.repositories.common import (
     to_uuid,
 )
 from app.modules.runs.domain.models import RunRecord
-from app.modules.shared.domain.models import TrajectoryStepRecord
+from app.modules.shared.domain.observability import TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceSpan
 
 

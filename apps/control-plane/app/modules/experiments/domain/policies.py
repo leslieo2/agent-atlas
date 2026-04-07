@@ -9,7 +9,7 @@ from app.modules.experiments.domain.models import (
     RunEvaluationRecord,
 )
 from app.modules.shared.domain.enums import SampleJudgement
-from app.modules.shared.domain.models import ExecutionBinding
+from app.modules.shared.domain.execution import ExecutionBinding
 
 
 class ExperimentAggregate:

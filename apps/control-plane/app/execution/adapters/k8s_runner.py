@@ -34,7 +34,7 @@ from app.execution.application.results import ExecutionCancelled, RunnerExecutio
 from app.execution.metadata import artifact_path, execution_plane_value
 from app.modules.runs.application.ports import RunRepository
 from app.modules.shared.domain.enums import RunStatus
-from app.modules.shared.domain.models import utc_now
+from app.modules.shared.domain.observability import utc_now
 
 
 class SerializedK8sAppError(AppError):

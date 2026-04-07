@@ -13,7 +13,7 @@ from app.modules.agents.domain.constants import (
 from app.modules.agents.domain.models import AgentManifest
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AgentFamily
-from app.modules.shared.domain.models import ExecutionBinding, ExecutorConfig
+from app.modules.shared.domain.execution import ExecutionBinding, ExecutorConfig
 
 CLAUDE_CODE_STARTER_AGENT_ID = "claude-code-starter"
 CLAUDE_CODE_STARTER_ENTRYPOINT = (

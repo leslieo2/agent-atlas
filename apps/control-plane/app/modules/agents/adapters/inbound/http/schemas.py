@@ -16,12 +16,12 @@ from app.modules.shared.adapters.inbound.http.execution_profiles import (
     ExecutionProfileRequest,
 )
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
-from app.modules.shared.domain.models import (
-    ApprovalPolicySnapshot,
+from app.modules.shared.domain.execution import (
     ExecutionTarget,
     ExecutorConfig,
     ToolsetConfig,
 )
+from app.modules.shared.domain.policies import ApprovalPolicySnapshot
 from pydantic import BaseModel, ConfigDict, Field
 
 

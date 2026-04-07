@@ -16,17 +16,17 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
-from app.modules.shared.domain.models import (
-    ApprovalPolicySnapshot,
+from app.modules.shared.domain.execution import (
     EvaluatorConfig,
     ExecutionBinding,
     ExecutionTarget,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
-    ProvenanceMetadata,
     ToolsetConfig,
 )
+from app.modules.shared.domain.policies import ApprovalPolicySnapshot
+from app.modules.shared.domain.provenance import ProvenanceMetadata
 
 
 def utc_now() -> datetime:

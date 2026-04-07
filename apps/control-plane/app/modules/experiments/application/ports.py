@@ -6,7 +6,7 @@ from uuid import UUID
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
-from app.modules.shared.domain.models import TrajectoryStepRecord
+from app.modules.shared.domain.observability import TrajectoryStepRecord
 
 
 class ExperimentRepository(Protocol):

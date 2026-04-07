@@ -10,22 +10,24 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.execution.contracts import ExecutionRunSpec
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
-from app.modules.shared.domain.models import (
-    ApprovalPolicySnapshot,
+from app.modules.shared.domain.execution import (
     EvaluatorConfig,
     ExecutionBinding,
     ExecutionTarget,
     ExecutorConfig,
     ModelConfig,
     PromptConfig,
-    ProvenanceMetadata,
-    RunLineage,
     ToolsetConfig,
+)
+from app.modules.shared.domain.observability import (
+    RunLineage,
     TracePointer,
     TracingMetadata,
     TrajectoryStepRecord,
     utc_now,
 )
+from app.modules.shared.domain.policies import ApprovalPolicySnapshot
+from app.modules.shared.domain.provenance import ProvenanceMetadata
 
 DEFAULT_EXECUTION_BACKEND = EXTERNAL_RUNNER_EXECUTION_BACKEND
 

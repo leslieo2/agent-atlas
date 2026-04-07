@@ -26,7 +26,7 @@ from app.modules.shared.application.contracts import (
 from app.modules.shared.application.contracts import (
     TrajectoryStepProjectorPort as SharedTrajectoryStepProjectorPort,
 )
-from app.modules.shared.domain.models import TrajectoryStepRecord
+from app.modules.shared.domain.observability import TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceSpan
 
 

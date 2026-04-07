@@ -21,7 +21,7 @@ from app.modules.runs.application.ports import RunRepository
 from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus
-from app.modules.shared.domain.models import utc_now
+from app.modules.shared.domain.observability import utc_now
 
 
 class _ExecutionBackendAdapter(Protocol):

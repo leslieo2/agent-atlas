@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.shared.domain.models import TracingMetadata, TrajectoryStepRecord
+from app.modules.shared.domain.observability import TracingMetadata, TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
