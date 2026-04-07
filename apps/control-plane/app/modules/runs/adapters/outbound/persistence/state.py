@@ -3,15 +3,23 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.db.persistence import StatePersistence
-from app.infrastructure.repositories.common import resolve_state_persistence, to_uuid
+from app.infrastructure.repositories.common import (
+    StatePersistenceSource,
+    resolve_state_persistence,
+    to_uuid,
+)
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.models import TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceSpan
 
 
 class StateRunRepository:
-    def __init__(self, persistence: StatePersistence | None = None) -> None:
-        self._persistence = resolve_state_persistence(persistence)
+    def __init__(self, persistence: StatePersistenceSource = None) -> None:
+        self._persistence_source = persistence
+
+    @property
+    def _persistence(self) -> StatePersistence:
+        return resolve_state_persistence(self._persistence_source)
 
     def get(self, run_id: str | UUID) -> RunRecord | None:
         return self._persistence.get_run(to_uuid(run_id))
@@ -24,8 +32,12 @@ class StateRunRepository:
 
 
 class StateTrajectoryRepository:
-    def __init__(self, persistence: StatePersistence | None = None) -> None:
-        self._persistence = resolve_state_persistence(persistence)
+    def __init__(self, persistence: StatePersistenceSource = None) -> None:
+        self._persistence_source = persistence
+
+    @property
+    def _persistence(self) -> StatePersistence:
+        return resolve_state_persistence(self._persistence_source)
 
     def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStepRecord]:
         return self._persistence.list_trajectory(to_uuid(run_id))
@@ -35,8 +47,12 @@ class StateTrajectoryRepository:
 
 
 class StateTraceRepository:
-    def __init__(self, persistence: StatePersistence | None = None) -> None:
-        self._persistence = resolve_state_persistence(persistence)
+    def __init__(self, persistence: StatePersistenceSource = None) -> None:
+        self._persistence_source = persistence
+
+    @property
+    def _persistence(self) -> StatePersistence:
+        return resolve_state_persistence(self._persistence_source)
 
     def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]:
         return self._persistence.list_trace_spans(to_uuid(run_id))

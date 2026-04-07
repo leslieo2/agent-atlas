@@ -122,7 +122,7 @@ def _default_phoenix_otlp_endpoint(base_url: str | None) -> str | None:
 
 
 def build_infrastructure() -> InfrastructureBundle:
-    persistence = state_storage.current
+    persistence = state_storage
     run_repository = StateRunRepository(persistence)
     trajectory_repository = StateTrajectoryRepository(persistence)
     trace_repository = StateTraceRepository(persistence)

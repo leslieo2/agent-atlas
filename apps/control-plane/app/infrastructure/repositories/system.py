@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from app.db.persistence import StatePersistence
-from app.infrastructure.repositories.common import resolve_state_persistence, state_storage
+from app.infrastructure.repositories.common import (
+    StatePersistenceSource,
+    resolve_state_persistence,
+    state_storage,
+)
 
 
 class StateSystemStatus:
-    def __init__(self, persistence: StatePersistence | None = None) -> None:
-        self._persistence = persistence
+    def __init__(self, persistence: StatePersistenceSource = None) -> None:
+        self._persistence_source = persistence
 
     def state_initialized(self) -> bool:
         return True
 
     def persistence_enabled(self) -> bool:
-        return bool(resolve_state_persistence(self._persistence).enabled)
+        return bool(resolve_state_persistence(self._persistence_source).enabled)
 
 
 def reset_state() -> None:

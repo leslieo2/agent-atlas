@@ -10,6 +10,9 @@ class _SupportsStatePersistence(Protocol):
     def current(self) -> StatePersistence: ...
 
 
+StatePersistenceSource = StatePersistence | _SupportsStatePersistence | None
+
+
 class StateStorage:
     def __init__(self) -> None:
         self._persistence = build_state_persistence()
@@ -35,7 +38,7 @@ state_storage = StateStorage()
 
 
 def resolve_state_persistence(
-    persistence: StatePersistence | _SupportsStatePersistence | None = None,
+    persistence: StatePersistenceSource = None,
 ) -> StatePersistence:
     if persistence is None:
         return state_storage.current
@@ -44,4 +47,4 @@ def resolve_state_persistence(
     return persistence.current
 
 
-__all__ = ["resolve_state_persistence", "state_storage", "to_uuid"]
+__all__ = ["StatePersistenceSource", "resolve_state_persistence", "state_storage", "to_uuid"]

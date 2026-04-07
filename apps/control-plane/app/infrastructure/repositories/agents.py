@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from app.db.persistence import StatePersistence
-from app.infrastructure.repositories.common import resolve_state_persistence
+from app.infrastructure.repositories.common import StatePersistenceSource, resolve_state_persistence
 from app.modules.agents.domain.models import PublishedAgent
 
 
 class StatePublishedAgentRepository:
-    def __init__(self, persistence: StatePersistence | None = None) -> None:
-        self._persistence = resolve_state_persistence(persistence)
+    def __init__(self, persistence: StatePersistenceSource = None) -> None:
+        self._persistence_source = persistence
+
+    @property
+    def _persistence(self) -> StatePersistence:
+        return resolve_state_persistence(self._persistence_source)
 
     def list_agents(self) -> list[PublishedAgent]:
         return self._persistence.list_published_agents()
