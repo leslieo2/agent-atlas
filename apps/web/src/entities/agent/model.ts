@@ -1,4 +1,4 @@
-import type { ExecutionProfile, ExecutionProfileRequest } from "@/src/shared/api/contract";
+import type { ExecutionProfile } from "@/src/shared/api/contract";
 
 export interface ExecutionReferenceRecord {
   artifactRef?: string | null;
@@ -25,17 +25,7 @@ export interface AgentValidationOutcomeSummaryRecord {
   reason?: string | null;
 }
 
-export type ExecutionProfileRecord = ExecutionProfileRequest & {
-  metadata?: Record<string, unknown>;
-  runner_image?: string;
-  artifact_path?: string;
-  binding?: Record<string, unknown>;
-  execution_binding?: Record<string, unknown>;
-  timeout_seconds?: number;
-  max_steps?: number;
-  concurrency?: number;
-  resources?: Record<string, unknown>;
-};
+export type ExecutionProfileRecord = ExecutionProfile;
 
 export interface AgentRecord {
   agentId: string;

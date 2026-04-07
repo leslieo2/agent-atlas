@@ -71,12 +71,7 @@ describe("Experiments workspace", () => {
           reason: "Validation passed."
         },
         executionProfile: {
-          backend: "external-runner",
-          metadata: {
-            claude_code_cli: {
-              profile: "default"
-            }
-          }
+          backend: "external-runner"
         }
       },
       {

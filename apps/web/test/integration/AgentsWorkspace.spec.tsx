@@ -59,12 +59,7 @@ describe("Agents workspace", () => {
           reason: "Validation run completed with evidence attached."
         },
         executionProfile: {
-          backend: "external-runner",
-          metadata: {
-            claude_code_cli: {
-              profile: "default"
-            }
-          }
+          backend: "external-runner"
         }
       },
       {
