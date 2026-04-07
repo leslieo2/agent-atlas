@@ -171,7 +171,8 @@ def is_claude_code_starter_execution_binding(binding: ExecutionBinding | None) -
 def ensure_claude_code_starter_runtime_ready(
     binding: ExecutionBinding | None = None,
 ) -> None:
-    resolved_binding = binding or claude_code_starter_execution_binding()
-    if not is_claude_code_starter_execution_binding(resolved_binding):
+    if binding is None:
+        return
+    if not is_claude_code_starter_execution_binding(binding):
         return
     provision_claude_code_starter_carrier()

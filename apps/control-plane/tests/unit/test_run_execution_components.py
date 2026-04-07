@@ -36,7 +36,11 @@ from app.modules.runs.adapters.outbound.execution.state_sink import RunExecution
 from app.modules.runs.adapters.outbound.telemetry import RunTracingStateRecorder
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
-from app.modules.shared.domain.models import ExecutorConfig, TraceTelemetryMetadata
+from app.modules.shared.domain.models import (
+    ExecutionBinding,
+    ExecutorConfig,
+    TraceTelemetryMetadata,
+)
 from app.modules.shared.domain.traces import TraceIngestEvent
 from tests.support.fake_phoenix import FakeOtlpTraceExporter
 
@@ -837,14 +841,16 @@ def test_run_execution_service_uses_configured_runner_backend_for_external_runne
         prompt="Launch Claude Code via K8s carrier.",
         executor_config=ExecutorConfig(
             backend="external-runner",
-            runner_image="ghcr.io/example/claude-runner:latest",
-            metadata={
-                "runner_backend": "k8s-container",
-                "claude_code_cli": {
-                    "command": "claude",
-                    "args": ["--dangerously-skip-permissions"],
+            execution_binding=ExecutionBinding(
+                runner_backend="k8s-container",
+                runner_image="ghcr.io/example/claude-runner:latest",
+                config={
+                    "claude_code_cli": {
+                        "command": "claude",
+                        "args": ["--dangerously-skip-permissions"],
+                    },
                 },
-            },
+            ),
         ),
     )
 
@@ -921,14 +927,16 @@ def test_run_execution_service_respects_non_k8s_runner_backend_override_for_exte
         prompt="Launch Claude Code via local docker carrier.",
         executor_config=ExecutorConfig(
             backend="external-runner",
-            runner_image="atlas-claude-validation:local",
-            metadata={
-                "runner_backend": "docker-container",
-                "claude_code_cli": {
-                    "command": "claude",
-                    "args": ["--dangerously-skip-permissions"],
+            execution_binding=ExecutionBinding(
+                runner_backend="docker-container",
+                runner_image="atlas-claude-validation:local",
+                config={
+                    "claude_code_cli": {
+                        "command": "claude",
+                        "args": ["--dangerously-skip-permissions"],
+                    },
                 },
-            },
+            ),
         ),
     )
 

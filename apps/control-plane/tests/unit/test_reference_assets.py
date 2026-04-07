@@ -139,7 +139,7 @@ def test_ensure_claude_code_starter_runtime_ready_provisions_for_docker_carrier(
         lambda: calls.append("called"),
     )
 
-    ensure_claude_code_starter_runtime_ready()
+    ensure_claude_code_starter_runtime_ready(claude_code_starter_execution_binding())
     assert calls == ["called"]
 
 
@@ -154,6 +154,10 @@ def test_ensure_claude_code_starter_runtime_ready_skips_non_starter_binding(
 
     ensure_claude_code_starter_runtime_ready(ExecutionBinding(runner_backend="local-process"))
     assert calls == []
+
+
+def test_ensure_claude_code_starter_runtime_ready_skips_missing_binding() -> None:
+    ensure_claude_code_starter_runtime_ready(None)
 
 
 def test_is_claude_code_starter_execution_binding_matches_only_starter_contract() -> None:

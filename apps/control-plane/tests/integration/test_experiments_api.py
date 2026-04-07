@@ -346,20 +346,20 @@ def test_experiments_api_accepts_archived_valid_published_snapshot_for_new_runs(
                 "prompt_config": {"prompt_version": "2026-03"},
                 "toolset_config": {"tools": [], "metadata": {}},
                 "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
-                    "executor_config": {
-                        "backend": "local-runner",
-                        "tracing_backend": "phoenix",
-                        "execution_binding": {
-                            "artifact_path": None,
-                            "config": {
-                                "timeout_seconds": 600,
-                                "max_steps": 32,
-                                "concurrency": 1,
-                                "resources": {},
-                                "runner_mode": "in-process",
-                            },
+                "executor_config": {
+                    "backend": "local-runner",
+                    "tracing_backend": "phoenix",
+                    "execution_binding": {
+                        "artifact_path": None,
+                        "config": {
+                            "timeout_seconds": 600,
+                            "max_steps": 32,
+                            "concurrency": 1,
+                            "resources": {},
+                            "runner_mode": "in-process",
                         },
                     },
+                },
                 "tags": [],
             },
         },

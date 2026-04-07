@@ -229,8 +229,12 @@ def test_run_submission_service_deep_merges_nested_runtime_profile_overrides() -
         prompt="Inspect the latest run.",
         executor_config=ExecutorConfig(
             backend="local-runner",
-            resources={"cpu": "2000m"},
-            metadata={"team": "evals"},
+            execution_binding=ExecutionBinding(
+                config={
+                    "resources": {"cpu": "2000m"},
+                    "team": "evals",
+                }
+            ),
         ),
     )
     agent = PublishedAgent(
@@ -245,9 +249,14 @@ def test_run_submission_service_deep_merges_nested_runtime_profile_overrides() -
         entrypoint="tests.fixtures.agents.triage_bot:build_agent",
         default_runtime_profile=ExecutorConfig(
             backend="k8s-job",
-            runner_image="ghcr.io/example/atlas-runner:published",
-            resources={"cpu": "1000m", "memory": "2Gi"},
-            metadata={"team": "platform", "region": "us-east-1"},
+            execution_binding=ExecutionBinding(
+                runner_image="ghcr.io/example/atlas-runner:published",
+                config={
+                    "resources": {"cpu": "1000m", "memory": "2Gi"},
+                    "team": "platform",
+                    "region": "us-east-1",
+                },
+            ),
         ),
     )
     sealed_agent, _artifact_ref = _seal_agent(agent)
@@ -410,7 +419,7 @@ def test_run_submission_service_uses_injected_default_trace_backend_when_executo
         prompt="Inspect the latest run.",
         executor_config=ExecutorConfig(
             backend="k8s-job",
-            runner_image="ghcr.io/example/atlas-runner:latest",
+            execution_binding=ExecutionBinding(runner_image="ghcr.io/example/atlas-runner:latest"),
         ),
     )
     agent = PublishedAgent(
@@ -451,7 +460,7 @@ def test_run_submission_service_preserves_agent_default_runtime_profile_trace_ba
         prompt="Inspect the latest run.",
         executor_config=ExecutorConfig(
             backend="k8s-job",
-            runner_image="ghcr.io/example/atlas-runner:latest",
+            execution_binding=ExecutionBinding(runner_image="ghcr.io/example/atlas-runner:latest"),
         ),
     )
     agent = PublishedAgent(
@@ -466,7 +475,9 @@ def test_run_submission_service_preserves_agent_default_runtime_profile_trace_ba
         entrypoint="tests.fixtures.agents.triage_bot:build_agent",
         default_runtime_profile=ExecutorConfig(
             backend="k8s-job",
-            runner_image="ghcr.io/example/atlas-runner:published",
+            execution_binding=ExecutionBinding(
+                runner_image="ghcr.io/example/atlas-runner:published"
+            ),
             tracing_backend="state",
         ),
     )
@@ -500,7 +511,7 @@ def test_run_submission_service_preserves_requested_model_and_execution_metadata
         project_metadata={"team": "platform", "prompt_version": "2026-03"},
         executor_config=ExecutorConfig(
             backend="k8s-job",
-            runner_image="ghcr.io/example/atlas-runner:latest",
+            execution_binding=ExecutionBinding(runner_image="ghcr.io/example/atlas-runner:latest"),
             tracing_backend="phoenix",
         ),
         model_settings=ModelConfig(model="gpt-5.4"),
@@ -636,7 +647,7 @@ def test_run_submission_service_rejects_k8s_carried_external_runner_without_runn
         prompt="Inspect the latest run.",
         executor_config=ExecutorConfig(
             backend="external-runner",
-            metadata={"claude_code_cli": {"command": "claude"}},
+            execution_binding=ExecutionBinding(config={"claude_code_cli": {"command": "claude"}}),
         ),
         execution_binding=ExecutionBinding(runner_backend="k8s-container"),
     )

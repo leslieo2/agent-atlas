@@ -137,6 +137,12 @@ export interface EvaluatorConfig {
   "scoring_mode"?: ScoringMode;
   "metadata"?: Record<string, unknown>;
 }
+export interface ExecutionBinding {
+  "runner_backend"?: string | null;
+  "runner_image"?: string | null;
+  "artifact_path"?: string | null;
+  "config"?: Record<string, unknown>;
+}
 export interface ExecutionProfile {
   "backend": string;
   "tracing_backend"?: string;
@@ -144,6 +150,7 @@ export interface ExecutionProfile {
 export interface ExecutionProfileRequest {
   "backend": string;
   "tracing_backend"?: string;
+  "execution_binding"?: ExecutionBinding | null;
 }
 export interface ExecutionReference {
   "artifact_ref"?: string | null;
