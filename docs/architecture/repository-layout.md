@@ -4,7 +4,7 @@ Agent Atlas uses a monorepo organized by platform plane.
 
 The repository should be read with one rule in mind:
 
-- the top level is split into product-facing apps, runtimes, shared packages, infra, and schemas
+- the top level is split into current product-facing apps, runtimes, shared packages, docs, and schemas
 - the repository as a whole is not one giant hexagonal application
 - only the control plane defaults to a heavier ports-and-adapters structure internally
 
@@ -13,20 +13,18 @@ terminal results, artifact manifests, and export metadata still change across th
 plane, workers, and runners, so keeping those surfaces in one repository reduces coordination
 friction.
 
-## Top-Level Layout
+## Current Top-Level Layout
 
-The target repository layout is:
+The current checkout is:
 
 ```text
 agent-atlas/
+├─ .github/                        # CI and repo automation
+├─ AGENTS.md                       # contributor and agent collaboration guidance
+├─ TESTING.md                      # repository-level verification guide
 ├─ apps/
 │  ├─ web/                         # Next.js operator UI
-│  ├─ control-plane/               # FastAPI control plane and worker
-│  ├─ executor-gateway/            # execution entrypoint and scheduler adapters
-│  ├─ data-plane-api/              # data-plane read/write API
-│  ├─ data-ingestion/              # event and trace normalization pipeline
-│  ├─ eval-worker/                 # evaluator / batch scoring worker
-│  └─ export-worker/               # offline export and manifest generation worker
+│  └─ control-plane/               # FastAPI control plane and worker
 ├─ runtimes/
 │  ├─ runner-base/
 │  ├─ runner-langgraph/
@@ -34,39 +32,45 @@ agent-atlas/
 ├─ packages/
 │  ├─ contracts/
 │  │  └─ python/                   # current shared contracts package
-│  ├─ config/
-│  ├─ runtime-sdk/                 # runtime bootstrap and neutral observability helpers
-│  ├─ tool-gateway-sdk/
-│  ├─ model-gateway-sdk/
-│  └─ testkit/
-├─ infra/
-│  ├─ k8s/
-│  ├─ terraform/
-│  ├─ docker/
-│  ├─ compose/
-│  └─ observability/               # OTLP collector and vendor-specific observability backends
 ├─ schemas/
-│  ├─ jsonschema/
-│  ├─ openapi/
-│  └─ protobuf/
+│  └─ jsonschema/
 ├─ docs/
 ├─ scripts/
-└─ .github/
+├─ README.md
+├─ prd.md
+├─ roadmap.md
+└─ Makefile
 ```
 
 Today, this checkout primarily contains `apps/control-plane/`, `apps/web/`, `packages/contracts/`,
-and the `runtimes/runner-*` packages. The additional `apps/*` and `packages/*` entries shown above
-are planned landing zones, not directories that already exist locally.
+`packages/contracts/python/`, the `runtimes/runner-*` packages, `schemas/jsonschema/`, and the
+root entry docs. Read those as the current repository truth.
+
+For a first pass through the repository, start with `README.md`. Then use `prd.md` and
+`roadmap.md` for internal product framing, `TESTING.md` and `AGENTS.md` for contributor workflow,
+and `apps/README.md` when you want the narrow app-subtree entry surface.
+
+### Planned Split Candidates
+
+These are directionally useful landing zones, but they are not current directories in the checkout:
+
+- future `apps/*` workers or services such as `executor-gateway/`, `data-plane-api/`,
+  `data-ingestion/`, `eval-worker/`, and `export-worker/`
+- future shared `packages/*` such as `runtime-sdk/`, `tool-gateway-sdk/`, `model-gateway-sdk/`,
+  `config/`, or `testkit/`
+- a future top-level `infra/` area if deployment and observability assets outgrow their current
+  homes
 
 Interpret the top level as follows:
 
-- `apps/` contains product-facing services and platform workers.
+- `apps/` contains the current product-facing services.
 - `runtimes/` contains execution-side implementations that consume shared contracts and run agents
   in a specific framework or Atlas-owned carrier path.
 - `packages/` contains cross-plane shared libraries.
-- `infra/` contains deployment, local compose, container, and observability assets.
 - `schemas/` is the neutral source-of-truth area for platform contracts that should not become
   control-plane internals.
+- `docs/` contains architecture and contributor-facing documentation.
+- `scripts/` contains repository automation helpers.
 
 ## Placement Rules
 
@@ -93,7 +97,8 @@ For the runtime-to-observability boundary specifically:
   Phoenix-specific runtime contract
 - `packages/runtime-sdk/` is the planned landing zone for shared runtime bootstrap and OTLP-side
   helpers; the current shared bootstrap still lives in `runtimes/runner-base/`
-- `infra/observability/` is where collector and backend wiring belongs
+- a future `infra/observability/` area is the right landing zone if collector and backend wiring
+  outgrow their current homes
 - Phoenix remains a tooling backend for trace inspection and links, not the canonical runtime
   contract
 - Inspect AI, E2B, and similar external systems should enter as adapters, not as new first-class
@@ -177,9 +182,9 @@ Apply different ownership rules to these areas:
 
 - `runtimes/runner-*` owns runner bootstrap, framework adapters, event mapping, and artifact
   upload concerns
-- `apps/data-ingestion/` owns event normalization, trajectory rebuilding, enrichment, and writes
-- `apps/eval-worker/` owns evaluation execution and batch scoring
-- `apps/export-worker/` owns export materialization, sharding, and manifest generation
+- future split services such as `apps/data-ingestion/`, `apps/eval-worker/`, and
+  `apps/export-worker/` should own event normalization, scoring, or export pipelines only once
+  those concerns genuinely leave the current in-process control-plane boundary
 
 These are orchestration or data-pipeline concerns first. They can have clean boundaries without
 pretending the whole repository is one large hexagon.
@@ -191,8 +196,9 @@ The most important shared boundary is the contracts layer.
 Current implementation:
 
 - `packages/contracts/python/` is the concrete shared package consumed by Python services today
-- `schemas/jsonschema/`, `schemas/openapi/`, and `schemas/protobuf/` reserve the neutral schema
-  space for cross-language evolution
+- `schemas/jsonschema/` is the current neutral schema area in this checkout
+- additional schema surfaces such as `schemas/openapi/` or `schemas/protobuf/` remain future
+  expansion options if the contract boundary needs them later
 
 Directionally, contracts such as run submission, event envelopes, terminal results, artifact
 manifests, and export manifests should live in shared packages or schemas, not as private

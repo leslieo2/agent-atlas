@@ -82,20 +82,32 @@ Stop all local processes together with `Ctrl-C`.
 
 ## What Is In This Repository
 
-For contributors, the repository is organized by product and execution ownership:
+For contributors, the current tracked repository is organized by product and execution ownership:
 
 - `apps/web/`: operator-facing web UI
 - `apps/control-plane/`: FastAPI control plane, worker process, feature modules, tests, and
   backend-specific tooling
-- `packages/contracts/`: neutral cross-plane contract package
-- `runtimes/`: execution-side runtime packages, including shared runner bootstrap and launcher code
-- `infra/`, `schemas/`, and `docs/`: deployment assets, shared schemas, and architecture docs
+- `packages/contracts/python/`: neutral shared contracts package used by the Python services today
+- `runtimes/runner-base/`, `runtimes/runner-langgraph/`, and `runtimes/runner-openai-agents/`:
+  execution-side runtime packages, including shared runner bootstrap and launcher code
+- `schemas/jsonschema/`: language-neutral schema artifacts that currently live in the repo
+- `docs/`: architecture and contributor-facing documentation
+- `scripts/`: repository automation helpers
+- `.github/`: CI and repository automation configuration
 - `Makefile`: root entrypoint for installing dependencies and running the common full-stack
   workflows
 
 `apps/control-plane/app/*` holds in-process control-plane modules, `packages/*` holds shared
 libraries, `schemas/*` holds language-neutral definitions, and `runtimes/*` holds execution-side
 implementations that should remain downstream of Atlas-owned product semantics.
+
+Top-level entry surfaces:
+
+- `README.md`: public product and setup entrypoint
+- `prd.md` and `roadmap.md`: internal product contract and sequencing notes behind the README
+- `TESTING.md`: repository-level verification workflow
+- `AGENTS.md`: contributor and agent collaboration guidance
+- `apps/README.md`: subtree landing page for the current app directories
 
 ## Architecture At A Glance
 
