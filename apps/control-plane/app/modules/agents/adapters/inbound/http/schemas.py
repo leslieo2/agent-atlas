@@ -4,7 +4,6 @@ from datetime import datetime
 
 from agent_atlas_contracts.execution import ExecutionTarget
 from agent_atlas_contracts.runtime import AgentManifest, ExecutionReferenceMetadata
-
 from app.modules.agents.domain.models import (
     AgentValidationEvidenceSummary,
     AgentValidationIssue,

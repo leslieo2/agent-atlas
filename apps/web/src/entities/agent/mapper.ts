@@ -3,7 +3,7 @@ import type {
   AgentValidationEvidenceSummaryResponse,
   AgentValidationOutcomeSummaryResponse,
   AgentValidationRunReferenceResponse,
-  ExecutionReference
+  ExecutionReferenceMetadata
 } from "@/src/shared/api/contract";
 import type {
   AgentRecord,
@@ -13,7 +13,9 @@ import type {
   ExecutionReferenceRecord
 } from "./model";
 
-function mapExecutionReference(executionReference?: ExecutionReference | null): ExecutionReferenceRecord | null {
+function mapExecutionReference(
+  executionReference?: ExecutionReferenceMetadata | null
+): ExecutionReferenceRecord | null {
   if (!executionReference) {
     return null;
   }

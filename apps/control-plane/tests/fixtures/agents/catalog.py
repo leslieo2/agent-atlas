@@ -4,9 +4,10 @@ from dataclasses import dataclass
 
 from agent_atlas_contracts.runtime import (
     AgentManifest,
+)
+from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
 )
-
 from app.modules.agents.domain.models import PublishedAgent, compute_source_fingerprint
 from app.modules.shared.domain.enums import AgentFamily
 from app.modules.shared.domain.models import build_source_execution_reference

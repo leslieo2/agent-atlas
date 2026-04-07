@@ -150,7 +150,9 @@ class RunRecord(BaseModel):
         prompt_config = None
         toolset_config = ToolsetConfig()
         evaluator_config = EvaluatorConfig()
-        executor_config = ExecutionProfile(backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND)
+        executor_config = ExecutionProfile(
+            backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND
+        )
         execution_binding = (
             self.execution_binding.model_copy(deep=True) if self.execution_binding else None
         )

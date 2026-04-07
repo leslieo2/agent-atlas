@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from app.modules.shared.application.contracts import TrajectoryStepProjectorPort
+from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.observability import TrajectoryStepRecord, utc_now
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
@@ -28,7 +29,7 @@ class TraceEventTrajectoryProjector(TrajectoryStepProjectorPort):
         return TrajectoryStepRecord(
             id=step_id,
             run_id=run_id,
-            step_type=step_type,
+            step_type=StepType(step_type.value),
             parent_step_id=parent_step_id,
             prompt=self._render_prompt(payload_input),
             output=self._render_output(payload_output),

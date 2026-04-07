@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from agent_atlas_contracts.runtime import (
     AgentManifest,
+)
+from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
 )
-
 from app.modules.agents.application.use_cases import (
     AgentIntakeCommands,
     AgentValidationCommands,

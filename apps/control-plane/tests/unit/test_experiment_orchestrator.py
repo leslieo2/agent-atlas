@@ -4,9 +4,10 @@ from uuid import UUID, uuid4
 
 from agent_atlas_contracts.runtime import (
     AgentManifest,
+)
+from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
 )
-
 from app.modules.agents.domain.models import PublishedAgent, compute_source_fingerprint
 from app.modules.datasets.domain.models import DatasetSample, DatasetVersion
 from app.modules.experiments.application.execution import ExperimentOrchestrator
@@ -16,11 +17,13 @@ from app.modules.shared.domain.jobs import EnqueuedExecutionJob
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
-    ExecutionProfile as ExecutorConfig,
     ModelConfig,
     PromptConfig,
     ToolsetConfig,
     build_source_execution_reference,
+)
+from app.modules.shared.domain.models import (
+    ExecutionProfile as ExecutorConfig,
 )
 
 

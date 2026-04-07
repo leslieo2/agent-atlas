@@ -9,12 +9,10 @@ from typing import Any
 from uuid import UUID
 
 from agent_atlas_contracts.runtime import (
-    AgentBuildContext,
+    AgentBuildContext as AgentBuildContext,
 )
 from agent_atlas_contracts.runtime import (
     AgentManifest,
-)
-from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata,
 )
 from agent_atlas_contracts.runtime import (

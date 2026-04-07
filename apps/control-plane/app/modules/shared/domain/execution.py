@@ -11,6 +11,20 @@ from pydantic.json_schema import SkipJsonSchema
 
 from app.modules.shared.domain.enums import ScoringMode
 
+__all__ = [
+    "EvaluatorConfig",
+    "ExecutionBinding",
+    "ExecutionProfile",
+    "ExecutionReferenceMetadata",
+    "ExecutionTarget",
+    "ExecutorResources",
+    "ModelConfig",
+    "PromptConfig",
+    "ToolsetConfig",
+    "build_source_artifact_ref",
+    "build_source_execution_reference",
+]
+
 
 def build_source_artifact_ref(agent_id: str, source_fingerprint: str) -> str:
     return f"source://{agent_id}@{source_fingerprint}"

@@ -15,7 +15,7 @@ export interface AgentDescriptorResponse {
   "capabilities": Array<string>;
   "published_at": string;
   "source_fingerprint": string;
-  "execution_reference": ExecutionReference;
+  "execution_reference": ExecutionReferenceMetadata;
   "default_runtime_profile": ExecutionProfile;
   "latest_validation"?: AgentValidationRunReferenceResponse | null;
   "validation_evidence"?: AgentValidationEvidenceSummaryResponse | null;
@@ -152,7 +152,7 @@ export interface ExecutionProfileRequest {
   "tracing_backend"?: string;
   "execution_binding"?: ExecutionBinding | null;
 }
-export interface ExecutionReference {
+export interface ExecutionReferenceMetadata {
   "artifact_ref"?: string | null;
   "image_ref"?: string | null;
 }

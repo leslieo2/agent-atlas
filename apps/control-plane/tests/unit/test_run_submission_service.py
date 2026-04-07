@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 from agent_atlas_contracts.runtime import (
     AgentManifest,
+)
+from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
 )
 from app.core.errors import UnsupportedOperationError
@@ -19,13 +21,15 @@ from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
     ExecutionBinding,
-    ExecutionProfile as ExecutorConfig,
     ExecutionTarget,
     ModelConfig,
     PromptConfig,
     ToolPolicyRule,
     ToolsetConfig,
     build_source_execution_reference,
+)
+from app.modules.shared.domain.models import (
+    ExecutionProfile as ExecutorConfig,
 )
 from pydantic import ValidationError
 

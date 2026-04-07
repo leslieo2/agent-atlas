@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.observability import utc_now
 
+__all__ = ["TraceIngestEvent", "TraceSpan"]
+
 
 class TraceSpan(BaseModel):
     run_id: UUID

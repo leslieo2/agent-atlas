@@ -1,5 +1,9 @@
 from agent_atlas_contracts.execution import ExecutionTarget
-from agent_atlas_contracts.runtime import ExecutionReferenceMetadata, TraceIngestEvent, TraceTelemetryMetadata
+from agent_atlas_contracts.runtime import (
+    ExecutionReferenceMetadata,
+    TraceIngestEvent,
+    TraceTelemetryMetadata,
+)
 
 from app.modules.shared.domain.enums import (
     AdapterKind,

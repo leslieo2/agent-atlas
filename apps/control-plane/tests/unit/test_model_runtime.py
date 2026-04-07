@@ -8,6 +8,8 @@ from agent_atlas_contracts.execution import ExecutionArtifact, RunnerRunSpec
 from agent_atlas_contracts.runtime import (
     AgentBuildContext,
     AgentManifest,
+)
+from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
 )
 from app.core.errors import (

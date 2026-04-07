@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from uuid import UUID
 
-from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
+from agent_atlas_contracts.runtime import (
+    StepType as ContractStepType,
+)
+from agent_atlas_contracts.runtime import (
+    TraceIngestEvent as ContractTraceIngestEvent,
+)
 
 from app.core.errors import AppError, UnsupportedOperationError
 from app.execution.application.ports import (
@@ -324,7 +329,7 @@ class RunExecutionProjector:
             run_id=context.run_id,
             span_id=span_id,
             parent_span_id=parent_span_id,
-            step_type=step_type,
+            step_type=ContractStepType(step_type.value),
             name=name,
             input=input_payload,
             output=output_payload,

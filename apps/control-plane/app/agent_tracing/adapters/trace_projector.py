@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.modules.shared.application.contracts import TraceProjectorPort
+from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
 
 
@@ -12,7 +13,7 @@ class TraceIngestProjector(TraceProjectorPort):
             run_id=event.run_id,
             span_id=event.span_id,
             parent_span_id=event.parent_span_id,
-            step_type=event.step_type,
+            step_type=StepType(event.step_type.value),
             input=event.input,
             output=event.output,
             tool_name=event.tool_name,
