@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
+from agent_atlas_contracts.execution import ExecutionTarget
 from pydantic import BaseModel
 
 from app.modules.shared.domain.execution import (
     EvaluatorConfig,
-    ExecutionTarget,
-    ExecutorConfig,
+    ExecutionProfile,
     ToolsetConfig,
 )
 from app.modules.shared.domain.policies import ApprovalPolicySnapshot
@@ -31,4 +31,4 @@ class ProvenanceMetadata(BaseModel):
     approval_policy: ApprovalPolicySnapshot | None = None
     toolset: ToolsetConfig | None = None
     evaluator: EvaluatorConfig | None = None
-    executor: ExecutorConfig | None = None
+    executor: ExecutionProfile | None = None

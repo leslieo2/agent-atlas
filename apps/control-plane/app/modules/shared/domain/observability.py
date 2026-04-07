@@ -3,9 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from agent_atlas_contracts.runtime import (
-    TraceTelemetryMetadata as ContractTraceTelemetryMetadata,
-)
+from agent_atlas_contracts.runtime import TraceTelemetryMetadata
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import StepType
@@ -20,10 +18,6 @@ class TracingMetadata(BaseModel):
     trace_id: str | None = None
     trace_url: str | None = None
     project_url: str | None = None
-
-
-class TraceTelemetryMetadata(ContractTraceTelemetryMetadata):
-    pass
 
 
 class TracePointer(BaseModel):

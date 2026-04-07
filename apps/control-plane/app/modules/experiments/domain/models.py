@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
+from agent_atlas_contracts.execution import ExecutionTarget
 from app.modules.shared.domain.enums import (
     CompareOutcome,
     CurationStatus,
@@ -14,8 +15,7 @@ from app.modules.shared.domain.enums import (
 from app.modules.shared.domain.execution import (
     EvaluatorConfig,
     ExecutionBinding,
-    ExecutionTarget,
-    ExecutorConfig,
+    ExecutionProfile,
     ModelConfig,
     PromptConfig,
     ToolsetConfig,
@@ -46,7 +46,7 @@ class ExperimentSpec(BaseModel):
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
     execution_target: ExecutionTarget | None = None
-    executor_config: ExecutorConfig | None = None
+    executor_config: ExecutionProfile | None = None
     execution_binding: ExecutionBinding | None = None
     approval_policy_id: UUID | None = None
     approval_policy: ApprovalPolicySnapshot | None = None

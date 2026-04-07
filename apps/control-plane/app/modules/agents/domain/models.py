@@ -9,13 +9,13 @@ from typing import Any
 from uuid import UUID
 
 from agent_atlas_contracts.runtime import (
-    AgentBuildContext as ContractAgentBuildContext,
+    AgentBuildContext,
 )
 from agent_atlas_contracts.runtime import (
-    AgentManifest as ContractAgentManifest,
+    AgentManifest,
 )
 from agent_atlas_contracts.runtime import (
-    ExecutionReferenceMetadata as ContractExecutionReferenceMetadata,
+    ExecutionReferenceMetadata,
 )
 from agent_atlas_contracts.runtime import (
     PublishedAgent as ContractPublishedAgent,
@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
-from app.modules.shared.domain.execution import ExecutionBinding, ExecutorConfig
+from app.modules.shared.domain.execution import ExecutionBinding, ExecutionProfile
 
 
 @dataclass(frozen=True)
@@ -73,18 +73,6 @@ def adapter_kind_for_agent_family(agent_family: str) -> AdapterKind:
 
 def adapter_kind_for_framework(framework: str) -> AdapterKind:
     return adapter_kind_for_agent_family(agent_family_for_framework(framework).value)
-
-
-class AgentManifest(ContractAgentManifest):
-    pass
-
-
-class AgentBuildContext(ContractAgentBuildContext):
-    pass
-
-
-class ExecutionReference(ContractExecutionReferenceMetadata):
-    pass
 
 
 class AgentValidationStatus(str, Enum):
@@ -138,9 +126,11 @@ class AgentValidationOutcomeSummary(BaseModel):
 
 class PublishedAgent(ContractPublishedAgent):
     manifest: AgentManifest
-    execution_reference: ExecutionReference = Field(default_factory=ExecutionReference)
-    default_runtime_profile: ExecutorConfig = Field(  # type: ignore[assignment]
-        default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
+    execution_reference: ExecutionReferenceMetadata = Field(
+        default_factory=ExecutionReferenceMetadata
+    )
+    default_runtime_profile: ExecutionProfile = Field(  # type: ignore[assignment]
+        default_factory=lambda: ExecutionProfile(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
     execution_binding: ExecutionBinding | None = None
     latest_validation: AgentValidationRunReference | None = None
@@ -200,8 +190,8 @@ class PublishedAgent(ContractPublishedAgent):
             f"published agent '{self.agent_id}' is missing source fingerprint metadata"
         )
 
-    def execution_reference_or_raise(self) -> ExecutionReference:
-        execution_reference = ExecutionReference.model_validate(self.execution_reference)
+    def execution_reference_or_raise(self) -> ExecutionReferenceMetadata:
+        execution_reference = ExecutionReferenceMetadata.model_validate(self.execution_reference)
         artifact_ref = (
             execution_reference.artifact_ref.strip()
             if isinstance(execution_reference.artifact_ref, str)
@@ -241,8 +231,8 @@ class DiscoveredAgent(BaseModel):
     validation_status: AgentValidationStatus
     validation_issues: list[AgentValidationIssue] = Field(default_factory=list)
     last_validated_at: datetime = Field(default_factory=utc_now)
-    default_runtime_profile: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
+    default_runtime_profile: ExecutionProfile = Field(
+        default_factory=lambda: ExecutionProfile(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
     execution_binding: ExecutionBinding | None = None
     latest_validation: AgentValidationRunReference | None = None

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
+from agent_atlas_contracts.execution import ExecutionTarget
 from pydantic import BaseModel, Field
 
 from app.modules.experiments.domain.models import (
@@ -22,8 +23,7 @@ from app.modules.shared.adapters.inbound.http.execution_profiles import (
 from app.modules.shared.domain.enums import CompareOutcome, CurationStatus, SampleJudgement
 from app.modules.shared.domain.execution import (
     EvaluatorConfig,
-    ExecutionTarget,
-    ExecutorConfig,
+    ExecutionProfile,
     ModelConfig,
     PromptConfig,
     ToolsetConfig,
@@ -75,7 +75,7 @@ class ExperimentSpecResponse(BaseModel):
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
     execution_target: ExecutionTarget | None = None
-    executor_config: ExecutorConfig | None = None
+    executor_config: ExecutionProfile | None = None
     approval_policy_id: UUID | None = None
     tags: list[str] = Field(default_factory=list)
 

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
-from app.modules.agents.domain.models import (
+from agent_atlas_contracts.runtime import (
     AgentManifest,
-    ExecutionReference,
-    PublishedAgent,
-    compute_source_fingerprint,
+    ExecutionReferenceMetadata as ExecutionReference,
 )
+
+from app.modules.agents.domain.models import PublishedAgent, compute_source_fingerprint
 from app.modules.datasets.domain.models import DatasetSample, DatasetVersion
 from app.modules.experiments.application.execution import ExperimentOrchestrator
 from app.modules.experiments.domain.models import ExperimentRecord, ExperimentSpec, ExperimentStatus
@@ -16,7 +16,7 @@ from app.modules.shared.domain.jobs import EnqueuedExecutionJob
 from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
-    ExecutorConfig,
+    ExecutionProfile as ExecutorConfig,
     ModelConfig,
     PromptConfig,
     ToolsetConfig,

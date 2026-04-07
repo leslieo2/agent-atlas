@@ -6,6 +6,7 @@ from importlib.metadata import entry_points
 from typing import Any, Protocol, cast
 
 from agent_atlas_contracts.execution import RunnerRunSpec
+from agent_atlas_contracts.runtime import AgentBuildContext
 from pydantic import SecretStr
 
 from app.core.config import settings
@@ -21,10 +22,7 @@ from app.execution.application.results import (
     RuntimeExecutionResult,
 )
 from app.modules.agents.application.ports import PublishedAgentExecutionPort
-from app.modules.agents.domain.models import (
-    AgentBuildContext,
-    adapter_kind_for_agent_family,
-)
+from app.modules.agents.domain.models import adapter_kind_for_agent_family
 from app.modules.shared.domain.enums import AdapterKind
 
 from .runtime_utils import extract_error_message

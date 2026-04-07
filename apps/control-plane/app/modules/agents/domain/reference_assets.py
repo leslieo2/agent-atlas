@@ -5,15 +5,16 @@ import subprocess  # nosec - docker CLI invocation is an explicit starter bootst
 from pathlib import Path
 from typing import Any
 
+from agent_atlas_contracts.runtime import AgentManifest
+
 from app.core.errors import AgentBootstrapFailedError
 from app.modules.agents.domain.constants import (
     CLAUDE_CODE_CLI_FRAMEWORK,
     CLAUDE_CODE_STARTER_TAGS,
 )
-from app.modules.agents.domain.models import AgentManifest
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AgentFamily
-from app.modules.shared.domain.execution import ExecutionBinding, ExecutorConfig
+from app.modules.shared.domain.execution import ExecutionBinding, ExecutionProfile
 
 CLAUDE_CODE_STARTER_AGENT_ID = "claude-code-starter"
 CLAUDE_CODE_STARTER_ENTRYPOINT = (
@@ -125,8 +126,8 @@ def build_claude_code_starter() -> AgentManifest:
     return claude_code_starter_manifest().model_copy(deep=True)
 
 
-def claude_code_starter_runtime_profile() -> ExecutorConfig:
-    return ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
+def claude_code_starter_runtime_profile() -> ExecutionProfile:
+    return ExecutionProfile(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
 
 
 def claude_code_starter_execution_binding() -> ExecutionBinding:

@@ -7,13 +7,12 @@ from importlib.metadata import entry_points
 from typing import Any, Protocol, cast
 
 from agent_atlas_contracts.execution import RunnerRunSpec
+from agent_atlas_contracts.runtime import AgentBuildContext, AgentManifest
 from pydantic import SecretStr
 
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.execution.application.results import PublishedRunExecutionResult
 from app.modules.agents.domain.models import (
-    AgentBuildContext,
-    AgentManifest,
     AgentModuleSource,
     AgentValidationIssue,
     AgentValidationStatus,

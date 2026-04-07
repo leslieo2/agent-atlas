@@ -1,6 +1,6 @@
+from agent_atlas_contracts.runtime import AgentBuildContext, AgentManifest
+
 from app.modules.agents.domain.models import (
-    AgentBuildContext,
-    AgentManifest,
     AgentModuleSource,
     AgentValidationIssue,
     AgentValidationStatus,

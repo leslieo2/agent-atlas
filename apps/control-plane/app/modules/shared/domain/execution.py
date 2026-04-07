@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from agent_atlas_contracts.execution import ExecutionTarget as ContractExecutionTarget
+from agent_atlas_contracts.execution import ExecutionTarget
 from agent_atlas_contracts.runtime import (
-    ExecutionReferenceMetadata as ContractExecutionReferenceMetadata,
+    ExecutionReferenceMetadata,
 )
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import SkipJsonSchema
@@ -16,10 +16,6 @@ def build_source_artifact_ref(agent_id: str, source_fingerprint: str) -> str:
     return f"source://{agent_id}@{source_fingerprint}"
 
 
-class ExecutionReferenceMetadata(ContractExecutionReferenceMetadata):
-    pass
-
-
 def build_source_execution_reference(
     *,
     agent_id: str,
@@ -29,10 +25,6 @@ def build_source_execution_reference(
         artifact_ref=build_source_artifact_ref(agent_id, source_fingerprint),
         image_ref=None,
     )
-
-
-class ExecutionTarget(ContractExecutionTarget):
-    pass
 
 
 class ModelConfig(BaseModel):
@@ -133,6 +125,3 @@ class ExecutionProfile(BaseModel):
             else None
         )
         return ExecutorResources.model_validate(raw_resources or {})
-
-
-ExecutorConfig = ExecutionProfile

@@ -4,6 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 from agent_atlas_contracts.execution import ExecutionArtifact
+from agent_atlas_contracts.runtime import (
+    AgentBuildContext,
+    AgentManifest,
+    ExecutionReferenceMetadata as ExecutionReference,
+)
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
 from app.execution.adapters import runner_run_spec_from_run_spec
 from app.execution.application.results import (
@@ -27,11 +32,8 @@ from app.infrastructure.adapters.openai_agents import (
     OpenAIAgentContractValidator,
 )
 from app.modules.agents.domain.models import (
-    AgentBuildContext,
-    AgentManifest,
     AgentValidationStatus,
     DiscoveredAgent,
-    ExecutionReference,
     PublishedAgent,
     compute_source_fingerprint,
 )

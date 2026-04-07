@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from agent_atlas_contracts.execution import ExecutionTarget
 from agent_atlas_contracts.runtime import RuntimeExecutionResult as SharedRuntimeExecutionResult
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,8 +13,7 @@ from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.execution import (
     EvaluatorConfig,
     ExecutionBinding,
-    ExecutionTarget,
-    ExecutorConfig,
+    ExecutionProfile,
     ModelConfig,
     PromptConfig,
     ToolsetConfig,
@@ -45,8 +45,8 @@ class RunCreateInput(BaseModel):
     project_metadata: dict[str, Any] = Field(default_factory=dict)
     execution_target: ExecutionTarget | None = None
     dataset_sample_id: str | None = None
-    executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend=DEFAULT_EXECUTION_BACKEND)
+    executor_config: ExecutionProfile = Field(
+        default_factory=lambda: ExecutionProfile(backend=DEFAULT_EXECUTION_BACKEND)
     )
     execution_binding: ExecutionBinding | None = None
     model_settings: ModelConfig | None = None
@@ -85,8 +85,8 @@ class RunExecutionSpec(BaseModel):
     prompt_config: PromptConfig | None = None
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
-    executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend=DEFAULT_EXECUTION_BACKEND)
+    executor_config: ExecutionProfile = Field(
+        default_factory=lambda: ExecutionProfile(backend=DEFAULT_EXECUTION_BACKEND)
     )
     execution_binding: ExecutionBinding | None = None
     approval_policy: ApprovalPolicySnapshot | None = None
@@ -150,7 +150,7 @@ class RunRecord(BaseModel):
         prompt_config = None
         toolset_config = ToolsetConfig()
         evaluator_config = EvaluatorConfig()
-        executor_config = ExecutorConfig(backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND)
+        executor_config = ExecutionProfile(backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND)
         execution_binding = (
             self.execution_binding.model_copy(deep=True) if self.execution_binding else None
         )
@@ -174,7 +174,7 @@ class RunRecord(BaseModel):
             executor_config = (
                 provenance.executor.model_copy(deep=True)
                 if provenance.executor is not None
-                else ExecutorConfig(backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND)
+                else ExecutionProfile(backend=self.executor_backend or DEFAULT_EXECUTION_BACKEND)
             )
             execution_binding = (
                 self.execution_binding.model_copy(deep=True) if self.execution_binding else None

@@ -4,6 +4,10 @@ from uuid import uuid4
 
 import pytest
 from agent_atlas_contracts.execution import ExecutionArtifact, RunnerRunSpec
+from agent_atlas_contracts.runtime import (
+    AgentManifest,
+    ExecutionReferenceMetadata as ExecutionReference,
+)
 from app.core.errors import AgentLoadFailedError
 from app.execution.adapters import (
     LocalProcessRunner,
@@ -12,7 +16,7 @@ from app.execution.adapters import (
 )
 from app.execution.application.results import PublishedRunExecutionResult, RuntimeExecutionResult
 from app.execution.contracts import ExecutionRunSpec
-from app.modules.agents.domain.models import AgentManifest, ExecutionReference, PublishedAgent
+from app.modules.agents.domain.models import PublishedAgent
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import ProvenanceMetadata
 

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from agent_atlas_contracts.runtime import (
+    AgentManifest,
+    ExecutionReferenceMetadata as ExecutionReference,
+)
+
 from app.modules.agents.application.use_cases import (
     AgentIntakeCommands,
     AgentValidationCommands,
     GovernedAgentIntake,
 )
 from app.modules.agents.domain.models import (
-    AgentManifest,
     ExecutionBinding,
-    ExecutionReference,
     PublishedAgent,
     compute_source_fingerprint,
 )

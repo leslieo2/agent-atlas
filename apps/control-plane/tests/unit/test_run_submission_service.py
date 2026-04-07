@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import pytest
+from agent_atlas_contracts.runtime import (
+    AgentManifest,
+    ExecutionReferenceMetadata as ExecutionReference,
+)
 from app.core.errors import UnsupportedOperationError
 from app.execution.contracts import ExecutionRunSpec, RunHandle
 from app.modules.agents.domain.models import (
-    AgentManifest,
-    ExecutionReference,
     PublishedAgent,
     compute_source_fingerprint,
 )
@@ -17,8 +19,8 @@ from app.modules.shared.domain.models import (
     ApprovalPolicySnapshot,
     EvaluatorConfig,
     ExecutionBinding,
+    ExecutionProfile as ExecutorConfig,
     ExecutionTarget,
-    ExecutorConfig,
     ModelConfig,
     PromptConfig,
     ToolPolicyRule,

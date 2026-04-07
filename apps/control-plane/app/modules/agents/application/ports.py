@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from agent_atlas_contracts.execution import RunnerRunSpec
+from agent_atlas_contracts.runtime import AgentBuildContext
 from pydantic import SecretStr
 
 from app.modules.agents.domain.models import (
-    AgentBuildContext,
     AgentModuleSource,
     AgentValidationRecord,
     DiscoveredAgent,

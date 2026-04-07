@@ -5,6 +5,11 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 from agent_atlas_contracts.execution import ExecutionArtifact, RunnerRunSpec
+from agent_atlas_contracts.runtime import (
+    AgentBuildContext,
+    AgentManifest,
+    ExecutionReferenceMetadata as ExecutionReference,
+)
 from app.core.errors import (
     AgentFrameworkMismatchError,
     ModelNotFoundError,
@@ -26,9 +31,6 @@ from app.infrastructure.adapters.framework_registry import (
 from app.infrastructure.adapters.langchain import PublishedLangChainAgentAdapter
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.agents.domain.models import (
-    AgentBuildContext,
-    AgentManifest,
-    ExecutionReference,
     PublishedAgent,
     compute_source_fingerprint,
 )

@@ -4,12 +4,11 @@ from importlib import import_module
 from typing import Any
 from uuid import UUID
 
+from agent_atlas_contracts.runtime import AgentBuildContext, AgentManifest
 from pydantic import ValidationError
 
 from app.core.errors import AgentLoadFailedError
 from app.modules.agents.domain.models import (
-    AgentBuildContext,
-    AgentManifest,
     AgentModuleSource,
     AgentValidationIssue,
     AgentValidationStatus,

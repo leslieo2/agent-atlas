@@ -13,7 +13,7 @@ from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunExecutionSpec, RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
-from app.modules.shared.domain.execution import ExecutionBinding, ExecutorConfig
+from app.modules.shared.domain.execution import ExecutionBinding, ExecutionProfile
 from app.modules.shared.domain.provenance import ProvenanceMetadata
 
 
@@ -77,9 +77,9 @@ def _resolve_executor_config(
     payload: RunCreateInput,
     *,
     default_execution_binding: ExecutionBinding | None,
-    default_runtime_profile: ExecutorConfig,
+    default_runtime_profile: ExecutionProfile,
     default_trace_backend: str,
-) -> tuple[ExecutorConfig, ExecutionBinding | None, str]:
+) -> tuple[ExecutionProfile, ExecutionBinding | None, str]:
     executor_config = default_runtime_profile.model_copy(deep=True)
     execution_binding = (
         default_execution_binding.model_copy(deep=True)
@@ -95,7 +95,7 @@ def _resolve_executor_config(
             executor_config.model_dump(mode="python"),
             payload.executor_config.model_dump(mode="python", exclude_unset=True),
         )
-        executor_config = ExecutorConfig.model_validate(merged_config)
+        executor_config = ExecutionProfile.model_validate(merged_config)
         if payload.executor_config.execution_binding is not None:
             base_binding = (
                 execution_binding.model_dump(mode="python", exclude_none=True)
@@ -142,12 +142,12 @@ def _resolve_executor_config(
 
 def _validate_execution_backend(
     *,
-    executor_config: ExecutorConfig,
+    executor_config: ExecutionProfile,
     execution_binding: ExecutionBinding | None,
     agent_id: str,
 ) -> None:
     normalized_backend = executor_config.backend.strip().lower()
-    execution_view: ExecutorConfig | Mapping[str, object]
+    execution_view: ExecutionProfile | Mapping[str, object]
     if execution_binding is None:
         execution_view = executor_config
     else:

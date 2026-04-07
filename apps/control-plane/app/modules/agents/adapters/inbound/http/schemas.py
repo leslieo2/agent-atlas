@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from agent_atlas_contracts.execution import ExecutionTarget
+from agent_atlas_contracts.runtime import AgentManifest, ExecutionReferenceMetadata
+
 from app.modules.agents.domain.models import (
-    AgentManifest,
     AgentValidationEvidenceSummary,
     AgentValidationIssue,
     AgentValidationOutcomeSummary,
     AgentValidationRunReference,
-    ExecutionReference,
     PublishedAgent,
 )
 from app.modules.runs.domain.models import RunCreateInput
@@ -16,11 +17,7 @@ from app.modules.shared.adapters.inbound.http.execution_profiles import (
     ExecutionProfileRequest,
 )
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
-from app.modules.shared.domain.execution import (
-    ExecutionTarget,
-    ExecutorConfig,
-    ToolsetConfig,
-)
+from app.modules.shared.domain.execution import ExecutionProfile, ToolsetConfig
 from app.modules.shared.domain.policies import ApprovalPolicySnapshot
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -38,8 +35,8 @@ class AgentDescriptorResponse(BaseModel):
     capabilities: list[str]
     published_at: datetime
     source_fingerprint: str
-    execution_reference: ExecutionReference
-    default_runtime_profile: ExecutorConfig
+    execution_reference: ExecutionReferenceMetadata
+    default_runtime_profile: ExecutionProfile
     latest_validation: AgentValidationRunReferenceResponse | None = None
     validation_evidence: AgentValidationEvidenceSummaryResponse | None = None
     validation_outcome: AgentValidationOutcomeSummaryResponse | None = None

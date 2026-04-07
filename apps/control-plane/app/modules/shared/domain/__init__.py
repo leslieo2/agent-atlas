@@ -1,3 +1,6 @@
+from agent_atlas_contracts.execution import ExecutionTarget
+from agent_atlas_contracts.runtime import ExecutionReferenceMetadata, TraceIngestEvent, TraceTelemetryMetadata
+
 from app.modules.shared.domain.enums import (
     AdapterKind,
     AgentFamily,
@@ -6,19 +9,16 @@ from app.modules.shared.domain.enums import (
     StepType,
 )
 from app.modules.shared.domain.execution import (
-    ExecutionReferenceMetadata,
-    ExecutionTarget,
     build_source_artifact_ref,
     build_source_execution_reference,
 )
 from app.modules.shared.domain.observability import (
-    TraceTelemetryMetadata,
     TracingMetadata,
     TrajectoryStepRecord,
     utc_now,
 )
 from app.modules.shared.domain.provenance import ProvenanceMetadata
-from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
+from app.modules.shared.domain.traces import TraceSpan
 
 __all__ = [
     "AdapterKind",

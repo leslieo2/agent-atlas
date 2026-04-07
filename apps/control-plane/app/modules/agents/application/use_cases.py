@@ -4,6 +4,12 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from uuid import UUID
 
+from agent_atlas_contracts.runtime import (
+    AgentBuildContext,
+    AgentManifest,
+    ExecutionReferenceMetadata,
+)
+
 from app.core.errors import (
     AgentImportConflictError,
     AgentLoadFailedError,
@@ -17,15 +23,12 @@ from app.modules.agents.application.ports import (
     PublishedAgentRepositoryPort,
 )
 from app.modules.agents.domain.models import (
-    AgentBuildContext,
-    AgentManifest,
     AgentValidationEvidenceSummary,
     AgentValidationOutcomeStatus,
     AgentValidationOutcomeSummary,
     AgentValidationRecord,
     AgentValidationRunReference,
     ExecutionBinding,
-    ExecutionReference,
     PublishedAgent,
     compute_source_fingerprint,
 )
@@ -36,7 +39,7 @@ from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.execution import (
-    ExecutorConfig,
+    ExecutionProfile,
     build_source_execution_reference,
 )
 
@@ -120,8 +123,10 @@ def _is_valid_published_agent(agent: PublishedAgent) -> bool:
     return True
 
 
-def _governed_execution_reference(*, agent_id: str, source_fingerprint: str) -> ExecutionReference:
-    return ExecutionReference.model_validate(
+def _governed_execution_reference(
+    *, agent_id: str, source_fingerprint: str
+) -> ExecutionReferenceMetadata:
+    return ExecutionReferenceMetadata.model_validate(
         build_source_execution_reference(
             agent_id=agent_id,
             source_fingerprint=source_fingerprint,
@@ -148,7 +153,7 @@ def _governed_intake_validation_context() -> AgentBuildContext:
 class GovernedAgentIntake:
     manifest: AgentManifest
     entrypoint: str
-    default_runtime_profile: ExecutorConfig | None = None
+    default_runtime_profile: ExecutionProfile | None = None
     execution_binding: ExecutionBinding | None = None
     requires_runnable_validation: bool = False
     prepare_runtime: Callable[[ExecutionBinding | None], None] | None = None
@@ -182,7 +187,7 @@ def _governed_asset_from_intake(intake: GovernedAgentIntake) -> PublishedAgent:
         default_runtime_profile=(
             intake.default_runtime_profile.model_copy(deep=True)
             if intake.default_runtime_profile is not None
-            else ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
+            else ExecutionProfile(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
         ),
         execution_binding=(
             intake.execution_binding.model_copy(deep=True)
