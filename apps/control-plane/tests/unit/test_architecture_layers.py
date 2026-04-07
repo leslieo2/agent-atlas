@@ -62,6 +62,14 @@ def test_shared_module_does_not_depend_on_feature_modules() -> None:
     assert violations == []
 
 
+def test_runs_domain_does_not_import_execution_plane() -> None:
+    violations = _collect_import_prefix_violations(
+        base_dir=Path("app/modules/runs/domain"),
+        forbidden_prefixes=("app.execution",),
+    )
+    assert violations == []
+
+
 def _collect_layer_violations(
     *,
     base_dir: Path,
@@ -85,6 +93,24 @@ def _collect_layer_violations(
 
             imported_layer = _module_layer_from_import(name)
             if imported_layer in forbidden_module_layers:
+                violations.append(f"{path}:{lineno}:{name}")
+
+    return violations
+
+
+def _collect_import_prefix_violations(
+    *,
+    base_dir: Path,
+    forbidden_prefixes: tuple[str, ...],
+) -> list[str]:
+    violations: list[str] = []
+
+    for path in sorted(base_dir.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for name, lineno in _iter_imports(tree):
+            if any(
+                name == prefix or name.startswith(f"{prefix}.") for prefix in forbidden_prefixes
+            ):
                 violations.append(f"{path}:{lineno}:{name}")
 
     return violations

@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from uuid import UUID
 
-from agent_atlas_contracts.runtime import TraceIngestEvent as ContractTraceIngestEvent
-
 from app.core.errors import AppError, UnsupportedOperationError
 from app.execution.application.ports import (
     ArtifactResolverPort,
@@ -19,8 +17,10 @@ from app.execution.application.results import (
     RunFailureDetails,
     RunnerSubmissionRecord,
 )
-from app.execution.contracts import ExecutionRunSpec, runner_run_spec_from_run_spec
+from app.execution.contracts import runner_run_spec_from_run_spec
 from app.execution.metadata import requested_runner_backend, uses_k8s_runner_backend
+from app.modules.runs.application.runtime_translation import runtime_trace_events_to_domain
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus, StepType
 from app.modules.shared.domain.observability import TraceTelemetryMetadata
@@ -215,9 +215,7 @@ class RunExecutionProjector:
     ) -> list[TraceIngestEvent]:
         runtime_result = result.runtime_result
         fallback_metadata = self._event_metadata(context)
-        trace_events = [
-            self._normalize_trace_event(event) for event in result.projected_trace_events()
-        ]
+        trace_events = runtime_trace_events_to_domain(result.projected_trace_events())
         if not trace_events:
             return [
                 self._build_event(
@@ -300,14 +298,6 @@ class RunExecutionProjector:
             )
             for event in trace_events
         ]
-
-    @staticmethod
-    def _normalize_trace_event(
-        event: ContractTraceIngestEvent | TraceIngestEvent,
-    ) -> TraceIngestEvent:
-        if isinstance(event, TraceIngestEvent):
-            return event
-        return TraceIngestEvent.model_validate(event.model_dump(mode="json"))
 
     def _build_event(
         self,

@@ -7,11 +7,10 @@ from app.core.errors import (
     UnsupportedOperationError,
 )
 from app.execution.application.ports import ExecutionControlPort
-from app.execution.contracts import ExecutionRunSpec
 from app.execution.metadata import requested_runner_backend, runner_image, uses_k8s_runner_backend
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
-from app.modules.runs.domain.models import RunCreateInput, RunRecord
+from app.modules.runs.domain.models import RunCreateInput, RunExecutionSpec, RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.execution import ExecutionBinding, ExecutorConfig
@@ -228,7 +227,7 @@ class RunSubmissionService:
         provenance.toolset = payload.toolset_config.model_copy(deep=True)
         provenance.evaluator = payload.evaluator_config.model_copy(deep=True)
         provenance.executor = executor_config.model_copy(deep=True)
-        spec = ExecutionRunSpec(
+        spec = RunExecutionSpec(
             experiment_id=payload.experiment_id,
             dataset_version_id=payload.dataset_version_id,
             project=payload.project,

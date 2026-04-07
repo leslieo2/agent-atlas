@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID, uuid4
 
 from agent_atlas_contracts.execution import (
@@ -14,19 +13,10 @@ from agent_atlas_contracts.execution import (
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
-from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
-from app.modules.shared.domain.enums import AdapterKind, RunStatus
-from app.modules.shared.domain.execution import (
-    EvaluatorConfig,
-    ExecutionBinding,
-    ExecutionTarget,
-    ExecutorConfig,
-    ModelConfig,
-    PromptConfig,
-    ToolsetConfig,
-)
-from app.modules.shared.domain.policies import ApprovalPolicySnapshot
-from app.modules.shared.domain.provenance import ProvenanceMetadata
+from app.modules.runs.domain.models import RunExecutionSpec
+from app.modules.shared.domain.enums import RunStatus
+
+ExecutionRunSpec = RunExecutionSpec
 
 
 def utc_now() -> datetime:
@@ -93,34 +83,6 @@ class RunStatusSnapshot(BaseModel):
     reason_message: str | None = None
     heartbeat: Heartbeat | None = None
     terminal_summary: RunTerminalSummary | None = None
-
-
-class ExecutionRunSpec(BaseModel):
-    run_id: UUID = Field(default_factory=uuid4)
-    experiment_id: UUID | None = None
-    dataset_version_id: UUID | None = None
-    project: str
-    dataset: str | None = None
-    agent_id: str = ""
-    model: str
-    entrypoint: str | None = None
-    agent_type: AdapterKind
-    input_summary: str
-    prompt: str
-    tags: list[str] = Field(default_factory=list)
-    project_metadata: dict[str, Any] = Field(default_factory=dict)
-    execution_target: ExecutionTarget | None = None
-    dataset_sample_id: str | None = None
-    model_settings: ModelConfig | None = None
-    prompt_config: PromptConfig | None = None
-    toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
-    evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
-    executor_config: ExecutorConfig = Field(
-        default_factory=lambda: ExecutorConfig(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
-    )
-    execution_binding: ExecutionBinding | None = None
-    approval_policy: ApprovalPolicySnapshot | None = None
-    provenance: ProvenanceMetadata | None = None
 
 
 def _runner_tracing_config(trace_backend: str | None) -> TracingConfig | None:

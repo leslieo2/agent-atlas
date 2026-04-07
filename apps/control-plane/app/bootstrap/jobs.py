@@ -3,11 +3,11 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.execution.application import RunExecutionService
-from app.execution.contracts import ExecutionRunSpec
 from app.modules.experiments.application.execution import (
     ExperimentAggregationService,
     ExperimentOrchestrator,
 )
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.domain.jobs import EnqueuedExecutionJob, ExecutionJobKind
 
 

@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 from agent_atlas_contracts.runtime import RuntimeExecutionResult as SharedRuntimeExecutionResult
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.execution.contracts import ExecutionRunSpec
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.execution import (
@@ -66,6 +65,34 @@ class ExecutionMetrics(BaseModel):
 RuntimeExecutionResult = SharedRuntimeExecutionResult
 
 
+class RunExecutionSpec(BaseModel):
+    run_id: UUID = Field(default_factory=uuid4)
+    experiment_id: UUID | None = None
+    dataset_version_id: UUID | None = None
+    project: str
+    dataset: str | None = None
+    agent_id: str = ""
+    model: str
+    entrypoint: str | None = None
+    agent_type: AdapterKind
+    input_summary: str
+    prompt: str
+    tags: list[str] = Field(default_factory=list)
+    project_metadata: dict[str, Any] = Field(default_factory=dict)
+    execution_target: ExecutionTarget | None = None
+    dataset_sample_id: str | None = None
+    model_settings: ModelConfig | None = None
+    prompt_config: PromptConfig | None = None
+    toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
+    evaluator_config: EvaluatorConfig = Field(default_factory=EvaluatorConfig)
+    executor_config: ExecutorConfig = Field(
+        default_factory=lambda: ExecutorConfig(backend=DEFAULT_EXECUTION_BACKEND)
+    )
+    execution_binding: ExecutionBinding | None = None
+    approval_policy: ApprovalPolicySnapshot | None = None
+    provenance: ProvenanceMetadata | None = None
+
+
 class RunRecord(BaseModel):
     run_id: UUID = Field(default_factory=uuid4)
     attempt_id: UUID = Field(default_factory=uuid4)
@@ -112,7 +139,7 @@ class RunRecord(BaseModel):
     lease_expires_at: datetime | None = None
     heartbeat_sequence: int = 0
 
-    def to_run_spec(self) -> ExecutionRunSpec:
+    def to_run_spec(self) -> RunExecutionSpec:
         prompt = str(self.project_metadata.get("prompt", ""))
         project_metadata = dict(self.project_metadata)
         project_metadata.pop("prompt", None)
@@ -165,7 +192,7 @@ class RunRecord(BaseModel):
                 }
             )
 
-        return ExecutionRunSpec(
+        return RunExecutionSpec(
             run_id=self.run_id,
             experiment_id=self.experiment_id,
             dataset_version_id=self.dataset_version_id,

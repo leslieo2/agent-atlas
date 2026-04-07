@@ -10,7 +10,6 @@ from app.execution.application.ports import ExecutionControlPort
 from app.execution.contracts import (
     CancelRequest,
     ExecutionCapability,
-    ExecutionRunSpec,
     Heartbeat,
     RunHandle,
     RunStatusSnapshot,
@@ -18,6 +17,7 @@ from app.execution.contracts import (
 )
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.runs.application.ports import RunRepository
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus
