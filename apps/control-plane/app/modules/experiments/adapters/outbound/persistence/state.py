@@ -1,35 +1,38 @@
 from __future__ import annotations
 
-from typing import cast
 from uuid import UUID
 
 from app.db.persistence import StatePersistence
-from app.infrastructure.repositories.common import persistence, to_uuid
+from app.infrastructure.repositories.common import resolve_state_persistence, to_uuid
 from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
-
-state_persistence = cast(StatePersistence, persistence)
 
 
 class StateExperimentRepository:
+    def __init__(self, persistence: StatePersistence | None = None) -> None:
+        self._persistence = resolve_state_persistence(persistence)
+
     def list(self) -> list[ExperimentRecord]:
-        return state_persistence.list_experiments()
+        return self._persistence.list_experiments()
 
     def get(self, experiment_id: str | UUID) -> ExperimentRecord | None:
-        return state_persistence.get_experiment(to_uuid(experiment_id))
+        return self._persistence.get_experiment(to_uuid(experiment_id))
 
     def save(self, experiment: ExperimentRecord) -> None:
-        state_persistence.save_experiment(experiment)
+        self._persistence.save_experiment(experiment)
 
 
 class StateRunEvaluationRepository:
+    def __init__(self, persistence: StatePersistence | None = None) -> None:
+        self._persistence = resolve_state_persistence(persistence)
+
     def list_for_experiment(self, experiment_id: str | UUID) -> list[RunEvaluationRecord]:
-        return state_persistence.list_run_evaluations(to_uuid(experiment_id))
+        return self._persistence.list_run_evaluations(to_uuid(experiment_id))
 
     def get_by_run(self, run_id: str | UUID) -> RunEvaluationRecord | None:
-        return state_persistence.get_run_evaluation_by_run(to_uuid(run_id))
+        return self._persistence.get_run_evaluation_by_run(to_uuid(run_id))
 
     def save(self, record: RunEvaluationRecord) -> None:
-        state_persistence.save_run_evaluation(record)
+        self._persistence.save_run_evaluation(record)
 
     def delete_for_experiment(self, experiment_id: str | UUID) -> None:
-        state_persistence.delete_run_evaluations(to_uuid(experiment_id))
+        self._persistence.delete_run_evaluations(to_uuid(experiment_id))

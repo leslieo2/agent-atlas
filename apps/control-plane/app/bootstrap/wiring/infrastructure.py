@@ -47,6 +47,7 @@ from app.infrastructure.repositories import (
     StatePublishedAgentRepository,
     StateSystemStatus,
 )
+from app.infrastructure.repositories.common import state_storage
 from app.modules.agents.application.ports import (
     FrameworkRegistryPort,
     PublishedAgentCatalogPort,
@@ -121,16 +122,17 @@ def _default_phoenix_otlp_endpoint(base_url: str | None) -> str | None:
 
 
 def build_infrastructure() -> InfrastructureBundle:
-    run_repository = StateRunRepository()
-    trajectory_repository = StateTrajectoryRepository()
-    trace_repository = StateTraceRepository()
-    dataset_repository = StateDatasetRepository()
-    experiment_repository = StateExperimentRepository()
-    run_evaluation_repository = StateRunEvaluationRepository()
-    export_repository = StateExportRepository()
-    published_agent_repository = StatePublishedAgentRepository()
-    approval_policy_repository = StateApprovalPolicyRepository()
-    system_status = StateSystemStatus()
+    persistence = state_storage.current
+    run_repository = StateRunRepository(persistence)
+    trajectory_repository = StateTrajectoryRepository(persistence)
+    trace_repository = StateTraceRepository(persistence)
+    dataset_repository = StateDatasetRepository(persistence)
+    experiment_repository = StateExperimentRepository(persistence)
+    run_evaluation_repository = StateRunEvaluationRepository(persistence)
+    export_repository = StateExportRepository(persistence)
+    published_agent_repository = StatePublishedAgentRepository(persistence)
+    approval_policy_repository = StateApprovalPolicyRepository(persistence)
+    system_status = StateSystemStatus(persistence)
     framework_plugins = discover_framework_plugins()
     framework_registry = FrameworkRegistry(plugins=framework_plugins)
     published_execution_dispatcher = PublishedAgentExecutionDispatcher(plugins=framework_plugins)

@@ -1,24 +1,24 @@
 from __future__ import annotations
 
-from typing import cast
 from uuid import UUID
 
 from app.db.persistence import StatePersistence
-from app.infrastructure.repositories.common import persistence, to_uuid
+from app.infrastructure.repositories.common import resolve_state_persistence, to_uuid
 from app.modules.exports.domain.models import ArtifactMetadata
-
-state_persistence = cast(StatePersistence, persistence)
 
 
 class StateExportRepository:
+    def __init__(self, persistence: StatePersistence | None = None) -> None:
+        self._persistence = resolve_state_persistence(persistence)
+
     def get(self, artifact_id: str | UUID) -> ArtifactMetadata | None:
-        return state_persistence.get_artifact(to_uuid(artifact_id))
+        return self._persistence.get_artifact(to_uuid(artifact_id))
 
     def list(self) -> list[ArtifactMetadata]:
-        return state_persistence.list_artifacts()
+        return self._persistence.list_artifacts()
 
     def save(self, artifact: ArtifactMetadata) -> None:
-        state_persistence.save_artifact(artifact)
+        self._persistence.save_artifact(artifact)
 
 
 __all__ = ["StateExportRepository"]
