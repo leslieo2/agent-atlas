@@ -91,7 +91,7 @@ Files kept at the test root are also classified:
 - TDD loop for component and utility work: `cd apps/web && npm run test:tdd`
 - TDD loop for isolated unit work: `cd apps/web && npm run test:tdd:unit`
 - TDD loop for component integration work: `cd apps/web && npm run test:tdd:integration`
-- Hermetic frontend CI gate: `cd apps/web && npm run ci`
+- Hermetic frontend CI gate: `cd apps/web && make ci`
 - Full local verification gate: `cd apps/web && npm run verify:full`
 
 `apps/web/test/setup.ts` provides stable browser shims for `matchMedia`, `ResizeObserver`, and `IntersectionObserver`, which avoids false failures in jsdom-based integration tests.

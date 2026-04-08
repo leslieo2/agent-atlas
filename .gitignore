@@ -63,6 +63,8 @@ htmlcov/
 
 # Tooling artifacts
 **/.DS_Store
+.phoenix/
+apps/control-plane/.agent-atlas-*.db
 
 # Local planning docs
 prd.md

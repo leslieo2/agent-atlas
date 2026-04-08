@@ -125,6 +125,9 @@ make sync
 - `make sync`: recreate `.venv` exactly from `uv.lock`
 - `make install-export`: sync dev plus optional export dependencies such as Parquet support
 
+Use `make install` for day-to-day local development and `make sync` when you need a lockfile-frozen
+environment such as CI or clean reproducibility checks.
+
 The backend environment is locked together with the local contracts and `runner-*` packages through
 `uv.lock`; `make sync` does not perform any lock-external `uv pip install` steps.
 

@@ -6,7 +6,7 @@ This backend is a FastAPI service rooted in `app/`. Feature code lives under `ap
 ## Build, Test, and Development Commands
 Run commands from `apps/control-plane/`.
 
-- `make install`: create `.venv` and install runtime + dev dependencies.
+- `make install`: sync runtime + dev dependencies for local development.
 - `make sync`: recreate `.venv` from `uv.lock` for a reproducible environment.
 - `make fmt`: format code with Ruff and verify Python files compile.
 - `make lint`: run Ruff lint and format checks.

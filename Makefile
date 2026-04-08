@@ -1,7 +1,25 @@
-.PHONY: help install backend-install frontend-install dev lint typecheck test build backend-ci frontend-ci frontend-e2e ci
+.PHONY: help install backend-install frontend-install dev lint typecheck test build \
+	backend-lint backend-typecheck backend-test backend-ci \
+	frontend-lint frontend-typecheck frontend-test frontend-build frontend-ci frontend-e2e \
+	contracts-lint contracts-build contracts-smoke contracts-ci \
+	runner-base-lint runner-base-build runner-base-smoke runner-base-ci \
+	runner-langgraph-lint runner-langgraph-build runner-langgraph-smoke runner-langgraph-ci \
+	runner-openai-agents-lint runner-openai-agents-build runner-openai-agents-smoke runner-openai-agents-ci \
+	ci-apps ci-packages ci ci-all
 
 CONTROL_PLANE_DIR := apps/control-plane
 WEB_DIR := apps/web
+CONTRACTS_DIR := packages/contracts/python
+RUNNER_BASE_DIR := runtimes/runner-base
+RUNNER_LANGGRAPH_DIR := runtimes/runner-langgraph
+RUNNER_OPENAI_AGENTS_DIR := runtimes/runner-openai-agents
+CI_JOBS ?= $(shell sh -c 'getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2')
+
+ifneq ($(filter -j -j%,$(MAKEFLAGS)),)
+PARALLEL_MAKE_FLAGS :=
+else
+PARALLEL_MAKE_FLAGS := -j$(CI_JOBS)
+endif
 
 API_HOST ?= 127.0.0.1
 API_PORT ?= 8000
@@ -25,14 +43,16 @@ help:
 		'  make backend-install Install backend dependencies' \
 		'  make frontend-install Install frontend dependencies' \
 		'  make dev             Start Redis/Phoenix, backend API, backend worker, and frontend dev server' \
-		'  make lint            Run backend and frontend lint checks' \
-		'  make typecheck       Run backend and frontend type checks' \
-		'  make test            Run backend and frontend tests' \
-		'  make build           Run frontend production build' \
-		'  make backend-ci      Run backend CI checks' \
-		'  make frontend-ci     Run hermetic frontend CI checks' \
+		'  make lint            Run repo-wide lint and syntax checks' \
+		'  make typecheck       Run repo-wide type checks where defined' \
+		'  make test            Run app tests and shared package smoke checks' \
+		'  make build           Build frontend and Python package distributions' \
+		'  make ci-apps         Run app CI checks' \
+		'  make ci-packages     Run shared package and runtime CI checks' \
+		'  make backend-ci      Run backend CI checks (auto-parallel)' \
+		'  make frontend-ci     Run hermetic frontend CI checks (auto-parallel)' \
 		'  make frontend-e2e    Run frontend local browser smoke checks' \
-		'  make ci              Run backend and hermetic frontend CI checks'
+		'  make ci              Run full monorepo CI coverage, including shared packages and runtimes (auto-parallel)'
 
 install: backend-install frontend-install
 
@@ -161,27 +181,96 @@ dev:
 	exit "$$status"
 
 lint:
-	$(MAKE) -C $(CONTROL_PLANE_DIR) lint
-	npm --prefix $(WEB_DIR) run lint
+	+$(MAKE) $(PARALLEL_MAKE_FLAGS) backend-lint frontend-lint contracts-lint runner-base-lint runner-langgraph-lint runner-openai-agents-lint
 
 typecheck:
-	$(MAKE) -C $(CONTROL_PLANE_DIR) typecheck
-	npm --prefix $(WEB_DIR) run typecheck
+	+$(MAKE) $(PARALLEL_MAKE_FLAGS) backend-typecheck frontend-typecheck
 
 test:
-	$(MAKE) -C $(CONTROL_PLANE_DIR) test
-	npm --prefix $(WEB_DIR) run test
+	+$(MAKE) $(PARALLEL_MAKE_FLAGS) backend-test frontend-test contracts-smoke runner-base-smoke runner-langgraph-smoke runner-openai-agents-smoke
 
 build:
-	npm --prefix $(WEB_DIR) run build
+	+$(MAKE) $(PARALLEL_MAKE_FLAGS) frontend-build contracts-build runner-base-build runner-langgraph-build runner-openai-agents-build
+
+backend-lint:
+	$(MAKE) -C $(CONTROL_PLANE_DIR) lint
+
+backend-typecheck:
+	$(MAKE) -C $(CONTROL_PLANE_DIR) typecheck
+
+backend-test:
+	$(MAKE) -C $(CONTROL_PLANE_DIR) test
 
 backend-ci:
-	$(MAKE) -C $(CONTROL_PLANE_DIR) ci
+	+$(MAKE) -C $(CONTROL_PLANE_DIR) ci
+
+frontend-lint:
+	$(MAKE) -C $(WEB_DIR) lint
+
+frontend-typecheck:
+	$(MAKE) -C $(WEB_DIR) typecheck
+
+frontend-test:
+	$(MAKE) -C $(WEB_DIR) test
+
+frontend-build:
+	$(MAKE) -C $(WEB_DIR) build
 
 frontend-ci:
-	npm --prefix $(WEB_DIR) run verify:ci
+	+$(MAKE) -C $(WEB_DIR) ci
 
 frontend-e2e:
-	npm --prefix $(WEB_DIR) run test:e2e
+	$(MAKE) -C $(WEB_DIR) e2e
 
-ci: backend-ci frontend-ci
+contracts-lint:
+	python3 -m compileall -q $(CONTRACTS_DIR)/src
+
+contracts-build:
+	cd $(CONTRACTS_DIR) && uv build --sdist --wheel
+
+contracts-smoke:
+	cd $(CONTRACTS_DIR) && uv run --with-editable . python -c "import agent_atlas_contracts"
+
+contracts-ci: contracts-lint contracts-build contracts-smoke
+
+runner-base-lint:
+	python3 -m compileall -q $(RUNNER_BASE_DIR)/src $(RUNNER_BASE_DIR)/validation
+
+runner-base-build:
+	cd $(RUNNER_BASE_DIR) && uv build --sdist --wheel
+
+runner-base-smoke:
+	cd $(RUNNER_BASE_DIR) && uv run --no-project --with-editable ../../packages/contracts/python --with-editable . python -c "import agent_atlas_runner_base"
+
+runner-base-ci: runner-base-lint runner-base-build runner-base-smoke
+
+runner-langgraph-lint:
+	python3 -m compileall -q $(RUNNER_LANGGRAPH_DIR)/src
+
+runner-langgraph-build:
+	cd $(RUNNER_LANGGRAPH_DIR) && uv build --sdist --wheel
+
+runner-langgraph-smoke:
+	cd $(RUNNER_LANGGRAPH_DIR) && uv run --no-project --with-editable ../../packages/contracts/python --with-editable ../runner-base --with-editable . python -c "import agent_atlas_runner_langgraph"
+
+runner-langgraph-ci: runner-langgraph-lint runner-langgraph-build runner-langgraph-smoke
+
+runner-openai-agents-lint:
+	python3 -m compileall -q $(RUNNER_OPENAI_AGENTS_DIR)/src
+
+runner-openai-agents-build:
+	cd $(RUNNER_OPENAI_AGENTS_DIR) && uv build --sdist --wheel
+
+runner-openai-agents-smoke:
+	cd $(RUNNER_OPENAI_AGENTS_DIR) && uv run --no-project --with-editable ../../packages/contracts/python --with-editable ../runner-base --with-editable . python -c "import agent_atlas_runner_openai_agents"
+
+runner-openai-agents-ci: runner-openai-agents-lint runner-openai-agents-build runner-openai-agents-smoke
+
+ci-apps: backend-ci frontend-ci
+
+ci-packages: contracts-ci runner-base-ci runner-langgraph-ci runner-openai-agents-ci
+
+ci:
+	+$(MAKE) $(PARALLEL_MAKE_FLAGS) ci-all
+
+ci-all: ci-apps ci-packages

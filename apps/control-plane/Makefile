@@ -1,7 +1,6 @@
 .PHONY: install install-export sync lint fmt typecheck test test-unit test-integration test-e2e test-e2e-live test-tdd-unit test-tdd-integration test-check security contract-sync contract-check run-api run-worker ci
 
 install:
-	rm -rf .venv
 	uv sync --extra dev
 
 sync:
@@ -70,3 +69,4 @@ ci:
 	$(MAKE) typecheck
 	$(MAKE) test-check
 	$(MAKE) security
+	$(MAKE) contract-check

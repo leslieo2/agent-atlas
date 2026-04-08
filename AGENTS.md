@@ -11,11 +11,12 @@ This repository is organized as a monorepo with product-facing apps at the top l
 - `runtimes/`: runner scaffolds for framework-specific execution adapters.
 - `docs/`, `infra/`, and `schemas/`: architecture docs, deployment assets, and neutral schema definitions.
 - `apps/web/test`: Vitest + React Testing Library test files for UI and logic.
-- `apps/control-plane/.venv`, `apps/control-plane/.uv_cache`, `apps/web/node_modules`, and `apps/web/.next` are generated and should not be committed.
+- `apps/control-plane/.venv`, `apps/control-plane/.uv_cache`, `apps/web/node_modules`, `apps/web/.next`, package/runtime `.venv` directories, and local CI artifacts such as `.phoenix/` or `apps/control-plane/.agent-atlas-*.db` are generated and should not be committed.
 
 ## Build, Test, and Development Commands
 - Control-plane setup and checks (run in `apps/control-plane/`):
-  - `make install` — create `.venv` and install runtime + dev dependencies via `.[dev]` in `pyproject.toml`.
+  - `make install` — sync runtime + dev dependencies for local development.
+  - `make sync` — recreate the backend environment from `uv.lock` for reproducible CI/local bootstrap.
   - `make fmt` — run Ruff formatter and Python compile check.
   - `make lint` — run Ruff lint/format checks.
   - `make typecheck` — run mypy on `app/`.
@@ -25,13 +26,21 @@ This repository is organized as a monorepo with product-facing apps at the top l
   - `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` — start API locally.
 - Web app setup and checks (run in `apps/web/`):
   - `npm install` — install JS dependencies.
+  - `make install-ci` — install frontend dependencies with `npm ci` for reproducible CI runs.
   - `npm run dev` — run Next.js dev server on `http://localhost:3000`.
   - `npm run lint` — run ESLint.
   - `npm run typecheck` — run TypeScript strict check (`tsc --noEmit`).
   - `npm run test` — run Vitest suite.
   - `npm run build` — production build.
-  - `npm run ci` — run the hermetic frontend CI bundle (`lint + typecheck + coverage + build`).
+  - `make ci` — run the frontend CI bundle (`lint + typecheck + coverage + build`).
   - `npm run verify:full` — run the local full frontend verification bundle, including Playwright e2e.
+- Root monorepo checks (run in repository root):
+  - `make lint` — run repo-wide lint and syntax checks across apps, shared packages, and runtimes.
+  - `make typecheck` — run all defined type checks.
+  - `make test` — run app tests and shared package/runtime smoke checks.
+  - `make build` — build the frontend and Python package distributions.
+  - `make ci-packages` — validate shared packages and runtimes.
+  - `make ci` — run full monorepo CI coverage across backend, frontend, shared packages, and runtimes.
 
 ## Coding Style & Naming Conventions
 - Python: 4-space indentation, LF line endings, quote-style double, line length 100 (`ruff` config).

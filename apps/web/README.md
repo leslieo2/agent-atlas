@@ -92,12 +92,13 @@ through canonical control-plane settings and explicit run execution configuratio
 ```bash
 cd /Users/leslie/PycharmProjects/agent-atlas/apps/web
 npm install
+make install-ci
 npm run dev
 npm run lint
 npm run typecheck
 npm run test
 npm run build
-npm run ci
+make ci
 npm run verify:full
 ```
 
@@ -133,7 +134,8 @@ For the standard frontend CI bundle:
 
 ```bash
 cd /Users/leslie/PycharmProjects/agent-atlas/apps/web
-npm run ci
+make install-ci
+make ci
 ```
 
 For the full local verification bundle, including browser smoke coverage against a local backend:

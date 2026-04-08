@@ -17,6 +17,7 @@ This is a Next.js App Router frontend in TypeScript.
 
 ## Build, Test, and Development Commands
 - `npm install`: install dependencies.
+- `make install-ci`: install dependencies with `npm ci` for reproducible CI runs.
 - `npm run dev`: start local dev server at `http://localhost:3000`.
 - `npm run lint`: run ESLint.
 - `npm run typecheck`: run TypeScript strict checks (`tsc --noEmit`).
@@ -25,7 +26,7 @@ This is a Next.js App Router frontend in TypeScript.
 - `npm run test`: run Vitest suite.
 - `npm run test:watch`: watch mode for rapid iteration.
 - `npm run build`: production build.
-- `npm run ci`: hermetic frontend CI bundle (`lint + typecheck + coverage + build`).
+- `make ci`: hermetic frontend CI bundle (`lint + typecheck + coverage + build`).
 - `npm run check` / `npm run verify`: grouped checks for daily work.
 - `npm run verify:full`: local full verification bundle (`npm run ci` + Playwright e2e).
 
