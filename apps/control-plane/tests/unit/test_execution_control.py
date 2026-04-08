@@ -5,9 +5,11 @@ from uuid import uuid4
 import pytest
 from app.core.errors import UnsupportedOperationError
 from app.execution.adapters import K8sJobExecutionAdapter, LocalRunnerExecutionAdapter
-from app.execution.contracts import CancelRequest, ExecutionRunSpec
+from app.execution.domain import CancelRequest
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.runs.domain.models import RunRecord
 from app.modules.runs.domain.policies import RunAggregate
+from app.modules.shared.application.ports import RunExecutionPayload
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
 from app.modules.shared.domain.jobs import EnqueuedExecutionJob
 from app.modules.shared.domain.models import ProvenanceMetadata
@@ -31,7 +33,7 @@ class StubJobQueue:
     def __init__(self) -> None:
         self.enqueued: list[EnqueuedExecutionJob] = []
 
-    def enqueue_run_execution(self, run_spec: ExecutionRunSpec, *, job_id: str) -> None:
+    def enqueue_run_execution(self, run_spec: RunExecutionPayload, *, job_id: str) -> None:
         self.enqueued.append(
             EnqueuedExecutionJob(
                 job_id=f"run-execution:{job_id}",

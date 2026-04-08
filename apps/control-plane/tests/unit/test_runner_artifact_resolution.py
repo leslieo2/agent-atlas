@@ -17,8 +17,8 @@ from app.execution.adapters import (
     runner_run_spec_from_run_spec,
 )
 from app.execution.application.results import PublishedRunExecutionResult, RuntimeExecutionResult
-from app.execution.contracts import ExecutionRunSpec
 from app.modules.agents.domain.models import PublishedAgent
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import ProvenanceMetadata
 

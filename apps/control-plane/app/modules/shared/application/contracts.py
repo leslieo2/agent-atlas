@@ -5,8 +5,10 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from agent_atlas_contracts.runtime import TraceIngestEvent
+
 from app.modules.shared.domain.observability import TracingMetadata, TrajectoryStepRecord
-from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
+from app.modules.shared.domain.traces import TraceSpan
 
 
 class TraceQueryPort(Protocol):

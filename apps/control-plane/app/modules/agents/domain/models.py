@@ -9,16 +9,9 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
-from agent_atlas_contracts.runtime import (
-    AgentBuildContext as AgentBuildContext,
-)
-from agent_atlas_contracts.runtime import (
-    AgentManifest,
-    ExecutionReferenceMetadata,
-)
-from agent_atlas_contracts.runtime import (
-    PublishedAgent as ContractPublishedAgent,
-)
+from agent_atlas_contracts.execution import ExecutionTarget
+from agent_atlas_contracts.runtime import AgentManifest, ExecutionReferenceMetadata
+from agent_atlas_contracts.runtime import PublishedAgent as ContractPublishedAgentSnapshot
 from pydantic import BaseModel, Field
 
 from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
@@ -27,7 +20,6 @@ from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
 from app.modules.shared.domain.execution import (
     ExecutionBinding,
     ExecutionProfile,
-    ExecutionTarget,
     ToolsetConfig,
 )
 from app.modules.shared.domain.observability import RunLineage, TracePointer, TracingMetadata
@@ -191,16 +183,13 @@ class AgentValidationOutcomeSummary(BaseModel):
     reason: str | None = None
 
 
-PublishedAgentSnapshot = ContractPublishedAgent
-
-
-def published_agent_snapshot(
-    snapshot: Mapping[str, Any] | PublishedAgentSnapshot,
-) -> PublishedAgentSnapshot:
+def normalize_contract_published_agent_snapshot(
+    snapshot: Mapping[str, Any] | ContractPublishedAgentSnapshot,
+) -> ContractPublishedAgentSnapshot:
     sealed = (
         snapshot
-        if isinstance(snapshot, PublishedAgentSnapshot)
-        else PublishedAgentSnapshot.model_validate(snapshot)
+        if isinstance(snapshot, ContractPublishedAgentSnapshot)
+        else ContractPublishedAgentSnapshot.model_validate(snapshot)
     )
     raw_family = sealed.manifest.agent_family
     if isinstance(raw_family, str) and raw_family.strip():
@@ -216,14 +205,18 @@ def published_agent_snapshot(
     )
 
 
-def published_agent_snapshot_agent_family(snapshot: PublishedAgentSnapshot) -> str:
+def contract_published_agent_snapshot_agent_family(
+    snapshot: ContractPublishedAgentSnapshot,
+) -> str:
     raw_family = snapshot.manifest.agent_family
     if isinstance(raw_family, str) and raw_family.strip():
         return raw_family
     return agent_family_for_framework(snapshot.framework).value
 
 
-def published_agent_snapshot_source_fingerprint_or_raise(snapshot: PublishedAgentSnapshot) -> str:
+def contract_published_agent_snapshot_source_fingerprint_or_raise(
+    snapshot: ContractPublishedAgentSnapshot,
+) -> str:
     fingerprint = snapshot.source_fingerprint.strip()
     if fingerprint:
         return fingerprint
@@ -233,8 +226,8 @@ def published_agent_snapshot_source_fingerprint_or_raise(snapshot: PublishedAgen
     )
 
 
-def published_agent_snapshot_execution_reference_or_raise(
-    snapshot: PublishedAgentSnapshot,
+def contract_published_agent_snapshot_execution_reference_or_raise(
+    snapshot: ContractPublishedAgentSnapshot,
 ) -> ExecutionReferenceMetadata:
     execution_reference = ExecutionReferenceMetadata.model_validate(snapshot.execution_reference)
     artifact_ref = (
@@ -272,8 +265,11 @@ class PublishedAgent(BaseModel):
     validation_outcome: AgentValidationOutcomeSummary | None = None
 
     @classmethod
-    def from_snapshot(cls, snapshot: Mapping[str, Any] | PublishedAgentSnapshot) -> PublishedAgent:
-        sealed = published_agent_snapshot(snapshot)
+    def from_snapshot(
+        cls,
+        snapshot: Mapping[str, Any] | ContractPublishedAgentSnapshot,
+    ) -> PublishedAgent:
+        sealed = normalize_contract_published_agent_snapshot(snapshot)
         return cls(
             manifest=sealed.manifest.model_copy(deep=True),
             entrypoint=sealed.entrypoint,
@@ -358,8 +354,8 @@ class PublishedAgent(BaseModel):
     def to_snapshot(self) -> dict[str, Any]:
         return self.to_snapshot_model().model_dump(mode="json")
 
-    def to_snapshot_model(self) -> PublishedAgentSnapshot:
-        return PublishedAgentSnapshot(
+    def to_snapshot_model(self) -> ContractPublishedAgentSnapshot:
+        return ContractPublishedAgentSnapshot(
             manifest=self.manifest.model_copy(deep=True),
             entrypoint=self.entrypoint,
             published_at=self.published_at,

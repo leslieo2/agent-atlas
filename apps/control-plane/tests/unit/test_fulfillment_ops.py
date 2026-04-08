@@ -3,8 +3,8 @@ from __future__ import annotations
 from uuid import UUID
 
 import pytest
+from agent_atlas_contracts.runtime import AgentBuildContext
 from agents import Agent
-from app.modules.agents.domain.models import AgentBuildContext
 from tests.fixtures.agents.fulfillment_ops import (
     ToolBackendError,
     build_agent,

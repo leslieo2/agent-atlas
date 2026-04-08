@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from agent_atlas_contracts.runtime import TraceIngestEvent
 from app.execution.adapters.runner import DockerContainerRunner
 from app.execution.application.results import (
     PublishedRunExecutionResult,
@@ -8,7 +9,6 @@ from app.execution.application.results import (
 )
 from app.execution.metadata import runner_image
 from app.modules.shared.domain.enums import StepType
-from app.modules.shared.domain.traces import TraceIngestEvent
 
 
 def install_fake_docker_runtime(monkeypatch, *, outputs: dict[str, str]) -> None:

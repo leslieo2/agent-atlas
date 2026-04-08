@@ -19,6 +19,7 @@ from agent_atlas_contracts.execution import (
     TerminalMetrics,
     TerminalResult,
 )
+from agent_atlas_contracts.runtime import TraceIngestEvent
 from agent_atlas_runner_base import materialization as runner_materialization
 from agent_atlas_runner_base.claude_code import main as claude_code_runner_main
 from app.core.errors import AgentFrameworkMismatchError, AppError
@@ -35,12 +36,11 @@ from app.execution.application.results import (
     PublishedRunExecutionResult,
     RuntimeExecutionResult,
 )
-from app.execution.contracts import ExecutionRunSpec
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.runs.domain.models import RunRecord
 from app.modules.runs.domain.policies import RunAggregate
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 from app.modules.shared.domain.models import ProvenanceMetadata
-from app.modules.shared.domain.traces import TraceIngestEvent
 
 
 def _runner_spec() -> RunnerRunSpec:

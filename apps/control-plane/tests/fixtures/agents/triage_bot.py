@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from agent_atlas_contracts.runtime import AgentBuildContext
 from agents import Agent
-from app.modules.agents.domain.models import AgentBuildContext
 
 
 def build_agent(context: AgentBuildContext) -> Agent[AgentBuildContext]:

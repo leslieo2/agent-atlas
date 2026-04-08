@@ -3,11 +3,12 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
+from agent_atlas_contracts.execution import ExecutionTarget
 from app.modules.experiments.adapters.inbound.http.schemas import ExperimentSpecRequest
 from app.modules.runs.adapters.inbound.http.schemas import RunCreateRequest, RunResponse
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind
-from app.modules.shared.domain.models import ExecutionProfile, ExecutionTarget
+from app.modules.shared.domain.models import ExecutionProfile
 from pydantic import ValidationError
 
 

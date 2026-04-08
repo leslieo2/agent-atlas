@@ -5,7 +5,7 @@ from uuid import UUID
 
 from app.core.errors import AgentNotPublishedError
 from app.execution.application.ports import ExecutionControlPort
-from app.execution.contracts import CancelRequest
+from app.execution.domain import CancelRequest
 from app.modules.agents.application.ports import PublishedAgentCatalogPort
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.application.services import RunSubmissionService

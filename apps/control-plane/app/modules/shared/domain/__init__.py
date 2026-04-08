@@ -1,10 +1,3 @@
-from agent_atlas_contracts.execution import ExecutionTarget
-from agent_atlas_contracts.runtime import (
-    ExecutionReferenceMetadata,
-    TraceIngestEvent,
-    TraceTelemetryMetadata,
-)
-
 from app.modules.shared.domain.enums import (
     AdapterKind,
     AgentFamily,
@@ -28,14 +21,10 @@ __all__ = [
     "AdapterKind",
     "AgentFamily",
     "ArtifactFormat",
-    "ExecutionReferenceMetadata",
-    "ExecutionTarget",
     "ProvenanceMetadata",
     "RunStatus",
     "StepType",
-    "TraceIngestEvent",
     "TraceSpan",
-    "TraceTelemetryMetadata",
     "TracingMetadata",
     "TrajectoryStepRecord",
     "build_source_artifact_ref",

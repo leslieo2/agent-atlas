@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Final
 
+from agent_atlas_contracts.runtime import AgentBuildContext
 from agents import Agent, ModelSettings, RunContextWrapper, function_tool
 from app.core.errors import AppError
-from app.modules.agents.domain.models import AgentBuildContext
 
 
 class ToolBackendError(AppError):

@@ -70,6 +70,56 @@ def test_runs_domain_does_not_import_execution_plane() -> None:
     assert violations == []
 
 
+def test_shared_and_agent_domain_surfaces_do_not_reexport_contract_models() -> None:
+    boundary_files = (
+        Path("app/modules/shared/domain/__init__.py"),
+        Path("app/modules/shared/domain/execution.py"),
+        Path("app/modules/shared/domain/models.py"),
+        Path("app/modules/shared/domain/traces.py"),
+        Path("app/modules/agents/domain/__init__.py"),
+    )
+
+    violations: list[str] = []
+    for path in boundary_files:
+        violations.extend(_collect_contract_reexports(path))
+
+    assert violations == []
+
+
+def test_execution_contracts_module_does_not_shadow_execution_owned_control_records() -> None:
+    path = Path("app/execution/contracts.py")
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    forbidden_classes = {
+        "Heartbeat",
+        "RunHandle",
+        "RunTerminalSummary",
+        "RunStatusSnapshot",
+        "CancelRequest",
+        "ExecutionCapability",
+    }
+
+    violations: list[str] = []
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and node.name in forbidden_classes:
+            violations.append(f"{path}:{node.lineno}:{node.name}")
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "ExecutionRunSpec":
+                    violations.append(f"{path}:{node.lineno}:ExecutionRunSpec")
+
+    assert violations == []
+
+
+def test_trace_runtime_translation_does_not_rebuild_contract_events_locally() -> None:
+    violations: list[str] = []
+    for path in sorted(Path("app").rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        if "TraceIngestEvent.model_validate(event.model_dump(" in text:
+            violations.append(str(path))
+
+    assert violations == []
+
+
 def _collect_layer_violations(
     *,
     base_dir: Path,
@@ -127,6 +177,37 @@ def _collect_shared_feature_violations(*, base_dir: Path) -> list[str]:
             violations.append(f"{path}:{lineno}:{name}")
 
     return violations
+
+
+def _collect_contract_reexports(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    imported_contract_names: set[str] = set()
+    exported_names: set[str] = set()
+
+    for node in tree.body:
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.module.startswith("agent_atlas_contracts.")
+        ):
+            for alias in node.names:
+                imported_contract_names.add(alias.asname or alias.name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "__all__":
+                    exported_names.update(_string_literals(node.value))
+
+    return [f"{path}:{name}" for name in sorted(imported_contract_names & exported_names)]
+
+
+def _string_literals(node: ast.AST) -> set[str]:
+    if isinstance(node, ast.List | ast.Tuple | ast.Set):
+        return {
+            element.value
+            for element in node.elts
+            if isinstance(element, ast.Constant) and isinstance(element.value, str)
+        }
+    return set()
 
 
 def _collect_cross_feature_domain_imports(*, base_dir: Path) -> list[str]:

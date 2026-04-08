@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from agent_atlas_contracts.runtime import TraceIngestEvent
+
 from app.modules.shared.domain.observability import TracingMetadata
-from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
+from app.modules.shared.domain.traces import TraceSpan
 
 
 class NoopTraceExporter:

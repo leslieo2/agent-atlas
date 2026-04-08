@@ -3,12 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from uuid import UUID
 
-from agent_atlas_contracts.runtime import (
-    StepType as ContractStepType,
-)
-from agent_atlas_contracts.runtime import (
-    TraceIngestEvent as ContractTraceIngestEvent,
-)
+from agent_atlas_contracts.runtime import StepType as ContractStepType
+from agent_atlas_contracts.runtime import TraceIngestEvent
 
 from app.core.errors import AppError, UnsupportedOperationError
 from app.execution.application.ports import (
@@ -26,23 +22,22 @@ from app.execution.application.results import (
 )
 from app.execution.contracts import runner_run_spec_from_run_spec
 from app.execution.metadata import requested_runner_backend, uses_k8s_runner_backend
-from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
+from app.modules.runs.domain.models import RunExecutionSpec
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus, StepType
 from app.modules.shared.domain.observability import TraceTelemetryMetadata
-from app.modules.shared.domain.traces import TraceIngestEvent
 
 
 @dataclass(frozen=True)
 class RunExecutionContext:
     run_id: UUID
-    payload: ExecutionRunSpec
+    payload: RunExecutionSpec
     image_digest: str
     prompt_version: str
     runner_submission: RunnerSubmissionRecord | None = None
 
     @classmethod
-    def from_spec(cls, run_id: UUID, payload: ExecutionRunSpec) -> RunExecutionContext:
+    def from_spec(cls, run_id: UUID, payload: RunExecutionSpec) -> RunExecutionContext:
         return cls(
             run_id=run_id,
             payload=payload,
@@ -102,12 +97,6 @@ def normalize_run_failure(exc: Exception) -> RunFailureDetails:
 
     message = str(exc).strip() or "run execution failed"
     return RunFailureDetails(code="run_execution_failed", message=message)
-
-
-def _runtime_trace_events_to_domain(
-    events: list[ContractTraceIngestEvent],
-) -> list[TraceIngestEvent]:
-    return [TraceIngestEvent.model_validate(event.model_dump(mode="json")) for event in events]
 
 
 class RunExecutionProjector:
@@ -227,7 +216,7 @@ class RunExecutionProjector:
     ) -> list[TraceIngestEvent]:
         runtime_result = result.runtime_result
         fallback_metadata = self._event_metadata(context)
-        trace_events = _runtime_trace_events_to_domain(result.projected_trace_events())
+        trace_events = result.projected_trace_events()
         if not trace_events:
             return [
                 self._build_event(
@@ -374,7 +363,7 @@ class RunExecutionService:
         self.projector = projector or RunExecutionProjector()
         self.recorder = recorder or ExecutionRecorder(sink=sink)
 
-    def execute_run(self, run_id: UUID, payload: ExecutionRunSpec) -> None:
+    def execute_run(self, run_id: UUID, payload: RunExecutionSpec) -> None:
         normalized_payload = payload.model_copy(update={"run_id": run_id})
         if not self.sink.transition_status(run_id, RunStatus.STARTING):
             return
@@ -429,7 +418,7 @@ class RunExecutionService:
             self.sink.record_failure(run_id, failure)
             self.sink.transition_status(run_id, RunStatus.FAILED, reason=failure.message)
 
-    def _runner_backend(self, payload: ExecutionRunSpec) -> str:
+    def _runner_backend(self, payload: RunExecutionSpec) -> str:
         execution_backend = payload.executor_config.backend.strip().lower()
         execution_view: object
         if payload.execution_binding is None:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from agent_atlas_contracts.execution import ExecutionArtifact
-from agent_atlas_contracts.runtime import TraceTelemetryMetadata
+from agent_atlas_contracts.runtime import TraceIngestEvent, TraceTelemetryMetadata
 from app.agent_tracing.adapters.trace_projector import TraceIngestProjector
 from app.agent_tracing.application import (
     RunObservationService,
@@ -27,7 +27,6 @@ from app.execution.application import (
     RunnerSubmissionRecord,
     RuntimeExecutionResult,
 )
-from app.execution.contracts import ExecutionRunSpec
 from app.infrastructure.repositories import (
     StateRunRepository,
     StateTraceRepository,
@@ -35,11 +34,11 @@ from app.infrastructure.repositories import (
 )
 from app.modules.runs.adapters.outbound.execution.state_sink import RunExecutionStateSink
 from app.modules.runs.adapters.outbound.telemetry import RunTracingStateRecorder
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, RunStatus, StepType
 from app.modules.shared.domain.models import ExecutionBinding
 from app.modules.shared.domain.models import ExecutionProfile as ExecutorConfig
-from app.modules.shared.domain.traces import TraceIngestEvent
 from tests.support.fake_phoenix import FakeOtlpTraceExporter
 
 

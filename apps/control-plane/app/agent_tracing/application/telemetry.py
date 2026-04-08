@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from agent_atlas_contracts.runtime import TraceIngestEvent
+
 from app.modules.shared.application.contracts import (
     RunObservationSinkPort,
     RunTracingStatePort,
@@ -12,7 +14,7 @@ from app.modules.shared.application.contracts import (
     TrajectoryStepProjectorPort,
 )
 from app.modules.shared.domain.observability import TracingMetadata, TrajectoryStepRecord
-from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
+from app.modules.shared.domain.traces import TraceSpan
 
 
 class TraceSpanRecorder:

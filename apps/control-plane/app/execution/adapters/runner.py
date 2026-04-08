@@ -39,10 +39,10 @@ from app.execution.application.ports import PublishedRunRuntimePort
 from app.execution.application.results import RunnerExecutionResult
 from app.execution.metadata import execution_binding, execution_plane_config, runner_image
 from app.modules.agents.domain.models import (
-    published_agent_snapshot,
-    published_agent_snapshot_agent_family,
-    published_agent_snapshot_execution_reference_or_raise,
-    published_agent_snapshot_source_fingerprint_or_raise,
+    contract_published_agent_snapshot_agent_family,
+    contract_published_agent_snapshot_execution_reference_or_raise,
+    contract_published_agent_snapshot_source_fingerprint_or_raise,
+    normalize_contract_published_agent_snapshot,
 )
 from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 
@@ -87,7 +87,7 @@ class PublishedArtifactResolver:
 
         snapshot = provenance.published_agent_snapshot
         try:
-            published_agent = published_agent_snapshot(snapshot)
+            published_agent = normalize_contract_published_agent_snapshot(snapshot)
         except Exception as exc:
             raise AgentLoadFailedError(
                 "published agent snapshot is missing manifest metadata",
@@ -101,10 +101,10 @@ class PublishedArtifactResolver:
                 agent_id=payload.agent_id,
             )
         try:
-            source_fingerprint = published_agent_snapshot_source_fingerprint_or_raise(
+            source_fingerprint = contract_published_agent_snapshot_source_fingerprint_or_raise(
                 published_agent
             )
-            execution_reference = published_agent_snapshot_execution_reference_or_raise(
+            execution_reference = contract_published_agent_snapshot_execution_reference_or_raise(
                 published_agent
             )
         except ValueError as exc:
@@ -124,7 +124,7 @@ class PublishedArtifactResolver:
             )
 
         return ExecutionArtifact(
-            agent_family=published_agent_snapshot_agent_family(published_agent),
+            agent_family=contract_published_agent_snapshot_agent_family(published_agent),
             framework=framework,
             entrypoint=entrypoint,
             source_fingerprint=source_fingerprint,

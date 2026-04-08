@@ -8,8 +8,7 @@ from uuid import UUID
 
 from arq.connections import ArqRedis, RedisSettings, create_pool
 
-from app.execution.contracts import ExecutionRunSpec
-from app.modules.shared.application.ports import ExecutionJobPort
+from app.modules.shared.application.ports import ExecutionJobPort, RunExecutionPayload
 from app.modules.shared.domain.jobs import EnqueuedExecutionJob, ExecutionJobKind
 
 
@@ -37,7 +36,7 @@ class ArqExecutionJobQueue(ExecutionJobPort):
         self.queue_name = queue_name
         self.pool_factory = pool_factory
 
-    def enqueue_run_execution(self, run_spec: ExecutionRunSpec, *, job_id: str) -> None:
+    def enqueue_run_execution(self, run_spec: RunExecutionPayload, *, job_id: str) -> None:
         self._enqueue(
             EnqueuedExecutionJob(
                 job_id=_run_execution_job_id(job_id),
@@ -94,7 +93,7 @@ class InlineExecutionJobQueue(ExecutionJobPort):
     def __init__(self) -> None:
         self.enqueued: list[EnqueuedExecutionJob] = []
 
-    def enqueue_run_execution(self, run_spec: ExecutionRunSpec, *, job_id: str) -> None:
+    def enqueue_run_execution(self, run_spec: RunExecutionPayload, *, job_id: str) -> None:
         self._append(
             EnqueuedExecutionJob(
                 job_id=_run_execution_job_id(job_id),

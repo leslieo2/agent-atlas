@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from agent_atlas_contracts.execution import ExecutionArtifact, RunnerBootstrapPaths
 from agent_atlas_contracts.runtime import (
+    TraceIngestEvent,
     event_envelope_to_trace_event,
     producer_for_runtime,
     trace_event_to_event_envelope,
@@ -13,10 +14,9 @@ from app.execution.application.results import (
     PublishedRunExecutionResult,
     RuntimeExecutionResult,
 )
-from app.execution.contracts import ExecutionRunSpec
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind, StepType
 from app.modules.shared.domain.models import ProvenanceMetadata
-from app.modules.shared.domain.traces import TraceIngestEvent
 
 
 def test_runner_bootstrap_paths_render_env_and_args():

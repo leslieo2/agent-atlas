@@ -3,7 +3,10 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.modules.agents.application.ports import PublishedAgentCatalogPort
-from app.modules.agents.domain.models import PublishedAgent, published_agent_snapshot
+from app.modules.agents.domain.models import (
+    PublishedAgent,
+    normalize_contract_published_agent_snapshot,
+)
 from app.modules.datasets.application.ports import DatasetRepository
 from app.modules.experiments.application.ports import (
     ExperimentRepository,
@@ -111,7 +114,9 @@ class ExperimentOrchestrator:
     def _resolve_agent(self, experiment: ExperimentRecord) -> PublishedAgent | None:
         if experiment.published_agent_snapshot is not None:
             try:
-                snapshot = published_agent_snapshot(experiment.published_agent_snapshot)
+                snapshot = normalize_contract_published_agent_snapshot(
+                    experiment.published_agent_snapshot
+                )
                 agent = PublishedAgent.from_snapshot(snapshot)
                 if (
                     experiment.published_agent_execution_binding is not None

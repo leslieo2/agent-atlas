@@ -9,7 +9,7 @@ from agent_atlas_contracts.execution import (
     RunnerRunSpec,
 )
 
-from app.execution.contracts import CancelRequest, ExecutionCapability, RunHandle, RunStatusSnapshot
+from app.execution.domain import CancelRequest, ExecutionCapability, RunHandle, RunStatusSnapshot
 from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.domain.enums import RunStatus
 

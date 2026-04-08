@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from agent_atlas_contracts.execution import RunnerRunSpec
 from agent_atlas_contracts.runtime import AgentBuildContext
+from agent_atlas_contracts.runtime import PublishedAgent as ContractPublishedAgentSnapshot
 from pydantic import SecretStr
 
 from app.modules.agents.domain.models import (
@@ -13,7 +14,6 @@ from app.modules.agents.domain.models import (
     AgentValidationRunCreateInput,
     DiscoveredAgent,
     PublishedAgent,
-    PublishedAgentSnapshot,
 )
 
 if TYPE_CHECKING:
@@ -57,7 +57,10 @@ class FrameworkRegistryPort(Protocol):
 
 
 class PublishedAgentExecutionPort(Protocol):
-    def published_agent_from_payload(self, payload: RunnerRunSpec) -> PublishedAgentSnapshot: ...
+    def published_agent_from_payload(
+        self,
+        payload: RunnerRunSpec,
+    ) -> ContractPublishedAgentSnapshot: ...
 
     def execute_published(
         self,

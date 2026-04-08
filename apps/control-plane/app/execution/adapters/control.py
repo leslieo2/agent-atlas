@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from app.core.errors import UnsupportedOperationError
 from app.execution.adapters.launchers import K8sLauncher
 from app.execution.application.ports import ExecutionControlPort
-from app.execution.contracts import (
+from app.execution.domain import (
     CancelRequest,
     ExecutionCapability,
     Heartbeat,
@@ -16,9 +16,9 @@ from app.execution.contracts import (
     RunTerminalSummary,
 )
 from app.modules.agents.domain.models import (
-    published_agent_snapshot,
-    published_agent_snapshot_execution_reference_or_raise,
-    published_agent_snapshot_source_fingerprint_or_raise,
+    contract_published_agent_snapshot_execution_reference_or_raise,
+    contract_published_agent_snapshot_source_fingerprint_or_raise,
+    normalize_contract_published_agent_snapshot,
 )
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
@@ -268,9 +268,11 @@ def _ensure_retryable_publication_snapshot(run_spec: ExecutionRunSpec) -> None:
         )
 
     try:
-        published_agent = published_agent_snapshot(provenance.published_agent_snapshot)
-        published_agent_snapshot_source_fingerprint_or_raise(published_agent)
-        published_agent_snapshot_execution_reference_or_raise(published_agent)
+        published_agent = normalize_contract_published_agent_snapshot(
+            provenance.published_agent_snapshot
+        )
+        contract_published_agent_snapshot_source_fingerprint_or_raise(published_agent)
+        contract_published_agent_snapshot_execution_reference_or_raise(published_agent)
     except (ValueError, TypeError) as exc:
         raise UnsupportedOperationError(
             "run retry requires a sealed published agent snapshot with source_fingerprint "

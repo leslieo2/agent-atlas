@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
+from agent_atlas_contracts.execution import ExecutionTarget
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -11,10 +12,7 @@ from app.modules.shared.adapters.inbound.http.execution_profiles import (
 )
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, RunStatus
-from app.modules.shared.domain.execution import (
-    ExecutionTarget,
-    ToolsetConfig,
-)
+from app.modules.shared.domain.execution import ToolsetConfig
 from app.modules.shared.domain.observability import RunLineage, TracePointer, TracingMetadata
 from app.modules.shared.domain.policies import ApprovalPolicySnapshot
 from app.modules.shared.domain.provenance import ProvenanceMetadata

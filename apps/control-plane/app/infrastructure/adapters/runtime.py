@@ -24,7 +24,7 @@ from app.execution.application.results import (
 from app.modules.agents.application.ports import PublishedAgentExecutionPort
 from app.modules.agents.domain.models import (
     adapter_kind_for_agent_family,
-    published_agent_snapshot_agent_family,
+    contract_published_agent_snapshot_agent_family,
 )
 from app.modules.shared.domain.enums import AdapterKind
 
@@ -253,7 +253,7 @@ class ModelRuntimeService:
                 payload
             )
             resolved_agent_type = adapter_kind_for_agent_family(
-                published_agent_snapshot_agent_family(published_agent)
+                contract_published_agent_snapshot_agent_family(published_agent)
             )
 
         if self.simulate_outputs:

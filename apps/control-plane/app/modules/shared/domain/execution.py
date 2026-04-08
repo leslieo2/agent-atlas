@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from agent_atlas_contracts.execution import ExecutionTarget
-from agent_atlas_contracts.runtime import (
-    ExecutionReferenceMetadata,
-)
+from agent_atlas_contracts.runtime import ExecutionReferenceMetadata
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import SkipJsonSchema
 
@@ -15,8 +12,6 @@ __all__ = [
     "EvaluatorConfig",
     "ExecutionBinding",
     "ExecutionProfile",
-    "ExecutionReferenceMetadata",
-    "ExecutionTarget",
     "ExecutorResources",
     "ModelConfig",
     "PromptConfig",

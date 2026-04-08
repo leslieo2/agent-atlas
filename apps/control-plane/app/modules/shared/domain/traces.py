@@ -4,13 +4,12 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from agent_atlas_contracts.runtime import TraceIngestEvent
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.observability import utc_now
 
-__all__ = ["TraceIngestEvent", "TraceSpan"]
+__all__ = ["TraceSpan"]
 
 
 class TraceSpan(BaseModel):

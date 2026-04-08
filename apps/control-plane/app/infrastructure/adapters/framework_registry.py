@@ -8,6 +8,7 @@ from typing import Any, Protocol, cast
 
 from agent_atlas_contracts.execution import RunnerRunSpec
 from agent_atlas_contracts.runtime import AgentBuildContext, AgentManifest
+from agent_atlas_contracts.runtime import PublishedAgent as ContractPublishedAgentSnapshot
 from pydantic import SecretStr
 
 from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
@@ -18,10 +19,9 @@ from app.modules.agents.domain.models import (
     AgentValidationStatus,
     DiscoveredAgent,
     PublishedAgent,
-    PublishedAgentSnapshot,
     adapter_kind_for_agent_family,
-    published_agent_snapshot,
-    published_agent_snapshot_agent_family,
+    contract_published_agent_snapshot_agent_family,
+    normalize_contract_published_agent_snapshot,
 )
 
 
@@ -234,14 +234,16 @@ class PublishedAgentExecutionDispatcher:
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult:
         try:
-            published_agent = published_agent_snapshot(payload.published_agent_snapshot)
+            published_agent = normalize_contract_published_agent_snapshot(
+                payload.published_agent_snapshot
+            )
         except Exception as exc:
             raise AgentLoadFailedError(
                 "run payload is missing a valid published agent snapshot",
                 agent_id=payload.agent_id,
             ) from exc
 
-        expected_family = published_agent_snapshot_agent_family(published_agent)
+        expected_family = contract_published_agent_snapshot_agent_family(published_agent)
         expected_framework = published_agent.framework
         actual_framework = payload.framework
         actual_family = payload.framework_type or payload.agent_family
@@ -288,16 +290,21 @@ class PublishedAgentExecutionDispatcher:
             context=context,
         )
 
-    def published_agent_from_payload(self, payload: RunnerRunSpec) -> PublishedAgentSnapshot:
+    def published_agent_from_payload(
+        self,
+        payload: RunnerRunSpec,
+    ) -> ContractPublishedAgentSnapshot:
         try:
-            published_agent = published_agent_snapshot(payload.published_agent_snapshot)
+            published_agent = normalize_contract_published_agent_snapshot(
+                payload.published_agent_snapshot
+            )
         except Exception as exc:
             raise AgentLoadFailedError(
                 "run payload is missing a valid published agent snapshot",
                 agent_id=payload.agent_id,
             ) from exc
 
-        expected_family = published_agent_snapshot_agent_family(published_agent)
+        expected_family = contract_published_agent_snapshot_agent_family(published_agent)
         expected_framework = published_agent.framework
         actual_framework = payload.framework
         actual_family = payload.framework_type or payload.agent_family

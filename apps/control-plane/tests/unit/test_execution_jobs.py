@@ -4,8 +4,8 @@ import asyncio
 from uuid import uuid4
 
 from app import worker
-from app.execution.contracts import ExecutionRunSpec
 from app.infrastructure.adapters.execution_jobs import ArqExecutionJobQueue
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.jobs import ExecutionJobKind
 from arq.connections import RedisSettings

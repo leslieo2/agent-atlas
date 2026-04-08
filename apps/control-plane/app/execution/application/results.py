@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from agent_atlas_contracts.runtime import PublishedRunExecutionResult, RuntimeExecutionResult
-
-from app.modules.shared.domain.traces import TraceIngestEvent
+from agent_atlas_contracts.runtime import (
+    PublishedRunExecutionResult,
+    RuntimeExecutionResult,
+    TraceIngestEvent,
+)
 
 
 class ExecutionCancelled(Exception):

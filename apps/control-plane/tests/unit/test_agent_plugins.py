@@ -17,7 +17,6 @@ from app.execution.application.results import (
     PublishedRunExecutionResult,
     RuntimeExecutionResult,
 )
-from app.execution.contracts import ExecutionRunSpec
 from app.infrastructure.adapters.agent_catalog import (
     AgentModuleSource,
     StatePublishedAgentCatalog,
@@ -39,6 +38,7 @@ from app.modules.agents.domain.models import (
     PublishedAgent,
     compute_source_fingerprint,
 )
+from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.models import (
     ProvenanceMetadata,

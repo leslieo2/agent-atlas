@@ -1,6 +1,3 @@
-from agent_atlas_contracts.execution import ExecutionTarget
-from agent_atlas_contracts.runtime import ExecutionReferenceMetadata, TraceTelemetryMetadata
-
 from app.modules.shared.domain.execution import (
     EvaluatorConfig,
     ExecutionBinding,
@@ -27,8 +24,6 @@ __all__ = [
     "EvaluatorConfig",
     "ExecutionBinding",
     "ExecutionProfile",
-    "ExecutionReferenceMetadata",
-    "ExecutionTarget",
     "ExecutorResources",
     "ModelConfig",
     "PromptConfig",
@@ -37,7 +32,6 @@ __all__ = [
     "ToolPolicyRule",
     "ToolsetConfig",
     "TracePointer",
-    "TraceTelemetryMetadata",
     "TracingMetadata",
     "TrajectoryStepRecord",
     "build_source_artifact_ref",

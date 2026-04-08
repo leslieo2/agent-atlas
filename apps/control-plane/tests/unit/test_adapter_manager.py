@@ -3,9 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
+from agent_atlas_contracts.runtime import TraceIngestEvent
 from app.agent_tracing.adapters.trace_projector import TraceIngestProjector
 from app.modules.shared.domain.enums import StepType
-from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
+from app.modules.shared.domain.traces import TraceSpan
 
 
 def test_adapter_manager_normalizes_trace_event():

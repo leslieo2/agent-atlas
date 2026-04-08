@@ -4,10 +4,12 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
+from agent_atlas_contracts.runtime import TraceIngestEvent
+
 from app.agent_tracing.ports import TraceLinkResolverPort
 from app.modules.shared.domain.enums import StepType
 from app.modules.shared.domain.observability import TracingMetadata
-from app.modules.shared.domain.traces import TraceIngestEvent, TraceSpan
+from app.modules.shared.domain.traces import TraceSpan
 
 
 def _safe_json_dumps(value: object) -> str:

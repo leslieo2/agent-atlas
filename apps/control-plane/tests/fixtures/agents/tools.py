@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from agent_atlas_contracts.runtime import AgentBuildContext
 from agents import Agent, RunContextWrapper, function_tool
-from app.modules.agents.domain.models import AgentBuildContext
 
 
 @function_tool
