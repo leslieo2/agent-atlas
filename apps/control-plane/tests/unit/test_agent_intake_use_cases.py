@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from uuid import UUID
+
 from agent_atlas_contracts.runtime import (
     AgentManifest,
 )
@@ -12,6 +15,8 @@ from app.modules.agents.application.use_cases import (
     GovernedAgentIntake,
 )
 from app.modules.agents.domain.models import (
+    AgentValidationRun,
+    AgentValidationRunCreateInput,
     ExecutionBinding,
     PublishedAgent,
     compute_source_fingerprint,
@@ -23,7 +28,7 @@ from app.modules.agents.domain.reference_assets import (
     claude_code_starter_runtime_profile,
     ensure_claude_code_starter_runtime_ready,
 )
-from app.modules.runs.domain.models import RunCreateInput, RunRecord
+from app.modules.shared.domain.enums import RunStatus
 from app.modules.shared.domain.models import build_source_execution_reference
 
 
@@ -67,17 +72,25 @@ class _FrameworkRegistry:
 
 class _SubmissionService:
     def __init__(self) -> None:
-        self.calls: list[tuple[RunCreateInput, PublishedAgent]] = []
+        self.calls: list[tuple[AgentValidationRunCreateInput, PublishedAgent]] = []
 
-    def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
+    def submit_validation(
+        self,
+        payload: AgentValidationRunCreateInput,
+        agent: PublishedAgent,
+    ) -> AgentValidationRun:
         self.calls.append((payload, agent))
-        return RunRecord(
+        return AgentValidationRun(
+            run_id=UUID("00000000-0000-0000-0000-000000000001"),
+            attempt_id=UUID("00000000-0000-0000-0000-000000000002"),
             project=payload.project,
             dataset=payload.dataset,
             input_summary=payload.input_summary,
             agent_id=agent.agent_id,
             model=agent.default_model,
             agent_type=agent.adapter_kind(),
+            status=RunStatus.QUEUED,
+            created_at=datetime(2026, 4, 8, tzinfo=UTC),
         )
 
 
@@ -111,8 +124,7 @@ def test_agent_validation_commands_prepares_runtime_from_persisted_execution_bin
     submission = _SubmissionService()
     commands = AgentValidationCommands(_Catalog(agent), submission)
 
-    payload = RunCreateInput(
-        agent_id=agent.agent_id,
+    payload = AgentValidationRunCreateInput(
         project="atlas-validation",
         dataset="controlled-validation",
         input_summary="validate starter",

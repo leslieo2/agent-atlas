@@ -4,14 +4,23 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.bootstrap.wiring.infrastructure import InfrastructureBundle
-from app.modules.agents.application.ports import AgentValidationRecordPort
+from app.modules.agents.application.ports import (
+    AgentValidationRecordPort,
+    AgentValidationSubmissionPort,
+)
 from app.modules.agents.application.use_cases import (
     AgentIntakeCommands,
     AgentValidationCommands,
     PublishedAgentCatalogQueries,
 )
-from app.modules.agents.domain.models import AgentValidationRecord
+from app.modules.agents.domain.models import (
+    AgentValidationRecord,
+    AgentValidationRun,
+    AgentValidationRunCreateInput,
+    PublishedAgent,
+)
 from app.modules.runs.application.services import RunSubmissionService
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 
 
 class StateAgentValidationRecords:
@@ -65,6 +74,56 @@ class StateAgentValidationRecords:
         return records
 
 
+class RunBackedAgentValidationSubmission:
+    def __init__(self, submission_service: RunSubmissionService) -> None:
+        self.submission_service = submission_service
+
+    def submit_validation(
+        self,
+        payload: AgentValidationRunCreateInput,
+        agent: PublishedAgent,
+    ) -> AgentValidationRun:
+        run = self.submission_service.submit(_to_run_create_input(payload, agent), agent)
+        return _to_agent_validation_run(run)
+
+
+def _to_run_create_input(
+    payload: AgentValidationRunCreateInput,
+    agent: PublishedAgent,
+) -> RunCreateInput:
+    return RunCreateInput(
+        project=payload.project,
+        dataset=payload.dataset,
+        agent_id=agent.agent_id,
+        input_summary=payload.input_summary,
+        prompt=payload.prompt,
+        tags=list(payload.tags),
+        project_metadata=dict(payload.project_metadata),
+        execution_target=(
+            payload.execution_target.model_copy(deep=True)
+            if payload.execution_target is not None
+            else None
+        ),
+        dataset_sample_id=payload.dataset_sample_id,
+        executor_config=payload.executor_config.model_copy(deep=True),
+        execution_binding=(
+            payload.execution_binding.model_copy(deep=True)
+            if payload.execution_binding is not None
+            else None
+        ),
+        toolset_config=payload.toolset_config.model_copy(deep=True),
+        approval_policy=(
+            payload.approval_policy.model_copy(deep=True)
+            if payload.approval_policy is not None
+            else None
+        ),
+    )
+
+
+def _to_agent_validation_run(run: RunRecord) -> AgentValidationRun:
+    return AgentValidationRun.model_validate(run.model_dump(mode="python"))
+
+
 @dataclass(frozen=True)
 class AgentModuleBundle:
     agent_exists: Callable[[str], bool]
@@ -75,6 +134,13 @@ class AgentModuleBundle:
 
 def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     validation_records: AgentValidationRecordPort = StateAgentValidationRecords(infra)
+    validation_submission: AgentValidationSubmissionPort = RunBackedAgentValidationSubmission(
+        RunSubmissionService(
+            run_repository=infra.run_repository,
+            execution_control=infra.execution.execution_control,
+            default_trace_backend=infra.tracing.trace_backend.backend_name(),
+        )
+    )
 
     def agent_exists(agent_id: str) -> bool:
         return infra.published_agent_catalog.get_agent(agent_id) is not None
@@ -89,11 +155,7 @@ def build_agent_module(infra: InfrastructureBundle) -> AgentModuleBundle:
     )
     agent_validation_commands = AgentValidationCommands(
         published_agents=infra.published_agent_catalog,
-        submission_service=RunSubmissionService(
-            run_repository=infra.run_repository,
-            execution_control=infra.execution.execution_control,
-            default_trace_backend=infra.tracing.trace_backend.backend_name(),
-        ),
+        validation_submission=validation_submission,
     )
 
     return AgentModuleBundle(

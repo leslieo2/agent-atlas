@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Protocol
+from typing import Annotated
 
 from app.bootstrap.providers.agents import (
     get_agent_intake_commands,
@@ -27,14 +27,9 @@ from app.modules.agents.domain.reference_assets import (
     ensure_claude_code_starter_runtime_ready,
 )
 from app.modules.runs.adapters.inbound.http.schemas import RunResponse
-from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from fastapi import APIRouter, Depends, HTTPException
 
 router = APIRouter(prefix="/agents", tags=["agents"])
-
-
-class ValidationRunCommands(Protocol):
-    def create_run(self, agent_id: str, payload: RunCreateInput) -> RunRecord: ...
 
 
 @router.get("/published", response_model=list[AgentDescriptorResponse])
@@ -107,7 +102,7 @@ def start_validation_run(
     commands: Annotated[AgentValidationCommands, Depends(get_agent_validation_commands)],
 ) -> RunResponse:
     try:
-        run = commands.create_run(agent_id, payload.to_domain(agent_id=agent_id))
-        return RunResponse.from_domain(run)
+        run = commands.create_run(agent_id, payload.to_domain())
+        return RunResponse.model_validate(run.model_dump(mode="json"))
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc

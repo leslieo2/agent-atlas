@@ -18,6 +18,7 @@ from app.core.errors import (
 )
 from app.modules.agents.application.ports import (
     AgentValidationRecordPort,
+    AgentValidationSubmissionPort,
     FrameworkRegistryPort,
     PublishedAgentCatalogPort,
     PublishedAgentRepositoryPort,
@@ -27,6 +28,8 @@ from app.modules.agents.domain.models import (
     AgentValidationOutcomeStatus,
     AgentValidationOutcomeSummary,
     AgentValidationRecord,
+    AgentValidationRun,
+    AgentValidationRunCreateInput,
     AgentValidationRunReference,
     ExecutionBinding,
     PublishedAgent,
@@ -35,8 +38,6 @@ from app.modules.agents.domain.models import (
 from app.modules.agents.domain.reference_assets import (
     ensure_claude_code_starter_runtime_ready,
 )
-from app.modules.runs.application.services import RunSubmissionService
-from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.execution import (
     ExecutionProfile,
@@ -252,15 +253,17 @@ class AgentValidationCommands:
     def __init__(
         self,
         published_agents: PublishedAgentCatalogPort,
-        submission_service: RunSubmissionService,
+        validation_submission: AgentValidationSubmissionPort,
     ) -> None:
         self.published_agents = published_agents
-        self.submission_service = submission_service
+        self.validation_submission = validation_submission
 
-    def create_run(self, agent_id: str, payload: RunCreateInput) -> RunRecord:
+    def create_run(
+        self, agent_id: str, payload: AgentValidationRunCreateInput
+    ) -> AgentValidationRun:
         agent = self._resolve_agent(agent_id)
         ensure_claude_code_starter_runtime_ready(agent.execution_binding)
-        return self.submission_service.submit(payload, agent)
+        return self.validation_submission.submit_validation(payload, agent)
 
     def _resolve_agent(self, agent_id: str) -> PublishedAgent:
         existing = self.published_agents.get_agent(agent_id)

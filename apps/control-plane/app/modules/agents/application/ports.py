@@ -9,6 +9,8 @@ from pydantic import SecretStr
 from app.modules.agents.domain.models import (
     AgentModuleSource,
     AgentValidationRecord,
+    AgentValidationRun,
+    AgentValidationRunCreateInput,
     DiscoveredAgent,
     PublishedAgent,
 )
@@ -35,6 +37,14 @@ class PublishedAgentCatalogPort(Protocol):
 
 class AgentValidationRecordPort(Protocol):
     def list_records(self) -> list[AgentValidationRecord]: ...
+
+
+class AgentValidationSubmissionPort(Protocol):
+    def submit_validation(
+        self,
+        payload: AgentValidationRunCreateInput,
+        agent: PublishedAgent,
+    ) -> AgentValidationRun: ...
 
 
 class FrameworkRegistryPort(Protocol):

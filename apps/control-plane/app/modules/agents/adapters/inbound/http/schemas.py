@@ -8,10 +8,10 @@ from app.modules.agents.domain.models import (
     AgentValidationEvidenceSummary,
     AgentValidationIssue,
     AgentValidationOutcomeSummary,
+    AgentValidationRunCreateInput,
     AgentValidationRunReference,
     PublishedAgent,
 )
-from app.modules.runs.domain.models import RunCreateInput
 from app.modules.shared.adapters.inbound.http.execution_profiles import (
     ExecutionProfileRequest,
 )
@@ -167,13 +167,12 @@ class AgentValidationRunStartRequest(BaseModel):
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     approval_policy: ApprovalPolicySnapshot | None = None
 
-    def to_domain(self, *, agent_id: str) -> RunCreateInput:
+    def to_domain(self) -> AgentValidationRunCreateInput:
         tags = list(dict.fromkeys(["validation", *self.tags]))
         executor_config, execution_binding = self.executor_config.to_domain()
-        return RunCreateInput(
+        return AgentValidationRunCreateInput(
             project=self.project,
             dataset=self.dataset,
-            agent_id=agent_id,
             input_summary=self.input_summary,
             prompt=self.prompt,
             tags=tags,
