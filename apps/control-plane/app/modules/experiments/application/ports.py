@@ -5,8 +5,8 @@ from uuid import UUID
 
 from app.modules.agents.domain.models import PublishedAgent
 from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
+from app.modules.runs.application.ports import RunRepository, TrajectoryRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
-from app.modules.shared.domain.observability import TrajectoryStepRecord
 
 
 class ExperimentRepository(Protocol):
@@ -27,19 +27,14 @@ class RunEvaluationRepository(Protocol):
     def delete_for_experiment(self, experiment_id: str | UUID) -> None: ...
 
 
-class RunRepository(Protocol):
-    def get(self, run_id: str | UUID) -> RunRecord | None: ...
-
-    def list(self) -> list[RunRecord]: ...
-
-    def save(self, run: RunRecord) -> None: ...
-
-
-class TrajectoryRepository(Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStepRecord]: ...
-
-    def append(self, step: TrajectoryStepRecord) -> None: ...
-
-
 class RunSubmissionPort(Protocol):
     def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord: ...
+
+
+__all__ = [
+    "ExperimentRepository",
+    "RunEvaluationRepository",
+    "RunRepository",
+    "RunSubmissionPort",
+    "TrajectoryRepository",
+]

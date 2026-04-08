@@ -5,26 +5,10 @@ from uuid import UUID
 
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.application.contracts import (
-    RunObservationSinkPort as SharedRunObservationSinkPort,
-)
-from app.modules.shared.application.contracts import (
-    TraceExportPort,
-    TraceQueryPort,
-)
-from app.modules.shared.application.contracts import (
-    TraceIngestionPort as SharedTraceIngestionPort,
-)
-from app.modules.shared.application.contracts import (
-    TraceProjectorPort as SharedTraceProjectorPort,
-)
-from app.modules.shared.application.contracts import (
     TraceRepository as SharedTraceRepository,
 )
 from app.modules.shared.application.contracts import (
     TrajectoryRepository as SharedTrajectoryRepository,
-)
-from app.modules.shared.application.contracts import (
-    TrajectoryStepProjectorPort as SharedTrajectoryStepProjectorPort,
 )
 from app.modules.shared.domain.observability import TrajectoryStepRecord
 from app.modules.shared.domain.traces import TraceSpan
@@ -38,21 +22,9 @@ class RunRepository(Protocol):
     def save(self, run: RunRecord) -> None: ...
 
 
-TraceBackendPort = TraceQueryPort
-TraceExporterPort = TraceExportPort
-TraceIngestionPort = SharedTraceIngestionPort
-TraceProjectorPort = SharedTraceProjectorPort
-
-
 class TraceRepository(SharedTraceRepository, Protocol):
     def list_for_run(self, run_id: str | UUID) -> list[TraceSpan]: ...
 
 
 class TrajectoryRepository(SharedTrajectoryRepository, Protocol):
-    def list_for_run(self, run_id: str | UUID) -> list[TrajectoryStepRecord]: ...
-
     def append(self, step: TrajectoryStepRecord) -> None: ...
-
-
-TrajectoryStepProjectorPort = SharedTrajectoryStepProjectorPort
-RunObservationSinkPort = SharedRunObservationSinkPort

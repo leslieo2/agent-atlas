@@ -68,11 +68,11 @@ def test_shared_application_contracts_do_not_depend_on_agent_tracing() -> None:
     assert violations == []
 
 
-def test_non_run_feature_modules_do_not_import_run_application_ports():
+def test_only_experiments_feature_module_may_import_run_application_ports():
     violations = _collect_forbidden_imports(
         base_dir=Path("app/modules"),
         forbidden_prefixes=("app.modules.runs.application.ports",),
-        allowed_paths=(Path("app/modules/runs"),),
+        allowed_paths=(Path("app/modules/runs"), Path("app/modules/experiments")),
     )
     assert violations == []
 
@@ -86,16 +86,32 @@ def test_runs_module_does_not_import_agent_tracing_ports() -> None:
 
 
 def test_agent_tracing_and_data_plane_do_not_import_run_module_ports() -> None:
-    violations = _collect_forbidden_imports(
-        base_dir=Path("app"),
+    tracing_violations = _collect_forbidden_imports(
+        base_dir=Path("app/agent_tracing"),
         forbidden_prefixes=("app.modules.runs.application.ports",),
-        allowed_paths=(
-            Path("app/modules/runs"),
-            Path("app/execution"),
-            Path("app/bootstrap/wiring"),
-        ),
     )
-    assert violations == []
+    data_plane_violations = _collect_forbidden_imports(
+        base_dir=Path("app/data_plane"),
+        forbidden_prefixes=("app.modules.runs.application.ports",),
+    )
+    assert tracing_violations + data_plane_violations == []
+
+
+def test_experiments_ports_import_run_repository_contracts_from_runs_module() -> None:
+    ports_path = BACKEND_ROOT / "app/modules/experiments/application/ports.py"
+    tree = ast.parse(ports_path.read_text(encoding="utf-8"), filename=str(ports_path))
+
+    imported_from_runs: set[str] = set()
+    locally_declared_protocols: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "app.modules.runs.application.ports":
+            imported_from_runs.update(alias.name for alias in node.names)
+        if isinstance(node, ast.ClassDef):
+            locally_declared_protocols.add(node.name)
+
+    assert {"RunRepository", "TrajectoryRepository"} <= imported_from_runs
+    assert "RunRepository" not in locally_declared_protocols
+    assert "TrajectoryRepository" not in locally_declared_protocols
 
 
 def test_agent_tracing_backends_do_not_import_run_domain_models() -> None:

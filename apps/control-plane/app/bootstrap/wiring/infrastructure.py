@@ -63,7 +63,7 @@ from app.modules.runs.adapters.outbound import (
     StateTraceRepository,
     StateTrajectoryRepository,
 )
-from app.modules.runs.application.ports import TraceBackendPort, TraceExporterPort
+from app.modules.shared.application.contracts import TraceExportPort, TraceQueryPort
 from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from arq.connections import RedisSettings
@@ -73,8 +73,8 @@ from arq.connections import RedisSettings
 class TracingInfrastructure:
     trace_repository: StateTraceRepository
     trajectory_repository: StateTrajectoryRepository
-    trace_backend: TraceBackendPort
-    trace_exporter: TraceExporterPort
+    trace_backend: TraceQueryPort
+    trace_exporter: TraceExportPort
     trace_projector: TraceIngestProjector
     trajectory_step_projector: TraceEventTrajectoryProjector
 
@@ -202,8 +202,8 @@ def build_infrastructure() -> InfrastructureBundle:
     )
     runner = RunnerRegistry(runners=runners)
     execution_control = ExecutionControlRegistry(backends=execution_backends)
-    trace_backend: TraceBackendPort
-    trace_exporter: TraceExporterPort
+    trace_backend: TraceQueryPort
+    trace_exporter: TraceExportPort
     trace_link_resolver = None
     phoenix_api_key = (
         settings.phoenix_api_key.get_secret_value() if settings.phoenix_api_key else None

@@ -11,13 +11,12 @@ from app.modules.datasets.application.ports import DatasetRepository
 from app.modules.experiments.application.ports import (
     ExperimentRepository,
     RunEvaluationRepository,
-    RunRepository,
     RunSubmissionPort,
-    TrajectoryRepository,
 )
 from app.modules.experiments.domain.models import ExperimentRecord, ExperimentStatus
 from app.modules.experiments.domain.policies import ExperimentAggregate
 from app.modules.experiments.domain.scoring import evaluate_run
+from app.modules.runs.application.ports import RunRepository, TrajectoryRepository
 from app.modules.runs.domain.models import RunCreateInput
 from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.enums import RunStatus

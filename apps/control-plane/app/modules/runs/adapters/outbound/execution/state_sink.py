@@ -9,9 +9,10 @@ from app.execution.application.results import (
     RunnerExecutionResult,
     RunnerSubmissionRecord,
 )
-from app.modules.runs.application.ports import RunObservationSinkPort, RunRepository
+from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import ExecutionMetrics
 from app.modules.runs.domain.policies import RunAggregate
+from app.modules.shared.application.contracts import RunObservationSinkPort
 from app.modules.shared.domain.enums import RunStatus
 
 

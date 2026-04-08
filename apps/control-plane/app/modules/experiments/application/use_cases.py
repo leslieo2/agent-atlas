@@ -11,7 +11,6 @@ from app.modules.datasets.application.ports import DatasetRepository
 from app.modules.experiments.application.ports import (
     ExperimentRepository,
     RunEvaluationRepository,
-    RunRepository,
 )
 from app.modules.experiments.domain.compare import build_compare_result
 from app.modules.experiments.domain.models import (
@@ -24,6 +23,7 @@ from app.modules.experiments.domain.models import (
 )
 from app.modules.experiments.domain.policies import ExperimentAggregate
 from app.modules.policies.application.ports import ApprovalPolicyRepository
+from app.modules.runs.application.ports import RunRepository
 from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.enums import CurationStatus, RunStatus
 
