@@ -6,8 +6,13 @@ import type { AgentRecord } from "@/src/entities/agent/model";
 import { getAgentValidationLifecycle } from "@/src/entities/agent/lifecycle";
 import { usePublishedAgentsQuery } from "@/src/entities/agent/query";
 import { useDatasetsQuery } from "@/src/entities/dataset/query";
+import {
+  buildCompareLookup,
+  compareTone,
+  COMPARE_OUTCOME_OPTIONS,
+  matchesExperimentRunFilters
+} from "@/src/entities/experiment/compare";
 import type {
-  ExperimentCompareSampleRecord,
   ExperimentRecord,
   ExperimentRunRecord
 } from "@/src/entities/experiment/model";
@@ -78,16 +83,6 @@ function judgementTone(judgement?: SampleJudgement | null) {
   return "warn";
 }
 
-function compareTone(outcome: CompareOutcome) {
-  if (outcome === "improved" || outcome === "unchanged_pass") {
-    return "success";
-  }
-  if (outcome === "regressed" || outcome === "baseline_only") {
-    return "error";
-  }
-  return "warn";
-}
-
 const CURATION_READY_RUN_STATUSES = new Set<RunStatus>(["succeeded", "failed", "cancelled", "lost"]);
 
 function canCurateRun(run: ExperimentRunRecord) {
@@ -106,50 +101,6 @@ function curationDisabledReason(run: ExperimentRunRecord, isMutationPending: boo
 
 function uniqueStrings(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort();
-}
-
-function buildCompareLookup(compareSamples: ExperimentCompareSampleRecord[]) {
-  return new Map(compareSamples.map((sample) => [sample.datasetSampleId, sample.compareOutcome]));
-}
-
-function matchesRunFilters({
-  run,
-  judgementFilter,
-  errorCodeFilter,
-  sliceFilter,
-  tagFilter,
-  curationFilter,
-  compareLookup,
-  compareOutcomeFilter
-}: {
-  run: ExperimentRunRecord;
-  judgementFilter: string;
-  errorCodeFilter: string;
-  sliceFilter: string;
-  tagFilter: string;
-  curationFilter: string;
-  compareLookup: Map<string, CompareOutcome>;
-  compareOutcomeFilter: string;
-}) {
-  if (judgementFilter && run.judgement !== judgementFilter) {
-    return false;
-  }
-  if (errorCodeFilter && run.errorCode !== errorCodeFilter) {
-    return false;
-  }
-  if (sliceFilter && run.slice !== sliceFilter) {
-    return false;
-  }
-  if (tagFilter && !run.tags.includes(tagFilter)) {
-    return false;
-  }
-  if (curationFilter && run.curationStatus !== curationFilter) {
-    return false;
-  }
-  if (compareOutcomeFilter && compareLookup.get(run.datasetSampleId) !== compareOutcomeFilter) {
-    return false;
-  }
-  return true;
 }
 
 function experimentLabel(record: ExperimentRecord) {
@@ -236,12 +187,12 @@ export default function ExperimentsWorkspace({
   const [systemPrompt, setSystemPrompt] = useState("");
   const [selectedExperimentId, setSelectedExperimentId] = useState(initialExperimentId);
   const [baselineExperimentId, setBaselineExperimentId] = useState("");
-  const [judgementFilter, setJudgementFilter] = useState("");
+  const [judgementFilter, setJudgementFilter] = useState<SampleJudgement | "">("");
   const [errorCodeFilter, setErrorCodeFilter] = useState("");
   const [sliceFilter, setSliceFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
-  const [curationFilter, setCurationFilter] = useState("");
-  const [compareOutcomeFilter, setCompareOutcomeFilter] = useState("");
+  const [curationFilter, setCurationFilter] = useState<CurationStatus | "">("");
+  const [compareOutcomeFilter, setCompareOutcomeFilter] = useState<CompareOutcome | "">("");
   const [actionMessage, setActionMessage] = useState("");
 
   const selectedExperiment = useMemo(
@@ -273,7 +224,7 @@ export default function ExperimentsWorkspace({
   const filteredRuns = useMemo(
     () =>
       runs.filter((run) =>
-        matchesRunFilters({
+        matchesExperimentRunFilters({
           run,
           judgementFilter,
           errorCodeFilter,
@@ -639,7 +590,7 @@ export default function ExperimentsWorkspace({
             <select
               id="experiment-filter-judgement"
               value={judgementFilter}
-              onChange={(event) => setJudgementFilter(event.target.value)}
+              onChange={(event) => setJudgementFilter(event.target.value as SampleJudgement | "")}
             >
               <option value="">All judgements</option>
               <option value="passed">passed</option>
@@ -686,7 +637,7 @@ export default function ExperimentsWorkspace({
             <select
               id="experiment-filter-curation"
               value={curationFilter}
-              onChange={(event) => setCurationFilter(event.target.value)}
+              onChange={(event) => setCurationFilter(event.target.value as CurationStatus | "")}
             >
               <option value="">All curation states</option>
               <option value="include">include</option>
@@ -698,15 +649,14 @@ export default function ExperimentsWorkspace({
             <select
               id="experiment-filter-compare"
               value={compareOutcomeFilter}
-              onChange={(event) => setCompareOutcomeFilter(event.target.value)}
+              onChange={(event) => setCompareOutcomeFilter(event.target.value as CompareOutcome | "")}
             >
               <option value="">All compare outcomes</option>
-              <option value="improved">improved</option>
-              <option value="regressed">regressed</option>
-              <option value="unchanged_pass">unchanged_pass</option>
-              <option value="unchanged_fail">unchanged_fail</option>
-              <option value="candidate_only">candidate_only</option>
-              <option value="baseline_only">baseline_only</option>
+              {COMPARE_OUTCOME_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
             </select>
           </Field>
         </div>

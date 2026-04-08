@@ -4,6 +4,12 @@ import { Download, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getExportDownloadUrl } from "@/src/entities/export/api";
 import { useCreateExportMutation, useExportsQuery } from "@/src/entities/export/query";
+import {
+  buildCompareLookup,
+  COMPARE_OUTCOME_OPTIONS,
+  matchesRunPreviewFilters,
+  resolveRunCompareOutcome
+} from "@/src/entities/experiment/compare";
 import type { ExperimentRunRecord } from "@/src/entities/experiment/model";
 import {
   useExperimentCompareQuery,
@@ -54,12 +60,12 @@ function formatBytes(value: number) {
 }
 
 function buildActiveFilters(filters: {
-  judgementFilter: string;
+  judgementFilter: SampleJudgement | "";
   errorCodeFilter: string;
   sliceFilter: string;
   tagFilter: string;
-  compareOutcomeFilter: string;
-  curationFilter: string;
+  compareOutcomeFilter: CompareOutcome | "";
+  curationFilter: CurationStatus | "";
   exportEligibleOnly: boolean;
 }) {
   return [
@@ -71,51 +77,6 @@ function buildActiveFilters(filters: {
     filters.curationFilter ? `Curation: ${filters.curationFilter}` : null,
     filters.exportEligibleOnly ? null : "Eligibility: include ineligible rows"
   ].filter((value): value is string => Boolean(value));
-}
-
-function matchesPreviewFilters({
-  run,
-  compareOutcome,
-  judgementFilter,
-  errorCodeFilter,
-  sliceFilter,
-  tagFilter,
-  compareOutcomeFilter,
-  curationFilter,
-  exportEligibleOnly
-}: {
-  run: ExperimentRunRecord;
-  compareOutcome?: CompareOutcome | null;
-  judgementFilter: string;
-  errorCodeFilter: string;
-  sliceFilter: string;
-  tagFilter: string;
-  compareOutcomeFilter: string;
-  curationFilter: string;
-  exportEligibleOnly: boolean;
-}) {
-  if (judgementFilter && run.judgement !== judgementFilter) {
-    return false;
-  }
-  if (errorCodeFilter && run.errorCode !== errorCodeFilter) {
-    return false;
-  }
-  if (sliceFilter && run.slice !== sliceFilter) {
-    return false;
-  }
-  if (tagFilter && !run.tags.includes(tagFilter)) {
-    return false;
-  }
-  if (compareOutcomeFilter && compareOutcome !== compareOutcomeFilter) {
-    return false;
-  }
-  if (curationFilter && run.curationStatus !== curationFilter) {
-    return false;
-  }
-  if (exportEligibleOnly && run.exportEligible === false) {
-    return false;
-  }
-  return true;
 }
 
 function formatFilterSummaryValue(value: unknown) {
@@ -152,12 +113,12 @@ export default function ExportsWorkspace({
   const [experimentId, setExperimentId] = useState(initialExperimentId);
   const [baselineExperimentId, setBaselineExperimentId] = useState(initialBaselineExperimentId);
   const [candidateExperimentId, setCandidateExperimentId] = useState(initialCandidateExperimentId);
-  const [judgementFilter, setJudgementFilter] = useState("");
+  const [judgementFilter, setJudgementFilter] = useState<SampleJudgement | "">("");
   const [errorCodeFilter, setErrorCodeFilter] = useState("");
   const [sliceFilter, setSliceFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
-  const [compareOutcomeFilter, setCompareOutcomeFilter] = useState("");
-  const [curationFilter, setCurationFilter] = useState("");
+  const [compareOutcomeFilter, setCompareOutcomeFilter] = useState<CompareOutcome | "">("");
+  const [curationFilter, setCurationFilter] = useState<CurationStatus | "">("");
   const [exportEligibleOnly, setExportEligibleOnly] = useState(true);
   const [format, setFormat] = useState<"jsonl" | "parquet">("jsonl");
   const [actionMessage, setActionMessage] = useState("");
@@ -172,13 +133,7 @@ export default function ExportsWorkspace({
   const selectedRunsQuery = useExperimentRunsQuery(selectedSourceExperimentId);
   const compareQuery = useExperimentCompareQuery(baselineExperimentId, candidateExperimentId);
   const runs = useMemo(() => selectedRunsQuery.data ?? [], [selectedRunsQuery.data]);
-  const compareLookup = useMemo(
-    () =>
-      new Map(
-        (compareQuery.data?.samples ?? []).map((sample) => [sample.datasetSampleId, sample.compareOutcome] as const)
-      ),
-    [compareQuery.data?.samples]
-  );
+  const compareLookup = useMemo(() => buildCompareLookup(compareQuery.data?.samples ?? []), [compareQuery.data?.samples]);
 
   const errorCodeOptions = useMemo(() => uniqueStrings(runs.map((run) => run.errorCode)), [runs]);
   const sliceOptions = useMemo(() => uniqueStrings(runs.map((run) => run.slice)), [runs]);
@@ -186,9 +141,9 @@ export default function ExportsWorkspace({
   const previewRows = useMemo(
     () =>
       runs.filter((run) =>
-        matchesPreviewFilters({
+        matchesRunPreviewFilters({
           run,
-          compareOutcome: compareLookup.get(run.datasetSampleId) ?? run.compareOutcome ?? null,
+          compareOutcome: resolveRunCompareOutcome(run, compareLookup),
           judgementFilter,
           errorCodeFilter,
           sliceFilter,
@@ -280,12 +235,12 @@ export default function ExportsWorkspace({
       baselineExperimentId: baselineExperimentId || null,
       candidateExperimentId: candidateExperimentId || null,
       datasetSampleIds: previewRows.map((run) => run.datasetSampleId),
-      judgements: judgementFilter ? [judgementFilter as SampleJudgement] : null,
+      judgements: judgementFilter ? [judgementFilter] : null,
       errorCodes: errorCodeFilter ? [errorCodeFilter] : null,
-      compareOutcomes: compareOutcomeFilter ? [compareOutcomeFilter as CompareOutcome] : null,
+      compareOutcomes: compareOutcomeFilter ? [compareOutcomeFilter] : null,
       tags: tagFilter ? [tagFilter] : null,
       slices: sliceFilter ? [sliceFilter] : null,
-      curationStatuses: curationFilter ? [curationFilter as CurationStatus] : null,
+      curationStatuses: curationFilter ? [curationFilter] : null,
       exportEligible: exportEligibleOnly,
       format
     });
@@ -463,7 +418,7 @@ export default function ExportsWorkspace({
                   <select
                     id="export-judgement"
                     value={judgementFilter}
-                    onChange={(event) => setJudgementFilter(event.target.value)}
+                    onChange={(event) => setJudgementFilter(event.target.value as SampleJudgement | "")}
                   >
                     <option value="">All judgements</option>
                     <option value="passed">passed</option>
@@ -514,16 +469,15 @@ export default function ExportsWorkspace({
                   <select
                     id="export-compare"
                     value={compareOutcomeFilter}
-                    onChange={(event) => setCompareOutcomeFilter(event.target.value)}
+                    onChange={(event) => setCompareOutcomeFilter(event.target.value as CompareOutcome | "")}
                     disabled={!candidateExperimentId || !baselineExperimentId}
                   >
                     <option value="">All compare outcomes</option>
-                    <option value="improved">improved</option>
-                    <option value="regressed">regressed</option>
-                    <option value="unchanged_pass">unchanged_pass</option>
-                    <option value="unchanged_fail">unchanged_fail</option>
-                    <option value="candidate_only">candidate_only</option>
-                    <option value="baseline_only">baseline_only</option>
+                    {COMPARE_OUTCOME_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 </Field>
 
@@ -531,7 +485,7 @@ export default function ExportsWorkspace({
                   <select
                     id="export-curation"
                     value={curationFilter}
-                    onChange={(event) => setCurationFilter(event.target.value)}
+                    onChange={(event) => setCurationFilter(event.target.value as CurationStatus | "")}
                   >
                     <option value="">All curation states</option>
                     <option value="include">include</option>

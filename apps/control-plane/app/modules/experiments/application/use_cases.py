@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import builtins
-from collections import Counter
 from uuid import UUID
 
 from app.core.errors import AgentNotPublishedError, AppError, DatasetNotFoundError
@@ -14,10 +13,9 @@ from app.modules.experiments.application.ports import (
     RunEvaluationRepository,
     RunRepository,
 )
+from app.modules.experiments.domain.compare import build_compare_result
 from app.modules.experiments.domain.models import (
-    CandidateRunSummary,
     ExperimentCompareResult,
-    ExperimentCompareSample,
     ExperimentCreateInput,
     ExperimentRecord,
     ExperimentRunDetail,
@@ -27,12 +25,7 @@ from app.modules.experiments.domain.models import (
 from app.modules.experiments.domain.policies import ExperimentAggregate
 from app.modules.policies.application.ports import ApprovalPolicyRepository
 from app.modules.shared.application.ports import ExecutionJobPort
-from app.modules.shared.domain.enums import (
-    CompareOutcome,
-    CurationStatus,
-    RunStatus,
-    SampleJudgement,
-)
+from app.modules.shared.domain.enums import CurationStatus, RunStatus
 
 
 class ExperimentNotFoundError(AppError, ValueError):
@@ -49,32 +42,6 @@ class RunEvaluationNotFoundError(AppError, ValueError):
 
     def __init__(self, run_id: str) -> None:
         super().__init__("run evaluation was not found", run_id=run_id)
-
-
-def _compare_outcome(
-    baseline,
-    candidate,
-) -> CompareOutcome:
-    if baseline is None:
-        return CompareOutcome.CANDIDATE_ONLY
-    if candidate is None:
-        return CompareOutcome.BASELINE_ONLY
-    if (
-        baseline.judgement == SampleJudgement.PASSED
-        and candidate.judgement == SampleJudgement.PASSED
-    ):
-        return CompareOutcome.UNCHANGED_PASS
-    if (
-        baseline.judgement != SampleJudgement.PASSED
-        and candidate.judgement == SampleJudgement.PASSED
-    ):
-        return CompareOutcome.IMPROVED
-    if (
-        baseline.judgement == SampleJudgement.PASSED
-        and candidate.judgement != SampleJudgement.PASSED
-    ):
-        return CompareOutcome.REGRESSED
-    return CompareOutcome.UNCHANGED_FAIL
 
 
 class ExperimentQueries:
@@ -209,46 +176,12 @@ class ExperimentQueries:
                 candidate_experiment_id
             )
         }
-        sample_ids = sorted(set(baseline_results) | set(candidate_results))
-        samples: list[ExperimentCompareSample] = []
-        for sample_id in sample_ids:
-            baseline_result = baseline_results.get(sample_id)
-            candidate_result = candidate_results.get(sample_id)
-            chosen = candidate_result or baseline_result
-            outcome = _compare_outcome(baseline_result, candidate_result)
-            samples.append(
-                ExperimentCompareSample(
-                    dataset_sample_id=sample_id,
-                    baseline_judgement=baseline_result.judgement if baseline_result else None,
-                    candidate_judgement=candidate_result.judgement if candidate_result else None,
-                    compare_outcome=outcome,
-                    error_code=(
-                        candidate_result.error_code
-                        if candidate_result and candidate_result.error_code
-                        else baseline_result.error_code
-                        if baseline_result
-                        else None
-                    ),
-                    slice=chosen.slice if chosen else None,
-                    tags=list(chosen.tags) if chosen else [],
-                    candidate_run_summary=(
-                        CandidateRunSummary(
-                            run_id=candidate_result.run_id,
-                            actual=candidate_result.actual,
-                            trace_url=candidate_result.trace_url,
-                        )
-                        if candidate_result
-                        else None
-                    ),
-                )
-            )
-        distribution = Counter(sample.compare_outcome.value for sample in samples)
-        return ExperimentCompareResult(
+        return build_compare_result(
             baseline_experiment_id=baseline.experiment_id,
             candidate_experiment_id=candidate.experiment_id,
             dataset_version_id=candidate.dataset_version_id,
-            distribution=dict(distribution),
-            samples=samples,
+            baseline_results=baseline_results,
+            candidate_results=candidate_results,
         )
 
 

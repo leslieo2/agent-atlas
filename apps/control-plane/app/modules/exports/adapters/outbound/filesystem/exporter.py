@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Protocol
 from uuid import UUID, uuid4
 
+from app.modules.experiments.domain.compare import compare_outcome
 from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
 from app.modules.exports.domain.models import ArtifactExportRequest, ArtifactMetadata
-from app.modules.shared.domain.enums import ArtifactFormat, CompareOutcome, SampleJudgement
+from app.modules.shared.domain.enums import ArtifactFormat, CompareOutcome
 
 
 class _ExperimentReader(Protocol):
@@ -18,33 +19,6 @@ class _ExperimentReader(Protocol):
 
 class _RunEvaluationReader(Protocol):
     def list_for_experiment(self, experiment_id: str | UUID) -> list[RunEvaluationRecord]: ...
-
-
-def _compare_outcome(
-    baseline: RunEvaluationRecord | None,
-    candidate: RunEvaluationRecord | None,
-) -> CompareOutcome:
-    if baseline is None:
-        return CompareOutcome.CANDIDATE_ONLY
-    if candidate is None:
-        return CompareOutcome.BASELINE_ONLY
-
-    if (
-        baseline.judgement == SampleJudgement.PASSED
-        and candidate.judgement == SampleJudgement.PASSED
-    ):
-        return CompareOutcome.UNCHANGED_PASS
-    if (
-        baseline.judgement != SampleJudgement.PASSED
-        and candidate.judgement == SampleJudgement.PASSED
-    ):
-        return CompareOutcome.IMPROVED
-    if (
-        baseline.judgement == SampleJudgement.PASSED
-        and candidate.judgement != SampleJudgement.PASSED
-    ):
-        return CompareOutcome.REGRESSED
-    return CompareOutcome.UNCHANGED_FAIL
 
 
 class ExporterAdapter:
@@ -147,7 +121,7 @@ class ExporterAdapter:
                 chosen = candidate or baseline
                 if chosen is None:
                     continue
-                outcome = _compare_outcome(baseline, candidate)
+                outcome = compare_outcome(baseline, candidate)
                 if not self._matches_filters(chosen, payload, outcome):
                     continue
                 rows.append(self._build_row(chosen, outcome))
