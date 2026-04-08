@@ -10,6 +10,11 @@ dependencies = [
   "opentelemetry-exporter-otlp>=1.40,<2",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4,<8.5",
+]
+
 [build-system]
 requires = ["setuptools>=70.0,<71.0"]
 build-backend = "setuptools.build_meta"
@@ -22,3 +27,10 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 agent_atlas_runner_base = ["py.typed"]
+
+[tool.uv.sources]
+agent-atlas-contracts = { path = "../../packages/contracts/python", editable = true }
+
+[tool.pytest.ini_options]
+addopts = ["-q"]
+testpaths = ["tests"]

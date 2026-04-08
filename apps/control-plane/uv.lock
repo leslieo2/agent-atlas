@@ -80,7 +80,11 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.10,<2.11" }]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.10,<2.11" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4,<8.5" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "agent-atlas-runner-base"
@@ -95,11 +99,13 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agent-atlas-contracts" },
+    { name = "agent-atlas-contracts", editable = "../../packages/contracts/python" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.40,<2" },
     { name = "opentelemetry-sdk", specifier = ">=1.40,<2" },
     { name = "pydantic", specifier = ">=2.10,<2.11" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4,<8.5" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "agent-atlas-runner-langgraph"
@@ -116,13 +122,15 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agent-atlas-contracts" },
-    { name = "agent-atlas-runner-base" },
+    { name = "agent-atlas-contracts", editable = "../../packages/contracts/python" },
+    { name = "agent-atlas-runner-base", editable = "../../runtimes/runner-base" },
     { name = "langchain-core", specifier = ">=0.3.50,<0.4" },
     { name = "langchain-openai", specifier = ">=0.3.10,<0.4" },
     { name = "langgraph", specifier = ">=0.2.60,<0.4" },
     { name = "pydantic", specifier = ">=2.10,<2.11" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4,<8.5" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "agent-atlas-runner-openai-agents"
@@ -138,12 +146,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agent-atlas-contracts" },
-    { name = "agent-atlas-runner-base" },
+    { name = "agent-atlas-contracts", editable = "../../packages/contracts/python" },
+    { name = "agent-atlas-runner-base", editable = "../../runtimes/runner-base" },
     { name = "openai", specifier = ">=1.68,<2" },
     { name = "openai-agents" },
     { name = "pydantic", specifier = ">=2.10,<2.11" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4,<8.5" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "annotated-types"

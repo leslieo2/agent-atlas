@@ -20,7 +20,8 @@ This repository is organized as a monorepo with product-facing apps at the top l
   - `make fmt` — run Ruff formatter and Python compile check.
   - `make lint` — run Ruff lint/format checks.
   - `make typecheck` — run mypy on `app/`.
-  - `make test` — run pytest without the coverage gate for fast local verification.
+  - `make test` — run unit tests plus non-workflow integration tests without the coverage gate for fast local verification.
+  - `make test-workflow` — run long-running backend workflow tests for experiment, validation, and export loops.
   - `make test-check` — run pytest with coverage checks (`--cov-fail-under=70`).
   - `make security` — run Bandit scan on backend code.
   - `uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` — start API locally.
@@ -35,12 +36,12 @@ This repository is organized as a monorepo with product-facing apps at the top l
   - `make ci` — run the frontend CI bundle (`lint + typecheck + coverage + build`).
   - `npm run verify:full` — run the local full frontend verification bundle, including Playwright e2e.
 - Root monorepo checks (run in repository root):
-  - `make lint` — run repo-wide lint and syntax checks across apps, shared packages, and runtimes.
-  - `make typecheck` — run all defined type checks.
-  - `make test` — run app tests and shared package/runtime smoke checks.
-  - `make build` — build the frontend and Python package distributions.
+  - `make lint` — run repo-wide lint and syntax checks across apps, shared packages, and runtimes; local runs default to serial orchestration.
+  - `make typecheck` — run all defined type checks; local runs default to serial orchestration.
+  - `make test` — run app tests and shared package/runtime smoke checks; local runs default to serial orchestration.
+  - `make build` — build the frontend and Python package distributions; local runs default to serial orchestration.
   - `make ci-packages` — validate shared packages and runtimes.
-  - `make ci` — run full monorepo CI coverage across backend, frontend, shared packages, and runtimes.
+  - `make ci` — run full monorepo CI coverage across backend, frontend, shared packages, and runtimes; local runs default to serial orchestration.
 
 ## Coding Style & Naming Conventions
 - Python: 4-space indentation, LF line endings, quote-style double, line length 100 (`ruff` config).
@@ -51,7 +52,9 @@ This repository is organized as a monorepo with product-facing apps at the top l
 ## Testing Guidelines
 - Backend tests use `pytest`; put backend tests under `apps/control-plane/tests` with `test_*.py`.
 - Frontend tests use Vitest + React Testing Library; test files are `*.spec.ts`, `*.spec.tsx`, `*.test.ts`, `*.test.tsx` (covered by `apps/web/vitest.config.ts`).
+- Frontend unit/integration tests live under `apps/web/test`, while Playwright e2e tests live under `apps/web/e2e`.
 - Frontend coverage defaults to `app/**/*` and `src/**/*`.
+- Generated test artifacts such as `__pycache__/`, `*.pyc`, coverage output, build output, `.next/`, and `node_modules/` are not part of the committed test structure.
 - Run at least `make test` and `npm run test` before opening a PR.
 
 ## Commit & Pull Request Guidelines

@@ -1,10 +1,10 @@
 .PHONY: help install backend-install frontend-install dev lint typecheck test build \
 	backend-lint backend-typecheck backend-test backend-ci \
 	frontend-lint frontend-typecheck frontend-test frontend-build frontend-ci frontend-e2e \
-	contracts-lint contracts-build contracts-smoke contracts-ci \
-	runner-base-lint runner-base-build runner-base-smoke runner-base-ci \
-	runner-langgraph-lint runner-langgraph-build runner-langgraph-smoke runner-langgraph-ci \
-	runner-openai-agents-lint runner-openai-agents-build runner-openai-agents-smoke runner-openai-agents-ci \
+	contracts-lint contracts-build contracts-test contracts-smoke contracts-ci \
+	runner-base-lint runner-base-build runner-base-test runner-base-smoke runner-base-ci \
+	runner-langgraph-lint runner-langgraph-build runner-langgraph-test runner-langgraph-smoke runner-langgraph-ci \
+	runner-openai-agents-lint runner-openai-agents-build runner-openai-agents-test runner-openai-agents-smoke runner-openai-agents-ci \
 	ci-apps ci-packages ci ci-all
 
 CONTROL_PLANE_DIR := apps/control-plane
@@ -17,8 +17,10 @@ CI_JOBS ?= $(shell sh -c 'getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.
 
 ifneq ($(filter -j -j%,$(MAKEFLAGS)),)
 PARALLEL_MAKE_FLAGS :=
-else
+else ifeq ($(CI),true)
 PARALLEL_MAKE_FLAGS := -j$(CI_JOBS)
+else
+PARALLEL_MAKE_FLAGS :=
 endif
 
 API_HOST ?= 127.0.0.1
@@ -43,16 +45,16 @@ help:
 		'  make backend-install Install backend dependencies' \
 		'  make frontend-install Install frontend dependencies' \
 		'  make dev             Start Redis/Phoenix, backend API, backend worker, and frontend dev server' \
-		'  make lint            Run repo-wide lint and syntax checks' \
-		'  make typecheck       Run repo-wide type checks where defined' \
-		'  make test            Run app tests and shared package smoke checks' \
-		'  make build           Build frontend and Python package distributions' \
+		'  make lint            Run repo-wide lint and syntax checks serially on local machines' \
+		'  make typecheck       Run repo-wide type checks serially on local machines' \
+		'  make test            Run app tests and shared package smoke checks serially on local machines' \
+		'  make build           Build frontend and Python package distributions serially on local machines' \
 		'  make ci-apps         Run app CI checks' \
 		'  make ci-packages     Run shared package and runtime CI checks' \
-		'  make backend-ci      Run backend CI checks (auto-parallel)' \
-		'  make frontend-ci     Run hermetic frontend CI checks (auto-parallel)' \
+		'  make backend-ci      Run backend CI checks' \
+		'  make frontend-ci     Run hermetic frontend CI checks' \
 		'  make frontend-e2e    Run frontend local browser smoke checks' \
-		'  make ci              Run full monorepo CI coverage, including shared packages and runtimes (auto-parallel)'
+		'  make ci              Run full monorepo CI coverage serially on local machines'
 
 install: backend-install frontend-install
 
@@ -187,7 +189,7 @@ typecheck:
 	+$(MAKE) $(PARALLEL_MAKE_FLAGS) backend-typecheck frontend-typecheck
 
 test:
-	+$(MAKE) $(PARALLEL_MAKE_FLAGS) backend-test frontend-test contracts-smoke runner-base-smoke runner-langgraph-smoke runner-openai-agents-smoke
+	+$(MAKE) $(PARALLEL_MAKE_FLAGS) backend-test frontend-test contracts-test contracts-smoke runner-base-test runner-base-smoke runner-langgraph-test runner-langgraph-smoke runner-openai-agents-test runner-openai-agents-smoke
 
 build:
 	+$(MAKE) $(PARALLEL_MAKE_FLAGS) frontend-build contracts-build runner-base-build runner-langgraph-build runner-openai-agents-build
@@ -228,10 +230,13 @@ contracts-lint:
 contracts-build:
 	cd $(CONTRACTS_DIR) && uv build --sdist --wheel
 
+contracts-test:
+	cd $(CONTRACTS_DIR) && uv run --extra dev pytest
+
 contracts-smoke:
 	cd $(CONTRACTS_DIR) && uv run --with-editable . python -c "import agent_atlas_contracts"
 
-contracts-ci: contracts-lint contracts-build contracts-smoke
+contracts-ci: contracts-lint contracts-build contracts-test contracts-smoke
 
 runner-base-lint:
 	python3 -m compileall -q $(RUNNER_BASE_DIR)/src $(RUNNER_BASE_DIR)/validation
@@ -239,10 +244,13 @@ runner-base-lint:
 runner-base-build:
 	cd $(RUNNER_BASE_DIR) && uv build --sdist --wheel
 
+runner-base-test:
+	cd $(RUNNER_BASE_DIR) && uv run --extra dev pytest
+
 runner-base-smoke:
 	cd $(RUNNER_BASE_DIR) && uv run --no-project --with-editable ../../packages/contracts/python --with-editable . python -c "import agent_atlas_runner_base"
 
-runner-base-ci: runner-base-lint runner-base-build runner-base-smoke
+runner-base-ci: runner-base-lint runner-base-build runner-base-test runner-base-smoke
 
 runner-langgraph-lint:
 	python3 -m compileall -q $(RUNNER_LANGGRAPH_DIR)/src
@@ -250,10 +258,13 @@ runner-langgraph-lint:
 runner-langgraph-build:
 	cd $(RUNNER_LANGGRAPH_DIR) && uv build --sdist --wheel
 
+runner-langgraph-test:
+	cd $(RUNNER_LANGGRAPH_DIR) && uv run --extra dev pytest
+
 runner-langgraph-smoke:
 	cd $(RUNNER_LANGGRAPH_DIR) && uv run --no-project --with-editable ../../packages/contracts/python --with-editable ../runner-base --with-editable . python -c "import agent_atlas_runner_langgraph"
 
-runner-langgraph-ci: runner-langgraph-lint runner-langgraph-build runner-langgraph-smoke
+runner-langgraph-ci: runner-langgraph-lint runner-langgraph-build runner-langgraph-test runner-langgraph-smoke
 
 runner-openai-agents-lint:
 	python3 -m compileall -q $(RUNNER_OPENAI_AGENTS_DIR)/src
@@ -261,10 +272,13 @@ runner-openai-agents-lint:
 runner-openai-agents-build:
 	cd $(RUNNER_OPENAI_AGENTS_DIR) && uv build --sdist --wheel
 
+runner-openai-agents-test:
+	cd $(RUNNER_OPENAI_AGENTS_DIR) && uv run --extra dev pytest
+
 runner-openai-agents-smoke:
 	cd $(RUNNER_OPENAI_AGENTS_DIR) && uv run --no-project --with-editable ../../packages/contracts/python --with-editable ../runner-base --with-editable . python -c "import agent_atlas_runner_openai_agents"
 
-runner-openai-agents-ci: runner-openai-agents-lint runner-openai-agents-build runner-openai-agents-smoke
+runner-openai-agents-ci: runner-openai-agents-lint runner-openai-agents-build runner-openai-agents-test runner-openai-agents-smoke
 
 ci-apps: backend-ci frontend-ci
 

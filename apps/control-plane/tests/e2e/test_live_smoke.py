@@ -29,7 +29,6 @@ def _drain_background_work(worker_drain, *, limit: int, rounds: int = 6) -> int:
 def test_live_starter_governed_loop_is_hermetic_and_export_ready(
     monkeypatch,
     worker_drain,
-    wait_until,
 ) -> None:
     provisioning_commands: list[list[str]] = []
     image_ready = False
@@ -109,12 +108,6 @@ def test_live_starter_governed_loop_is_hermetic_and_export_ready(
         ]
 
         assert _drain_background_work(worker_drain, limit=40) >= 1
-        wait_until(
-            lambda: (
-                client.get("/api/v1/agents/published").json()[0]["latest_validation"]["status"]
-                == "succeeded"
-            )
-        )
 
         published_response = client.get("/api/v1/agents/published")
         assert published_response.status_code == 200
@@ -174,10 +167,6 @@ def test_live_starter_governed_loop_is_hermetic_and_export_ready(
         assert start_response.status_code == 200
 
         assert _drain_background_work(worker_drain, limit=40) >= 1
-        wait_until(
-            lambda: client.get(f"/api/v1/experiments/{experiment_id}").json()["status"]
-            == "completed"
-        )
 
         experiment_response = client.get(f"/api/v1/experiments/{experiment_id}")
         assert experiment_response.status_code == 200

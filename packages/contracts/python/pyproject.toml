@@ -7,6 +7,11 @@ dependencies = [
   "pydantic>=2.10,<2.11",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4,<8.5",
+]
+
 [build-system]
 requires = ["setuptools>=70.0,<71.0"]
 build-backend = "setuptools.build_meta"
@@ -19,3 +24,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 agent_atlas_contracts = ["py.typed"]
+
+[tool.pytest.ini_options]
+addopts = ["-q"]
+testpaths = ["tests"]

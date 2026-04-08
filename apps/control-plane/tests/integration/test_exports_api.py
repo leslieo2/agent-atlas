@@ -5,7 +5,7 @@ import json
 import pytest
 from app.bootstrap.container import get_container
 from tests.fixtures.agents import build_fixture_published_agent
-from tests.integration.test_experiments_api import _experiment_payload, _install_runtime
+from tests.integration.test_experiments_api import _experiment_payload
 from tests.support.fake_docker import install_fake_docker_runtime
 from tests.support.fake_k8s import install_fake_k8s_runtime
 
@@ -27,129 +27,10 @@ def _drain_background_work(worker_drain, *, limit: int, rounds: int = 5) -> int:
     return processed_total
 
 
-def test_exports_api_creates_compare_aware_rl_rows(
-    monkeypatch,
-    client,
-    worker_drain,
-    wait_until,
-) -> None:
-    dataset_response = client.post(
-        "/api/v1/datasets",
-        json={
-            "name": "export-compare-dataset",
-            "source": "crm",
-            "version": "2026-03",
-            "rows": [
-                {
-                    "sample_id": "sample-pass",
-                    "input": "alpha",
-                    "expected": "alpha",
-                    "tags": ["shipping"],
-                    "slice": "shipping",
-                    "source": "crm",
-                    "export_eligible": True,
-                },
-                {
-                    "sample_id": "sample-regressed",
-                    "input": "beta",
-                    "expected": "beta",
-                    "tags": ["returns"],
-                    "slice": "returns",
-                    "source": "crm",
-                    "export_eligible": True,
-                },
-            ],
-        },
-    )
-    assert dataset_response.status_code == 200
-    dataset_version_id = dataset_response.json()["current_version_id"]
-
-    _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "beta"})
-    baseline_response = client.post(
-        "/api/v1/experiments",
-        json=_experiment_payload(
-            name="baseline",
-            dataset_version_id=dataset_version_id,
-            tags=["baseline"],
-            executor_backend="local-runner",
-            runner_mode="in-process",
-        ),
-    )
-    assert baseline_response.status_code == 201
-    baseline_experiment_id = baseline_response.json()["experiment_id"]
-    assert client.post(f"/api/v1/experiments/{baseline_experiment_id}/start").status_code == 200
-    assert _drain_background_work(worker_drain, limit=40, rounds=6) >= 1
-    wait_until(
-        lambda: client.get(f"/api/v1/experiments/{baseline_experiment_id}").json()["status"]
-        == "completed"
-    )
-
-    _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "not-beta"})
-    candidate_response = client.post(
-        "/api/v1/experiments",
-        json=_experiment_payload(
-            name="candidate",
-            dataset_version_id=dataset_version_id,
-            tags=["candidate"],
-            executor_backend="local-runner",
-            runner_mode="in-process",
-        ),
-    )
-    assert candidate_response.status_code == 201
-    candidate_experiment_id = candidate_response.json()["experiment_id"]
-    assert client.post(f"/api/v1/experiments/{candidate_experiment_id}/start").status_code == 200
-    assert _drain_background_work(worker_drain, limit=40, rounds=6) >= 1
-    wait_until(
-        lambda: client.get(f"/api/v1/experiments/{candidate_experiment_id}").json()["status"]
-        == "completed"
-    )
-    assert _drain_background_work(worker_drain, limit=40, rounds=6) >= 0
-
-    export_response = client.post(
-        "/api/v1/exports",
-        json={
-            "baseline_experiment_id": baseline_experiment_id,
-            "candidate_experiment_id": candidate_experiment_id,
-            "compare_outcomes": ["regressed"],
-            "format": "jsonl",
-        },
-    )
-    assert export_response.status_code == 200
-    export_payload = export_response.json()
-    assert export_payload["row_count"] == 1
-    assert export_payload["source_experiment_id"] == candidate_experiment_id
-    assert export_payload["baseline_experiment_id"] == baseline_experiment_id
-    assert export_payload["candidate_experiment_id"] == candidate_experiment_id
-    assert export_payload["filters_summary"]["compare_outcomes"] == ["regressed"]
-
-    history_response = client.get("/api/v1/exports")
-    assert history_response.status_code == 200
-    history = history_response.json()
-    assert any(item["export_id"] == export_payload["export_id"] for item in history)
-
-    download_response = client.get(f"/api/v1/exports/{export_payload['export_id']}")
-    assert download_response.status_code == 200
-    rows = [json.loads(line) for line in download_response.text.splitlines()]
-    assert len(rows) == 1
-    row = rows[0]
-    assert row["schema_version"] == "rl-export-jsonl-v1"
-    assert row["experiment_id"] == candidate_experiment_id
-    assert row["dataset_version_id"] == dataset_version_id
-    assert row["dataset_sample_id"] == "sample-regressed"
-    assert row["compare_outcome"] == "regressed"
-    assert row["dataset_slice"] == "returns"
-    assert row["dataset_source"] == "crm"
-    assert row["judgement"] == "failed"
-    assert row["artifact_ref"]
-    assert row["executor_backend"] == "local-runner"
-    assert "published_agent_snapshot" in row
-
-
 def test_k8s_experiment_loop_recovers_trace_artifacts_and_export_chain(
     monkeypatch,
     client,
     worker_drain,
-    wait_until,
     tmp_path,
 ) -> None:
     dataset_response = client.post(
@@ -210,11 +91,8 @@ def test_k8s_experiment_loop_recovers_trace_artifacts_and_export_chain(
     baseline_experiment_id = baseline_response.json()["experiment_id"]
     assert client.post(f"/api/v1/experiments/{baseline_experiment_id}/start").status_code == 200
     assert _drain_background_work(worker_drain, limit=80, rounds=8) >= 1
-    wait_until(
-        lambda: client.get(f"/api/v1/experiments/{baseline_experiment_id}").json()["status"]
-        == "completed",
-        timeout=5.0,
-    )
+    baseline_status_response = client.get(f"/api/v1/experiments/{baseline_experiment_id}")
+    assert baseline_status_response.json()["status"] == "completed"
 
     install_fake_k8s_runtime(
         monkeypatch,
@@ -239,11 +117,8 @@ def test_k8s_experiment_loop_recovers_trace_artifacts_and_export_chain(
     candidate_experiment_id = candidate_response.json()["experiment_id"]
     assert client.post(f"/api/v1/experiments/{candidate_experiment_id}/start").status_code == 200
     assert _drain_background_work(worker_drain, limit=80, rounds=8) >= 1
-    wait_until(
-        lambda: client.get(f"/api/v1/experiments/{candidate_experiment_id}").json()["status"]
-        == "completed",
-        timeout=5.0,
-    )
+    candidate_status_response = client.get(f"/api/v1/experiments/{candidate_experiment_id}")
+    assert candidate_status_response.json()["status"] == "completed"
     assert _drain_background_work(worker_drain, limit=80, rounds=8) >= 0
 
     detail_response = client.get(f"/api/v1/experiments/{candidate_experiment_id}")
@@ -313,7 +188,6 @@ def test_claude_code_cli_experiment_loop_runs_on_external_runner_k8s_carrier(
     monkeypatch,
     client,
     worker_drain,
-    wait_until,
     tmp_path,
 ) -> None:
     dataset_response = client.post(
@@ -371,13 +245,6 @@ def test_claude_code_cli_experiment_loop_runs_on_external_runner_k8s_carrier(
     candidate_experiment_id = candidate_response.json()["experiment_id"]
     assert client.post(f"/api/v1/experiments/{candidate_experiment_id}/start").status_code == 200
     assert _drain_background_work(worker_drain, limit=80, rounds=8) >= 1
-    wait_until(
-        lambda: (
-            client.get(f"/api/v1/experiments/{candidate_experiment_id}/runs").json()[0]["judgement"]
-            == "passed"
-        ),
-        timeout=5.0,
-    )
 
     runs_response = client.get(f"/api/v1/experiments/{candidate_experiment_id}/runs")
     assert runs_response.status_code == 200
@@ -424,7 +291,6 @@ def test_claude_code_cli_experiment_loop_runs_on_external_runner_k8s_carrier(
 def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_without_bootstrap(
     monkeypatch,
     worker_drain,
-    wait_until,
 ) -> None:
     get_container.cache_clear()
     install_fake_docker_runtime(
@@ -461,13 +327,6 @@ def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_wit
         )
         assert validation_response.status_code == 200
         assert _drain_background_work(worker_drain, limit=40) >= 1
-
-        wait_until(
-            lambda: (
-                live_client.get("/api/v1/agents/published").json()[0]["latest_validation"]["status"]
-                == "succeeded"
-            )
-        )
 
         published_response = live_client.get("/api/v1/agents/published")
         assert published_response.status_code == 200
@@ -520,10 +379,8 @@ def test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_wit
         start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
         assert start_response.status_code == 200
         assert _drain_background_work(worker_drain, limit=40) >= 1
-        wait_until(
-            lambda: live_client.get(f"/api/v1/experiments/{experiment_id}").json()["status"]
-            == "completed"
-        )
+        experiment_status_response = live_client.get(f"/api/v1/experiments/{experiment_id}")
+        assert experiment_status_response.json()["status"] == "completed"
 
         runs_response = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
         assert runs_response.status_code == 200

@@ -14,6 +14,15 @@ from app.infrastructure.repositories import reset_state
 from fastapi.testclient import TestClient
 from tests.support.fake_phoenix import FakeOtlpTraceExporter
 
+WORKFLOW_TEST_NODEID_PATTERNS = (
+    "tests/integration/test_experiments_api.py::test_experiments_api_supports_compare_and_run_curation",
+    "tests/integration/test_experiments_api.py::test_experiments_api_live_mode_",
+    "tests/integration/test_exports_api.py::test_exports_api_creates_compare_aware_rl_rows",
+    "tests/integration/test_exports_api.py::test_k8s_experiment_loop_recovers_trace_artifacts_and_export_chain",
+    "tests/integration/test_exports_api.py::test_claude_code_cli_experiment_loop_runs_on_external_runner_k8s_carrier",
+    "tests/integration/test_exports_api.py::test_live_formal_agent_loop_reaches_validation_evidence_trace_and_export_without_bootstrap",
+)
+
 
 def _reset_state() -> None:
     get_container.cache_clear()
@@ -80,6 +89,9 @@ def worker_drain() -> Callable[[int], int]:
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     root = Path(__file__).parent
     for item in items:
+        if any(pattern in item.nodeid for pattern in WORKFLOW_TEST_NODEID_PATTERNS):
+            item.add_marker(pytest.mark.workflow)
+
         try:
             relative_path = Path(str(item.fspath)).resolve().relative_to(root.resolve())
         except ValueError:

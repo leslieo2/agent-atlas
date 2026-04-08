@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -152,7 +153,6 @@ def test_experiments_api_supports_compare_and_run_curation(
     monkeypatch,
     client,
     worker_drain,
-    wait_until,
 ) -> None:
     dataset_response = client.post(
         "/api/v1/datasets",
@@ -202,10 +202,8 @@ def test_experiments_api_supports_compare_and_run_curation(
     start_baseline = client.post(f"/api/v1/experiments/{baseline_experiment_id}/start")
     assert start_baseline.status_code == 200
     assert _drain_background_work(worker_drain, limit=40) >= 1
-    wait_until(
-        lambda: client.get(f"/api/v1/experiments/{baseline_experiment_id}").json()["status"]
-        == "completed"
-    )
+    baseline_status_response = client.get(f"/api/v1/experiments/{baseline_experiment_id}")
+    assert baseline_status_response.json()["status"] == "completed"
 
     _install_runtime(monkeypatch, outputs={"alpha": "alpha", "beta": "not-beta"})
     candidate_response = client.post(
@@ -223,10 +221,8 @@ def test_experiments_api_supports_compare_and_run_curation(
     start_candidate = client.post(f"/api/v1/experiments/{candidate_experiment_id}/start")
     assert start_candidate.status_code == 200
     assert _drain_background_work(worker_drain, limit=40) >= 1
-    wait_until(
-        lambda: client.get(f"/api/v1/experiments/{candidate_experiment_id}").json()["status"]
-        == "completed"
-    )
+    candidate_status_response = client.get(f"/api/v1/experiments/{candidate_experiment_id}")
+    assert candidate_status_response.json()["status"] == "completed"
     assert _drain_background_work(worker_drain, limit=40) >= 0
 
     detail_response = client.get(f"/api/v1/experiments/{candidate_experiment_id}")
@@ -252,27 +248,6 @@ def test_experiments_api_supports_compare_and_run_curation(
     assert runs["sample-regressed"]["artifact_ref"]
     assert runs["sample-regressed"]["executor_backend"] == "local-runner"
 
-    compare_response = client.get(
-        "/api/v1/experiments/compare",
-        params={
-            "baseline_experiment_id": baseline_experiment_id,
-            "candidate_experiment_id": candidate_experiment_id,
-        },
-    )
-    wait_until(
-        lambda: (
-            client.get(
-                "/api/v1/experiments/compare",
-                params={
-                    "baseline_experiment_id": baseline_experiment_id,
-                    "candidate_experiment_id": candidate_experiment_id,
-                },
-            )
-            .json()["distribution"]
-            .get("regressed")
-            == 1
-        )
-    )
     compare_response = client.get(
         "/api/v1/experiments/compare",
         params={
@@ -307,6 +282,45 @@ def test_experiments_api_supports_compare_and_run_curation(
     run_detail = client.get(f"/api/v1/runs/{run_id}")
     assert run_detail.status_code == 200
     assert run_detail.json()["experiment_id"] == candidate_experiment_id
+
+    export_response = client.post(
+        "/api/v1/exports",
+        json={
+            "baseline_experiment_id": baseline_experiment_id,
+            "candidate_experiment_id": candidate_experiment_id,
+            "compare_outcomes": ["regressed"],
+            "format": "jsonl",
+        },
+    )
+    assert export_response.status_code == 200
+    export_payload = export_response.json()
+    assert export_payload["row_count"] == 1
+    assert export_payload["source_experiment_id"] == candidate_experiment_id
+    assert export_payload["baseline_experiment_id"] == baseline_experiment_id
+    assert export_payload["candidate_experiment_id"] == candidate_experiment_id
+    assert export_payload["filters_summary"]["compare_outcomes"] == ["regressed"]
+
+    history_response = client.get("/api/v1/exports")
+    assert history_response.status_code == 200
+    history = history_response.json()
+    assert any(item["export_id"] == export_payload["export_id"] for item in history)
+
+    download_response = client.get(f"/api/v1/exports/{export_payload['export_id']}")
+    assert download_response.status_code == 200
+    rows = [json.loads(line) for line in download_response.text.splitlines()]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["schema_version"] == "rl-export-jsonl-v1"
+    assert row["experiment_id"] == candidate_experiment_id
+    assert row["dataset_version_id"] == dataset_version_id
+    assert row["dataset_sample_id"] == "sample-regressed"
+    assert row["compare_outcome"] == "regressed"
+    assert row["dataset_slice"] == "returns"
+    assert row["dataset_source"] == "crm"
+    assert row["judgement"] == "failed"
+    assert row["artifact_ref"]
+    assert row["executor_backend"] == "local-runner"
+    assert "published_agent_snapshot" in row
 
 
 def test_experiments_api_accepts_archived_valid_published_snapshot_for_new_runs(client) -> None:
@@ -376,171 +390,9 @@ def test_experiments_api_accepts_archived_valid_published_snapshot_for_new_runs(
     assert response.json()["spec"]["published_agent_id"] == "archived-basic"
 
 
-def test_experiments_api_live_mode_starts_with_bootstrapped_starter_agent(
-    monkeypatch,
-    worker_drain,
-) -> None:
-    get_container.cache_clear()
-    install_fake_docker_runtime(
-        monkeypatch,
-        outputs={STARTER_CODE_EDIT_PROMPT: STARTER_CODE_EDIT_OUTPUT},
-    )
-
-    from app.main import app
-    from fastapi.testclient import TestClient
-
-    with TestClient(app) as live_client:
-        bootstrap_response = live_client.post("/api/v1/agents/starters/claude-code")
-        assert bootstrap_response.status_code == 200
-        assert bootstrap_response.json()["agent_id"] == "claude-code-starter"
-
-        dataset_response = live_client.post(
-            "/api/v1/datasets",
-            json={
-                "name": "live-starter-dataset",
-                "description": "Dataset for fresh live starter code-edit experiment path",
-                "source": "starter-code-edit",
-                "version": "2026-04",
-                "rows": [
-                    {
-                        "sample_id": "sample-1",
-                        "input": STARTER_CODE_EDIT_PROMPT,
-                        "expected": STARTER_CODE_EDIT_OUTPUT,
-                        "tags": ["code-edit", "starter"],
-                        "slice": "starter-code-edit",
-                        "source": "starter-code-edit",
-                        "export_eligible": True,
-                    }
-                ],
-            },
-        )
-        assert dataset_response.status_code == 200
-        dataset_version_id = dataset_response.json()["current_version_id"]
-
-        create_response = live_client.post(
-            "/api/v1/experiments",
-            json={
-                "name": "live-starter-experiment",
-                "spec": {
-                    "dataset_version_id": dataset_version_id,
-                    "published_agent_id": "claude-code-starter",
-                    "model_settings": {"model": "gpt-5.4-mini", "temperature": 0},
-                    "prompt_config": {"prompt_version": "2026-04"},
-                    "toolset_config": {"tools": [], "metadata": {}},
-                    "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
-                    "executor_config": {
-                        "backend": "external-runner",
-                        "execution_binding": {
-                            "runner_backend": "k8s-container",
-                            "runner_image": "atlas-claude-validation:local",
-                        },
-                    },
-                    "tags": ["live-starter"],
-                },
-            },
-        )
-        assert create_response.status_code == 201
-        experiment_id = create_response.json()["experiment_id"]
-
-        start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
-        assert start_response.status_code == 200
-
-        assert worker_drain(limit=10) >= 1
-
-        experiment_detail = live_client.get(f"/api/v1/experiments/{experiment_id}")
-        assert experiment_detail.status_code == 200
-        detail = experiment_detail.json()
-        assert detail["status"] == "completed"
-        assert detail["completed_count"] == 1
-        assert detail["failed_count"] == 0
-
-        runs_response = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
-        assert runs_response.status_code == 200
-        runs = runs_response.json()
-        assert len(runs) == 1
-        run_detail = live_client.get(f"/api/v1/runs/{runs[0]['run_id']}")
-        assert run_detail.status_code == 200
-        assert run_detail.json()["agent_id"] == "claude-code-starter"
-
-
-def test_experiments_api_live_mode_runs_with_state_backed_formal_agent(
-    monkeypatch,
-    worker_drain,
-) -> None:
-    get_container.cache_clear()
-
-    container = get_container()
-    container.infrastructure.published_agent_repository.save_agent(
-        build_fixture_published_agent("basic")
-    )
-
-    from app.main import app
-    from fastapi.testclient import TestClient
-
-    with TestClient(app) as live_client:
-        dataset_response = live_client.post(
-            "/api/v1/datasets",
-            json={
-                "name": "live-formal-agent-dataset",
-                "description": "Dataset for state-backed formal agent experiment path",
-                "source": "crm",
-                "version": "2026-04",
-                "rows": [{"sample_id": "sample-1", "input": "alpha", "expected": "alpha"}],
-            },
-        )
-        assert dataset_response.status_code == 200
-        dataset_version_id = dataset_response.json()["current_version_id"]
-
-        create_response = live_client.post(
-            "/api/v1/experiments",
-            json={
-                "name": "live-formal-agent-experiment",
-                "spec": {
-                    "dataset_version_id": dataset_version_id,
-                    "published_agent_id": "basic",
-                    "model_settings": {"model": "gpt-5.4-mini", "temperature": 0},
-                    "prompt_config": {"prompt_version": "2026-04"},
-                    "toolset_config": {"tools": [], "metadata": {}},
-                    "evaluator_config": {"scoring_mode": "exact_match", "metadata": {}},
-                    "executor_config": {
-                        "backend": "external-runner",
-                        "execution_binding": {
-                            "runner_backend": "k8s-container",
-                            "runner_image": "atlas-claude-validation:local",
-                        },
-                    },
-                    "tags": ["live-formal-agent"],
-                },
-            },
-        )
-        assert create_response.status_code == 201
-        experiment_id = create_response.json()["experiment_id"]
-
-        start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
-        assert start_response.status_code == 200
-
-        assert worker_drain(limit=10) >= 1
-
-        experiment_detail = live_client.get(f"/api/v1/experiments/{experiment_id}")
-        assert experiment_detail.status_code == 200
-        detail = experiment_detail.json()
-        assert detail["status"] == "completed"
-        assert detail["completed_count"] == 1
-        assert detail["failed_count"] == 0
-
-        runs_response = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
-        assert runs_response.status_code == 200
-        runs = runs_response.json()
-        assert len(runs) == 1
-        run_detail = live_client.get(f"/api/v1/runs/{runs[0]['run_id']}")
-        assert run_detail.status_code == 200
-        assert run_detail.json()["agent_id"] == "basic"
-
-
 def test_experiments_api_live_mode_pins_published_snapshot_across_unpublish(
     monkeypatch,
     worker_drain,
-    wait_until,
 ) -> None:
     get_container.cache_clear()
     install_fake_docker_runtime(
@@ -596,10 +448,8 @@ def test_experiments_api_live_mode_pins_published_snapshot_across_unpublish(
         start_response = live_client.post(f"/api/v1/experiments/{experiment_id}/start")
         assert start_response.status_code == 200
         assert _drain_background_work(worker_drain, limit=40) >= 1
-        wait_until(
-            lambda: live_client.get(f"/api/v1/experiments/{experiment_id}").json()["status"]
-            == "completed"
-        )
+        experiment_status_response = live_client.get(f"/api/v1/experiments/{experiment_id}")
+        assert experiment_status_response.json()["status"] == "completed"
 
         runs_response = live_client.get(f"/api/v1/experiments/{experiment_id}/runs")
         assert runs_response.status_code == 200

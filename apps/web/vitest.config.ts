@@ -5,10 +5,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, ".")
-    }
+    },
   },
   esbuild: {
-    jsx: "automatic"
+    jsx: "automatic",
   },
   test: {
     globals: true,
@@ -22,16 +22,19 @@ export default defineConfig({
     ],
     exclude: ["e2e/**", "node_modules/**", ".next/**"],
     setupFiles: ["./test/setup.ts"],
-      coverage: {
-        reporter: ["text", "json", "html"],
-      include: ["src/**/*"],
-      exclude: ["app/**/*"],
+    coverage: {
+      reporter: ["text", "json", "html"],
+      include: ["app/**/*", "src/**/*"],
+      exclude: [
+        "app/layout.tsx",
+        "app/globals.css",
+      ],
       thresholds: {
         lines: 70,
         functions: 70,
         branches: 60,
-        statements: 70
-      }
-    }
-  }
+        statements: 70,
+      },
+    },
+  },
 });

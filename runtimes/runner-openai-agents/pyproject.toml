@@ -11,6 +11,11 @@ dependencies = [
   "openai-agents",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4,<8.5",
+]
+
 [build-system]
 requires = ["setuptools>=70.0,<71.0"]
 build-backend = "setuptools.build_meta"
@@ -23,6 +28,14 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 agent_atlas_runner_openai_agents = ["py.typed"]
+
+[tool.uv.sources]
+agent-atlas-contracts = { path = "../../packages/contracts/python", editable = true }
+agent-atlas-runner-base = { path = "../runner-base", editable = true }
+
+[tool.pytest.ini_options]
+addopts = ["-q"]
+testpaths = ["tests"]
 
 [project.entry-points."agent_atlas.runtime_adapters"]
 openai_agents = "agent_atlas_runner_openai_agents.runtime_plugins:build_runtime_adapter_plugin"

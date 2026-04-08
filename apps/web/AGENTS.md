@@ -44,8 +44,8 @@ This is a Next.js App Router frontend in TypeScript.
 - Framework: Vitest + React Testing Library.
 - Test files: `*.spec.ts`, `*.spec.tsx`, `*.test.ts`, `*.test.tsx`.
 - Setup file: `test/setup.ts`.
-- Current tests include examples in `test/fixtures.spec.ts`.
-- Coverage scope in config: `app/**/*`, `src/**/*`.
+- Unit and integration tests live under `test/unit` and `test/integration`; Playwright e2e lives under `e2e/`.
+- Coverage scope in config includes `app/**/*` and `src/**/*`; `e2e/**` stays outside Vitest coverage.
 - Run coverage manually with `npx vitest run --coverage` when needed.
 
 ## Commit & Pull Request Guidelines

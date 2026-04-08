@@ -1,4 +1,4 @@
-.PHONY: install install-export sync lint fmt typecheck test test-unit test-integration test-e2e test-e2e-live test-tdd-unit test-tdd-integration test-check security contract-sync contract-check run-api run-worker ci
+.PHONY: install install-export sync lint fmt typecheck test test-unit test-integration test-workflow test-e2e test-e2e-live test-tdd-unit test-tdd-integration test-check security contract-sync contract-check run-api run-worker ci
 
 install:
 	uv sync --extra dev
@@ -22,13 +22,16 @@ typecheck:
 	uv run --extra dev mypy app
 
 test:
-	uv run --extra dev pytest --no-cov
+	uv run --extra dev pytest -m "not workflow and not e2e" --no-cov
 
 test-unit:
 	uv run --extra dev pytest -m unit --no-cov
 
 test-integration:
-	uv run --extra dev pytest -m integration
+	uv run --extra dev pytest -m "integration and not workflow" --no-cov
+
+test-workflow:
+	uv run --extra dev pytest -m workflow --no-cov
 
 test-e2e:
 	uv run --extra dev pytest -m e2e
@@ -40,7 +43,7 @@ test-tdd-unit:
 	uv run --extra dev pytest -m unit --no-cov -x --ff
 
 test-tdd-integration:
-	uv run --extra dev pytest -m integration -x --ff
+	uv run --extra dev pytest -m "integration and not workflow" --no-cov -x --ff
 
 test-check:
 	uv run --extra dev pytest

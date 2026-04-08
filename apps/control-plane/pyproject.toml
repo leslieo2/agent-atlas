@@ -116,6 +116,7 @@ testpaths = ["tests"]
 markers = [
   "unit: fast isolated tests for pure services, mappers, and adapters",
   "integration: API and service collaboration tests inside the FastAPI app boundary",
+  "workflow: long-running experiment, validation, and export loop tests for backend workflow coverage",
   "e2e: end-to-end workflow tests covering the full backend workbench flow",
 ]
 
