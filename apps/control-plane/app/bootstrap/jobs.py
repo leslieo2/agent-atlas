@@ -7,7 +7,7 @@ from app.modules.experiments.application.execution import (
     ExperimentAggregationService,
     ExperimentOrchestrator,
 )
-from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
+from app.modules.runs.domain.models import RunExecutionSpec
 from app.modules.shared.domain.jobs import EnqueuedExecutionJob, ExecutionJobKind
 
 
@@ -25,7 +25,7 @@ class ExecutionJobHandlers:
 
     def dispatch(self, job: EnqueuedExecutionJob) -> None:
         if job.kind == ExecutionJobKind.RUN_EXECUTION:
-            run_spec = ExecutionRunSpec.model_validate(job.kwargs["run_spec"])
+            run_spec = RunExecutionSpec.model_validate(job.kwargs["run_spec"])
             self.run_execution_service.execute_run(run_spec.run_id, run_spec)
             return
         if job.kind == ExecutionJobKind.EXPERIMENT_EXECUTION:

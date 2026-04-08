@@ -44,7 +44,7 @@ from app.modules.agents.domain.models import (
     contract_published_agent_snapshot_source_fingerprint_or_raise,
     normalize_contract_published_agent_snapshot,
 )
-from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
+from app.modules.runs.domain.models import RunExecutionSpec
 
 CLAUDE_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_")
 REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -77,7 +77,7 @@ class SerializedSubprocessAppError(AppError):
 
 
 class PublishedArtifactResolver:
-    def resolve(self, payload: ExecutionRunSpec) -> ExecutionArtifact:
+    def resolve(self, payload: RunExecutionSpec) -> ExecutionArtifact:
         provenance = payload.provenance
         if provenance is None or provenance.published_agent_snapshot is None:
             raise AgentLoadFailedError(

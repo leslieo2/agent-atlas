@@ -21,7 +21,7 @@ from app.modules.agents.domain.models import (
     normalize_contract_published_agent_snapshot,
 )
 from app.modules.runs.application.ports import RunRepository
-from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
+from app.modules.runs.domain.models import RunExecutionSpec
 from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus
@@ -29,7 +29,7 @@ from app.modules.shared.domain.observability import utc_now
 
 
 class _ExecutionBackendAdapter(Protocol):
-    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle: ...
+    def submit_run(self, run_spec: RunExecutionSpec) -> RunHandle: ...
 
     def cancel_run(self, request: CancelRequest) -> bool: ...
 
@@ -54,7 +54,7 @@ class _JobExecutionBackendAdapter:
         self.run_repository = run_repository
         self.production_ready = production_ready
 
-    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle:
+    def submit_run(self, run_spec: RunExecutionSpec) -> RunHandle:
         existing = self.run_repository.get(run_spec.run_id)
         if (
             existing is not None
@@ -247,7 +247,7 @@ class _JobExecutionBackendAdapter:
 
     def _executor_ref(
         self,
-        run_spec: ExecutionRunSpec,
+        run_spec: RunExecutionSpec,
         *,
         attempt: int,
         attempt_id: UUID,
@@ -258,7 +258,7 @@ class _JobExecutionBackendAdapter:
         return f"{prefix}-{run_id}"
 
 
-def _ensure_retryable_publication_snapshot(run_spec: ExecutionRunSpec) -> None:
+def _ensure_retryable_publication_snapshot(run_spec: RunExecutionSpec) -> None:
     provenance = run_spec.provenance
     if provenance is None or provenance.published_agent_snapshot is None:
         raise UnsupportedOperationError(
@@ -303,7 +303,7 @@ class ExternalRunnerExecutionAdapter(_JobExecutionBackendAdapter):
 
     def _executor_ref(
         self,
-        run_spec: ExecutionRunSpec,
+        run_spec: RunExecutionSpec,
         *,
         attempt: int,
         attempt_id: UUID,
@@ -328,7 +328,7 @@ class K8sJobExecutionAdapter(_JobExecutionBackendAdapter):
         )
         self.launcher = launcher or K8sLauncher()
 
-    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle:
+    def submit_run(self, run_spec: RunExecutionSpec) -> RunHandle:
         handle = super().submit_run(run_spec)
         attempt = 1
         run = self.run_repository.get(run_spec.run_id)
@@ -364,7 +364,7 @@ class ExecutionControlRegistry(ExecutionControlPort):
     def __init__(self, *, backends: Mapping[str, _ExecutionBackendAdapter]) -> None:
         self.backends = {key.strip().lower(): value for key, value in backends.items()}
 
-    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle:
+    def submit_run(self, run_spec: RunExecutionSpec) -> RunHandle:
         backend_name = run_spec.executor_config.backend.strip().lower()
         backend = self.backends.get(backend_name)
         if backend is None:

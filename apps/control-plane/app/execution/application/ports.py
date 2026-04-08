@@ -10,7 +10,7 @@ from agent_atlas_contracts.execution import (
 )
 
 from app.execution.domain import CancelRequest, ExecutionCapability, RunHandle, RunStatusSnapshot
-from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
+from app.modules.runs.domain.models import RunExecutionSpec
 from app.modules.shared.domain.enums import RunStatus
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ class ExecutionAttempt:
 
 
 class ExecutionControlPort(Protocol):
-    def submit_run(self, run_spec: ExecutionRunSpec) -> RunHandle: ...
+    def submit_run(self, run_spec: RunExecutionSpec) -> RunHandle: ...
 
     def cancel_run(self, request: CancelRequest) -> bool: ...
 
@@ -87,7 +87,7 @@ class PublishedRunRuntimePort(Protocol):
 
 
 class ArtifactResolverPort(Protocol):
-    def resolve(self, payload: ExecutionRunSpec) -> ExecutionArtifact: ...
+    def resolve(self, payload: RunExecutionSpec) -> ExecutionArtifact: ...
 
 
 class RunnerPort(Protocol):

@@ -111,6 +111,27 @@ def test_execution_contracts_module_does_not_shadow_execution_owned_control_reco
     assert violations == []
 
 
+def test_execution_and_bootstrap_do_not_alias_run_execution_spec() -> None:
+    guarded_paths = [
+        *sorted(Path("app/execution").rglob("*.py")),
+        Path("app/bootstrap/jobs.py"),
+    ]
+
+    violations: list[str] = []
+    for path in guarded_paths:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or (
+                node.module != "app.modules.runs.domain.models"
+            ):
+                continue
+            for alias in node.names:
+                if alias.name == "RunExecutionSpec" and alias.asname == "ExecutionRunSpec":
+                    violations.append(f"{path}:{node.lineno}:ExecutionRunSpec")
+
+    assert violations == []
+
+
 def test_trace_runtime_translation_does_not_rebuild_contract_events_locally() -> None:
     violations: list[str] = []
     for path in sorted(Path("app").rglob("*.py")):
