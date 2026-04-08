@@ -118,8 +118,8 @@ def start_validation_run(
     commands: Annotated[AgentValidationCommands, Depends(get_agent_validation_commands)],
 ) -> RunResponse:
     try:
-        run = commands.create_run(agent_id, payload.to_domain())
-        return RunResponse.model_validate(run.model_dump(mode="json"))
+        run = commands.create_run(agent_id, payload.to_run_create_input(agent_id))
+        return RunResponse.from_domain(run)
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
     except AgentLoadFailedError as exc:

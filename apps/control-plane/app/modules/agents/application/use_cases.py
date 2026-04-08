@@ -28,8 +28,6 @@ from app.modules.agents.domain.models import (
     AgentValidationOutcomeStatus,
     AgentValidationOutcomeSummary,
     AgentValidationRecord,
-    AgentValidationRun,
-    AgentValidationRunCreateInput,
     AgentValidationRunReference,
     ExecutionBinding,
     GovernedPublishedAgent,
@@ -38,6 +36,7 @@ from app.modules.agents.domain.models import (
 from app.modules.agents.domain.reference_assets import (
     ensure_claude_code_starter_runtime_ready,
 )
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.execution import (
     ExecutionProfile,
@@ -260,9 +259,7 @@ class AgentValidationCommands:
         self.published_agents = published_agents
         self.validation_submission = validation_submission
 
-    def create_run(
-        self, agent_id: str, payload: AgentValidationRunCreateInput
-    ) -> AgentValidationRun:
+    def create_run(self, agent_id: str, payload: RunCreateInput) -> RunRecord:
         agent = self._resolve_agent(agent_id)
         ensure_claude_code_starter_runtime_ready(agent.execution_binding)
         return self.validation_submission.submit_validation(payload, agent)

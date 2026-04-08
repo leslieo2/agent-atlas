@@ -13,12 +13,7 @@ from app.modules.agents.application.use_cases import (
     AgentValidationCommands,
     PublishedAgentCatalogQueries,
 )
-from app.modules.agents.domain.models import (
-    AgentValidationRecord,
-    AgentValidationRun,
-    AgentValidationRunCreateInput,
-    GovernedPublishedAgent,
-)
+from app.modules.agents.domain.models import AgentValidationRecord, GovernedPublishedAgent
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
 
@@ -80,48 +75,10 @@ class RunBackedAgentValidationSubmission:
 
     def submit_validation(
         self,
-        payload: AgentValidationRunCreateInput,
+        payload: RunCreateInput,
         agent: GovernedPublishedAgent,
-    ) -> AgentValidationRun:
-        run = self.submission_service.submit(_to_run_create_input(payload, agent), agent)
-        return _to_agent_validation_run(run)
-
-
-def _to_run_create_input(
-    payload: AgentValidationRunCreateInput,
-    agent: GovernedPublishedAgent,
-) -> RunCreateInput:
-    return RunCreateInput(
-        project=payload.project,
-        dataset=payload.dataset,
-        agent_id=agent.agent_id,
-        input_summary=payload.input_summary,
-        prompt=payload.prompt,
-        tags=list(payload.tags),
-        project_metadata=dict(payload.project_metadata),
-        execution_target=(
-            payload.execution_target.model_copy(deep=True)
-            if payload.execution_target is not None
-            else None
-        ),
-        dataset_sample_id=payload.dataset_sample_id,
-        executor_config=payload.executor_config.model_copy(deep=True),
-        execution_binding=(
-            payload.execution_binding.model_copy(deep=True)
-            if payload.execution_binding is not None
-            else None
-        ),
-        toolset_config=payload.toolset_config.model_copy(deep=True),
-        approval_policy=(
-            payload.approval_policy.model_copy(deep=True)
-            if payload.approval_policy is not None
-            else None
-        ),
-    )
-
-
-def _to_agent_validation_run(run: RunRecord) -> AgentValidationRun:
-    return AgentValidationRun.model_validate(run.model_dump(mode="python"))
+    ) -> RunRecord:
+        return self.submission_service.submit(payload, agent)
 
 
 @dataclass(frozen=True)

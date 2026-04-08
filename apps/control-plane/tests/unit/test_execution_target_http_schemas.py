@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from agent_atlas_contracts.execution import ExecutionTarget
+from app.modules.agents.adapters.inbound.http.schemas import AgentValidationRunStartRequest
 from app.modules.experiments.adapters.inbound.http.schemas import ExperimentSpecRequest
 from app.modules.runs.adapters.inbound.http.schemas import RunCreateRequest, RunResponse
 from app.modules.runs.domain.models import RunRecord
@@ -144,6 +145,41 @@ def test_run_create_request_rejects_legacy_executor_shape() -> None:
                 },
             }
         )
+
+
+def test_agent_validation_request_matches_run_create_normalization() -> None:
+    payload = {
+        "project": "migration-check",
+        "dataset": "framework-ds",
+        "input_summary": "framework coverage",
+        "prompt": "Inspect the latest run.",
+        "tags": ["validation", "agents-surface", "validation"],
+        "project_metadata": {"surface": "agents"},
+        "execution_target": {
+            "kind": "endpoint",
+            "display_name": "staging",
+            "target_ref": "endpoint://staging",
+            "metadata": {"base_url": "https://staging.example.com"},
+        },
+        "executor_config": {
+            "backend": "external-runner",
+            "execution_binding": {
+                "runner_backend": "docker-container",
+                "runner_image": "atlas-claude-validation:local",
+                "config": {"timeout_seconds": 900},
+            },
+        },
+    }
+    run_request = RunCreateRequest.model_validate({**payload, "agent_id": "triage-bot"})
+    agent_request = AgentValidationRunStartRequest.model_validate(payload)
+
+    run_domain = run_request.to_domain()
+    agent_domain = agent_request.to_run_create_input("triage-bot")
+
+    assert agent_domain == run_domain.model_copy(
+        update={"tags": ["validation", "agents-surface"]},
+        deep=True,
+    )
 
 
 def test_execution_profile_domain_model_no_longer_coerces_legacy_executor_shape() -> None:

@@ -10,11 +10,10 @@ from pydantic import SecretStr
 from app.modules.agents.domain.models import (
     AgentModuleSource,
     AgentValidationRecord,
-    AgentValidationRun,
-    AgentValidationRunCreateInput,
     DiscoveredAgent,
     GovernedPublishedAgent,
 )
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 
 if TYPE_CHECKING:
     from app.execution.application.results import PublishedRunExecutionResult
@@ -43,9 +42,9 @@ class AgentValidationRecordPort(Protocol):
 class AgentValidationSubmissionPort(Protocol):
     def submit_validation(
         self,
-        payload: AgentValidationRunCreateInput,
+        payload: RunCreateInput,
         agent: GovernedPublishedAgent,
-    ) -> AgentValidationRun: ...
+    ) -> RunRecord: ...
 
 
 class FrameworkRegistryPort(Protocol):

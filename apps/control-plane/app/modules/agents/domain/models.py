@@ -9,7 +9,6 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
-from agent_atlas_contracts.execution import ExecutionTarget
 from agent_atlas_contracts.runtime import AgentManifest, ExecutionReferenceMetadata
 from agent_atlas_contracts.runtime import PublishedAgent as ContractPublishedAgentSnapshot
 from pydantic import BaseModel, Field, model_validator
@@ -17,14 +16,7 @@ from pydantic import BaseModel, Field, model_validator
 from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import AdapterKind, AgentFamily, RunStatus
-from app.modules.shared.domain.execution import (
-    ExecutionBinding,
-    ExecutionProfile,
-    ToolsetConfig,
-)
-from app.modules.shared.domain.observability import RunLineage, TracePointer, TracingMetadata
-from app.modules.shared.domain.policies import ApprovalPolicySnapshot
-from app.modules.shared.domain.provenance import ProvenanceMetadata
+from app.modules.shared.domain.execution import ExecutionBinding, ExecutionProfile
 
 
 @dataclass(frozen=True)
@@ -109,66 +101,6 @@ class AgentValidationRecord(BaseModel):
     image_ref: str | None = None
     trace_url: str | None = None
     terminal_summary: str | None = None
-
-
-class AgentValidationRunCreateInput(BaseModel):
-    project: str
-    dataset: str | None = None
-    input_summary: str
-    prompt: str
-    tags: list[str] = Field(default_factory=list)
-    project_metadata: dict[str, Any] = Field(default_factory=dict)
-    execution_target: ExecutionTarget | None = None
-    dataset_sample_id: str | None = None
-    executor_config: ExecutionProfile = Field(
-        default_factory=lambda: ExecutionProfile(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
-    )
-    execution_binding: ExecutionBinding | None = None
-    toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
-    approval_policy: ApprovalPolicySnapshot | None = None
-
-
-class AgentValidationRun(BaseModel):
-    run_id: UUID
-    attempt_id: UUID
-    input_summary: str
-    status: RunStatus
-    latency_ms: int = 0
-    token_cost: int = 0
-    tool_calls: int = 0
-    project: str
-    dataset: str | None = None
-    dataset_sample_id: str | None = None
-    agent_id: str
-    model: str
-    entrypoint: str | None = None
-    agent_type: AdapterKind
-    tags: list[str] = Field(default_factory=list)
-    created_at: datetime
-    project_metadata: dict[str, Any] = Field(default_factory=dict)
-    execution_target: ExecutionTarget | None = None
-    artifact_ref: str | None = None
-    image_ref: str | None = None
-    executor_backend: str | None = None
-    executor_submission_id: str | None = None
-    attempt: int = 1
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
-    runner_backend: str | None = None
-    execution_backend: str | None = None
-    container_image: str | None = None
-    provenance: ProvenanceMetadata | None = None
-    tracing: TracingMetadata | None = None
-    trace_pointer: TracePointer | None = None
-    lineage: RunLineage | None = None
-    resolved_model: str | None = None
-    error_code: str | None = None
-    error_message: str | None = None
-    termination_reason: str | None = None
-    terminal_reason: str | None = None
-    last_heartbeat_at: datetime | None = None
-    last_progress_at: datetime | None = None
-    lease_expires_at: datetime | None = None
 
 
 class AgentValidationEvidenceSummary(BaseModel):

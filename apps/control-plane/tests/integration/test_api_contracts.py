@@ -25,6 +25,11 @@ def test_openapi_exposes_rl_data_control_plane_only(client) -> None:
     assert "/api/v1/exports/{export_id}" in paths
     assert "/api/v1/policies" in paths
     assert "/api/v1/runs/{run_id}" in paths
+    validation_post = paths["/api/v1/agents/{agent_id}/validation-runs"]["post"]
+    assert (
+        validation_post["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/RunResponse"
+    )
 
     assert "/api/v1/runs" not in paths
     assert "/api/v1/agents/discovered" not in paths
@@ -46,4 +51,5 @@ def test_openapi_exposes_rl_data_control_plane_only(client) -> None:
     assert "ExportCreateRequest" in schemas
     assert "ExportMetadataResponse" in schemas
     assert "RunResponse" in schemas
+    assert "AgentValidationRun" not in schemas
     assert "ArtifactMetadataResponse" not in schemas

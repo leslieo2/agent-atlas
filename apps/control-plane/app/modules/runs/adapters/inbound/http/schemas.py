@@ -18,6 +18,47 @@ from app.modules.shared.domain.policies import ApprovalPolicySnapshot
 from app.modules.shared.domain.provenance import ProvenanceMetadata
 
 
+def build_run_create_input(
+    *,
+    project: str,
+    dataset: str | None,
+    agent_id: str,
+    input_summary: str,
+    prompt: str,
+    tags: list[str],
+    project_metadata: dict[str, object],
+    execution_target: ExecutionTarget | None,
+    dataset_sample_id: str | None,
+    executor_config_request: ExecutionProfileRequest,
+    toolset_config: ToolsetConfig,
+    approval_policy: ApprovalPolicySnapshot | None,
+    experiment_id: UUID | None = None,
+    dataset_version_id: UUID | None = None,
+) -> RunCreateInput:
+    executor_config, execution_binding = executor_config_request.to_domain()
+    return RunCreateInput(
+        experiment_id=experiment_id,
+        dataset_version_id=dataset_version_id,
+        project=project,
+        dataset=dataset,
+        agent_id=agent_id,
+        input_summary=input_summary,
+        prompt=prompt,
+        tags=list(tags),
+        project_metadata=dict(project_metadata),
+        execution_target=(
+            execution_target.model_copy(deep=True) if execution_target is not None else None
+        ),
+        dataset_sample_id=dataset_sample_id,
+        executor_config=executor_config,
+        execution_binding=execution_binding,
+        toolset_config=toolset_config.model_copy(deep=True),
+        approval_policy=(
+            approval_policy.model_copy(deep=True) if approval_policy is not None else None
+        ),
+    )
+
+
 class RunCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -39,13 +80,22 @@ class RunCreateRequest(BaseModel):
     approval_policy: ApprovalPolicySnapshot | None = None
 
     def to_domain(self) -> RunCreateInput:
-        executor_config, execution_binding = self.executor_config.to_domain()
-        payload = self.model_dump()
-        payload["executor_config"] = executor_config.model_dump(mode="python")
-        payload["execution_binding"] = (
-            execution_binding.model_dump(mode="python") if execution_binding is not None else None
+        return build_run_create_input(
+            experiment_id=self.experiment_id,
+            dataset_version_id=self.dataset_version_id,
+            project=self.project,
+            dataset=self.dataset,
+            agent_id=self.agent_id,
+            input_summary=self.input_summary,
+            prompt=self.prompt,
+            tags=self.tags,
+            project_metadata=self.project_metadata,
+            execution_target=self.execution_target,
+            dataset_sample_id=self.dataset_sample_id,
+            executor_config_request=self.executor_config,
+            toolset_config=self.toolset_config,
+            approval_policy=self.approval_policy,
         )
-        return RunCreateInput.model_validate(payload)
 
 
 class RunResponse(BaseModel):

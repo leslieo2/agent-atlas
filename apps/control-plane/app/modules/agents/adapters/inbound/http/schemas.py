@@ -8,13 +8,12 @@ from app.modules.agents.domain.models import (
     AgentValidationEvidenceSummary,
     AgentValidationIssue,
     AgentValidationOutcomeSummary,
-    AgentValidationRunCreateInput,
     AgentValidationRunReference,
     GovernedPublishedAgent,
 )
-from app.modules.shared.adapters.inbound.http.execution_profiles import (
-    ExecutionProfileRequest,
-)
+from app.modules.runs.adapters.inbound.http.schemas import build_run_create_input
+from app.modules.runs.domain.models import RunCreateInput
+from app.modules.shared.adapters.inbound.http.execution_profiles import ExecutionProfileRequest
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.execution import ExecutionProfile, ToolsetConfig
 from app.modules.shared.domain.policies import ApprovalPolicySnapshot
@@ -167,24 +166,19 @@ class AgentValidationRunStartRequest(BaseModel):
     toolset_config: ToolsetConfig = Field(default_factory=ToolsetConfig)
     approval_policy: ApprovalPolicySnapshot | None = None
 
-    def to_domain(self) -> AgentValidationRunCreateInput:
+    def to_run_create_input(self, agent_id: str) -> RunCreateInput:
         tags = list(dict.fromkeys(["validation", *self.tags]))
-        executor_config, execution_binding = self.executor_config.to_domain()
-        return AgentValidationRunCreateInput(
+        return build_run_create_input(
             project=self.project,
             dataset=self.dataset,
+            agent_id=agent_id,
             input_summary=self.input_summary,
             prompt=self.prompt,
             tags=tags,
             project_metadata=dict(self.project_metadata),
-            execution_target=(
-                self.execution_target.model_copy(deep=True)
-                if self.execution_target is not None
-                else None
-            ),
+            execution_target=self.execution_target,
             dataset_sample_id=self.dataset_sample_id,
-            executor_config=executor_config,
-            execution_binding=execution_binding,
+            executor_config_request=self.executor_config,
             toolset_config=self.toolset_config.model_copy(deep=True),
             approval_policy=(
                 self.approval_policy.model_copy(deep=True)

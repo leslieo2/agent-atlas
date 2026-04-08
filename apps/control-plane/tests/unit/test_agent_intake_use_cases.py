@@ -15,8 +15,6 @@ from app.modules.agents.application.use_cases import (
     GovernedAgentIntake,
 )
 from app.modules.agents.domain.models import (
-    AgentValidationRun,
-    AgentValidationRunCreateInput,
     ExecutionBinding,
     compute_source_fingerprint,
 )
@@ -30,6 +28,7 @@ from app.modules.agents.domain.reference_assets import (
     claude_code_starter_runtime_profile,
     ensure_claude_code_starter_runtime_ready,
 )
+from app.modules.runs.domain.models import RunCreateInput, RunRecord
 from app.modules.shared.domain.enums import RunStatus
 from app.modules.shared.domain.models import build_source_execution_reference
 
@@ -74,15 +73,15 @@ class _FrameworkRegistry:
 
 class _SubmissionService:
     def __init__(self) -> None:
-        self.calls: list[tuple[AgentValidationRunCreateInput, PublishedAgent]] = []
+        self.calls: list[tuple[RunCreateInput, PublishedAgent]] = []
 
     def submit_validation(
         self,
-        payload: AgentValidationRunCreateInput,
+        payload: RunCreateInput,
         agent: PublishedAgent,
-    ) -> AgentValidationRun:
+    ) -> RunRecord:
         self.calls.append((payload, agent))
-        return AgentValidationRun(
+        return RunRecord(
             run_id=UUID("00000000-0000-0000-0000-000000000001"),
             attempt_id=UUID("00000000-0000-0000-0000-000000000002"),
             project=payload.project,
@@ -128,9 +127,10 @@ def test_agent_validation_commands_prepares_runtime_from_persisted_execution_bin
     submission = _SubmissionService()
     commands = AgentValidationCommands(_Catalog(agent), submission)
 
-    payload = AgentValidationRunCreateInput(
+    payload = RunCreateInput(
         project="atlas-validation",
         dataset="controlled-validation",
+        agent_id=agent.agent_id,
         input_summary="validate starter",
         prompt="alpha",
     )
