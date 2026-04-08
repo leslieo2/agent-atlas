@@ -1,24 +1,49 @@
-import type { DatasetResponse as ApiDataset } from "@/src/shared/api/contract";
-import type { Dataset } from "./model";
+import type {
+  DatasetResponse as ApiDataset,
+  DatasetSample as ApiDatasetRow,
+  DatasetVersionResponse as ApiDatasetVersion
+} from "@/src/shared/api/contract";
+import type { Dataset, DatasetRow, DatasetVersionRecord } from "./model";
 
-export function mapDataset(dataset: ApiDataset): Dataset {
-  const versions = dataset.versions.map((version) => ({
+export function mapDatasetRow(row: ApiDatasetRow): DatasetRow {
+  return {
+    sampleId: row.sample_id,
+    input: row.input,
+    expected: row.expected ?? null,
+    tags: row.tags ?? [],
+    slice: row.slice ?? null,
+    source: row.source ?? null,
+    metadata: row.metadata ?? null,
+    exportEligible: row.export_eligible ?? null
+  };
+}
+
+export function serializeDatasetRow(row: DatasetRow): ApiDatasetRow {
+  return {
+    sample_id: row.sampleId,
+    input: row.input,
+    expected: row.expected ?? null,
+    tags: row.tags ?? [],
+    slice: row.slice ?? null,
+    source: row.source ?? null,
+    metadata: row.metadata ?? null,
+    export_eligible: row.exportEligible ?? null
+  };
+}
+
+export function mapDatasetVersion(version: ApiDatasetVersion): DatasetVersionRecord {
+  return {
     datasetVersionId: version.dataset_version_id,
     datasetName: version.dataset_name,
     version: version.version ?? null,
     createdAt: version.created_at,
     rowCount: version.row_count,
-    rows: version.rows.map((row) => ({
-      sampleId: row.sample_id,
-      input: row.input,
-      expected: row.expected ?? null,
-      tags: row.tags ?? [],
-      slice: row.slice ?? null,
-      source: row.source ?? null,
-      metadata: row.metadata ?? null,
-      exportEligible: row.export_eligible ?? null
-    }))
-  }));
+    rows: version.rows.map(mapDatasetRow)
+  };
+}
+
+export function mapDataset(dataset: ApiDataset): Dataset {
+  const versions = dataset.versions.map(mapDatasetVersion);
   const currentVersion =
     versions.find((version) => version.datasetVersionId === (dataset.current_version_id ?? null)) ??
     versions[versions.length - 1] ??
