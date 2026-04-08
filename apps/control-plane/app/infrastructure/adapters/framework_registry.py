@@ -18,7 +18,9 @@ from app.modules.agents.domain.models import (
     AgentValidationStatus,
     DiscoveredAgent,
     PublishedAgent,
+    PublishedAgentSnapshot,
     adapter_kind_for_agent_family,
+    published_agent_snapshot,
 )
 
 
@@ -231,7 +233,7 @@ class PublishedAgentExecutionDispatcher:
         context: AgentBuildContext,
     ) -> PublishedRunExecutionResult:
         try:
-            published_agent = PublishedAgent.model_validate(payload.published_agent_snapshot)
+            published_agent = published_agent_snapshot(payload.published_agent_snapshot)
         except Exception as exc:
             raise AgentLoadFailedError(
                 "run payload is missing a valid published agent snapshot",
@@ -285,9 +287,9 @@ class PublishedAgentExecutionDispatcher:
             context=context,
         )
 
-    def published_agent_from_payload(self, payload: RunnerRunSpec) -> PublishedAgent:
+    def published_agent_from_payload(self, payload: RunnerRunSpec) -> PublishedAgentSnapshot:
         try:
-            published_agent = PublishedAgent.model_validate(payload.published_agent_snapshot)
+            published_agent = published_agent_snapshot(payload.published_agent_snapshot)
         except Exception as exc:
             raise AgentLoadFailedError(
                 "run payload is missing a valid published agent snapshot",

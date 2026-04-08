@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -190,8 +191,36 @@ class AgentValidationOutcomeSummary(BaseModel):
     reason: str | None = None
 
 
-class PublishedAgent(ContractPublishedAgent):
+PublishedAgentSnapshot = ContractPublishedAgent
+
+
+def published_agent_snapshot(
+    snapshot: Mapping[str, Any] | PublishedAgentSnapshot,
+) -> PublishedAgentSnapshot:
+    sealed = (
+        snapshot
+        if isinstance(snapshot, PublishedAgentSnapshot)
+        else PublishedAgentSnapshot.model_validate(snapshot)
+    )
+    raw_family = sealed.manifest.agent_family
+    if isinstance(raw_family, str) and raw_family.strip():
+        return sealed
+    return sealed.model_copy(
+        update={
+            "manifest": sealed.manifest.model_copy(
+                update={"agent_family": agent_family_for_framework(sealed.framework).value},
+                deep=True,
+            )
+        },
+        deep=True,
+    )
+
+
+class PublishedAgent(BaseModel):
     manifest: AgentManifest
+    entrypoint: str
+    published_at: datetime = Field(default_factory=utc_now)
+    source_fingerprint: str = ""
     execution_reference: ExecutionReferenceMetadata = Field(
         default_factory=ExecutionReferenceMetadata
     )
@@ -202,6 +231,20 @@ class PublishedAgent(ContractPublishedAgent):
     latest_validation: AgentValidationRunReference | None = None
     validation_evidence: AgentValidationEvidenceSummary | None = None
     validation_outcome: AgentValidationOutcomeSummary | None = None
+
+    @classmethod
+    def from_snapshot(cls, snapshot: Mapping[str, Any] | PublishedAgentSnapshot) -> PublishedAgent:
+        sealed = published_agent_snapshot(snapshot)
+        return cls(
+            manifest=sealed.manifest.model_copy(deep=True),
+            entrypoint=sealed.entrypoint,
+            published_at=sealed.published_at,
+            source_fingerprint=sealed.source_fingerprint,
+            execution_reference=sealed.execution_reference.model_copy(deep=True),
+            default_runtime_profile=ExecutionProfile.model_validate(
+                sealed.default_runtime_profile
+            ),
+        )
 
     @property
     def agent_id(self) -> str:
@@ -276,18 +319,19 @@ class PublishedAgent(ContractPublishedAgent):
         )
 
     def to_snapshot(self) -> dict[str, Any]:
-        snapshot = self.model_copy(
-            update={
-                "source_fingerprint": self.source_fingerprint_or_raise(),
-                "execution_reference": self.execution_reference_or_raise(),
-                "default_runtime_profile": self.default_runtime_profile.model_copy(deep=True),
-            },
-            deep=True,
-        )
-        return snapshot.model_dump(
-            mode="json",
-            exclude={"execution_binding"},
-            exclude_none=True,
+        return self.to_snapshot_model().model_dump(mode="json")
+
+    def to_snapshot_model(self) -> PublishedAgentSnapshot:
+        return PublishedAgentSnapshot(
+            manifest=self.manifest.model_copy(deep=True),
+            entrypoint=self.entrypoint,
+            published_at=self.published_at,
+            source_fingerprint=self.source_fingerprint_or_raise(),
+            execution_reference=self.execution_reference_or_raise(),
+            default_runtime_profile=self.default_runtime_profile.model_dump(
+                mode="json",
+                exclude_none=True,
+            ),
         )
 
 

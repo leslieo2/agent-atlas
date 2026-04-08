@@ -136,6 +136,10 @@ def test_run_submission_service_uses_published_agent_framework_and_enqueues_exec
         run.provenance.published_agent_snapshot["execution_reference"]["artifact_ref"]
         == artifact_ref
     )
+    assert "execution_binding" not in run.provenance.published_agent_snapshot
+    assert "latest_validation" not in run.provenance.published_agent_snapshot
+    assert "validation_evidence" not in run.provenance.published_agent_snapshot
+    assert "validation_outcome" not in run.provenance.published_agent_snapshot
     assert run.provenance.artifact_ref == artifact_ref
     assert repository.saved == [run]
     assert len(execution_control.submitted) == 1

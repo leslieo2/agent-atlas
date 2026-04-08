@@ -13,6 +13,7 @@ from app.modules.agents.domain.models import (
     AgentValidationRunCreateInput,
     DiscoveredAgent,
     PublishedAgent,
+    PublishedAgentSnapshot,
 )
 
 if TYPE_CHECKING:
@@ -56,7 +57,7 @@ class FrameworkRegistryPort(Protocol):
 
 
 class PublishedAgentExecutionPort(Protocol):
-    def published_agent_from_payload(self, payload: RunnerRunSpec) -> PublishedAgent: ...
+    def published_agent_from_payload(self, payload: RunnerRunSpec) -> PublishedAgentSnapshot: ...
 
     def execute_published(
         self,

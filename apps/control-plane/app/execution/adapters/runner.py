@@ -38,7 +38,7 @@ from app.execution.adapters.launchers import LocalLauncher
 from app.execution.application.ports import PublishedRunRuntimePort
 from app.execution.application.results import RunnerExecutionResult
 from app.execution.metadata import execution_binding, execution_plane_config, runner_image
-from app.modules.agents.domain.models import PublishedAgent
+from app.modules.agents.domain.models import published_agent_snapshot
 from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 
 CLAUDE_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_")
@@ -82,7 +82,7 @@ class PublishedArtifactResolver:
 
         snapshot = provenance.published_agent_snapshot
         try:
-            published_agent = PublishedAgent.model_validate(snapshot)
+            published_agent = published_agent_snapshot(snapshot)
         except Exception as exc:
             raise AgentLoadFailedError(
                 "published agent snapshot is missing manifest metadata",
@@ -121,7 +121,7 @@ class PublishedArtifactResolver:
             source_fingerprint=source_fingerprint,
             artifact_ref=artifact_ref,
             image_ref=image_ref,
-            published_agent_snapshot=published_agent.to_snapshot(),
+            published_agent_snapshot=published_agent.model_dump(mode="json"),
         )
 
 
