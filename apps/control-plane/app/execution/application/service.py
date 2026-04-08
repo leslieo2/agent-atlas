@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 from uuid import UUID
 
 from agent_atlas_contracts.runtime import StepType as ContractStepType
-from agent_atlas_contracts.runtime import TraceIngestEvent
+from agent_atlas_contracts.runtime import TraceIngestEvent, TraceTelemetryMetadata
 
 from app.core.errors import AppError, UnsupportedOperationError
 from app.execution.application.ports import (
@@ -25,7 +25,6 @@ from app.execution.metadata import requested_runner_backend, uses_k8s_runner_bac
 from app.modules.runs.domain.models import RunExecutionSpec
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
 from app.modules.shared.domain.enums import RunStatus, StepType
-from app.modules.shared.domain.observability import TraceTelemetryMetadata
 
 
 @dataclass(frozen=True)

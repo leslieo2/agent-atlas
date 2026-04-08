@@ -75,6 +75,7 @@ def test_shared_and_agent_domain_surfaces_do_not_reexport_contract_models() -> N
         Path("app/modules/shared/domain/__init__.py"),
         Path("app/modules/shared/domain/execution.py"),
         Path("app/modules/shared/domain/models.py"),
+        Path("app/modules/shared/domain/observability.py"),
         Path("app/modules/shared/domain/traces.py"),
         Path("app/modules/agents/domain/__init__.py"),
     )

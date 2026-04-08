@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from agent_atlas_contracts.runtime import TraceTelemetryMetadata
 from pydantic import BaseModel, Field
 
 from app.modules.shared.domain.enums import StepType
@@ -11,7 +10,6 @@ from app.modules.shared.domain.enums import StepType
 __all__ = [
     "RunLineage",
     "TracePointer",
-    "TraceTelemetryMetadata",
     "TracingMetadata",
     "TrajectoryStepRecord",
     "utc_now",
