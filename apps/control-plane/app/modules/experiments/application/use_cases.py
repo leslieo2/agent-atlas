@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import builtins
-from uuid import UUID
 
 from app.core.errors import AgentNotPublishedError, AppError, DatasetNotFoundError
 from app.execution.application.ports import ExecutionControlPort
@@ -9,7 +8,10 @@ from app.execution.domain import CancelRequest
 from app.modules.agents.application.ports import PublishedAgentCatalogPort
 from app.modules.datasets.application.ports import DatasetRepository
 from app.modules.experiments.application.ports import (
+    ExperimentPolicyResolverPort,
     ExperimentRepository,
+    ExperimentRunLookupPort,
+    ExperimentRunQueryPort,
     RunEvaluationRepository,
 )
 from app.modules.experiments.domain.compare import build_compare_result
@@ -22,10 +24,8 @@ from app.modules.experiments.domain.models import (
     RunEvaluationRecord,
 )
 from app.modules.experiments.domain.policies import ExperimentAggregate
-from app.modules.policies.application.ports import ApprovalPolicyRepository
-from app.modules.runs.application.ports import RunRepository
 from app.modules.shared.application.ports import ExecutionJobPort
-from app.modules.shared.domain.enums import CurationStatus, RunStatus
+from app.modules.shared.domain.enums import RunStatus
 
 
 class ExperimentNotFoundError(AppError, ValueError):
@@ -48,14 +48,12 @@ class ExperimentQueries:
     def __init__(
         self,
         experiment_repository: ExperimentRepository,
+        run_query: ExperimentRunQueryPort,
         run_evaluation_repository: RunEvaluationRepository,
-        run_repository: RunRepository,
-        dataset_repository: DatasetRepository,
     ) -> None:
         self.experiment_repository = experiment_repository
+        self.run_query = run_query
         self.run_evaluation_repository = run_evaluation_repository
-        self.run_repository = run_repository
-        self.dataset_repository = dataset_repository
 
     def list(self) -> list[ExperimentRecord]:
         return sorted(
@@ -69,87 +67,7 @@ class ExperimentQueries:
         experiment = self.experiment_repository.get(experiment_id)
         if experiment is None:
             raise ExperimentNotFoundError(experiment_id)
-        dataset_version = self.dataset_repository.get_version(experiment.dataset_version_id)
-        samples_by_id = {
-            sample.sample_id: sample
-            for sample in (dataset_version.rows if dataset_version is not None else [])
-        }
-        evaluations_by_run = {
-            record.run_id: record
-            for record in self.run_evaluation_repository.list_for_experiment(experiment_id)
-        }
-        runs = [
-            run
-            for run in self.run_repository.list()
-            if run.experiment_id == UUID(str(experiment_id)) and run.dataset_sample_id is not None
-        ]
-        runs.sort(key=lambda run: run.created_at)
-        details: builtins.list[ExperimentRunDetail] = []
-        for run in runs:
-            sample = samples_by_id.get(run.dataset_sample_id or "")
-            evaluation = evaluations_by_run.get(run.run_id)
-            trace_url = None
-            if (
-                evaluation
-                and isinstance(evaluation.trace_url, str)
-                and evaluation.trace_url.strip()
-            ):
-                trace_url = evaluation.trace_url.strip()
-            elif (
-                run.trace_pointer is not None
-                and isinstance(run.trace_pointer.trace_url, str)
-                and run.trace_pointer.trace_url.strip()
-            ):
-                trace_url = run.trace_pointer.trace_url.strip()
-            elif (
-                run.trace_pointer is not None
-                and isinstance(run.trace_pointer.project_url, str)
-                and run.trace_pointer.project_url.strip()
-            ):
-                trace_url = run.trace_pointer.project_url.strip()
-            details.append(
-                ExperimentRunDetail(
-                    run_id=run.run_id,
-                    experiment_id=UUID(str(experiment_id)),
-                    dataset_sample_id=run.dataset_sample_id or "",
-                    input=evaluation.input
-                    if evaluation
-                    else (sample.input if sample else run.input_summary),
-                    expected=evaluation.expected
-                    if evaluation
-                    else (sample.expected if sample else None),
-                    actual=evaluation.actual if evaluation else None,
-                    run_status=run.status,
-                    judgement=evaluation.judgement if evaluation else None,
-                    failure_reason=evaluation.failure_reason if evaluation else None,
-                    error_code=evaluation.error_code if evaluation else run.error_code,
-                    error_message=evaluation.error_message if evaluation else run.error_message,
-                    tags=list(evaluation.tags)
-                    if evaluation
-                    else (list(sample.tags) if sample else list(run.tags)),
-                    slice=evaluation.slice if evaluation else (sample.slice if sample else None),
-                    source=evaluation.source if evaluation else (sample.source if sample else None),
-                    export_eligible=evaluation.export_eligible
-                    if evaluation
-                    else (sample.export_eligible if sample else None),
-                    curation_status=evaluation.curation_status
-                    if evaluation
-                    else CurationStatus.REVIEW,
-                    curation_note=evaluation.curation_note if evaluation else None,
-                    published_agent_snapshot=evaluation.published_agent_snapshot
-                    if evaluation
-                    else (run.provenance.published_agent_snapshot if run.provenance else None),
-                    artifact_ref=evaluation.artifact_ref if evaluation else run.artifact_ref,
-                    image_ref=evaluation.image_ref if evaluation else run.image_ref,
-                    executor_backend=evaluation.executor_backend
-                    if evaluation
-                    else run.executor_backend,
-                    latency_ms=evaluation.latency_ms if evaluation else run.latency_ms,
-                    tool_calls=evaluation.tool_calls if evaluation else run.tool_calls,
-                    trace_url=trace_url,
-                )
-            )
-        return details
+        return self.run_query.list_details(experiment)
 
     def compare(
         self, baseline_experiment_id: str, candidate_experiment_id: str
@@ -191,8 +109,8 @@ class ExperimentCommands:
         experiment_repository: ExperimentRepository,
         run_evaluation_repository: RunEvaluationRepository,
         dataset_repository: DatasetRepository,
-        run_repository: RunRepository,
-        approval_policy_repository: ApprovalPolicyRepository,
+        run_lookup: ExperimentRunLookupPort,
+        approval_policy_resolver: ExperimentPolicyResolverPort,
         execution_control: ExecutionControlPort,
         job_queue: ExecutionJobPort,
         agent_catalog: PublishedAgentCatalogPort,
@@ -200,8 +118,8 @@ class ExperimentCommands:
         self.experiment_repository = experiment_repository
         self.run_evaluation_repository = run_evaluation_repository
         self.dataset_repository = dataset_repository
-        self.run_repository = run_repository
-        self.approval_policy_repository = approval_policy_repository
+        self.run_lookup = run_lookup
+        self.approval_policy_resolver = approval_policy_resolver
         self.execution_control = execution_control
         self.job_queue = job_queue
         self.agent_catalog = agent_catalog
@@ -214,7 +132,7 @@ class ExperimentCommands:
         if agent is None:
             raise AgentNotPublishedError(payload.spec.published_agent_id)
         if payload.spec.approval_policy_id is not None:
-            policy = self.approval_policy_repository.get(payload.spec.approval_policy_id)
+            policy = self.approval_policy_resolver.resolve(payload.spec.approval_policy_id)
             if policy is None:
                 raise AppError(
                     "approval policy was not found",
@@ -223,15 +141,7 @@ class ExperimentCommands:
             payload = payload.model_copy(
                 update={
                     "spec": payload.spec.model_copy(
-                        update={
-                            "approval_policy": {
-                                "approval_policy_id": policy.approval_policy_id,
-                                "name": policy.name,
-                                "tool_policies": [
-                                    rule.model_copy(deep=True) for rule in policy.tool_policies
-                                ],
-                            }
-                        }
+                        update={"approval_policy": policy.model_copy(deep=True)}
                     )
                 }
             )
@@ -268,9 +178,7 @@ class ExperimentCommands:
             raise ExperimentNotFoundError(experiment_id)
         experiment = ExperimentAggregate.load(experiment).mark_cancelled()
         self.experiment_repository.save(experiment)
-        for run in self.run_repository.list():
-            if run.experiment_id != experiment.experiment_id:
-                continue
+        for run in self.run_lookup.list_for_experiment(experiment.experiment_id):
             if run.status not in {
                 RunStatus.QUEUED,
                 RunStatus.STARTING,

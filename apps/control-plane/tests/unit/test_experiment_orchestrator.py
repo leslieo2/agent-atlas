@@ -8,6 +8,7 @@ from agent_atlas_contracts.runtime import (
 from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
 )
+from app.execution.application.experiments import ExperimentExecutionService
 from app.modules.agents.domain.models import (
     GovernedPublishedAgent as PublishedAgent,
 )
@@ -15,7 +16,7 @@ from app.modules.agents.domain.models import (
     compute_source_fingerprint,
 )
 from app.modules.datasets.domain.models import DatasetSample, DatasetVersion
-from app.modules.experiments.application.execution import ExperimentOrchestrator
+from app.modules.experiments.application.ports import ExperimentSampleExecution
 from app.modules.experiments.domain.models import ExperimentRecord, ExperimentSpec, ExperimentStatus
 from app.modules.shared.domain.enums import AdapterKind
 from app.modules.shared.domain.jobs import EnqueuedExecutionJob
@@ -67,12 +68,17 @@ class StubAgentCatalog:
         return None
 
 
-class StubRunSubmission:
+class StubRunLauncher:
     def __init__(self) -> None:
-        self.calls: list[tuple[object, PublishedAgent]] = []
+        self.calls: list[tuple[ExperimentRecord, ExperimentSampleExecution, PublishedAgent]] = []
 
-    def submit(self, payload, agent: PublishedAgent):
-        self.calls.append((payload, agent))
+    def launch(
+        self,
+        experiment: ExperimentRecord,
+        sample: ExperimentSampleExecution,
+        agent: PublishedAgent,
+    ) -> None:
+        self.calls.append((experiment, sample, agent))
         return None
 
 
@@ -96,7 +102,7 @@ class StubJobQueue:
         )
 
 
-def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> None:
+def test_experiment_execution_service_launches_sample_descriptors() -> None:
     dataset_version = DatasetVersion(
         dataset_version_id=uuid4(),
         dataset_name="support-dataset",
@@ -150,40 +156,33 @@ def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> No
     agent.execution_reference = execution_reference
 
     experiment_repository = StubExperimentRepository(experiment)
-    run_submission = StubRunSubmission()
+    run_launcher = StubRunLauncher()
     job_queue = StubJobQueue()
-    orchestrator = ExperimentOrchestrator(
+    service = ExperimentExecutionService(
         experiment_repository=experiment_repository,
         dataset_repository=StubDatasetRepository(dataset_version),
         agent_catalog=StubAgentCatalog(agent),
-        run_submission=run_submission,
+        run_launcher=run_launcher,
         job_queue=job_queue,
     )
 
-    orchestrator.execute_experiment(experiment.experiment_id)
+    service.execute_experiment(experiment.experiment_id)
 
     assert experiment_repository.experiment.status == ExperimentStatus.RUNNING
-    assert len(run_submission.calls) == 2
+    assert len(run_launcher.calls) == 2
 
-    first_payload, first_agent = run_submission.calls[0]
+    first_experiment, first_sample, first_agent = run_launcher.calls[0]
+    assert first_experiment.experiment_id == experiment.experiment_id
     assert first_agent.agent_id == "triage-bot"
-    assert first_payload.experiment_id == experiment.experiment_id
-    assert first_payload.dataset_version_id == dataset_version.dataset_version_id
-    assert first_payload.dataset == "support-dataset"
-    assert first_payload.dataset_sample_id == "sample-1"
-    assert first_payload.model_settings is not None
-    assert first_payload.model_settings.model == "gpt-5.4"
-    assert first_payload.executor_config.backend == "local-runner"
-    assert first_payload.executor_config.tracing_backend == "phoenix"
-    assert first_payload.tags == ["candidate", "shipping"]
-    assert first_payload.project_metadata == {
-        "prompt_version": "2026-03",
-        "system_prompt": "Be strict.",
-    }
+    assert first_sample.dataset_version_id == dataset_version.dataset_version_id
+    assert first_sample.dataset_name == "support-dataset"
+    assert first_sample.dataset_sample_id == "sample-1"
+    assert first_sample.input == "alpha"
+    assert first_sample.tags == ["shipping"]
 
-    second_payload, _ = run_submission.calls[1]
-    assert second_payload.dataset_sample_id == "sample-2"
-    assert second_payload.tags == ["candidate", "returns"]
+    _second_experiment, second_sample, _ = run_launcher.calls[1]
+    assert second_sample.dataset_sample_id == "sample-2"
+    assert second_sample.tags == ["returns"]
 
     assert len(job_queue.enqueued) == 1
     queued_job = job_queue.enqueued[0]
@@ -192,7 +191,7 @@ def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> No
     assert queued_job.kwargs == {"experiment_id": str(experiment.experiment_id)}
 
 
-def test_experiment_orchestrator_inherits_published_runtime_profile_when_no_override() -> None:
+def test_experiment_execution_service_inherits_published_runtime_profile_when_no_override() -> None:
     dataset_version = DatasetVersion(
         dataset_version_id=uuid4(),
         dataset_name="support-dataset",
@@ -243,23 +242,24 @@ def test_experiment_orchestrator_inherits_published_runtime_profile_when_no_over
     agent.execution_reference = execution_reference
 
     experiment_repository = StubExperimentRepository(experiment)
-    run_submission = StubRunSubmission()
+    run_launcher = StubRunLauncher()
     job_queue = StubJobQueue()
-    orchestrator = ExperimentOrchestrator(
+    service = ExperimentExecutionService(
         experiment_repository=experiment_repository,
         dataset_repository=StubDatasetRepository(dataset_version),
         agent_catalog=StubAgentCatalog(agent),
-        run_submission=run_submission,
+        run_launcher=run_launcher,
         job_queue=job_queue,
     )
 
-    orchestrator.execute_experiment(experiment.experiment_id)
+    service.execute_experiment(experiment.experiment_id)
 
-    first_payload, _first_agent = run_submission.calls[0]
-    assert "executor_config" not in first_payload.model_fields_set
+    _first_experiment, first_sample, _first_agent = run_launcher.calls[0]
+    assert first_sample.dataset_sample_id == "sample-1"
+    assert first_sample.input == "alpha"
 
 
-def test_experiment_orchestrator_uses_stored_agent_snapshot_when_catalog_changes() -> None:
+def test_experiment_execution_service_uses_stored_agent_snapshot_when_catalog_changes() -> None:
     dataset_version = DatasetVersion(
         dataset_version_id=uuid4(),
         dataset_name="support-dataset",
@@ -317,18 +317,18 @@ def test_experiment_orchestrator_uses_stored_agent_snapshot_when_catalog_changes
             return None
 
     experiment_repository = StubExperimentRepository(experiment)
-    run_submission = StubRunSubmission()
+    run_launcher = StubRunLauncher()
     job_queue = StubJobQueue()
-    orchestrator = ExperimentOrchestrator(
+    service = ExperimentExecutionService(
         experiment_repository=experiment_repository,
         dataset_repository=StubDatasetRepository(dataset_version),
         agent_catalog=MissingAgentCatalog(),
-        run_submission=run_submission,
+        run_launcher=run_launcher,
         job_queue=job_queue,
     )
 
-    orchestrator.execute_experiment(experiment.experiment_id)
+    service.execute_experiment(experiment.experiment_id)
 
-    assert len(run_submission.calls) == 1
-    _payload, submitted_agent = run_submission.calls[0]
+    assert len(run_launcher.calls) == 1
+    _experiment, _sample, submitted_agent = run_launcher.calls[0]
     assert submitted_agent.agent_id == "triage-bot"

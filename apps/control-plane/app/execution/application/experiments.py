@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from pydantic import ValidationError
+
 from app.modules.agents.application.ports import PublishedAgentCatalogPort
 from app.modules.agents.domain.models import (
     GovernedPublishedAgent,
@@ -9,34 +11,34 @@ from app.modules.agents.domain.models import (
 )
 from app.modules.datasets.application.ports import DatasetRepository
 from app.modules.experiments.application.ports import (
+    ExperimentAggregationLookupPort,
     ExperimentRepository,
+    ExperimentRunLauncherPort,
+    ExperimentSampleExecution,
+    ExperimentTrajectoryLookupPort,
     RunEvaluationRepository,
-    RunSubmissionPort,
 )
 from app.modules.experiments.domain.models import ExperimentRecord, ExperimentStatus
 from app.modules.experiments.domain.policies import ExperimentAggregate
 from app.modules.experiments.domain.scoring import evaluate_run
-from app.modules.runs.application.ports import RunRepository, TrajectoryRepository
-from app.modules.runs.domain.models import RunCreateInput
 from app.modules.shared.application.ports import ExecutionJobPort
 from app.modules.shared.domain.enums import RunStatus
-from app.modules.shared.domain.policies import ApprovalPolicySnapshot
-from pydantic import ValidationError
 
 
-class ExperimentOrchestrator:
+class ExperimentExecutionService:
     def __init__(
         self,
+        *,
         experiment_repository: ExperimentRepository,
         dataset_repository: DatasetRepository,
         agent_catalog: PublishedAgentCatalogPort,
-        run_submission: RunSubmissionPort,
+        run_launcher: ExperimentRunLauncherPort,
         job_queue: ExecutionJobPort,
     ) -> None:
         self.experiment_repository = experiment_repository
         self.dataset_repository = dataset_repository
         self.agent_catalog = agent_catalog
-        self.run_submission = run_submission
+        self.run_launcher = run_launcher
         self.job_queue = job_queue
 
     def execute_experiment(self, experiment_id: UUID) -> None:
@@ -63,50 +65,23 @@ class ExperimentOrchestrator:
         running = ExperimentAggregate.load(experiment).mark_running()
         self.experiment_repository.save(running)
 
-        model_settings = experiment.spec.model_settings
-        prompt_config = experiment.spec.prompt_config
-        approval_policy = experiment.spec.approval_policy or ApprovalPolicySnapshot(
-            approval_policy_id=experiment.spec.approval_policy_id
-        )
-
         for sample in dataset_version.rows:
-            run_input = RunCreateInput(
-                experiment_id=experiment.experiment_id,
-                dataset_version_id=dataset_version.dataset_version_id,
-                project=experiment.name,
-                dataset=dataset_version.dataset_name,
-                agent_id=experiment.published_agent_id,
-                input_summary=sample.input,
-                prompt=sample.input,
-                tags=list(dict.fromkeys([*experiment.tags, *sample.tags])),
-                project_metadata={
-                    "prompt_version": prompt_config.prompt_version or "v1",
-                    "system_prompt": prompt_config.system_prompt,
-                },
-                execution_target=(
-                    experiment.spec.execution_target.model_copy(deep=True)
-                    if experiment.spec.execution_target is not None
-                    else None
+            self.run_launcher.launch(
+                experiment,
+                ExperimentSampleExecution(
+                    dataset_version_id=dataset_version.dataset_version_id,
+                    dataset_name=dataset_version.dataset_name,
+                    dataset_sample_id=sample.sample_id,
+                    input=sample.input,
+                    expected=sample.expected,
+                    tags=list(sample.tags),
+                    slice=sample.slice,
+                    source=sample.source,
+                    metadata=sample.metadata,
+                    export_eligible=sample.export_eligible,
                 ),
-                dataset_sample_id=sample.sample_id,
-                model_settings=model_settings.model_copy(deep=True),
-                prompt_config=prompt_config.model_copy(deep=True),
-                toolset_config=experiment.spec.toolset_config.model_copy(deep=True),
-                evaluator_config=experiment.spec.evaluator_config.model_copy(deep=True),
-                approval_policy=approval_policy.model_copy(deep=True),
+                agent,
             )
-            if experiment.spec.executor_config is not None:
-                run_input = run_input.model_copy(
-                    update={
-                        "executor_config": experiment.spec.executor_config.model_copy(deep=True),
-                        "execution_binding": (
-                            experiment.spec.execution_binding.model_copy(deep=True)
-                            if experiment.spec.execution_binding is not None
-                            else None
-                        ),
-                    }
-                )
-            self.run_submission.submit(run_input, agent)
 
         self.job_queue.enqueue_experiment_aggregation(experiment.experiment_id)
 
@@ -137,18 +112,19 @@ class ExperimentOrchestrator:
 class ExperimentAggregationService:
     def __init__(
         self,
+        *,
         experiment_repository: ExperimentRepository,
         run_evaluation_repository: RunEvaluationRepository,
         dataset_repository: DatasetRepository,
-        run_repository: RunRepository,
-        trajectory_repository: TrajectoryRepository,
+        run_lookup: ExperimentAggregationLookupPort,
+        trajectory_lookup: ExperimentTrajectoryLookupPort,
         job_queue: ExecutionJobPort,
     ) -> None:
         self.experiment_repository = experiment_repository
         self.run_evaluation_repository = run_evaluation_repository
         self.dataset_repository = dataset_repository
-        self.run_repository = run_repository
-        self.trajectory_repository = trajectory_repository
+        self.run_lookup = run_lookup
+        self.trajectory_lookup = trajectory_lookup
         self.job_queue = job_queue
 
     def refresh_experiment(self, experiment_id: UUID) -> None:
@@ -165,11 +141,7 @@ class ExperimentAggregationService:
             )
             self.experiment_repository.save(failed)
             return
-        runs = [
-            run
-            for run in self.run_repository.list()
-            if run.experiment_id == experiment.experiment_id and run.dataset_sample_id is not None
-        ]
+        runs = self.run_lookup.list_runs(experiment.experiment_id)
         if len(runs) < len(dataset_version.rows) or any(
             run.status
             in {
@@ -195,10 +167,13 @@ class ExperimentAggregationService:
                 dataset_version_id=dataset_version.dataset_version_id,
                 sample=sample,
                 run=run,
-                trajectory=self.trajectory_repository.list_for_run(run.run_id),
+                trajectory=self.trajectory_lookup.list_for_run(run.run_id),
                 scoring_mode=experiment.spec.evaluator_config.scoring_mode,
             )
             self.run_evaluation_repository.save(result)
             results.append(result)
         completed = ExperimentAggregate.load(experiment).complete(results)
         self.experiment_repository.save(completed)
+
+
+__all__ = ["ExperimentAggregationService", "ExperimentExecutionService"]

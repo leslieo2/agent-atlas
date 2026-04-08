@@ -16,7 +16,7 @@ def build_job_bundle(runs: RunModuleBundle, experiments: ExperimentModuleBundle)
     return JobBundle(
         handlers=ExecutionJobHandlers(
             run_execution_service=runs.run_execution_service,
-            experiment_orchestrator=experiments.experiment_orchestrator,
+            experiment_execution_service=experiments.experiment_execution_service,
             experiment_aggregation_service=experiments.experiment_aggregation_service,
         )
     )

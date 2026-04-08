@@ -10,6 +10,18 @@ from app.execution.adapters.control import (
 from app.execution.adapters.control import (
     LocalRunnerExecutionAdapter as LocalRunnerExecutionAdapter,
 )
+from app.execution.adapters.experiments import (
+    RunBackedExperimentRunLookup as RunBackedExperimentRunLookup,
+)
+from app.execution.adapters.experiments import (
+    RunBackedExperimentRunQuery as RunBackedExperimentRunQuery,
+)
+from app.execution.adapters.experiments import (
+    RunSubmissionExperimentLauncher as RunSubmissionExperimentLauncher,
+)
+from app.execution.adapters.experiments import (
+    TrajectoryRepositoryExperimentLookup as TrajectoryRepositoryExperimentLookup,
+)
 from app.execution.adapters.k8s_runner import (
     K8sContainerRunner as K8sContainerRunner,
 )
