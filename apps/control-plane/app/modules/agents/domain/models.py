@@ -216,6 +216,45 @@ def published_agent_snapshot(
     )
 
 
+def published_agent_snapshot_agent_family(snapshot: PublishedAgentSnapshot) -> str:
+    raw_family = snapshot.manifest.agent_family
+    if isinstance(raw_family, str) and raw_family.strip():
+        return raw_family
+    return agent_family_for_framework(snapshot.framework).value
+
+
+def published_agent_snapshot_source_fingerprint_or_raise(snapshot: PublishedAgentSnapshot) -> str:
+    fingerprint = snapshot.source_fingerprint.strip()
+    if fingerprint:
+        return fingerprint
+
+    raise ValueError(
+        f"published agent '{snapshot.agent_id}' is missing source fingerprint metadata"
+    )
+
+
+def published_agent_snapshot_execution_reference_or_raise(
+    snapshot: PublishedAgentSnapshot,
+) -> ExecutionReferenceMetadata:
+    execution_reference = ExecutionReferenceMetadata.model_validate(snapshot.execution_reference)
+    artifact_ref = (
+        execution_reference.artifact_ref.strip()
+        if isinstance(execution_reference.artifact_ref, str)
+        else ""
+    )
+    image_ref = (
+        execution_reference.image_ref.strip()
+        if isinstance(execution_reference.image_ref, str)
+        else ""
+    )
+    if artifact_ref or image_ref:
+        return execution_reference
+
+    raise ValueError(
+        f"published agent '{snapshot.agent_id}' is missing execution reference metadata"
+    )
+
+
 class PublishedAgent(BaseModel):
     manifest: AgentManifest
     entrypoint: str
@@ -224,7 +263,7 @@ class PublishedAgent(BaseModel):
     execution_reference: ExecutionReferenceMetadata = Field(
         default_factory=ExecutionReferenceMetadata
     )
-    default_runtime_profile: ExecutionProfile = Field(  # type: ignore[assignment]
+    default_runtime_profile: ExecutionProfile = Field(
         default_factory=lambda: ExecutionProfile(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
     execution_binding: ExecutionBinding | None = None
@@ -241,9 +280,7 @@ class PublishedAgent(BaseModel):
             published_at=sealed.published_at,
             source_fingerprint=sealed.source_fingerprint,
             execution_reference=sealed.execution_reference.model_copy(deep=True),
-            default_runtime_profile=ExecutionProfile.model_validate(
-                sealed.default_runtime_profile
-            ),
+            default_runtime_profile=ExecutionProfile.model_validate(sealed.default_runtime_profile),
         )
 
     @property

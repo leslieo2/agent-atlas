@@ -21,6 +21,7 @@ from app.modules.agents.domain.models import (
     PublishedAgentSnapshot,
     adapter_kind_for_agent_family,
     published_agent_snapshot,
+    published_agent_snapshot_agent_family,
 )
 
 
@@ -240,7 +241,7 @@ class PublishedAgentExecutionDispatcher:
                 agent_id=payload.agent_id,
             ) from exc
 
-        expected_family = published_agent.agent_family
+        expected_family = published_agent_snapshot_agent_family(published_agent)
         expected_framework = published_agent.framework
         actual_framework = payload.framework
         actual_family = payload.framework_type or payload.agent_family
@@ -296,7 +297,7 @@ class PublishedAgentExecutionDispatcher:
                 agent_id=payload.agent_id,
             ) from exc
 
-        expected_family = published_agent.agent_family
+        expected_family = published_agent_snapshot_agent_family(published_agent)
         expected_framework = published_agent.framework
         actual_framework = payload.framework
         actual_family = payload.framework_type or payload.agent_family

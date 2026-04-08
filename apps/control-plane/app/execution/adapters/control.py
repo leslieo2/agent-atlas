@@ -15,7 +15,11 @@ from app.execution.contracts import (
     RunStatusSnapshot,
     RunTerminalSummary,
 )
-from app.modules.agents.domain.models import published_agent_snapshot
+from app.modules.agents.domain.models import (
+    published_agent_snapshot,
+    published_agent_snapshot_execution_reference_or_raise,
+    published_agent_snapshot_source_fingerprint_or_raise,
+)
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.application.ports import ExecutionJobPort
@@ -265,8 +269,8 @@ def _ensure_retryable_publication_snapshot(run_spec: ExecutionRunSpec) -> None:
 
     try:
         published_agent = published_agent_snapshot(provenance.published_agent_snapshot)
-        published_agent.source_fingerprint_or_raise()
-        published_agent.execution_reference_or_raise()
+        published_agent_snapshot_source_fingerprint_or_raise(published_agent)
+        published_agent_snapshot_execution_reference_or_raise(published_agent)
     except (ValueError, TypeError) as exc:
         raise UnsupportedOperationError(
             "run retry requires a sealed published agent snapshot with source_fingerprint "

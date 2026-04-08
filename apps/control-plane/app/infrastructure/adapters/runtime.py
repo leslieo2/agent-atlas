@@ -22,7 +22,10 @@ from app.execution.application.results import (
     RuntimeExecutionResult,
 )
 from app.modules.agents.application.ports import PublishedAgentExecutionPort
-from app.modules.agents.domain.models import adapter_kind_for_agent_family
+from app.modules.agents.domain.models import (
+    adapter_kind_for_agent_family,
+    published_agent_snapshot_agent_family,
+)
 from app.modules.shared.domain.enums import AdapterKind
 
 from .runtime_utils import extract_error_message
@@ -249,7 +252,9 @@ class ModelRuntimeService:
             published_agent = self.published_execution_dispatcher.published_agent_from_payload(
                 payload
             )
-            resolved_agent_type = adapter_kind_for_agent_family(published_agent.agent_family)
+            resolved_agent_type = adapter_kind_for_agent_family(
+                published_agent_snapshot_agent_family(published_agent)
+            )
 
         if self.simulate_outputs:
             fallback = self._simulate_output(resolved_agent_type, payload.model, payload.prompt)
