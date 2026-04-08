@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.agents.domain.models import PublishedAgent
+from app.modules.agents.domain.models import GovernedPublishedAgent
 from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
 from app.modules.runs.application.ports import RunRepository, TrajectoryRepository
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -28,7 +28,7 @@ class RunEvaluationRepository(Protocol):
 
 
 class RunSubmissionPort(Protocol):
-    def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord: ...
+    def submit(self, payload: RunCreateInput, agent: GovernedPublishedAgent) -> RunRecord: ...
 
 
 __all__ = [

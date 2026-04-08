@@ -7,18 +7,21 @@ from importlib.metadata import entry_points
 from typing import Any, Protocol, cast
 
 from agent_atlas_contracts.execution import RunnerRunSpec
-from agent_atlas_contracts.runtime import AgentBuildContext, AgentManifest
+from agent_atlas_contracts.runtime import (
+    AgentBuildContext,
+    AgentLoadFailedError,
+    AgentManifest,
+)
 from agent_atlas_contracts.runtime import PublishedAgent as ContractPublishedAgentSnapshot
 from pydantic import SecretStr
 
-from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
+from app.core.errors import AgentFrameworkMismatchError
 from app.execution.application.results import PublishedRunExecutionResult
 from app.modules.agents.domain.models import (
     AgentModuleSource,
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,
-    PublishedAgent,
     adapter_kind_for_agent_family,
     contract_published_agent_snapshot_agent_family,
     normalize_contract_published_agent_snapshot,
@@ -33,7 +36,7 @@ class PublishedAgentLoader(Protocol):
     def build_agent(
         self,
         *,
-        published_agent: PublishedAgent,
+        published_agent: ContractPublishedAgentSnapshot,
         context: AgentBuildContext,
     ) -> Any: ...
 
@@ -72,7 +75,12 @@ class FrameworkRegistry:
             return self._unsupported_framework(source=source, framework=framework)
         return plugin.validator.discover(source)
 
-    def build_agent(self, *, published_agent: PublishedAgent, context: AgentBuildContext) -> Any:
+    def build_agent(
+        self,
+        *,
+        published_agent: ContractPublishedAgentSnapshot,
+        context: AgentBuildContext,
+    ) -> Any:
         plugin = self._plugin_for_framework(
             published_agent.framework,
             agent_id=published_agent.agent_id,

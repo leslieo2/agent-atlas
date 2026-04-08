@@ -9,10 +9,14 @@ from agent_atlas_contracts.execution import (
     TerminalMetrics,
     TerminalResult,
 )
-from agent_atlas_contracts.runtime import empty_artifact_manifest, producer_for_runtime
+from agent_atlas_contracts.runtime import (
+    AgentLoadFailedError,
+    empty_artifact_manifest,
+    producer_for_runtime,
+)
 from agent_atlas_runner_base.outputs import RunnerOutputWriter
 
-from app.core.errors import AppError
+from app.core.errors import AGENT_LOAD_FAILED_CODE, AppError
 from app.execution.adapters.launchers.local import persist_published_execution
 from app.infrastructure.adapters.framework_registry import (
     PublishedAgentExecutionDispatcher,
@@ -46,6 +50,10 @@ def _failure_terminal_result(
 ) -> TerminalResult:
     if isinstance(exc, AppError):
         reason_code = exc.code
+        reason_message = exc.message
+        reason_context = dict(exc.context)
+    elif isinstance(exc, AgentLoadFailedError):
+        reason_code = AGENT_LOAD_FAILED_CODE
         reason_message = exc.message
         reason_context = dict(exc.context)
     else:

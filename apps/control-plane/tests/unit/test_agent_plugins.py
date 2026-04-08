@@ -6,12 +6,14 @@ import pytest
 from agent_atlas_contracts.execution import ExecutionArtifact
 from agent_atlas_contracts.runtime import (
     AgentBuildContext,
+    AgentLoadFailedError,
     AgentManifest,
+    PublishedAgent,
 )
 from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
 )
-from app.core.errors import AgentFrameworkMismatchError, AgentLoadFailedError
+from app.core.errors import AgentFrameworkMismatchError
 from app.execution.adapters import runner_run_spec_from_run_spec
 from app.execution.application.results import (
     PublishedRunExecutionResult,
@@ -35,8 +37,10 @@ from app.infrastructure.adapters.openai_agents import (
 from app.modules.agents.domain.models import (
     AgentValidationStatus,
     DiscoveredAgent,
-    PublishedAgent,
+    GovernedPublishedAgent,
     compute_source_fingerprint,
+    contract_published_agent_snapshot_execution_reference_or_raise,
+    contract_published_agent_snapshot_source_fingerprint_or_raise,
 )
 from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind
@@ -48,8 +52,8 @@ from tests.fixtures.agents import fixture_agent_source_catalog
 
 
 def _artifact_for_agent(agent: PublishedAgent) -> ExecutionArtifact:
-    source_fingerprint = agent.source_fingerprint_or_raise()
-    execution_reference = agent.execution_reference_or_raise()
+    source_fingerprint = contract_published_agent_snapshot_source_fingerprint_or_raise(agent)
+    execution_reference = contract_published_agent_snapshot_execution_reference_or_raise(agent)
     return ExecutionArtifact(
         framework=agent.framework,
         entrypoint=agent.entrypoint,
@@ -60,7 +64,9 @@ def _artifact_for_agent(agent: PublishedAgent) -> ExecutionArtifact:
     )
 
 
-def _seal_agent(agent: PublishedAgent) -> PublishedAgent:
+def _seal_agent(
+    agent: PublishedAgent | GovernedPublishedAgent,
+) -> PublishedAgent | GovernedPublishedAgent:
     source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
     execution_reference = ExecutionReference.model_validate(
         build_source_execution_reference(
@@ -190,7 +196,7 @@ def test_discovery_marks_duplicate_agent_ids_invalid() -> None:
 
 def test_state_published_agent_catalog_uses_valid_published_rows_as_source_authority() -> None:
     published_alpha = _seal_agent(
-        PublishedAgent(
+        GovernedPublishedAgent(
             manifest=AgentManifest(
                 agent_id="alpha",
                 name="Alpha",
@@ -203,7 +209,7 @@ def test_state_published_agent_catalog_uses_valid_published_rows_as_source_autho
         )
     )
     published_ready = _seal_agent(
-        PublishedAgent(
+        GovernedPublishedAgent(
             manifest=AgentManifest(
                 agent_id="ready",
                 name="Ready",
@@ -216,7 +222,7 @@ def test_state_published_agent_catalog_uses_valid_published_rows_as_source_autho
         )
     )
     published_drifted = _seal_agent(
-        PublishedAgent(
+        GovernedPublishedAgent(
             manifest=AgentManifest(
                 agent_id="drifted",
                 name="Drifted",
@@ -229,7 +235,7 @@ def test_state_published_agent_catalog_uses_valid_published_rows_as_source_autho
         )
     )
     published_only = _seal_agent(
-        PublishedAgent(
+        GovernedPublishedAgent(
             manifest=AgentManifest(
                 agent_id="published-only",
                 name="Published Only",
@@ -243,10 +249,10 @@ def test_state_published_agent_catalog_uses_valid_published_rows_as_source_autho
     )
 
     class StubPublishedRepository:
-        def list_agents(self) -> list[PublishedAgent]:
+        def list_agents(self) -> list[GovernedPublishedAgent]:
             return [published_ready, published_alpha, published_drifted, published_only]
 
-        def get_agent(self, agent_id: str) -> PublishedAgent | None:
+        def get_agent(self, agent_id: str) -> GovernedPublishedAgent | None:
             return next(
                 (agent for agent in self.list_agents() if agent.agent_id == agent_id),
                 None,
@@ -266,7 +272,7 @@ def test_state_published_agent_catalog_uses_valid_published_rows_as_source_autho
 
 
 def test_published_agent_rejects_blank_execution_reference_metadata() -> None:
-    agent = PublishedAgent(
+    agent = GovernedPublishedAgent(
         manifest=AgentManifest(
             agent_id="blank-ref",
             name="Blank Ref",

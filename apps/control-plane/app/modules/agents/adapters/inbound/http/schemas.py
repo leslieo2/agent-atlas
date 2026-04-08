@@ -10,7 +10,7 @@ from app.modules.agents.domain.models import (
     AgentValidationOutcomeSummary,
     AgentValidationRunCreateInput,
     AgentValidationRunReference,
-    PublishedAgent,
+    GovernedPublishedAgent,
 )
 from app.modules.shared.adapters.inbound.http.execution_profiles import (
     ExecutionProfileRequest,
@@ -41,7 +41,7 @@ class AgentDescriptorResponse(BaseModel):
     validation_outcome: AgentValidationOutcomeSummaryResponse | None = None
 
     @classmethod
-    def from_domain(cls, agent: PublishedAgent) -> AgentDescriptorResponse:
+    def from_domain(cls, agent: GovernedPublishedAgent) -> AgentDescriptorResponse:
         return cls(
             agent_id=agent.agent_id,
             name=agent.name,

@@ -3,7 +3,7 @@ from app.modules.agents.domain.models import (
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,
-    PublishedAgent,
+    GovernedPublishedAgent,
     adapter_kind_for_framework,
 )
 
@@ -12,6 +12,6 @@ __all__ = [
     "AgentValidationIssue",
     "AgentValidationStatus",
     "DiscoveredAgent",
-    "PublishedAgent",
+    "GovernedPublishedAgent",
     "adapter_kind_for_framework",
 ]

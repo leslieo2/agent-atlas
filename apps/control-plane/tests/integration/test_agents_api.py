@@ -24,9 +24,16 @@ def test_agents_api_lists_only_governed_published_assets(client) -> None:
 
     legacy = published_agent.model_copy(
         update={
-            "manifest": published_agent.manifest.model_copy(update={"agent_id": "legacy-basic"}),
-            "source_fingerprint": "",
-            "execution_reference": {"artifact_ref": None, "image_ref": None},
+            "snapshot": published_agent.snapshot.model_copy(
+                update={
+                    "manifest": published_agent.manifest.model_copy(
+                        update={"agent_id": "legacy-basic"}
+                    ),
+                    "source_fingerprint": "",
+                    "execution_reference": {"artifact_ref": None, "image_ref": None},
+                },
+                deep=True,
+            ),
         },
         deep=True,
     )
@@ -47,8 +54,13 @@ def test_agents_api_excludes_corrupt_publications_from_catalog(client) -> None:
 
     corrupted = published_agent.model_copy(
         update={
-            "source_fingerprint": "",
-            "execution_reference": {"artifact_ref": None, "image_ref": None},
+            "snapshot": published_agent.snapshot.model_copy(
+                update={
+                    "source_fingerprint": "",
+                    "execution_reference": {"artifact_ref": None, "image_ref": None},
+                },
+                deep=True,
+            ),
         },
         deep=True,
     )

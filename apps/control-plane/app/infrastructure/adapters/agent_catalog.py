@@ -8,7 +8,7 @@ from app.modules.agents.domain.models import (
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,
-    PublishedAgent,
+    GovernedPublishedAgent,
 )
 
 
@@ -66,7 +66,7 @@ class StatePublishedAgentCatalog:
     ) -> None:
         self.published_agents = published_agents
 
-    def list_agents(self) -> list[PublishedAgent]:
+    def list_agents(self) -> list[GovernedPublishedAgent]:
         eligible_by_id = self._eligible_published_by_id()
         return sorted(
             [
@@ -77,11 +77,11 @@ class StatePublishedAgentCatalog:
             key=lambda agent: agent.agent_id,
         )
 
-    def get_agent(self, agent_id: str) -> PublishedAgent | None:
+    def get_agent(self, agent_id: str) -> GovernedPublishedAgent | None:
         return self._eligible_published_by_id().get(agent_id)
 
-    def _eligible_published_by_id(self) -> dict[str, PublishedAgent]:
-        eligible: dict[str, PublishedAgent] = {}
+    def _eligible_published_by_id(self) -> dict[str, GovernedPublishedAgent]:
+        eligible: dict[str, GovernedPublishedAgent] = {}
         for persisted_agent in self.published_agents.list_agents():
             try:
                 persisted_agent.source_fingerprint_or_raise()

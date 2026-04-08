@@ -8,7 +8,12 @@ from agent_atlas_contracts.runtime import (
 from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
 )
-from app.modules.agents.domain.models import PublishedAgent, compute_source_fingerprint
+from app.modules.agents.domain.models import (
+    GovernedPublishedAgent as PublishedAgent,
+)
+from app.modules.agents.domain.models import (
+    compute_source_fingerprint,
+)
 from app.modules.shared.domain.enums import AgentFamily
 from app.modules.shared.domain.models import build_source_execution_reference
 
@@ -117,9 +122,11 @@ def build_fixture_published_agent(agent_id: str) -> PublishedAgent:
             source_fingerprint=source_fingerprint,
         ).model_dump(mode="json")
     )
-    return PublishedAgent(
-        manifest=source.manifest.model_copy(deep=True),
-        entrypoint=source.entrypoint,
-        source_fingerprint=source_fingerprint,
-        execution_reference=execution_reference,
+    return PublishedAgent.from_snapshot(
+        {
+            "manifest": source.manifest.model_dump(mode="json"),
+            "entrypoint": source.entrypoint,
+            "source_fingerprint": source_fingerprint,
+            "execution_reference": execution_reference.model_dump(mode="json"),
+        }
     )

@@ -17,11 +17,15 @@ from agent_atlas_contracts.execution import (
     RunnerRunSpec,
     TerminalResult,
 )
-from agent_atlas_contracts.runtime import PublishedRunExecutionResult, RuntimeExecutionResult
+from agent_atlas_contracts.runtime import (
+    AgentLoadFailedError,
+    PublishedRunExecutionResult,
+    RuntimeExecutionResult,
+)
 
 from app.core.errors import (
+    AGENT_LOAD_FAILED_CODE,
     AgentFrameworkMismatchError,
-    AgentLoadFailedError,
     AgentNotPublishedError,
     AgentValidationFailedError,
     AppError,
@@ -430,7 +434,7 @@ def _deserialize_app_error(
     *,
     terminal_result: TerminalResult,
     model: str,
-) -> AppError | None:
+) -> Exception | None:
     reason_message = (
         terminal_result.reason_message or terminal_result.output or "runner subprocess failed"
     )
@@ -456,7 +460,7 @@ def _deserialize_app_error(
             actual_agent_type=context.get("actual_agent_type"),
             snapshot_agent_id=context.get("snapshot_agent_id"),
         )
-    if reason_code == AgentLoadFailedError.code:
+    if reason_code == AGENT_LOAD_FAILED_CODE:
         return AgentLoadFailedError(reason_message, **context)
     if reason_code == UnsupportedAdapterError.code:
         return UnsupportedAdapterError(reason_message)

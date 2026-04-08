@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from agent_atlas_contracts.runtime import AgentLoadFailedError as ContractAgentLoadFailedError
+
+AGENT_LOAD_FAILED_CODE = "agent_load_failed"
+AGENT_LOAD_FAILED_STATUS_CODE = 500
+
 
 class AppError(Exception):
     code = "app_error"
@@ -77,9 +82,12 @@ class AgentValidationFailedError(AppError, ValueError):
         )
 
 
-class AgentLoadFailedError(AppError):
-    code = "agent_load_failed"
-    status_code = 500
+def agent_load_failed_detail(exc: ContractAgentLoadFailedError) -> dict[str, str]:
+    return {
+        "code": AGENT_LOAD_FAILED_CODE,
+        "message": exc.message,
+        **dict(exc.context),
+    }
 
 
 class AgentBootstrapFailedError(AppError):
@@ -99,7 +107,7 @@ class AgentImportConflictError(AppError, ValueError):
         )
 
 
-class AgentFrameworkMismatchError(AgentLoadFailedError, ValueError):
+class AgentFrameworkMismatchError(AppError, ValueError):
     code = "agent_framework_mismatch"
     status_code = 400
 

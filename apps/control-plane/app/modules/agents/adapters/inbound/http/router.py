@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
+from agent_atlas_contracts.runtime import AgentLoadFailedError
 from app.bootstrap.providers.agents import (
     get_agent_intake_commands,
     get_agent_validation_commands,
     get_published_agent_catalog_queries,
 )
-from app.core.errors import AppError
+from app.core.errors import AGENT_LOAD_FAILED_STATUS_CODE, AppError, agent_load_failed_detail
 from app.modules.agents.adapters.inbound.http.schemas import (
     AgentDescriptorResponse,
     AgentImportRequest,
@@ -40,6 +41,11 @@ def list_published_agents(
         return [AgentDescriptorResponse.from_domain(agent) for agent in queries.list_agents()]
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=500,
@@ -63,6 +69,11 @@ def import_agent_source(
         )
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=500,
@@ -88,6 +99,11 @@ def create_claude_code_starter(
         )
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=500,
@@ -106,3 +122,8 @@ def start_validation_run(
         return RunResponse.model_validate(run.model_dump(mode="json"))
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc

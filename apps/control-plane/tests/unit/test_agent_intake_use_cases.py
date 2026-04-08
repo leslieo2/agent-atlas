@@ -18,8 +18,10 @@ from app.modules.agents.domain.models import (
     AgentValidationRun,
     AgentValidationRunCreateInput,
     ExecutionBinding,
-    PublishedAgent,
     compute_source_fingerprint,
+)
+from app.modules.agents.domain.models import (
+    GovernedPublishedAgent as PublishedAgent,
 )
 from app.modules.agents.domain.reference_assets import (
     CLAUDE_CODE_STARTER_ENTRYPOINT,
@@ -63,7 +65,7 @@ class _PublishedAgents:
 
 class _FrameworkRegistry:
     def __init__(self) -> None:
-        self.calls: list[PublishedAgent] = []
+        self.calls: list[object] = []
 
     def build_agent(self, *, published_agent: PublishedAgent, context) -> object:
         self.calls.append(published_agent)
@@ -103,11 +105,13 @@ def _starter_published_agent() -> PublishedAgent:
             source_fingerprint=source_fingerprint,
         ).model_dump(mode="json")
     )
-    return PublishedAgent(
-        manifest=manifest,
-        entrypoint=CLAUDE_CODE_STARTER_ENTRYPOINT,
-        source_fingerprint=source_fingerprint,
-        execution_reference=execution_reference,
+    return PublishedAgent.from_snapshot(
+        {
+            "manifest": manifest.model_dump(mode="json"),
+            "entrypoint": CLAUDE_CODE_STARTER_ENTRYPOINT,
+            "source_fingerprint": source_fingerprint,
+            "execution_reference": execution_reference.model_dump(mode="json"),
+        },
         execution_binding=claude_code_starter_execution_binding(),
     )
 

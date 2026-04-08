@@ -4,16 +4,19 @@ from collections.abc import Callable
 from typing import Any, Generic, TypeVar
 from uuid import UUID
 
-from agent_atlas_contracts.runtime import AgentBuildContext, AgentManifest
+from agent_atlas_contracts.runtime import (
+    AgentBuildContext,
+    AgentLoadFailedError,
+    AgentManifest,
+)
+from agent_atlas_contracts.runtime import PublishedAgent as ContractPublishedAgentSnapshot
 from pydantic import ValidationError
 
-from app.core.errors import AgentLoadFailedError
 from app.modules.agents.domain.models import (
     AgentModuleSource,
     AgentValidationIssue,
     AgentValidationStatus,
     DiscoveredAgent,
-    PublishedAgent,
 )
 
 ValidatorT = TypeVar("ValidatorT", bound="BaseAgentContractValidator")
@@ -221,7 +224,12 @@ class BasePublishedAgentLoader(Generic[ValidatorT]):
     def __init__(self, validator: ValidatorT) -> None:
         self.validator = validator
 
-    def build_agent(self, *, published_agent: PublishedAgent, context: AgentBuildContext) -> Any:
+    def build_agent(
+        self,
+        *,
+        published_agent: ContractPublishedAgentSnapshot,
+        context: AgentBuildContext,
+    ) -> Any:
         return self.validator.build_agent(
             entrypoint=published_agent.entrypoint,
             context=context,

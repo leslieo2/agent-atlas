@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
+from agent_atlas_contracts.runtime import AgentLoadFailedError
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.bootstrap.providers.experiments import get_experiment_commands, get_experiment_queries
-from app.core.errors import AppError
+from app.core.errors import AGENT_LOAD_FAILED_STATUS_CODE, AppError, agent_load_failed_detail
 from app.modules.experiments.adapters.inbound.http.schemas import (
     ExperimentCompareResponse,
     ExperimentCreateRequest,
@@ -34,6 +35,11 @@ def create_experiment(
         return ExperimentResponse.from_domain(commands.create(payload.to_domain()))
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc
 
 
 @router.get("/compare", response_model=ExperimentCompareResponse)
@@ -46,6 +52,11 @@ def compare_experiments(
         result = queries.compare(baseline_experiment_id, candidate_experiment_id)
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc
     return ExperimentCompareResponse.from_domain(result)
 
 
@@ -69,6 +80,11 @@ def start_experiment(
         return ExperimentResponse.from_domain(commands.start(experiment_id))
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc
 
 
 @router.post("/{experiment_id}/cancel", response_model=ExperimentResponse)
@@ -80,6 +96,11 @@ def cancel_experiment(
         return ExperimentResponse.from_domain(commands.cancel(experiment_id))
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc
 
 
 @router.get("/{experiment_id}/runs", response_model=list[ExperimentRunResponse])
@@ -93,6 +114,11 @@ def list_experiment_runs(
         ]
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc
 
 
 @router.patch("/{experiment_id}/runs/{run_id}", response_model=ExperimentRunResponse)
@@ -108,6 +134,11 @@ def patch_experiment_run(
         run_details = queries.list_runs(experiment_id)
     except AppError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.to_detail()) from exc
+    except AgentLoadFailedError as exc:
+        raise HTTPException(
+            status_code=AGENT_LOAD_FAILED_STATUS_CODE,
+            detail=agent_load_failed_detail(exc),
+        ) from exc
     for detail in run_details:
         if str(detail.run_id) == run_id:
             return ExperimentRunResponse.from_domain(detail)

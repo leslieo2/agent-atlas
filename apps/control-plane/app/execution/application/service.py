@@ -3,8 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from uuid import UUID
 
-from agent_atlas_contracts.runtime import StepType as ContractStepType
-from agent_atlas_contracts.runtime import TraceIngestEvent, TraceTelemetryMetadata
+from agent_atlas_contracts.runtime import (
+    AgentLoadFailedError,
+    TraceIngestEvent,
+    TraceTelemetryMetadata,
+)
+from agent_atlas_contracts.runtime import (
+    StepType as ContractStepType,
+)
 
 from app.core.errors import AppError, UnsupportedOperationError
 from app.execution.application.ports import (
@@ -81,6 +87,8 @@ def failure_from_trace_events(events: list[TraceIngestEvent]) -> RunFailureDetai
 
 
 def normalize_run_failure(exc: Exception) -> RunFailureDetails:
+    if isinstance(exc, AgentLoadFailedError):
+        return RunFailureDetails(code="agent_load", message=exc.message)
     if isinstance(exc, AppError):
         raw_code = exc.code
         normalized_code = "runner_bootstrap"

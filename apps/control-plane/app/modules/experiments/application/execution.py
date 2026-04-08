@@ -4,7 +4,7 @@ from uuid import UUID
 
 from app.modules.agents.application.ports import PublishedAgentCatalogPort
 from app.modules.agents.domain.models import (
-    PublishedAgent,
+    GovernedPublishedAgent,
     normalize_contract_published_agent_snapshot,
 )
 from app.modules.datasets.application.ports import DatasetRepository
@@ -110,13 +110,13 @@ class ExperimentOrchestrator:
 
         self.job_queue.enqueue_experiment_aggregation(experiment.experiment_id)
 
-    def _resolve_agent(self, experiment: ExperimentRecord) -> PublishedAgent | None:
+    def _resolve_agent(self, experiment: ExperimentRecord) -> GovernedPublishedAgent | None:
         if experiment.published_agent_snapshot is not None:
             try:
                 snapshot = normalize_contract_published_agent_snapshot(
                     experiment.published_agent_snapshot
                 )
-                agent = PublishedAgent.from_snapshot(snapshot)
+                agent = GovernedPublishedAgent.from_snapshot(snapshot)
                 if (
                     experiment.published_agent_execution_binding is not None
                     and agent.execution_binding is None

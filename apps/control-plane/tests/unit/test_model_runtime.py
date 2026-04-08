@@ -8,6 +8,7 @@ from agent_atlas_contracts.execution import ExecutionArtifact, RunnerRunSpec
 from agent_atlas_contracts.runtime import (
     AgentBuildContext,
     AgentManifest,
+    PublishedAgent,
 )
 from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
@@ -32,8 +33,9 @@ from app.infrastructure.adapters.framework_registry import (
 from app.infrastructure.adapters.langchain import PublishedLangChainAgentAdapter
 from app.infrastructure.adapters.runtime import ModelRuntimeService
 from app.modules.agents.domain.models import (
-    PublishedAgent,
     compute_source_fingerprint,
+    contract_published_agent_snapshot_execution_reference_or_raise,
+    contract_published_agent_snapshot_source_fingerprint_or_raise,
 )
 from app.modules.runs.domain.models import RunExecutionSpec as ExecutionRunSpec
 from app.modules.shared.domain.enums import AdapterKind
@@ -45,8 +47,8 @@ from pydantic import SecretStr
 
 
 def _artifact_for_agent(agent: PublishedAgent) -> ExecutionArtifact:
-    source_fingerprint = agent.source_fingerprint_or_raise()
-    execution_reference = agent.execution_reference_or_raise()
+    source_fingerprint = contract_published_agent_snapshot_source_fingerprint_or_raise(agent)
+    execution_reference = contract_published_agent_snapshot_execution_reference_or_raise(agent)
     return ExecutionArtifact(
         framework=agent.framework,
         entrypoint=agent.entrypoint,

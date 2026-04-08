@@ -8,7 +8,12 @@ from agent_atlas_contracts.runtime import (
 from agent_atlas_contracts.runtime import (
     ExecutionReferenceMetadata as ExecutionReference,
 )
-from app.modules.agents.domain.models import PublishedAgent, compute_source_fingerprint
+from app.modules.agents.domain.models import (
+    GovernedPublishedAgent as PublishedAgent,
+)
+from app.modules.agents.domain.models import (
+    compute_source_fingerprint,
+)
 from app.modules.datasets.domain.models import DatasetSample, DatasetVersion
 from app.modules.experiments.application.execution import ExperimentOrchestrator
 from app.modules.experiments.domain.models import ExperimentRecord, ExperimentSpec, ExperimentStatus
@@ -121,16 +126,18 @@ def test_experiment_orchestrator_submits_runs_via_run_submission_service() -> No
             tags=["candidate"],
         ),
     )
-    agent = PublishedAgent(
-        manifest=AgentManifest(
-            agent_id="triage-bot",
-            name="Triage Bot",
-            description="Checks routing and summarizes issues.",
-            framework=AdapterKind.OPENAI_AGENTS.value,
-            default_model="gpt-5.4-mini",
-            tags=["ops"],
-        ),
-        entrypoint="tests.fixtures.agents.triage_bot:build_agent",
+    agent = PublishedAgent.from_snapshot(
+        {
+            "manifest": AgentManifest(
+                agent_id="triage-bot",
+                name="Triage Bot",
+                description="Checks routing and summarizes issues.",
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                default_model="gpt-5.4-mini",
+                tags=["ops"],
+            ).model_dump(mode="json"),
+            "entrypoint": "tests.fixtures.agents.triage_bot:build_agent",
+        }
     )
     source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
     execution_reference = ExecutionReference.model_validate(
@@ -211,16 +218,18 @@ def test_experiment_orchestrator_inherits_published_runtime_profile_when_no_over
             tags=["candidate"],
         ),
     )
-    agent = PublishedAgent(
-        manifest=AgentManifest(
-            agent_id="triage-bot",
-            name="Triage Bot",
-            description="Checks routing and summarizes issues.",
-            framework=AdapterKind.OPENAI_AGENTS.value,
-            default_model="gpt-5.4-mini",
-            tags=["ops"],
-        ),
-        entrypoint="tests.fixtures.agents.triage_bot:build_agent",
+    agent = PublishedAgent.from_snapshot(
+        {
+            "manifest": AgentManifest(
+                agent_id="triage-bot",
+                name="Triage Bot",
+                description="Checks routing and summarizes issues.",
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                default_model="gpt-5.4-mini",
+                tags=["ops"],
+            ).model_dump(mode="json"),
+            "entrypoint": "tests.fixtures.agents.triage_bot:build_agent",
+        },
         default_runtime_profile=ExecutorConfig(backend="local-runner", tracing_backend="phoenix"),
     )
     source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)
@@ -256,16 +265,18 @@ def test_experiment_orchestrator_uses_stored_agent_snapshot_when_catalog_changes
         dataset_name="support-dataset",
         rows=[DatasetSample(sample_id="sample-1", input="alpha", tags=["shipping"])],
     )
-    agent = PublishedAgent(
-        manifest=AgentManifest(
-            agent_id="triage-bot",
-            name="Triage Bot",
-            description="Checks routing and summarizes issues.",
-            framework=AdapterKind.OPENAI_AGENTS.value,
-            default_model="gpt-5.4-mini",
-            tags=["ops"],
-        ),
-        entrypoint="tests.fixtures.agents.triage_bot:build_agent",
+    agent = PublishedAgent.from_snapshot(
+        {
+            "manifest": AgentManifest(
+                agent_id="triage-bot",
+                name="Triage Bot",
+                description="Checks routing and summarizes issues.",
+                framework=AdapterKind.OPENAI_AGENTS.value,
+                default_model="gpt-5.4-mini",
+                tags=["ops"],
+            ).model_dump(mode="json"),
+            "entrypoint": "tests.fixtures.agents.triage_bot:build_agent",
+        },
         default_runtime_profile=ExecutorConfig(backend="local-runner", tracing_backend="phoenix"),
     )
     source_fingerprint = compute_source_fingerprint(agent.manifest, agent.entrypoint)

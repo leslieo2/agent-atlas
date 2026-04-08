@@ -13,7 +13,7 @@ from app.modules.agents.domain.models import (
     AgentValidationRun,
     AgentValidationRunCreateInput,
     DiscoveredAgent,
-    PublishedAgent,
+    GovernedPublishedAgent,
 )
 
 if TYPE_CHECKING:
@@ -21,19 +21,19 @@ if TYPE_CHECKING:
 
 
 class PublishedAgentRepositoryPort(Protocol):
-    def list_agents(self) -> list[PublishedAgent]: ...
+    def list_agents(self) -> list[GovernedPublishedAgent]: ...
 
-    def get_agent(self, agent_id: str) -> PublishedAgent | None: ...
+    def get_agent(self, agent_id: str) -> GovernedPublishedAgent | None: ...
 
-    def save_agent(self, agent: PublishedAgent) -> None: ...
+    def save_agent(self, agent: GovernedPublishedAgent) -> None: ...
 
     def delete_agent(self, agent_id: str) -> bool: ...
 
 
 class PublishedAgentCatalogPort(Protocol):
-    def list_agents(self) -> list[PublishedAgent]: ...
+    def list_agents(self) -> list[GovernedPublishedAgent]: ...
 
-    def get_agent(self, agent_id: str) -> PublishedAgent | None: ...
+    def get_agent(self, agent_id: str) -> GovernedPublishedAgent | None: ...
 
 
 class AgentValidationRecordPort(Protocol):
@@ -44,7 +44,7 @@ class AgentValidationSubmissionPort(Protocol):
     def submit_validation(
         self,
         payload: AgentValidationRunCreateInput,
-        agent: PublishedAgent,
+        agent: GovernedPublishedAgent,
     ) -> AgentValidationRun: ...
 
 
@@ -52,7 +52,10 @@ class FrameworkRegistryPort(Protocol):
     def discover(self, source: AgentModuleSource) -> DiscoveredAgent: ...
 
     def build_agent(
-        self, *, published_agent: PublishedAgent, context: AgentBuildContext
+        self,
+        *,
+        published_agent: ContractPublishedAgentSnapshot,
+        context: AgentBuildContext,
     ) -> object: ...
 
 

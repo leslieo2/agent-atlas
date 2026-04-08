@@ -316,7 +316,14 @@ def test_experiments_api_accepts_archived_valid_published_snapshot_for_new_runs(
 
     archived = published_agent.model_copy(
         update={
-            "manifest": published_agent.manifest.model_copy(update={"agent_id": "archived-basic"}),
+            "snapshot": published_agent.snapshot.model_copy(
+                update={
+                    "manifest": published_agent.manifest.model_copy(
+                        update={"agent_id": "archived-basic"}
+                    )
+                },
+                deep=True,
+            ),
         },
         deep=True,
     )
@@ -614,9 +621,16 @@ def test_experiments_api_live_mode_rejects_corrupt_published_rows_for_new_experi
         base_agent = build_fixture_published_agent("basic")
         corrupt = base_agent.model_copy(
             update={
-                "manifest": base_agent.manifest.model_copy(update={"agent_id": "corrupt-basic"}),
-                "source_fingerprint": "",
-                "execution_reference": {"artifact_ref": None, "image_ref": None},
+                "snapshot": base_agent.snapshot.model_copy(
+                    update={
+                        "manifest": base_agent.manifest.model_copy(
+                            update={"agent_id": "corrupt-basic"}
+                        ),
+                        "source_fingerprint": "",
+                        "execution_reference": {"artifact_ref": None, "image_ref": None},
+                    },
+                    deep=True,
+                ),
             },
             deep=True,
         )
@@ -753,9 +767,16 @@ def test_experiments_api_live_mode_rejects_corrupt_published_agent_rows(
     assert published_agent is not None
     corrupted = published_agent.model_copy(
         update={
-            "manifest": published_agent.manifest.model_copy(update={"agent_id": "corrupt-basic"}),
-            "source_fingerprint": "",
-            "execution_reference": {"artifact_ref": None, "image_ref": None},
+            "snapshot": published_agent.snapshot.model_copy(
+                update={
+                    "manifest": published_agent.manifest.model_copy(
+                        update={"agent_id": "corrupt-basic"}
+                    ),
+                    "source_fingerprint": "",
+                    "execution_reference": {"artifact_ref": None, "image_ref": None},
+                },
+                deep=True,
+            ),
         },
         deep=True,
     )

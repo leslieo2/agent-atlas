@@ -11,7 +11,9 @@ from agent_atlas_contracts.runtime import (
 from app.core.errors import UnsupportedOperationError
 from app.execution.domain import RunHandle
 from app.modules.agents.domain.models import (
-    PublishedAgent,
+    GovernedPublishedAgent as PublishedAgent,
+)
+from app.modules.agents.domain.models import (
     compute_source_fingerprint,
 )
 from app.modules.runs.adapters.inbound.http.schemas import RunCreateRequest

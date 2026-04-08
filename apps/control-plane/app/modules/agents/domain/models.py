@@ -12,7 +12,7 @@ from uuid import UUID
 from agent_atlas_contracts.execution import ExecutionTarget
 from agent_atlas_contracts.runtime import AgentManifest, ExecutionReferenceMetadata
 from agent_atlas_contracts.runtime import PublishedAgent as ContractPublishedAgentSnapshot
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.modules.agents.domain.constants import CLAUDE_CODE_CLI_FRAMEWORK
 from app.modules.shared.domain.constants import EXTERNAL_RUNNER_EXECUTION_BACKEND
@@ -248,14 +248,8 @@ def contract_published_agent_snapshot_execution_reference_or_raise(
     )
 
 
-class PublishedAgent(BaseModel):
-    manifest: AgentManifest
-    entrypoint: str
-    published_at: datetime = Field(default_factory=utc_now)
-    source_fingerprint: str = ""
-    execution_reference: ExecutionReferenceMetadata = Field(
-        default_factory=ExecutionReferenceMetadata
-    )
+class GovernedPublishedAgent(BaseModel):
+    snapshot: ContractPublishedAgentSnapshot
     default_runtime_profile: ExecutionProfile = Field(
         default_factory=lambda: ExecutionProfile(backend=EXTERNAL_RUNNER_EXECUTION_BACKEND)
     )
@@ -264,107 +258,177 @@ class PublishedAgent(BaseModel):
     validation_evidence: AgentValidationEvidenceSummary | None = None
     validation_outcome: AgentValidationOutcomeSummary | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_payload(cls, value: object) -> object:
+        if isinstance(value, cls) or not isinstance(value, Mapping):
+            return value
+
+        payload = dict(value)
+        default_runtime_profile = payload.get("default_runtime_profile")
+        if isinstance(default_runtime_profile, ExecutionProfile):
+            if (
+                payload.get("execution_binding") is None
+                and default_runtime_profile.execution_binding is not None
+            ):
+                payload["execution_binding"] = default_runtime_profile.execution_binding.model_dump(
+                    mode="json",
+                    exclude_none=True,
+                )
+            payload["default_runtime_profile"] = default_runtime_profile.model_dump(
+                mode="json",
+                exclude_none=True,
+            )
+        elif isinstance(default_runtime_profile, Mapping):
+            profile_payload = dict(default_runtime_profile)
+            profile_execution_binding = profile_payload.pop("execution_binding", None)
+            if payload.get("execution_binding") is None and profile_execution_binding is not None:
+                payload["execution_binding"] = profile_execution_binding
+            payload["default_runtime_profile"] = profile_payload
+        execution_binding = payload.get("execution_binding")
+        if isinstance(execution_binding, ExecutionBinding):
+            payload["execution_binding"] = execution_binding.model_dump(
+                mode="json",
+                exclude_none=True,
+            )
+        raw_snapshot = payload.get("snapshot")
+        sealed_snapshot = normalize_contract_published_agent_snapshot(
+            raw_snapshot if raw_snapshot is not None else payload
+        )
+        payload["snapshot"] = sealed_snapshot
+        payload.setdefault(
+            "default_runtime_profile",
+            sealed_snapshot.default_runtime_profile,
+        )
+        return payload
+
     @classmethod
     def from_snapshot(
         cls,
         snapshot: Mapping[str, Any] | ContractPublishedAgentSnapshot,
-    ) -> PublishedAgent:
+        *,
+        default_runtime_profile: ExecutionProfile | None = None,
+        execution_binding: ExecutionBinding | None = None,
+        latest_validation: AgentValidationRunReference | None = None,
+        validation_evidence: AgentValidationEvidenceSummary | None = None,
+        validation_outcome: AgentValidationOutcomeSummary | None = None,
+    ) -> GovernedPublishedAgent:
         sealed = normalize_contract_published_agent_snapshot(snapshot)
         return cls(
-            manifest=sealed.manifest.model_copy(deep=True),
-            entrypoint=sealed.entrypoint,
-            published_at=sealed.published_at,
-            source_fingerprint=sealed.source_fingerprint,
-            execution_reference=sealed.execution_reference.model_copy(deep=True),
-            default_runtime_profile=ExecutionProfile.model_validate(sealed.default_runtime_profile),
+            snapshot=sealed,
+            default_runtime_profile=(
+                default_runtime_profile.model_copy(deep=True)
+                if default_runtime_profile is not None
+                else ExecutionProfile.model_validate(sealed.default_runtime_profile)
+            ),
+            execution_binding=(
+                execution_binding.model_copy(deep=True) if execution_binding is not None else None
+            ),
+            latest_validation=(
+                latest_validation.model_copy(deep=True) if latest_validation is not None else None
+            ),
+            validation_evidence=(
+                validation_evidence.model_copy(deep=True)
+                if validation_evidence is not None
+                else None
+            ),
+            validation_outcome=(
+                validation_outcome.model_copy(deep=True) if validation_outcome is not None else None
+            ),
+        )
+
+    @property
+    def manifest(self) -> AgentManifest:
+        return self.snapshot.manifest
+
+    @property
+    def entrypoint(self) -> str:
+        return self.snapshot.entrypoint
+
+    @property
+    def published_at(self) -> datetime:
+        return self.snapshot.published_at
+
+    @property
+    def source_fingerprint(self) -> str:
+        return self.snapshot.source_fingerprint
+
+    @source_fingerprint.setter
+    def source_fingerprint(self, value: str) -> None:
+        self.snapshot = self.snapshot.model_copy(update={"source_fingerprint": value}, deep=True)
+
+    @property
+    def execution_reference(self) -> ExecutionReferenceMetadata:
+        return self.snapshot.execution_reference
+
+    @execution_reference.setter
+    def execution_reference(self, value: ExecutionReferenceMetadata) -> None:
+        self.snapshot = self.snapshot.model_copy(
+            update={"execution_reference": value},
+            deep=True,
         )
 
     @property
     def agent_id(self) -> str:
-        return self.manifest.agent_id
+        return self.snapshot.agent_id
 
     @property
     def name(self) -> str:
-        return self.manifest.name
+        return self.snapshot.name
 
     @property
     def description(self) -> str:
-        return self.manifest.description
+        return self.snapshot.description
 
     @property
     def framework(self) -> str:
-        return self.manifest.framework
+        return self.snapshot.framework
 
     @property
     def agent_family(self) -> str:
-        raw_family = self.manifest.agent_family
-        if isinstance(raw_family, str) and raw_family.strip():
-            return raw_family
-        return agent_family_for_framework(self.framework).value
+        return contract_published_agent_snapshot_agent_family(self.snapshot)
 
     @property
     def default_model(self) -> str:
-        return self.manifest.default_model
+        return self.snapshot.default_model
 
     @property
     def tags(self) -> list[str]:
-        return list(self.manifest.tags)
+        return list(self.snapshot.tags)
 
     @property
     def framework_version(self) -> str:
-        return self.manifest.framework_version
+        return self.snapshot.framework_version
 
     @property
     def capabilities(self) -> list[str]:
-        if self.manifest.capabilities:
-            return list(self.manifest.capabilities)
+        if self.snapshot.capabilities:
+            return list(self.snapshot.capabilities)
         return ["external-runner-handoff", "phoenix-links", "offline-export"]
 
     def adapter_kind(self) -> AdapterKind:
         return adapter_kind_for_agent_family(self.agent_family)
 
     def source_fingerprint_or_raise(self) -> str:
-        fingerprint = self.source_fingerprint.strip()
-        if fingerprint:
-            return fingerprint
-
-        raise ValueError(
-            f"published agent '{self.agent_id}' is missing source fingerprint metadata"
-        )
+        return contract_published_agent_snapshot_source_fingerprint_or_raise(self.snapshot)
 
     def execution_reference_or_raise(self) -> ExecutionReferenceMetadata:
-        execution_reference = ExecutionReferenceMetadata.model_validate(self.execution_reference)
-        artifact_ref = (
-            execution_reference.artifact_ref.strip()
-            if isinstance(execution_reference.artifact_ref, str)
-            else ""
-        )
-        image_ref = (
-            execution_reference.image_ref.strip()
-            if isinstance(execution_reference.image_ref, str)
-            else ""
-        )
-        if artifact_ref or image_ref:
-            return execution_reference
-
-        raise ValueError(
-            f"published agent '{self.agent_id}' is missing execution reference metadata"
-        )
+        return contract_published_agent_snapshot_execution_reference_or_raise(self.snapshot)
 
     def to_snapshot(self) -> dict[str, Any]:
         return self.to_snapshot_model().model_dump(mode="json")
 
     def to_snapshot_model(self) -> ContractPublishedAgentSnapshot:
-        return ContractPublishedAgentSnapshot(
-            manifest=self.manifest.model_copy(deep=True),
-            entrypoint=self.entrypoint,
-            published_at=self.published_at,
-            source_fingerprint=self.source_fingerprint_or_raise(),
-            execution_reference=self.execution_reference_or_raise(),
-            default_runtime_profile=self.default_runtime_profile.model_dump(
-                mode="json",
-                exclude_none=True,
-            ),
+        return self.snapshot.model_copy(
+            update={
+                "source_fingerprint": self.source_fingerprint_or_raise(),
+                "execution_reference": self.execution_reference_or_raise(),
+                "default_runtime_profile": self.default_runtime_profile.model_dump(
+                    mode="json",
+                    exclude_none=True,
+                ),
+            },
+            deep=True,
         )
 
 

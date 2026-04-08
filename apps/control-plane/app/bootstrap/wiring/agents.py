@@ -17,7 +17,7 @@ from app.modules.agents.domain.models import (
     AgentValidationRecord,
     AgentValidationRun,
     AgentValidationRunCreateInput,
-    PublishedAgent,
+    GovernedPublishedAgent,
 )
 from app.modules.runs.application.services import RunSubmissionService
 from app.modules.runs.domain.models import RunCreateInput, RunRecord
@@ -81,7 +81,7 @@ class RunBackedAgentValidationSubmission:
     def submit_validation(
         self,
         payload: AgentValidationRunCreateInput,
-        agent: PublishedAgent,
+        agent: GovernedPublishedAgent,
     ) -> AgentValidationRun:
         run = self.submission_service.submit(_to_run_create_input(payload, agent), agent)
         return _to_agent_validation_run(run)
@@ -89,7 +89,7 @@ class RunBackedAgentValidationSubmission:
 
 def _to_run_create_input(
     payload: AgentValidationRunCreateInput,
-    agent: PublishedAgent,
+    agent: GovernedPublishedAgent,
 ) -> RunCreateInput:
     return RunCreateInput(
         project=payload.project,

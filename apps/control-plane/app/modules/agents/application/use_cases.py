@@ -6,13 +6,13 @@ from uuid import UUID
 
 from agent_atlas_contracts.runtime import (
     AgentBuildContext,
+    AgentLoadFailedError,
     AgentManifest,
     ExecutionReferenceMetadata,
 )
 
 from app.core.errors import (
     AgentImportConflictError,
-    AgentLoadFailedError,
     AgentValidationFailedError,
     PublishedAgentNotFoundError,
 )
@@ -32,7 +32,7 @@ from app.modules.agents.domain.models import (
     AgentValidationRunCreateInput,
     AgentValidationRunReference,
     ExecutionBinding,
-    PublishedAgent,
+    GovernedPublishedAgent,
     compute_source_fingerprint,
 )
 from app.modules.agents.domain.reference_assets import (
@@ -54,7 +54,7 @@ class PublishedAgentCatalogQueries:
         self.published_agents = published_agents
         self.validation_records = validation_records
 
-    def list_agents(self) -> list[PublishedAgent]:
+    def list_agents(self) -> list[GovernedPublishedAgent]:
         latest_validation_by_agent = _latest_validation_runs(self.validation_records.list_records())
         valid_agents = [
             _attach_validation_summary(agent, latest_validation_by_agent.get(agent.agent_id))
@@ -85,9 +85,9 @@ def _validation_outcome_status(record: AgentValidationRecord) -> AgentValidation
 
 
 def _attach_validation_summary(
-    agent: PublishedAgent,
+    agent: GovernedPublishedAgent,
     record: AgentValidationRecord | None,
-) -> PublishedAgent:
+) -> GovernedPublishedAgent:
     if record is None:
         return agent
 
@@ -115,7 +115,7 @@ def _attach_validation_summary(
     )
 
 
-def _is_valid_published_agent(agent: PublishedAgent) -> bool:
+def _is_valid_published_agent(agent: GovernedPublishedAgent) -> bool:
     try:
         agent.source_fingerprint_or_raise()
         agent.execution_reference_or_raise()
@@ -174,17 +174,19 @@ class GovernedAgentIntake:
         )
 
 
-def _governed_asset_from_intake(intake: GovernedAgentIntake) -> PublishedAgent:
+def _governed_asset_from_intake(intake: GovernedAgentIntake) -> GovernedPublishedAgent:
     manifest = intake.manifest.model_copy(deep=True)
     source_fingerprint = compute_source_fingerprint(manifest, intake.entrypoint)
-    return PublishedAgent(
-        manifest=manifest,
-        entrypoint=intake.entrypoint,
-        source_fingerprint=source_fingerprint,
-        execution_reference=_governed_execution_reference(
-            agent_id=manifest.agent_id,
-            source_fingerprint=source_fingerprint,
-        ),
+    return GovernedPublishedAgent.from_snapshot(
+        {
+            "manifest": manifest.model_dump(mode="json"),
+            "entrypoint": intake.entrypoint,
+            "source_fingerprint": source_fingerprint,
+            "execution_reference": _governed_execution_reference(
+                agent_id=manifest.agent_id,
+                source_fingerprint=source_fingerprint,
+            ).model_dump(mode="json"),
+        },
         default_runtime_profile=(
             intake.default_runtime_profile.model_copy(deep=True)
             if intake.default_runtime_profile is not None
@@ -210,7 +212,7 @@ class AgentIntakeCommands:
     def publish_governed_intake(
         self,
         intake: GovernedAgentIntake,
-    ) -> PublishedAgent:
+    ) -> GovernedPublishedAgent:
         candidate = _governed_asset_from_intake(intake)
         if intake.prepare_runtime is not None:
             intake.prepare_runtime(candidate.execution_binding)
@@ -219,7 +221,7 @@ class AgentIntakeCommands:
         self._save_governed_asset(candidate)
         return candidate
 
-    def _save_governed_asset(self, candidate: PublishedAgent) -> None:
+    def _save_governed_asset(self, candidate: GovernedPublishedAgent) -> None:
         existing = self.published_agents.get_agent(candidate.agent_id)
         if existing is not None and _is_valid_published_agent(existing):
             if (
@@ -231,10 +233,10 @@ class AgentIntakeCommands:
 
         self.published_agents.save_agent(candidate)
 
-    def validate_runnable_intake_candidate(self, candidate: PublishedAgent) -> None:
+    def validate_runnable_intake_candidate(self, candidate: GovernedPublishedAgent) -> None:
         try:
             self.framework_registry.build_agent(
-                published_agent=candidate,
+                published_agent=candidate.to_snapshot_model(),
                 context=_governed_intake_validation_context(),
             )
         except AgentLoadFailedError as exc:
@@ -265,7 +267,7 @@ class AgentValidationCommands:
         ensure_claude_code_starter_runtime_ready(agent.execution_binding)
         return self.validation_submission.submit_validation(payload, agent)
 
-    def _resolve_agent(self, agent_id: str) -> PublishedAgent:
+    def _resolve_agent(self, agent_id: str) -> GovernedPublishedAgent:
         existing = self.published_agents.get_agent(agent_id)
         if existing is None or not _is_valid_published_agent(existing):
             raise PublishedAgentNotFoundError(agent_id)

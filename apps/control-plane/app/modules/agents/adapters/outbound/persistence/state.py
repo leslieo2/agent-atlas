@@ -11,7 +11,7 @@ from app.db.persistence import (
     upsert_payload,
 )
 from app.infrastructure.repositories.common import PlaneStoreSetSource, resolve_state_store
-from app.modules.agents.domain.models import PublishedAgent
+from app.modules.agents.domain.models import GovernedPublishedAgent
 
 
 class StatePublishedAgentRepository:
@@ -38,7 +38,7 @@ class StatePublishedAgentRepository:
     def reset_state(self) -> None:
         self._stores.control.delete_all(["published_agents"])
 
-    def list_agents(self) -> list[PublishedAgent]:
+    def list_agents(self) -> list[GovernedPublishedAgent]:
         payloads = fetch_payloads(
             self._stores.control,
             (
@@ -46,9 +46,9 @@ class StatePublishedAgentRepository:
                 "ORDER BY updated_at DESC"
             ),
         )
-        return [PublishedAgent.model_validate(json.loads(payload)) for payload in payloads]
+        return [GovernedPublishedAgent.model_validate(json.loads(payload)) for payload in payloads]
 
-    def get_agent(self, agent_id: str) -> PublishedAgent | None:
+    def get_agent(self, agent_id: str) -> GovernedPublishedAgent | None:
         payload = fetch_payload(
             self._stores.control,
             table="published_agents",
@@ -57,9 +57,9 @@ class StatePublishedAgentRepository:
         )
         if payload is None:
             return None
-        return PublishedAgent.model_validate(json.loads(payload))
+        return GovernedPublishedAgent.model_validate(json.loads(payload))
 
-    def save_agent(self, agent: PublishedAgent) -> None:
+    def save_agent(self, agent: GovernedPublishedAgent) -> None:
         upsert_payload(
             self._stores.control,
             table="published_agents",

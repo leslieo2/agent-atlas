@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from agent_atlas_contracts.runtime import AgentLoadFailedError
+
 from app.core.errors import (
-    AgentLoadFailedError,
     UnsupportedOperationError,
 )
 from app.execution.application.ports import ExecutionControlPort
 from app.execution.metadata import requested_runner_backend, runner_image, uses_k8s_runner_backend
-from app.modules.agents.domain.models import PublishedAgent
+from app.modules.agents.domain.models import GovernedPublishedAgent
 from app.modules.runs.application.ports import RunRepository
 from app.modules.runs.domain.models import RunCreateInput, RunExecutionSpec, RunRecord
 from app.modules.runs.domain.policies import RunAggregate
@@ -29,7 +30,7 @@ def _deep_merge_values(base: object, override: object) -> object:
     return override
 
 
-def _resolve_submission_agent(agent: PublishedAgent) -> PublishedAgent:
+def _resolve_submission_agent(agent: GovernedPublishedAgent) -> GovernedPublishedAgent:
     try:
         agent.source_fingerprint_or_raise()
         agent.execution_reference_or_raise()
@@ -40,7 +41,7 @@ def _resolve_submission_agent(agent: PublishedAgent) -> PublishedAgent:
 
 
 def _resolved_submission_provenance(
-    effective_agent: PublishedAgent,
+    effective_agent: GovernedPublishedAgent,
     *,
     trace_backend: str,
 ) -> ProvenanceMetadata:
@@ -195,7 +196,7 @@ class RunSubmissionService:
         self.execution_control = execution_control
         self.default_trace_backend = default_trace_backend
 
-    def submit(self, payload: RunCreateInput, agent: PublishedAgent) -> RunRecord:
+    def submit(self, payload: RunCreateInput, agent: GovernedPublishedAgent) -> RunRecord:
         effective_agent = _resolve_submission_agent(agent)
         executor_config, execution_binding, trace_backend = _resolve_executor_config(
             payload,
