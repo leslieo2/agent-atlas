@@ -4,8 +4,14 @@ import sqlite3
 from pathlib import Path
 from uuid import uuid4
 
-from app.db.persistence import StatePersistence
+from app.db.persistence import PlaneStoreSet
+from app.modules.exports.adapters.outbound import StateExportRepository
 from app.modules.exports.domain.models import ArtifactMetadata
+from app.modules.runs.adapters.outbound import (
+    StateRunRepository,
+    StateTraceRepository,
+    StateTrajectoryRepository,
+)
 from app.modules.runs.domain.models import RunRecord
 from app.modules.shared.domain.enums import AdapterKind, ArtifactFormat, RunStatus, StepType
 from app.modules.shared.domain.models import TrajectoryStepRecord
@@ -30,15 +36,18 @@ def _run_record() -> RunRecord:
 
 def test_storage_ownership_uses_plane_prefixed_tables_in_shared_sqlite_db(tmp_path: Path) -> None:
     db_path = tmp_path / "atlas-shared.db"
-    persistence = StatePersistence(
+    stores = PlaneStoreSet(
         control_database_url=_sqlite_url(db_path),
         data_database_url=_sqlite_url(db_path),
     )
     try:
+        run_repository = StateRunRepository(stores)
+        trajectory_repository = StateTrajectoryRepository(stores)
+        export_repository = StateExportRepository(stores)
         run = _run_record()
 
-        persistence.save_run(run)
-        persistence.append_trajectory_step(
+        run_repository.save(run)
+        trajectory_repository.append(
             TrajectoryStepRecord(
                 id="step-1",
                 run_id=run.run_id,
@@ -47,7 +56,7 @@ def test_storage_ownership_uses_plane_prefixed_tables_in_shared_sqlite_db(tmp_pa
                 output="Plan explained.",
             )
         )
-        persistence.save_artifact(
+        export_repository.save(
             ArtifactMetadata(
                 format=ArtifactFormat.JSONL,
                 path="s3://exports/atlas-run-1.jsonl",
@@ -74,21 +83,23 @@ def test_storage_ownership_uses_plane_prefixed_tables_in_shared_sqlite_db(tmp_pa
         finally:
             conn.close()
     finally:
-        persistence.close()
+        stores.close()
 
 
 def test_storage_ownership_can_split_planes_across_distinct_sqlite_files(tmp_path: Path) -> None:
     control_db = tmp_path / "control.db"
     data_db = tmp_path / "data.db"
-    persistence = StatePersistence(
+    stores = PlaneStoreSet(
         control_database_url=_sqlite_url(control_db),
         data_database_url=_sqlite_url(data_db),
     )
     try:
+        run_repository = StateRunRepository(stores)
+        trace_repository = StateTraceRepository(stores)
         run = _run_record()
 
-        persistence.save_run(run)
-        persistence.append_trace_span(
+        run_repository.save(run)
+        trace_repository.append(
             TraceSpan(
                 run_id=run.run_id,
                 span_id="span-1",
@@ -127,4 +138,4 @@ def test_storage_ownership_can_split_planes_across_distinct_sqlite_files(tmp_pat
             control_conn.close()
             data_conn.close()
     finally:
-        persistence.close()
+        stores.close()

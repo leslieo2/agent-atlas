@@ -3,23 +3,13 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
-from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any, Literal
 from uuid import UUID
 
 from app.core.config import settings
-from app.modules.agents.domain.models import PublishedAgent
-from app.modules.datasets.domain.models import Dataset, DatasetVersion
-from app.modules.experiments.domain.models import ExperimentRecord, RunEvaluationRecord
-from app.modules.exports.domain.models import ArtifactMetadata
-from app.modules.policies.domain.models import ApprovalPolicyRecord
-from app.modules.runs.domain.models import RunRecord
-from app.modules.shared.domain.observability import TrajectoryStepRecord
-from app.modules.shared.domain.traces import TraceSpan
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -49,7 +39,7 @@ class _PlaneConfig:
     sqlite_prefix: str
 
 
-class _PlaneStore:
+class PlaneStore:
     def __init__(self, config: _PlaneConfig) -> None:
         self._lock = RLock()
         self.name = config.name
@@ -99,7 +89,7 @@ class _PlaneStore:
             try:
                 import psycopg
                 from psycopg.rows import dict_row
-            except ImportError as exc:  # pragma: no cover - exercised only with postgres URLs
+            except ImportError as exc:  # pragma: no cover
                 raise RuntimeError(
                     "PostgreSQL storage requires psycopg. Install backend dependencies first."
                 ) from exc
@@ -190,7 +180,7 @@ class _PlaneStore:
         return dict(row)
 
 
-class StatePersistence:
+class PlaneStoreSet:
     def __init__(
         self,
         control_database_url: str | None = None,
@@ -200,7 +190,7 @@ class StatePersistence:
         data_schema: str = "data_plane",
     ) -> None:
         base_dir = Path(__file__).resolve().parents[2] / "data"
-        self._control = _PlaneStore(
+        self.control = PlaneStore(
             _PlaneConfig(
                 name="control",
                 database_url=control_database_url,
@@ -209,7 +199,7 @@ class StatePersistence:
                 sqlite_prefix="control_",
             )
         )
-        self._data = _PlaneStore(
+        self.data = PlaneStore(
             _PlaneConfig(
                 name="data",
                 database_url=data_database_url,
@@ -218,679 +208,204 @@ class StatePersistence:
                 sqlite_prefix="data_",
             )
         )
-        self.enabled = self._control.enabled and self._data.enabled
-        self._init_schema()
-
-    def _init_schema(self) -> None:
-        self._control.create_schema()
-        self._data.create_schema()
-        self._init_control_schema()
-        self._init_data_schema()
-
-    def _init_control_schema(self) -> None:
-        runs = self._control.table("runs")
-        datasets = self._control.table("datasets")
-        dataset_versions = self._control.table("dataset_versions")
-        experiments = self._control.table("experiments")
-        approval_policies = self._control.table("approval_policies")
-        tool_policies = self._control.table("tool_policies")
-        published_agents = self._control.table("published_agents")
-        statements = [
-            f"""
-            CREATE TABLE IF NOT EXISTS {runs} (
-                run_id TEXT PRIMARY KEY,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {datasets} (
-                name TEXT PRIMARY KEY,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {dataset_versions} (
-                dataset_version_id TEXT PRIMARY KEY,
-                dataset_name TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {experiments} (
-                experiment_id TEXT PRIMARY KEY,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {approval_policies} (
-                approval_policy_id TEXT PRIMARY KEY,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {tool_policies} (
-                approval_policy_id TEXT NOT NULL,
-                tool_name TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                PRIMARY KEY (approval_policy_id, tool_name)
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {published_agents} (
-                agent_id TEXT PRIMARY KEY,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-        ]
-
-        for statement in statements:
-            self._control.execute(statement, commit=True)
-
-    def _init_data_schema(self) -> None:
-        trajectory = self._data.table("trajectory")
-        trace_spans = self._data.table("trace_spans")
-        run_evaluations = self._data.table("run_evaluations")
-        artifacts = self._data.table("artifacts")
-
-        statements = [
-            f"""
-            CREATE TABLE IF NOT EXISTS {trajectory} (
-                run_id TEXT NOT NULL,
-                step_id TEXT NOT NULL,
-                position INTEGER NOT NULL,
-                payload TEXT NOT NULL,
-                PRIMARY KEY (run_id, step_id)
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {trace_spans} (
-                run_id TEXT NOT NULL,
-                span_id TEXT NOT NULL,
-                position INTEGER NOT NULL,
-                payload TEXT NOT NULL,
-                PRIMARY KEY (run_id, span_id)
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {run_evaluations} (
-                run_id TEXT PRIMARY KEY,
-                experiment_id TEXT NOT NULL,
-                dataset_sample_id TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-            f"""
-            CREATE TABLE IF NOT EXISTS {artifacts} (
-                artifact_id TEXT PRIMARY KEY,
-                payload TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """,
-        ]
-
-        for statement in statements:
-            self._data.execute(statement, commit=True)
-
-    def _upsert_payload(
-        self,
-        store: _PlaneStore,
-        *,
-        table: str,
-        key_col: str,
-        key_value: str,
-        payload: str,
-        updated_at: str,
-    ) -> None:
-        placeholder = store.placeholder
-        store.execute(  # nosec B608
-            f"""
-            INSERT INTO {store.table(table)} ({key_col}, payload, updated_at)
-            VALUES ({placeholder}, {placeholder}, {placeholder})
-            ON CONFLICT({key_col}) DO UPDATE SET
-                payload = excluded.payload,
-                updated_at = excluded.updated_at
-            """,
-            (key_value, payload, updated_at),
-            commit=True,
-        )
-
-    def _fetch_payload(
-        self,
-        store: _PlaneStore,
-        *,
-        table: str,
-        key_col: str,
-        key_value: str,
-    ) -> str | None:
-        row = store.fetchone(  # nosec B608
-            f"""
-            SELECT payload
-            FROM {store.table(table)}
-            WHERE {key_col} = {store.placeholder}
-            LIMIT 1
-            """,
-            (key_value,),
-        )
-        if row is None:
-            return None
-        return str(row["payload"])
-
-    def _fetch_payloads(
-        self,
-        store: _PlaneStore,
-        query: str,
-        params: tuple[object, ...] = (),
-    ) -> list[str]:
-        rows = store.fetchall(query, params)
-        return [str(row["payload"]) for row in rows]
-
-    def save_run(self, run: RunRecord) -> None:
-        self._upsert_payload(
-            self._control,
-            table="runs",
-            key_col="run_id",
-            key_value=str(run.run_id),
-            payload=serialize_model(run),
-            updated_at=datetime.now(UTC).isoformat(),
-        )
-
-    def get_run(self, run_id: UUID | str) -> RunRecord | None:
-        payload = self._fetch_payload(
-            self._control,
-            table="runs",
-            key_col="run_id",
-            key_value=str(to_uuid(run_id)),
-        )
-        if payload is None:
-            return None
-        return RunRecord.model_validate(json.loads(payload))
-
-    def list_runs(self) -> list[RunRecord]:
-        payloads = self._fetch_payloads(
-            self._control,
-            f"SELECT payload FROM {self._control.table('runs')} ORDER BY updated_at DESC",  # nosec B608
-        )
-        return [RunRecord.model_validate(json.loads(payload)) for payload in payloads]
-
-    def save_published_agent(self, agent: PublishedAgent) -> None:
-        self._upsert_payload(
-            self._control,
-            table="published_agents",
-            key_col="agent_id",
-            key_value=agent.agent_id,
-            payload=serialize_model(agent),
-            updated_at=datetime.now(UTC).isoformat(),
-        )
-
-    def get_published_agent(self, agent_id: str) -> PublishedAgent | None:
-        payload = self._fetch_payload(
-            self._control,
-            table="published_agents",
-            key_col="agent_id",
-            key_value=agent_id,
-        )
-        if payload is None:
-            return None
-        return PublishedAgent.model_validate(json.loads(payload))
-
-    def list_published_agents(self) -> list[PublishedAgent]:
-        payloads = self._fetch_payloads(
-            self._control,
-            (
-                f"SELECT payload FROM {self._control.table('published_agents')} "  # nosec B608
-                "ORDER BY updated_at DESC"
-            ),
-        )
-        return [PublishedAgent.model_validate(json.loads(payload)) for payload in payloads]
-
-    def delete_published_agent(self, agent_id: str) -> bool:
-        cursor = self._control.execute(
-            (
-                f"DELETE FROM {self._control.table('published_agents')} "  # nosec B608
-                f"WHERE agent_id = {self._control.placeholder}"
-            ),
-            (agent_id,),
-            commit=True,
-        )
-        return bool(cursor.rowcount)
-
-    def save_trajectory_step(self, step: TrajectoryStepRecord, position: int) -> None:
-        placeholder = self._data.placeholder
-        self._data.execute(  # nosec B608
-            f"""
-            INSERT INTO {self._data.table('trajectory')} (run_id, step_id, position, payload)
-            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
-            ON CONFLICT(run_id, step_id) DO UPDATE SET
-                position = excluded.position,
-                payload = excluded.payload
-            """,
-            (str(step.run_id), step.id, position, serialize_model(step)),
-            commit=True,
-        )
-
-    def append_trajectory_step(self, step: TrajectoryStepRecord) -> None:
-        existing = self._data.fetchone(  # nosec B608
-            f"""
-            SELECT position
-            FROM {self._data.table('trajectory')}
-            WHERE run_id = {self._data.placeholder} AND step_id = {self._data.placeholder}
-            """,
-            (str(step.run_id), step.id),
-        )
-        if existing:
-            position = int(existing["position"])
-        else:
-            row = self._data.fetchone(  # nosec B608
-                f"""
-                SELECT COALESCE(MAX(position), -1) + 1 AS next_position
-                FROM {self._data.table('trajectory')}
-                WHERE run_id = {self._data.placeholder}
-                """,
-                (str(step.run_id),),
-            )
-            position = int(row["next_position"]) if row else 0
-        self.save_trajectory_step(step, position)
-
-    def list_trajectory(self, run_id: UUID | str) -> list[TrajectoryStepRecord]:
-        payloads = self._fetch_payloads(  # nosec B608
-            self._data,
-            f"""
-            SELECT payload
-            FROM {self._data.table('trajectory')}
-            WHERE run_id = {self._data.placeholder}
-            ORDER BY position ASC
-            """,
-            (str(to_uuid(run_id)),),
-        )
-        return [TrajectoryStepRecord.model_validate(json.loads(payload)) for payload in payloads]
-
-    def persist_trajectory(self, run_id: UUID, steps: list[TrajectoryStepRecord]) -> None:
-        self._data.execute(  # nosec B608
-            f"DELETE FROM {self._data.table('trajectory')} WHERE run_id = {self._data.placeholder}",  # nosec B608
-            (str(run_id),),
-            commit=True,
-        )
-        for position, step in enumerate(steps):
-            self.save_trajectory_step(step, position)
-
-    def save_trace_span(self, span: TraceSpan, position: int) -> None:
-        placeholder = self._data.placeholder
-        self._data.execute(
-            f"""
-            INSERT INTO {self._data.table('trace_spans')} (run_id, span_id, position, payload)
-            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
-            ON CONFLICT(run_id, span_id) DO UPDATE SET
-                position = excluded.position,
-                payload = excluded.payload
-            """,
-            (str(span.run_id), span.span_id, position, serialize_model(span)),
-            commit=True,
-        )
-
-    def append_trace_span(self, span: TraceSpan) -> None:
-        existing = self._data.fetchone(  # nosec B608
-            f"""
-            SELECT position
-            FROM {self._data.table('trace_spans')}
-            WHERE run_id = {self._data.placeholder} AND span_id = {self._data.placeholder}
-            """,
-            (str(span.run_id), span.span_id),
-        )
-        if existing:
-            position = int(existing["position"])
-        else:
-            row = self._data.fetchone(  # nosec B608
-                f"""
-                SELECT COALESCE(MAX(position), -1) + 1 AS next_position
-                FROM {self._data.table('trace_spans')}
-                WHERE run_id = {self._data.placeholder}
-                """,
-                (str(span.run_id),),
-            )
-            position = int(row["next_position"]) if row else 0
-        self.save_trace_span(span, position)
-
-    def list_trace_spans(self, run_id: UUID | str) -> list[TraceSpan]:
-        payloads = self._fetch_payloads(  # nosec B608
-            self._data,
-            f"""
-            SELECT payload
-            FROM {self._data.table('trace_spans')}
-            WHERE run_id = {self._data.placeholder}
-            ORDER BY position ASC
-            """,
-            (str(to_uuid(run_id)),),
-        )
-        return [TraceSpan.model_validate(json.loads(payload)) for payload in payloads]
-
-    def persist_trace_spans(self, run_id: UUID, spans: list[TraceSpan]) -> None:
-        self._data.execute(
-            (
-                f"DELETE FROM {self._data.table('trace_spans')} "  # nosec B608
-                f"WHERE run_id = {self._data.placeholder}"
-            ),
-            (str(run_id),),
-            commit=True,
-        )
-        for position, span in enumerate(spans):
-            self.save_trace_span(span, position)
-
-    def save_dataset(self, dataset: Dataset) -> None:
-        timestamp = datetime.now(UTC).isoformat()
-        self._upsert_payload(
-            self._control,
-            table="datasets",
-            key_col="name",
-            key_value=dataset.name,
-            payload=serialize_model(dataset),
-            updated_at=timestamp,
-        )
-        self._control.execute(  # nosec B608
-            f"""
-            DELETE FROM {self._control.table('dataset_versions')}
-            WHERE dataset_name = {self._control.placeholder}
-            """,
-            (dataset.name,),
-            commit=True,
-        )
-        placeholder = self._control.placeholder
-        for version in dataset.versions:
-            self._control.execute(  # nosec B608
-                f"""
-                INSERT INTO {self._control.table('dataset_versions')} (
-                    dataset_version_id, dataset_name, payload, updated_at
-                )
-                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
-                ON CONFLICT(dataset_version_id) DO UPDATE SET
-                    dataset_name = excluded.dataset_name,
-                    payload = excluded.payload,
-                    updated_at = excluded.updated_at
-                """,
-                (
-                    str(version.dataset_version_id),
-                    dataset.name,
-                    serialize_model(version),
-                    timestamp,
-                ),
-                commit=True,
-            )
-
-    def get_dataset(self, name: str) -> Dataset | None:
-        payload = self._fetch_payload(
-            self._control,
-            table="datasets",
-            key_col="name",
-            key_value=name,
-        )
-        if payload is None:
-            return None
-        return Dataset.model_validate(json.loads(payload))
-
-    def list_datasets(self) -> list[Dataset]:
-        payloads = self._fetch_payloads(
-            self._control,
-            f"SELECT payload FROM {self._control.table('datasets')} ORDER BY updated_at DESC",  # nosec B608
-        )
-        return [Dataset.model_validate(json.loads(payload)) for payload in payloads]
-
-    def get_dataset_version(self, dataset_version_id: UUID | str) -> DatasetVersion | None:
-        rows = self._fetch_payloads(  # nosec B608
-            self._control,
-            f"""
-            SELECT payload
-            FROM {self._control.table('dataset_versions')}
-            WHERE dataset_version_id = {self._control.placeholder}
-            LIMIT 1
-            """,
-            (str(to_uuid(dataset_version_id)),),
-        )
-        if not rows:
-            return None
-        return DatasetVersion.model_validate(json.loads(rows[0]))
-
-    def save_experiment(self, experiment: ExperimentRecord) -> None:
-        self._upsert_payload(
-            self._control,
-            table="experiments",
-            key_col="experiment_id",
-            key_value=str(experiment.experiment_id),
-            payload=json.dumps(
-                experiment.model_dump(mode="json"),
-                ensure_ascii=False,
-            ),
-            updated_at=datetime.now(UTC).isoformat(),
-        )
-
-    def get_experiment(self, experiment_id: UUID | str) -> ExperimentRecord | None:
-        payload = self._fetch_payload(
-            self._control,
-            table="experiments",
-            key_col="experiment_id",
-            key_value=str(to_uuid(experiment_id)),
-        )
-        if payload is None:
-            return None
-        return ExperimentRecord.model_validate(json.loads(payload))
-
-    def list_experiments(self) -> list[ExperimentRecord]:
-        payloads = self._fetch_payloads(
-            self._control,
-            f"SELECT payload FROM {self._control.table('experiments')} ORDER BY updated_at DESC",  # nosec B608
-        )
-        return [ExperimentRecord.model_validate(json.loads(payload)) for payload in payloads]
-
-    def save_run_evaluation(self, record: RunEvaluationRecord) -> None:
-        placeholder = self._data.placeholder
-        self._data.execute(  # nosec B608
-            f"""
-            INSERT INTO {self._data.table('run_evaluations')} (
-                run_id, experiment_id, dataset_sample_id, payload, updated_at
-            )
-            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
-            ON CONFLICT(run_id) DO UPDATE SET
-                experiment_id = excluded.experiment_id,
-                dataset_sample_id = excluded.dataset_sample_id,
-                payload = excluded.payload,
-                updated_at = excluded.updated_at
-            """,
-            (
-                str(record.run_id),
-                str(record.experiment_id),
-                record.dataset_sample_id,
-                serialize_model(record),
-                datetime.now(UTC).isoformat(),
-            ),
-            commit=True,
-        )
-
-    def list_run_evaluations(self, experiment_id: UUID | str) -> list[RunEvaluationRecord]:
-        payloads = self._fetch_payloads(  # nosec B608
-            self._data,
-            f"""
-            SELECT payload
-            FROM {self._data.table('run_evaluations')}
-            WHERE experiment_id = {self._data.placeholder}
-            ORDER BY dataset_sample_id ASC
-            """,
-            (str(to_uuid(experiment_id)),),
-        )
-        return [RunEvaluationRecord.model_validate(json.loads(payload)) for payload in payloads]
-
-    def get_run_evaluation_by_run(self, run_id: UUID | str) -> RunEvaluationRecord | None:
-        payloads = self._fetch_payloads(  # nosec B608
-            self._data,
-            f"""
-            SELECT payload
-            FROM {self._data.table('run_evaluations')}
-            WHERE run_id = {self._data.placeholder}
-            LIMIT 1
-            """,
-            (str(to_uuid(run_id)),),
-        )
-        if not payloads:
-            return None
-        return RunEvaluationRecord.model_validate(json.loads(payloads[0]))
-
-    def delete_run_evaluations(self, experiment_id: UUID | str) -> None:
-        self._data.execute(  # nosec B608
-            f"""
-            DELETE FROM {self._data.table('run_evaluations')}
-            WHERE experiment_id = {self._data.placeholder}
-            """,
-            (str(to_uuid(experiment_id)),),
-            commit=True,
-        )
-
-    def save_approval_policy(self, policy: ApprovalPolicyRecord) -> None:
-        timestamp = datetime.now(UTC).isoformat()
-        self._upsert_payload(
-            self._control,
-            table="approval_policies",
-            key_col="approval_policy_id",
-            key_value=str(policy.approval_policy_id),
-            payload=serialize_model(policy),
-            updated_at=timestamp,
-        )
-        self._control.execute(  # nosec B608
-            f"""
-            DELETE FROM {self._control.table('tool_policies')}
-            WHERE approval_policy_id = {self._control.placeholder}
-            """,
-            (str(policy.approval_policy_id),),
-            commit=True,
-        )
-        placeholder = self._control.placeholder
-        for rule in policy.tool_policies:
-            self._control.execute(  # nosec B608
-                f"""
-                INSERT INTO {self._control.table('tool_policies')} (
-                    approval_policy_id, tool_name, payload, updated_at
-                )
-                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
-                ON CONFLICT(approval_policy_id, tool_name) DO UPDATE SET
-                    payload = excluded.payload,
-                    updated_at = excluded.updated_at
-                """,
-                (
-                    str(policy.approval_policy_id),
-                    rule.tool_name,
-                    serialize_model(rule),
-                    timestamp,
-                ),
-                commit=True,
-            )
-
-    def get_approval_policy(self, approval_policy_id: UUID | str) -> ApprovalPolicyRecord | None:
-        payload = self._fetch_payload(
-            self._control,
-            table="approval_policies",
-            key_col="approval_policy_id",
-            key_value=str(to_uuid(approval_policy_id)),
-        )
-        if payload is None:
-            return None
-        return ApprovalPolicyRecord.model_validate(json.loads(payload))
-
-    def list_approval_policies(self) -> list[ApprovalPolicyRecord]:
-        payloads = self._fetch_payloads(
-            self._control,
-            (
-                f"SELECT payload FROM {self._control.table('approval_policies')} "  # nosec B608
-                "ORDER BY updated_at DESC"
-            ),
-        )
-        return [ApprovalPolicyRecord.model_validate(json.loads(payload)) for payload in payloads]
-
-    def save_artifact(self, artifact: ArtifactMetadata) -> None:
-        self._upsert_payload(
-            self._data,
-            table="artifacts",
-            key_col="artifact_id",
-            key_value=str(artifact.artifact_id),
-            payload=serialize_model(artifact),
-            updated_at=artifact.created_at.isoformat(),
-        )
-
-    def get_artifact(self, artifact_id: UUID | str) -> ArtifactMetadata | None:
-        payload = self._fetch_payload(
-            self._data,
-            table="artifacts",
-            key_col="artifact_id",
-            key_value=str(to_uuid(artifact_id)),
-        )
-        if payload is None:
-            return None
-        return ArtifactMetadata.model_validate(json.loads(payload))
-
-    def list_artifacts(self) -> list[ArtifactMetadata]:
-        payloads = self._fetch_payloads(
-            self._data,
-            f"SELECT payload FROM {self._data.table('artifacts')} ORDER BY updated_at DESC",  # nosec B608
-        )
-        return [ArtifactMetadata.model_validate(json.loads(payload)) for payload in payloads]
-
-    def reset(self) -> None:
-        self.reset_all()
-
-    def load_state(self) -> dict[str, Any]:
-        runs = {to_uuid(run.run_id): run for run in self.list_runs()}
-        trajectory = defaultdict(list)
-        trace_spans = defaultdict(list)
-        for run_id in runs:
-            trajectory[run_id] = self.list_trajectory(run_id)
-            trace_spans[run_id] = self.list_trace_spans(run_id)
-        datasets = {dataset.name: dataset for dataset in self.list_datasets()}
-        experiments = {
-            to_uuid(experiment.experiment_id): experiment for experiment in self.list_experiments()
-        }
-        artifacts = {to_uuid(artifact.artifact_id): artifact for artifact in self.list_artifacts()}
-        return {
-            "runs": runs,
-            "trajectory": trajectory,
-            "trace_spans": trace_spans,
-            "datasets": datasets,
-            "experiments": experiments,
-            "artifacts": artifacts,
-        }
-
-    def reset_all(self) -> None:
-        self._data.delete_all(
-            [
-                "trace_spans",
-                "trajectory",
-                "run_evaluations",
-                "artifacts",
-            ]
-        )
-        self._control.delete_all(
-            [
-                "dataset_versions",
-                "datasets",
-                "experiments",
-                "tool_policies",
-                "approval_policies",
-                "published_agents",
-                "runs",
-            ]
-        )
+        self.enabled = self.control.enabled and self.data.enabled
+        self.control.create_schema()
+        self.data.create_schema()
 
     def close(self) -> None:
-        self._data.close()
-        self._control.close()
+        self.data.close()
+        self.control.close()
 
 
-def build_state_persistence() -> StatePersistence:
-    return StatePersistence(
+def upsert_payload(
+    store: PlaneStore,
+    *,
+    table: str,
+    key_col: str,
+    key_value: str,
+    payload: str,
+    updated_at: str,
+) -> None:
+    placeholder = store.placeholder
+    store.execute(  # nosec B608
+        f"""
+        INSERT INTO {store.table(table)} ({key_col}, payload, updated_at)
+        VALUES ({placeholder}, {placeholder}, {placeholder})
+        ON CONFLICT({key_col}) DO UPDATE SET
+            payload = excluded.payload,
+            updated_at = excluded.updated_at
+        """,
+        (key_value, payload, updated_at),
+        commit=True,
+    )
+
+
+def fetch_payload(
+    store: PlaneStore,
+    *,
+    table: str,
+    key_col: str,
+    key_value: str,
+) -> str | None:
+    row = store.fetchone(  # nosec B608
+        f"""
+        SELECT payload
+        FROM {store.table(table)}
+        WHERE {key_col} = {store.placeholder}
+        LIMIT 1
+        """,
+        (key_value,),
+    )
+    if row is None:
+        return None
+    return str(row["payload"])
+
+
+def fetch_payloads(
+    store: PlaneStore,
+    query: str,
+    params: tuple[object, ...] = (),
+) -> list[str]:
+    rows = store.fetchall(query, params)
+    return [str(row["payload"]) for row in rows]
+
+
+def fetch_payloads_by_column(
+    store: PlaneStore,
+    *,
+    table: str,
+    key_col: str,
+    key_value: object,
+    order_by: str,
+    descending: bool = False,
+) -> list[str]:
+    validated_key_col = _validate_identifier(key_col)
+    validated_order_by = _validate_identifier(order_by)
+    direction = "DESC" if descending else "ASC"
+    rows = store.fetchall(  # nosec B608
+        f"""
+        SELECT payload
+        FROM {store.table(table)}
+        WHERE {validated_key_col} = {store.placeholder}
+        ORDER BY {validated_order_by} {direction}
+        """,
+        (key_value,),
+    )
+    return [str(row["payload"]) for row in rows]
+
+
+def fetch_row_by_columns(
+    store: PlaneStore,
+    *,
+    table: str,
+    select_cols: tuple[str, ...],
+    where_cols: tuple[str, ...],
+    where_values: tuple[object, ...],
+) -> dict[str, Any] | None:
+    validated_select_cols = ", ".join(_validate_identifier(col) for col in select_cols)
+    validated_where_cols = tuple(_validate_identifier(col) for col in where_cols)
+    predicates = " AND ".join(f"{col} = {store.placeholder}" for col in validated_where_cols)
+    return store.fetchone(  # nosec B608
+        f"""
+        SELECT {validated_select_cols}
+        FROM {store.table(table)}
+        WHERE {predicates}
+        LIMIT 1
+        """,
+        where_values,
+    )
+
+
+def fetch_next_position(
+    store: PlaneStore,
+    *,
+    table: str,
+    scope_col: str,
+    scope_value: object,
+    position_col: str = "position",
+) -> int:
+    validated_scope_col = _validate_identifier(scope_col)
+    validated_position_col = _validate_identifier(position_col)
+    row = store.fetchone(  # nosec B608
+        f"""
+        SELECT COALESCE(MAX({validated_position_col}), -1) + 1 AS next_position
+        FROM {store.table(table)}
+        WHERE {validated_scope_col} = {store.placeholder}
+        """,
+        (scope_value,),
+    )
+    return int(row["next_position"]) if row else 0
+
+
+def delete_by_column(
+    store: PlaneStore,
+    *,
+    table: str,
+    key_col: str,
+    key_value: object,
+) -> None:
+    validated_key_col = _validate_identifier(key_col)
+    store.execute(  # nosec B608
+        f"""
+        DELETE FROM {store.table(table)}
+        WHERE {validated_key_col} = {store.placeholder}
+        """,
+        (key_value,),
+        commit=True,
+    )
+
+
+def upsert_record(
+    store: PlaneStore,
+    *,
+    table: str,
+    columns: tuple[str, ...],
+    values: tuple[object, ...],
+    conflict_columns: tuple[str, ...],
+    update_columns: tuple[str, ...],
+) -> None:
+    validated_columns = tuple(_validate_identifier(col) for col in columns)
+    validated_conflict_columns = tuple(_validate_identifier(col) for col in conflict_columns)
+    validated_update_columns = tuple(_validate_identifier(col) for col in update_columns)
+    column_list = ", ".join(validated_columns)
+    placeholders = ", ".join(store.placeholder for _ in validated_columns)
+    conflict_list = ", ".join(validated_conflict_columns)
+    updates = ",\n            ".join(
+        f"{column} = excluded.{column}" for column in validated_update_columns
+    )
+    store.execute(  # nosec B608
+        f"""
+        INSERT INTO {store.table(table)} ({column_list})
+        VALUES ({placeholders})
+        ON CONFLICT({conflict_list}) DO UPDATE SET
+            {updates}
+        """,
+        values,
+        commit=True,
+    )
+
+
+def build_plane_store_set() -> PlaneStoreSet:
+    return PlaneStoreSet(
         control_database_url=settings.control_plane_database_url,
         data_database_url=settings.data_plane_database_url,
         control_schema=settings.control_plane_database_schema,
         data_schema=settings.data_plane_database_schema,
     )
+
+
+__all__ = [
+    "PlaneStore",
+    "PlaneStoreSet",
+    "build_plane_store_set",
+    "delete_by_column",
+    "fetch_next_position",
+    "fetch_payload",
+    "fetch_payloads",
+    "fetch_payloads_by_column",
+    "fetch_row_by_columns",
+    "serialize_model",
+    "to_uuid",
+    "upsert_payload",
+    "upsert_record",
+]

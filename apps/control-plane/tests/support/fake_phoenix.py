@@ -8,7 +8,7 @@ from app.agent_tracing.backends.phoenix import (
     build_phoenix_project_url,
     build_phoenix_trace_url,
 )
-from app.infrastructure.repositories import StateTraceRepository
+from app.modules.runs.adapters.outbound import StateTraceRepository
 from app.modules.shared.domain.models import TracingMetadata
 from app.modules.shared.domain.traces import TraceSpan
 

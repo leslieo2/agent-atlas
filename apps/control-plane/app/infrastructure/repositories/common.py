@@ -2,49 +2,50 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.db.persistence import StatePersistence, build_state_persistence, to_uuid
+from app.db.persistence import PlaneStoreSet, build_plane_store_set, to_uuid
 
 
-class _SupportsStatePersistence(Protocol):
+class _SupportsPlaneStoreSet(Protocol):
     @property
-    def current(self) -> StatePersistence: ...
+    def current(self) -> PlaneStoreSet: ...
 
 
-StatePersistenceSource = StatePersistence | _SupportsStatePersistence | None
+PlaneStoreSetSource = PlaneStoreSet | _SupportsPlaneStoreSet | None
 
 
-class StateStorage:
+class StateStoreContainer:
     def __init__(self) -> None:
-        self._persistence = build_state_persistence()
+        self._stores = build_plane_store_set()
 
     @property
-    def current(self) -> StatePersistence:
-        return self._persistence
+    def current(self) -> PlaneStoreSet:
+        return self._stores
 
     @property
     def enabled(self) -> bool:
-        return self._persistence.enabled
+        return self._stores.enabled
 
-    def reset_all(self) -> None:
-        self._persistence.reset_all()
-
-    def rebuild(self) -> StatePersistence:
-        self._persistence.close()
-        self._persistence = build_state_persistence()
-        return self._persistence
+    def rebuild(self) -> PlaneStoreSet:
+        self._stores.close()
+        self._stores = build_plane_store_set()
+        return self._stores
 
 
-state_storage = StateStorage()
+state_store_container = StateStoreContainer()
 
 
-def resolve_state_persistence(
-    persistence: StatePersistenceSource = None,
-) -> StatePersistence:
-    if persistence is None:
-        return state_storage.current
-    if isinstance(persistence, StatePersistence):
-        return persistence
-    return persistence.current
+def resolve_state_store(source: PlaneStoreSetSource = None) -> PlaneStoreSet:
+    if source is None:
+        return state_store_container.current
+    if isinstance(source, PlaneStoreSet):
+        return source
+    return source.current
 
 
-__all__ = ["StatePersistenceSource", "resolve_state_persistence", "state_storage", "to_uuid"]
+__all__ = [
+    "PlaneStoreSetSource",
+    "StateStoreContainer",
+    "resolve_state_store",
+    "state_store_container",
+    "to_uuid",
+]

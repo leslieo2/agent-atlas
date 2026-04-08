@@ -42,24 +42,23 @@ from app.infrastructure.adapters.framework_registry import (
     discover_framework_plugins,
 )
 from app.infrastructure.adapters.runtime import ModelRuntimeService
-from app.infrastructure.repositories import (
-    StateApprovalPolicyRepository,
-    StatePublishedAgentRepository,
-    StateSystemStatus,
-)
-from app.infrastructure.repositories.common import state_storage
+from app.infrastructure.repositories import StateSystemStatus
+from app.infrastructure.repositories.common import state_store_container
+from app.infrastructure.storage import StateStorageContributor
+from app.modules.agents.adapters.outbound import StatePublishedAgentRepository
 from app.modules.agents.application.ports import (
     FrameworkRegistryPort,
     PublishedAgentCatalogPort,
     PublishedAgentExecutionPort,
 )
-from app.modules.datasets.adapters.outbound.persistence.state import StateDatasetRepository
-from app.modules.experiments.adapters.outbound.persistence.state import (
+from app.modules.datasets.adapters.outbound import StateDatasetRepository
+from app.modules.experiments.adapters.outbound import (
     StateExperimentRepository,
     StateRunEvaluationRepository,
 )
-from app.modules.exports.adapters.outbound.persistence.state import StateExportRepository
-from app.modules.runs.adapters.outbound.persistence.state import (
+from app.modules.exports.adapters.outbound import StateExportRepository
+from app.modules.policies.adapters.outbound import StateApprovalPolicyRepository
+from app.modules.runs.adapters.outbound import (
     StateRunRepository,
     StateTraceRepository,
     StateTrajectoryRepository,
@@ -122,17 +121,30 @@ def _default_phoenix_otlp_endpoint(base_url: str | None) -> str | None:
 
 
 def build_infrastructure() -> InfrastructureBundle:
-    persistence = state_storage
-    run_repository = StateRunRepository(persistence)
-    trajectory_repository = StateTrajectoryRepository(persistence)
-    trace_repository = StateTraceRepository(persistence)
-    dataset_repository = StateDatasetRepository(persistence)
-    experiment_repository = StateExperimentRepository(persistence)
-    run_evaluation_repository = StateRunEvaluationRepository(persistence)
-    export_repository = StateExportRepository(persistence)
-    published_agent_repository = StatePublishedAgentRepository(persistence)
-    approval_policy_repository = StateApprovalPolicyRepository(persistence)
-    system_status = StateSystemStatus(persistence)
+    stores = state_store_container
+    run_repository = StateRunRepository(stores)
+    trajectory_repository = StateTrajectoryRepository(stores)
+    trace_repository = StateTraceRepository(stores)
+    dataset_repository = StateDatasetRepository(stores)
+    experiment_repository = StateExperimentRepository(stores)
+    run_evaluation_repository = StateRunEvaluationRepository(stores)
+    export_repository = StateExportRepository(stores)
+    published_agent_repository = StatePublishedAgentRepository(stores)
+    approval_policy_repository = StateApprovalPolicyRepository(stores)
+    system_status = StateSystemStatus(stores)
+    storage_contributors: list[StateStorageContributor] = [
+        run_repository,
+        trajectory_repository,
+        trace_repository,
+        dataset_repository,
+        experiment_repository,
+        run_evaluation_repository,
+        export_repository,
+        approval_policy_repository,
+        published_agent_repository,
+    ]
+    for contributor in storage_contributors:
+        contributor.init_schema()
     framework_plugins = discover_framework_plugins()
     framework_registry = FrameworkRegistry(plugins=framework_plugins)
     published_execution_dispatcher = PublishedAgentExecutionDispatcher(plugins=framework_plugins)

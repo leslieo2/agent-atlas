@@ -1,26 +1,29 @@
 from __future__ import annotations
 
 from app.infrastructure.repositories.common import (
-    StatePersistenceSource,
-    resolve_state_persistence,
-    state_storage,
+    PlaneStoreSetSource,
+    resolve_state_store,
+    state_store_container,
 )
+from app.infrastructure.storage import build_storage_contributors
 
 
 class StateSystemStatus:
-    def __init__(self, persistence: StatePersistenceSource = None) -> None:
-        self._persistence_source = persistence
+    def __init__(self, stores: PlaneStoreSetSource = None) -> None:
+        self._stores_source = stores
 
     def state_initialized(self) -> bool:
         return True
 
     def persistence_enabled(self) -> bool:
-        return bool(resolve_state_persistence(self._persistence_source).enabled)
+        return bool(resolve_state_store(self._stores_source).enabled)
 
 
 def reset_state() -> None:
-    persistence = state_storage.rebuild()
-    persistence.reset_all()
+    stores = state_store_container.rebuild()
+    for contributor in build_storage_contributors(stores):
+        contributor.init_schema()
+        contributor.reset_state()
 
 
 __all__ = ["StateSystemStatus", "reset_state"]

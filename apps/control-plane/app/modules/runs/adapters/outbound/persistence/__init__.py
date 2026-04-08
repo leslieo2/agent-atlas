@@ -1,5 +1,3 @@
-"""Outbound adapters for the runs context."""
-
 from app.modules.runs.adapters.outbound.persistence.state import (
     StateRunRepository,
     StateTraceRepository,

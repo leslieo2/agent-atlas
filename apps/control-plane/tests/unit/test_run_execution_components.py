@@ -27,7 +27,7 @@ from app.execution.application import (
     RunnerSubmissionRecord,
     RuntimeExecutionResult,
 )
-from app.infrastructure.repositories import (
+from app.modules.runs.adapters.outbound import (
     StateRunRepository,
     StateTraceRepository,
     StateTrajectoryRepository,
